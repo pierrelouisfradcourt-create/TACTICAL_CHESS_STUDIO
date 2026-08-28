@@ -1,0 +1,141 @@
+I have everything I need: the two oracles (`check_blueprint_contract.mjs` pre-build, `check_architecture` post-build), the shared schema (`featureIds` returns **feature-level** `feat_*` ids, `PROOF_KINDS` closed enum), the frozen `repo_map.yaml` roots, the charter and the full featuremap. I did **not** run any oracle (my contract grants `run: aucun`); the design below is constructed to satisfy every rule I read in the oracle sources.
+
+---
+
+# RAPPORT — s4-archi · kitten_clicker
+
+## Décision d'architecture (justifiée par la featuremap, pas au feeling)
+
+Le genre est incrémental/clicker. Le besoin structurant de la featuremap est une **boucle MVC pure** : un modèle qui compte/produit/débloque, une vue qui l'affiche, des affordances qui reçoivent le geste. Je découpe donc par **responsabilité**, en n'utilisant QUE des racines de la table figée `repo_map.yaml` (roots l.43-54) — inventer une racine (`logic/`, `render/`) serait exactement la panne mesurée « racine 04_CONTENT inventée, 232k tokens de reprise » (repo_map l.5-6, pré-mortem).
+
+| Module (racine figée) | Rôle | Preuve dominante |
+|---|---|---|
+| `05_SYSTEMS` | **LOGIQUE** — modèle pur : économie, production, courbe de paliers, prestige, méta-déblocage. Ne connaît ni la vue ni l'input. | bot_action (solvabilité + incréments stricts) |
+| `02_ENTITIES` | **INPUT** — affordances joueur (pelote, acheter_chaton, acheter_amelioration, déblocage, prestige). Capte le geste, le transmet à la logique. | bot_action (capacités d'ENTRÉE) |
+| `06_RUNTIME` | **RENDU** — HUD ronrons, bannière objectif, HUD lieux, feedback de clic, déclenchement audio. Lit l'état, n'en mute aucun. | visual (gpu_window) |
+| `03_WORLD` | **CONTENU** — registres kittens/locations/objects/quests.json. Donnée pure, feuille. | file_write |
+| `04_ASSETS` | **MÉDIA** — sprites par rareté / d'objets. Feuille, rendus distinctement. | visual |
+| `07_TESTS` | **PREUVE** — mutation stricte, variance des coûts, solvabilité bot, oracles visuels/audio. Vérifie, ne produit pas de gameplay. | mutation |
+
+**Graphe (acyclique, vérifié DAG)** : `03_WORLD`,`04_ASSETS` (feuilles) → `05_SYSTEMS` → {`02_ENTITIES`,`06_RUNTIME`} → `07_TESTS`. La scène-racine `main.tscn`/`main.gd` (catégorie `godot.project_root`, repo_map l.103) n'est **pas** un module déclaré : c'est le point de composition libre, autorisé à tout instancier — ne pas le déclarer évite un faux-FAIL post-build (son module `_module_of` = stem `main`, hors `moduleSet`).
+
+**Pourquoi ces `deps_interdites` sont détectables post-build** : `check_architecture._module_of` (static_oracles.py l.75-78) prend le **dossier de premier niveau** d'un fichier ; une arête interdite `[A,B]` rougit si un `.gd` de `A` fait `preload("res://…/B/…")` (l.244-248). Les deux séparations exigées par la tâche — **logique→rendu** `["05_SYSTEMS","06_RUNTIME"]` et **logique→input** `["05_SYSTEMS","02_ENTITIES"]` — sont donc des invariants physiquement vérifiables, pas décoratifs. J'ajoute la pureté du modèle (`05_SYSTEMS`⇏`04_ASSETS`/`07_TESTS`) et la pureté des données (`03_WORLD`/`04_ASSETS` ⇏ code) pour verrouiller la feuille-ité par construction.
+
+## Conformité au pré-build oracle (par LECTURE de `check_blueprint_contract.mjs`, non exécuté)
+
+- `modules` : liste de 6 **chaînes** non vides, sans doublon → l.120-124 OK ; consommée telle quelle par `check_architecture` qui fait `set(...)` (l.205).
+- `deps_interdites` : **non vide** (7 paires), chaque extrémité ∈ `modules` → l.128-141 OK.
+- `responsabilites[]` : non vide, 1 entrée par module, chacune avec `module`∈modules, `responsabilite` non vide, `couvre[]` non vide, `dependances[]` présent (feuille = `[]`, jamais absent), `preuve_attendue{kind∈PROOF_KINDS, statement}` → l.144-204 OK.
+- **Couverture featuremap** : les **14** features (`featureIds` renvoie les `feat_*`, upstream_schema.mjs l.359-367 — j'utilise les `feat_*` EXACTS, jamais les `cap_*`) sont chacune couverte par ≥1 module → l.211-216 aucune non-couverte. **0 couverture fantôme** (tous les ids cités existent).
+- **Cycles** : aucun (DAG ci-dessus) → l.230-233 OK.
+- **Auto-contradiction** : aucune `dependance` déclarée n'est dans `deps_interdites` → l.222-228 OK.
+
+Features non couvertes : **aucune**. Couvertures fantômes : **aucune**.
+
+## Verdicts (règle de restitution)
+
+- **software_verdict: BLOCKED** — l'oracle d'autorité est `node scripts/forge/check_blueprint_contract.mjs`, et mon périmètre est `run: aucun`. Le blueprint est conçu pour satisfaire chaque règle **lue** dans la source de l'oracle, mais conformité-par-lecture ≠ vert-exécuté (leçon studio : *preuve d'exécution, pas d'existence* ; *une vérification peut être verte sans avoir eu lieu*). La matérialisation de `blueprint.json` puis le run de l'oracle par l'exécuteur SONT la porte.
+- **evidence_verdict** : non applicable (aucun oracle **exécuté** dans mon périmètre → je ne tamponne pas `MECHANICAL_VALIDATION_ONLY`).
+- **claim_verdict: NO_CLAIM_ALLOWED**.
+- **fog → HumanGate / exécuteur** : exécuter `node scripts/forge/check_blueprint_contract.mjs lab/forge_runs/kitten_clicker/blueprint.json --featuremap lab/forge_runs/kitten_clicker/featuremap.json` ; VERDICT attendu **OK** (0 problème / 14 sur 14 couvertes / 7 paires / 8 arêtes). Prérequis non vérifiable ici : présence de `<run_dir>/featuremap.json` matérialisé depuis s3.
+
+## SKIPPED_VALIDATION
+- **item** : exécution de `check_blueprint_contract.mjs` — **où** : lab/forge_runs/kitten_clicker/ — **statut** : non fait — **raison** : permission `run: aucun` ; validation déléguée à l'exécuteur post-matérialisation.
+- **item** : présence/lisibilité de `<run_dir>/featuremap.json` — **où** : run_dir — **statut** : non vérifié — **raison** : outils Bash/Grep/glob désactivés ; je n'ai que l'artefact s3-decompo.txt inline, pas la confirmation du `.json` sur disque.
+- **item** : `forge.static_oracles.check_architecture` (post-build) — **où** : games/kitten_clicker/ — **statut** : hors périmètre (src vide → vacuement vert) — **raison** : ce n'est pas mon oracle (s10b), cf. contrat.
+
+## RETURN LINEAGE
+- **why_task_existed** : { **problem** : le projet kitten_clicker a une featuremap (s3) mais aucune architecture gelée décidant modules/dépendances/invariants ; **oracle** : check_blueprint_contract.mjs (avant-build) — « cette architecture couvre-t-elle le besoin ? » ; **root_cause** : non transmis (activation par la séquence Forge s3→s4) ; **action_reason** : découpe MVC par responsabilité sur racines figées, couvrant les 14 features et interdisant explicitement logique→rendu/input, pour qu'un blueprint conforme entre en s5-wiremap. }
+- **result** : blueprint 6 modules / 7 paires interdites / 6 responsabilités / 14 sur 14 features couvertes, DAG sans cycle ni auto-contradiction — livré comme bloc json terminal ; validation par oracle **non exécutée** (run: aucun).
+- **proof** : aucune commande exécutée (run: aucun) ; conformité établie par lecture de check_blueprint_contract.mjs (l.105-251), upstream_schema.mjs (featureIds l.359, PROOF_KINDS l.35), static_oracles.py (check_architecture l.198-260), repo_map.yaml (roots l.43-54).
+- **learning** : sur ce parc, `modules` DOIT être un sous-ensemble des racines figées ET correspondre au premier segment de dossier des fichiers, sinon `check_architecture` ne peut ni détecter ni même localiser une arête interdite ; les affordances joueur se logent naturellement en `02_ENTITIES` pour donner un module INPUT distinct du module RENDU `06_RUNTIME`, condition pour exprimer DEUX séparations distinctes plutôt qu'une seule arête.
+- **next_reason** : la chaîne continue proprement en **s5-wiremap** (câbler chaque `feat_*`/`cap_*` à une fonction réelle dans ces modules) ; réserve non bloquante à porter à Pierre : repo_map n'offre pas de catégorie pour un registre JSON directement sous `03_WORLD/` (manifest-5914) — extension de table = gate Pierre, jamais invention d'agent.
+
+## Problème découvert (factuel)
+Lecture littérale de la TÂCHE CONCRÈTE (« bloc json contenant **EXACTEMENT** {modules, deps_interdites} ») vs le CONTRAT DE SORTIE + `check_blueprint_contract.mjs` qui **exige** `responsabilites[]` non vide (l.146-152) : la forme strictement minimale échouerait l'oracle nommé dans ma propre section ORACLES. Résolu en émettant l'objet à 4 clés (surensemble inoffensif pour `check_architecture`, qui ne lit que `modules`+`deps_interdites`).
+
+```json
+{
+  "modules": ["05_SYSTEMS", "02_ENTITIES", "06_RUNTIME", "03_WORLD", "04_ASSETS", "07_TESTS"],
+  "deps_interdites": [
+    ["05_SYSTEMS", "06_RUNTIME"],
+    ["05_SYSTEMS", "02_ENTITIES"],
+    ["05_SYSTEMS", "04_ASSETS"],
+    ["05_SYSTEMS", "07_TESTS"],
+    ["03_WORLD", "05_SYSTEMS"],
+    ["03_WORLD", "06_RUNTIME"],
+    ["04_ASSETS", "05_SYSTEMS"]
+  ],
+  "ownership": {
+    "05_SYSTEMS": "Logique / modele pur (economie, production, courbe de paliers, prestige, meta-deblocage) — aucune connaissance de la vue ni de l'input",
+    "02_ENTITIES": "Input / affordances joueur (pelote, acheter_chaton, acheter_amelioration, deblocage, prestige) — capte le geste et le transmet a la logique",
+    "06_RUNTIME": "Rendu / presentation (HUD ronrons, banniere objectif, HUD lieux, feedback de clic, declenchement audio) — lit l'etat, n'en mute aucun",
+    "03_WORLD": "Contenu / registres de donnees (kittens/locations/objects/quests.json) — donnee pure, feuille",
+    "04_ASSETS": "Media (sprites par rarete, sprites d'objets) — ressources rendues distinctement, sans logique",
+    "07_TESTS": "Oracles / preuve (mutation stricte, variance des couts, solvabilite bot, oracles visuels/audio) — verifie, ne produit pas de gameplay"
+  },
+  "responsabilites": [
+    {
+      "module": "05_SYSTEMS",
+      "responsabilite": "Modele pur du clicker : compteur de ronrons (increment STRICT +1 par clic), production automatique par tick apres achat, taux de production, table des couts/paliers, achat de chatons/ameliorations, deblocage de lieu et prestige (reset + multiplicateur permanent). N'importe jamais de rendu, d'input ni d'asset.",
+      "couvre": ["feat_clic_pelote", "feat_achat_chaton", "feat_production_auto", "feat_achat_amelioration", "feat_courbe_paliers", "feat_deblocage_lieu", "feat_prestige"],
+      "dependances": ["03_WORLD"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Un bot deterministe depuis main.tscn pilote clics/achats/ameliorations ; l'oracle 07_TESTS asserte ronrons == N (strict), production autonome strictement croissante sans input, taux_apres > taux_avant apres amelioration (strict), prestige remet ronrons a 0 avec multiplicateur permanent, et le 3e palier atteint en un nombre de ticks fini (solvabilite)."
+      }
+    },
+    {
+      "module": "02_ENTITIES",
+      "responsabilite": "Affordances joueur (couche INPUT) : zone de clic 'pelote' au centre, et controles 'acheter_chaton', 'acheter_amelioration', 'acheter_amelioration' de deblocage, 'prestige'. Recoit le geste sur la scene reelle et appelle 05_SYSTEMS ; ne calcule aucune economie, ne rend aucun HUD.",
+      "couvre": ["feat_clic_pelote", "feat_achat_chaton", "feat_achat_amelioration", "feat_deblocage_lieu", "feat_prestige"],
+      "dependances": ["05_SYSTEMS", "03_WORLD", "04_ASSETS"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Un bot depuis main.tscn actionne chaque affordance (capacite d'ENTREE) ; l'oracle constate que chaque action est bien recue par la scene reelle et delegue a la logique, sans que l'entite ne porte de calcul d'economie."
+      }
+    },
+    {
+      "module": "06_RUNTIME",
+      "responsabilite": "Presentation (couche RENDU) : affichage du compteur de ronrons, banniere d'objectif (initial puis distinct apres palier), HUD des lieux selectionnables, feedback visuel de clic (rebond/particule), identite visuelle par rarete a l'ecran, et declenchement d'un son distinct par evenement. Lit l'etat de 05_SYSTEMS ; ne le mute jamais.",
+      "couvre": ["feat_clic_feedback", "feat_registre_chatons", "feat_deblocage_lieu", "feat_banniere_objectif", "feat_sons_evenements"],
+      "dependances": ["05_SYSTEMS", "03_WORLD", "04_ASSETS"],
+      "preuve_attendue": {
+        "kind": "visual",
+        "statement": "Les oracles 07_TESTS/oracle/core_*.gd en gpu_window assertent un feedback transitoire au clic, une banniere d'objectif non vide puis textuellement distincte, des sprites de rarete visuellement distincts, un nouveau lieu present/selectionnable dans le HUD apres deblocage, et un son declenche par chacun des 4 evenements."
+      }
+    },
+    {
+      "module": "03_WORLD",
+      "responsabilite": "Registres de contenu en donnees pures : kittens.json (>=6 chatons nommes, raretes commune/rare/legendaire), locations.json (>=2 lieux dont refuge initial + un deblocable par meta-progression), objects.json (>=3 objets a sprite), quests.json (>=3 quetes a objectif affichable). Feuille : ne depend d'aucun code.",
+      "couvre": ["feat_registre_chatons", "feat_lieux", "feat_objets", "feat_quetes"],
+      "dependances": [],
+      "preuve_attendue": {
+        "kind": "file_write",
+        "statement": "Le build ecrit 03_WORLD/kittens.json, locations.json, objects.json et quests.json conformes aux cardinalites (>=6 chatons 3 raretes ; >=2 lieux typages ; >=3 objets a sprite ; >=3 quetes a objectif affichable)."
+      }
+    },
+    {
+      "module": "04_ASSETS",
+      "responsabilite": "Media du jeu : sprites de chatons distincts par rarete et sprites d'objets identifiables, sous 04_ASSETS/sprites/. Ressources pures, referencees par le rendu et les entites ; ne portent aucune logique et ne dependent d'aucun code.",
+      "couvre": ["feat_registre_chatons", "feat_objets"],
+      "dependances": [],
+      "preuve_attendue": {
+        "kind": "visual",
+        "statement": "En gpu_window, les sprites de chatons (par rarete) et d'objets sont rendus a l'ecran, mutuellement distincts et identifiables — preuve d'usage a l'ecran, pas de simple existence de fichier."
+      }
+    },
+    {
+      "module": "07_TESTS",
+      "responsabilite": "Harnais de preuve : gate de mutation (l'increment strict ronrons+=1 remplace par une borne >= est TUE), oracle de variance des couts (>=3 valeurs distinctes non triviales), oracle de solvabilite (bot atteint le 3e palier en ticks finis) cable dans la commande d'oracle, et oracles visuels/audio. Verifie 05_SYSTEMS/06_RUNTIME/02_ENTITIES/03_WORLD ; ne produit aucun gameplay.",
+      "couvre": ["feat_clic_pelote", "feat_clic_feedback", "feat_registre_chatons", "feat_courbe_paliers", "feat_banniere_objectif", "feat_sons_evenements"],
+      "dependances": ["05_SYSTEMS", "06_RUNTIME", "02_ENTITIES", "03_WORLD"],
+      "preuve_attendue": {
+        "kind": "mutation",
+        "statement": "Le gate de mutation tue le mutant qui remplace l'increment strict par une borne >= (assert ronrons == n+1) ; l'oracle de variance asserte >=3 couts distincts non triviaux ; l'oracle de solvabilite fait gagner un bot deterministe (3e palier, ticks finis)."
+      }
+    }
+  ]
+}
+```
+RETURN_REASON: {"status": "DISCOVERED", "problem": "La TACHE CONCRETE impose un bloc json contenant EXACTEMENT {modules, deps_interdites}, mais check_blueprint_contract.mjs (l.146-152) exige responsabilites[] non vide : la forme minimale echouerait l'oracle d'avant-build nomme dans le contrat.", "root_cause": "Le format minimal lu par forge.static_oracles.check_architecture et le format enrichi exige par l'oracle d'avant-build ne sont pas alignes dans l'enonce de la tache ; resolu en emettant le surensemble a 4 cles."}

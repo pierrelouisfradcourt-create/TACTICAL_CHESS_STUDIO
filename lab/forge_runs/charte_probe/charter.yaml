@@ -1,0 +1,71 @@
+objectif: 'Produire un roguelike de donjon SOLO en Godot 4, structure run-based a
+  la Hades (une partie = une descente ; la mort renvoie au hub ; un PNJ d''accueil
+  recurrent ponctue chaque retour), ou le joueur incarne un archiviste enferme dans
+  une bibliotheque infinie qui se reecrit a chaque mort. Toile de fond : deux factions
+  s''opposent sur la conservation ou la destruction des livres ; la Bibliothecaire
+  accueille le joueur a chaque retour au hub. OBJECTIF DU JOUEUR : traverser les salles
+  et atteindre la Salle des Origines.'
+hors_scope:
+- Multijoueur, coop ou reseau sous toute forme — le jeu est explicitement SOLO.
+- Toute autre cible technique que Godot 4 (web/HTML, mobile natif, autre moteur) —
+  hors gate Pierre.
+- Toute autre reference de jeu que Hades comme modele structurel (choix Pierre, non
+  substituable par un agent).
+- Meta-progression complete facon Hades au-dela du minimum demande (arsenal d'armes,
+  miroir de deblocages, arbre de relations PNJ etendu) — reservee a des iterations
+  ulterieures, non demandee ici.
+- Ecriture narrative exhaustive des deux factions au-dela de leur presence en toile
+  de fond et de la Bibliothecaire d'accueil (dialogues complets, lore etendu, embranchements).
+- Direction artistique definitive et assets finaux (Art Bible = etape ulterieure,
+  hors station s0).
+- Decisions d'architecture, de wiremap et de generation procedurale des salles (etapes
+  s3/s4/s5, hors s0).
+- Toute ecriture hors charter.yaml (code, scene, systeme) et toute lane protegee (src/,
+  tests/, autopilot.py).
+criteres_succes:
+- 'Point d''entree runtime present ET lancable en Godot 4 : scene principale + bootstrap
+  declares et executables (invariant structurel verifie en ABSENCE comme en presence
+  — un jeu peut tout prouver et rester impossible a lancer).'
+- Une partie (run) se joue du hub jusqu'a au moins une salle, avec une condition de
+  resolution de salle EXPLICITE et testee de facon STRICTE (salle resolue == etat
+  vrai, jamais un >= tautologique).
+- La resolution d'une salle declenche l'ouverture d'une porte OBSERVABLE a l'ecran
+  (lien direct avec criteres_demo — la preuve est visuelle, pas un flag interne).
+- 'La mort renvoie le joueur au hub aupres de la Bibliothecaire, et une nouvelle partie
+  est relancable (boucle run-based fermee : descente -> mort -> retour -> nouvelle
+  descente).'
+- 'La Salle des Origines existe comme objectif ATTEIGNABLE : la solvabilite est prouvee
+  par un bot qui GAGNE (atteint la Salle des Origines), pas seulement par des mecaniques
+  testees en isolation.'
+- 'Une session automatique bornee se deroule sans exception non gardee (entrees invalides
+  absorbees, etat de partie jamais invalide), et toute preuve d''execution porte un
+  evidence_path (sans lui : execution non prouvable = BLOCKED).'
+actions_interdites:
+- 'Ne pas introduire de multijoueur/coop/reseau : le jeu reste SOLO.'
+- Ne pas changer de moteur ni de plateforme cible (Godot 4 impose) sans gate Pierre
+  explicite.
+- 'Ne pas substituer une autre reference a Hades : reference_jeu est une decision
+  Pierre, jamais d''agent.'
+- 'Ne pas prouver le critere de demo par un critere mecanique interne (log, flag,
+  assertion) au lieu d''un observable a l''ecran : la porte doit s''OUVRIR VISIBLEMENT
+  quand la salle est resolue.'
+- 'Ne pas ecrire un test tautologique (>= masquant une mecanique morte) : asserter
+  le comportement STRICT.'
+- 'Ne pas rendre software_verdict: OK sans preuve d''execution adossee a un oracle
+  deterministe non-LLM.'
+- Ne pas utiliser d'API LLM externe ni d'assets non-libres sans validation Pierre.
+- Ne pas toucher aux lanes protegees (src/, tests/, autopilot.py, scripts/studioV2/)
+  ni git commit/push sans go Pierre.
+plateforme_cible: 'Godot 4 (moteur de jeu ; cible desktop). Source : prompt Pierre
+  (verbatim « en Godot 4 »).'
+reference_jeu: 'Hades (Supergiant Games) — modele roguelike run-based : une partie
+  = une descente, la mort renvoie au hub, un PNJ d''accueil recurrent (ici la Bibliothecaire)
+  ponctue chaque retour et la progression se construit d''un run a l''autre. CHOIX
+  EXPLICITE PIERRE (prompt : « reference_jeu CHOISI PAR PIERRE : Hades »), jamais
+  suppose par l''agent.'
+criteres_demo:
+- Une porte VISIBLE s'ouvre a l'ecran lorsqu'une salle est resolue — critere observable
+  explicite du prompt Pierre (« La demo doit montrer une porte qui s'ouvre a l'ecran
+  quand une salle est resolue »). Seul critere de demo trace a une source Pierre ;
+  toute autre exigence observable de demo est remontee en fog HumanGate, pas inventee
+  ici.

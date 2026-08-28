@@ -1,0 +1,77 @@
+# KITTEN CLICKER — contrat de jeu (budget + descripteur de preuve).
+# Format : scripts/forge/standard/SCHEMA.md §1 (schema FERME) + descripteur de preuve
+# docs/forge/CONTRAT_PREUVE_MUTATION_V1.md. Gabarit : games/bomberman_3d + breakout_v2.
+# Run : kitten_clicker-20260821h2 / s9-build-godot-standard. NO_CLAIM_ALLOWED.
+schema_version: 1
+game_id: kitten_clicker
+# node : PLACEHOLDER orchestrateur (genre incremental/clicker, hors curriculum ratifie).
+# Valeur entiere requise par le schema ferme ; le rang exact est un gate Pierre.
+node: 7
+runtimes: [rules, godot]
+
+budget:
+  # reuses : VIDE. Aucune brique de bibli, tier `validated`, applicable a un clicker
+  # Godot (meme constat que Snake/Breakout_v2/Bomberman). La reutilisation d'audio
+  # pacman est un CODE_COPIE (empreinte), pas une brique de bibliotheque.
+  reuses: []
+  # adds : VIDE. Ce build ne DEPOSE aucune brique en bibliotheque (loi d'empilement,
+  # budget.adds <= 1 respecte). L'economie du clicker est collee a ce jeu.
+  adds: []
+
+assets:
+  # `generated` (plan B) : le studio n'a aucun generateur d'images 2D et aucun CC0 ne
+  # convient — le builder a ECRIT lui-meme 16 sprites SVG (art_bible flat-cute-svg),
+  # importes par Godot 4.6.3 comme textures.
+  plan: generated
+
+# =====================================================================================
+# DESCRIPTEUR DE PREUVE — contrat docs/forge/CONTRAT_PREUVE_MUTATION_V1.md (FIGE).
+# =====================================================================================
+proof:
+  schema_version: 1
+  runtime: godot
+
+  mutation:
+    # Regle de forme 4 : toute categorie presente dans la wiremap est jugee ou exclue.
+    # Categories de la wiremap gelee : system, system.adapter, world.rules,
+    # asset.sprite, test.oracle, test.solvability. Seul `system` (logique pure de
+    # l'economie) est MUTABLE ; les adaptateurs (rendu/entree), le contenu, les sprites
+    # et les oracles ne sont PAS du code de regle a muter en aveugle (mesure Pong :
+    # systemes purs 95% de mutants tues, adaptateurs 0%).
+    categories_mutables: [system]
+    categories_exclues:
+      - system.adapter        # entree/rendu -> oracle produit + probes, pas mutation
+      - world.rules           # registres JSON (chatons/lieux/objets/quetes) : donnee
+      - asset.sprite          # SVG : media, rien a muter
+      - test.oracle           # volets de preuve
+      - test.solvability      # bot de solvabilite
+      - godot.project_root    # main.tscn / main.gd / project.godot : assemblage, exclu
+      - godot.project_tests   # tests/run_tests.gd : le harnais lui-meme
+      - reference.observation # preventif (non employe par cette wiremap)
+      - asset.mesh            # preventif (non employe : jeu 2D)
+
+    command: ["<bin:godot>", "--headless", "--path", ".", "--script", "res://tests/run_tests.gd"]
+    cwd: "games/kitten_clicker"
+    binary_ref: godot
+    expects_exit_zero: true
+
+    budget:
+      # NON CALIBRE : point de depart [H] (patron Snake/Breakout). 7 fichiers de logique
+      # pure, petits ; a recalibrer sur mesure reelle du driver, jamais apres depassement.
+      max_mutants: 200          # A_CALIBRER
+      timeout_per_mutant_s: 30  # A_CALIBRER
+      total_timeout_s: 900      # A_CALIBRER
+      cost_class: engine
+
+    seals:
+      wrapper: []
+      test_scripts: ["tests/run_tests.gd"]
+
+  solvability:
+    # Volet de solvabilite : un bot deterministe joue depuis main.tscn (InputEvent +
+    # lecture de Label uniquement, garde V4) et atteint le 3e palier (palier >= 3).
+    # Mesure du builder : 3e palier atteint en 48 trames (non trivial), ok=true.
+    entry: "07_TESTS/oracle/solvability.gd"
+    max_ticks: 3000            # A_CALIBRER (borne large ; mesure builder : 48 trames)
+    trials: 5                  # repris par coherence de methode, pas par mesure
+    trial_timeout_ms: 60000

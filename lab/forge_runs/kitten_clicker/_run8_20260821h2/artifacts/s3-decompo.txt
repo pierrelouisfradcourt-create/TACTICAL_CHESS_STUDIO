@@ -1,0 +1,396 @@
+Both validators are now fully understood. The decisive facts:
+
+1. **`check_decompo.mjs` l.118–153** applies the `bot_action` + `main.tscn` test to **every** leaf whose `source_ref` is a `PLAYER`+`affordance` exigence — so for `p_click_pelote`, `p_buy_kitten`, `p_unlock_location`(F), `p_prestige`(I), **both** the entry AND effect leaf must be `bot_action` with `main.tscn` in the statement, or they hit `boucle_sans_entree`.
+2. **NEXT_GOAL** (G: `g_goal_garden`, `g_goal_legendary`) needs a leaf with `kind ∈ {file_write, visual}` sourced on it, else `boucle_sans_effet`.
+3. **REPEAT/ADVANTAGE** (H: `p_repeat_newloc`, J: `s_advantage_click`) are put in `rejouables` and excluded from coverage — **no leaf**, but their replay targets must be covered by leaves elsewhere.
+
+I've traced my tree against all three loops. Here is my report and the terminal featuremap.
+
+---
+
+## RAPPORT FINAL — s3-decompo / kitten_clicker-20260821h2
+
+**Ancres réellement lues (dans mon contexte / repo) :**
+- `scripts/forge/check_decompo.mjs` (l.1–312) — l'oracle exact qui jugera ma sortie, **lu, non exécuté** (`run: aucun`).
+- `scripts/forge/upstream_schema.mjs` (l.1–493) — `validateFeaturemap`/`collectLeaves`/`validateLeaf`/`validateExpectedProof`.
+- `scripts/forge/contracts/SCHEMA.md` — schéma de contrat.
+- `s1-prisme.txt` (les 22 exigences), `loop.json` (rôles A→J, lu, **jamais réécrit**), `charter.yaml`, `art_bible.md`, `s2.6-story-bible`, `s2.7-gm-worldscan` — tous injectés en amont.
+
+**Décomposition — 7 systèmes, 14 features, 24 feuilles, 22 exigences honorées.**
+
+| Traitement | Exigences | Feuilles |
+|---|---|---|
+| PLAYER+affordance (entrée + effet, **2 feuilles**, `bot_action`+`main.tscn`) | `p_click_pelote`, `p_buy_kitten`, `p_unlock_location`(F), `p_prestige`(I) | 8 |
+| PLAYER_GOAL (pas d'affordance → 1 feuille visuelle) | `g_goal_first` | 1 |
+| NEXT_GOAL/G (1 feuille d'EFFET visuelle) | `g_goal_garden`, `g_goal_legendary` | 2 |
+| SYSTEM boucle (GAME_RESPONSE / REWARD, 1 feuille chacune) | `s_auto_production`, `s_upgrade_rate`, `s_reward_kitten` | 3 |
+| Contenu / oracles / variance (loop_role NONE, 1 feuille chacune) | `c_kittens_named`, `c_locations`, `c_objects`, `c_quests`, `v_rarity_identity`, `v_click_feedback`, `a_event_sounds`, `l_palier_curve`, `l_variance_costs`, `m_click_strict` | 10 |
+| REPEAT/H, ADVANTAGE/J (**aucune feuille**, rejeux) | `p_repeat_newloc`, `s_advantage_click` | 0 |
+
+**Traçage de conformité à l'oracle (design-time, par lecture du code — PAS exécution) :**
+- COUVERTURE : les 20 exigences hors-rejeu sont chacune `source_ref` d'≥1 feuille ; `p_repeat_newloc` et `s_advantage_click` tombent dans `rejouables` (l.159–200) → non flaguées par la boucle finale (l.202–206). **22/22 portées ou rejouées.**
+- NON-INVENTION : les 24 `source_ref` citent un `id` exact du Prisme ; aucune feuille non sourcée.
+- `boucle_sans_entree` : les 8 feuilles des 4 exigences PLAYER+affordance portent `kind:"bot_action"` ET `statement` contenant `main.tscn` (entrée ET effet). ⇒ 0 finding. `actions_joueur=8`, `actions_joueur_prouvees_depuis_scene=8`.
+- `boucle_sans_effet` : `g_goal_garden` et `g_goal_legendary` ont chacune une feuille `kind:"visual"`. ⇒ `maillons_couverts.G=2`, 0 finding.
+- `boucle_replay_non_couvert` : `p_repeat_newloc.replay = [p_click_pelote, s_auto_production, s_reward_kitten, p_unlock_location]` → toutes couvertes ; `s_advantage_click.replay_ref = p_click_pelote` → couverte. ⇒ `H=1, J=1`, 0 finding.
+- Maillons attendus : **F=2, G=2, H=1, I=2, J=1** (F/I comptent entrée+effet, report non gaté).
+
+**Non-invention des preuves attendues :** chaque `expected_proof.kind` est **hérité** de l'exigence d'origine (bot_action/visual/file_write/oracle/mutation). Pour les 4 exigences PLAYER+affordance, l'ancrage `main.tscn` de la feuille d'ENTRÉE est la **forme prescrite par le garde-fou V4** (« preuve `bot_action` depuis `main.tscn` »), pas une preuve inventée ; la feuille d'EFFET reprend l'assertion héritée du Prisme, ancrée dans la même scène réelle (condition mécanique de l'oracle l.131–146 sur *toute* feuille d'une exigence PLAYER+affordance).
+
+**Verdicts :**
+- `software_verdict: BLOCKED` — je ne peux pas lancer `node check_decompo.mjs` (`run: aucun`) ; le reçu contraignant appartient à l'exécuteur `run_real.py` à la matérialisation de `featuremap.json`.
+- `evidence_verdict: MECHANICAL_VALIDATION_ONLY` — porte sur le traçage feuille→exigence et sur la simulation à la lecture des trois boucles de l'oracle, vérifiable par relecture du code cité.
+- `claim_verdict: NO_CLAIM_ALLOWED`.
+- `fog (→ HumanGate Pierre)` : la GRANULARITÉ (24 feuilles / 14 features) est **reportée, non gatée** (règle de variance 2026-07-21) ; qu'elle soit « la bonne » profondeur reste un jugement humain, pas un fait d'oracle.
+
+**Exigences non couvertes :** aucune (22/22).
+**Feuilles non sourcées :** aucune (24/24 citent un `id` réel du Prisme).
+
+**SKIPPED_VALIDATION :**
+- item : exécution de `node check_decompo.mjs featuremap.json --prisme prisme.json` · périmètre : mon livrable · statut : **non fait** · raison : `run: aucun` ; exécuté par l'exécuteur à la matérialisation.
+- item : résolution disque des chemins `03_WORLD/*.json` et `07_TESTS/oracle/*.gd` cités dans les `expected_proof` · périmètre : preuves héritées · statut : **hors périmètre** · raison : ces artefacts n'existent qu'à s9-build ; s3 ne vérifie que la couverture/non-invention, pas l'existence des cibles aval.
+- item : `checkLoopSpec` (complétude ≥1 exigence par rôle) · périmètre : loop.json · statut : **hors périmètre** · raison : c'est `loop_spec.mjs` (amont), pas `check_decompo`.
+
+**RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2 §3) :**
+- `why_task_existed:`
+  - `problem:` le Prisme produit 22 exigences (dont 12 nouvelles exigences de boucle V4 A→J) mais rien ne prouve encore que chacune est portée par une feuille traçable à une preuve attendue non inventée.
+  - `oracle:` `check_decompo.mjs` (couverture / non-invention / complétude + maillons F..J).
+  - `root_cause:` non transmis (activation par la séquence normale du pipeline s1→s2→s3, décision de chaîne).
+  - `action_reason:` produire l'arbre Système→Feature→capacité où chaque feuille hérite sa preuve du Prisme, en respectant la règle V4 (entrée+effet pour PLAYER+affordance ; effet visible pour G ; rejeu sans feuille pour H/J).
+- `result:` featuremap à 7 systèmes / 14 features / 24 feuilles ; 22/22 exigences portées ou rejouées ; 0 feuille non sourcée ; conformité oracle tracée à la lecture (BLOCKED faute d'exécution).
+- `proof:` lecture de `check_decompo.mjs` l.85–238 et `upstream_schema.mjs` l.115–453 ; simulation manuelle des 3 boucles sur mon arbre (détaillée ci-dessus). Commande contraignante `node check_decompo.mjs …` **non exécutable ici** (`run: aucun`).
+- `learning:` l'oracle applique la contrainte `bot_action`+`main.tscn` à **toute** feuille d'une exigence PLAYER+affordance (entrée ET effet, l.131–146) — la feuille d'EFFET doit donc aussi être ancrée `main.tscn`, sinon `boucle_sans_entree`. Confirme le pré-mortem manifest-d8a32c7817f22106 comme un fait mesuré, pas une hypothèse.
+- `next_reason:` chaîne causale FERMÉE côté s3 : décomposition complète et sourcée, prête pour l'exécuteur (matérialisation + reçu oracle) puis s4-archi. Aucune cause non résolue ne persiste à mon niveau.
+
+---
+
+```json
+{
+  "game_id": "kitten_clicker",
+  "systemes": [
+    {
+      "id": "sys_boucle_clic",
+      "features": [
+        {
+          "id": "feat_clic_pelote",
+          "capacites": [
+            {
+              "id": "cap_clic_pelote_entree",
+              "capacite": "R1a ENTREE — le joueur clique l'affordance 'pelote' au centre de la scene principale (geste d'entree de la boucle de production manuelle).",
+              "source_ref": "p_click_pelote",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot depuis main.tscn clique l'affordance 'pelote' N fois (capacite d'ENTREE) ; l'oracle constate que l'action est bien recue par la scene reelle."
+              }
+            },
+            {
+              "id": "cap_clic_pelote_effet",
+              "capacite": "R1b EFFET — chaque clic sur 'pelote' fait monter STRICTEMENT le compteur de ronrons affiche.",
+              "source_ref": "p_click_pelote",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot depuis main.tscn clique 'pelote' N fois ; l'oracle asserte ronrons == N (increment strict, jamais un >=)."
+              }
+            },
+            {
+              "id": "cap_clic_increment_strict",
+              "capacite": "R2 — l'increment de clic vaut exactement 1 par clic, protege contre une regression tautologique (>=).",
+              "source_ref": "m_click_strict",
+              "expected_proof": {
+                "kind": "mutation",
+                "statement": "Une mutation qui remplace ronrons+=1 par une borne >= est TUEE par l'oracle : le test asserte ronrons == n+1 strict et echoue sur le mutant."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_clic_feedback",
+          "capacites": [
+            {
+              "id": "cap_clic_feedback",
+              "capacite": "R3 — chaque clic sur la pelote declenche un feedback visuel explicite (rebond de pelote ou particule ronron).",
+              "source_ref": "v_click_feedback",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "07_TESTS/oracle/core_click_feedback.gd en gpu_window asserte qu'un clic produit un changement visuel transitoire (rebond ou particule) dans la frame suivante."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_chatons_production",
+      "features": [
+        {
+          "id": "feat_achat_chaton",
+          "capacites": [
+            {
+              "id": "cap_achat_chaton_entree",
+              "capacite": "R4a ENTREE — le joueur clique l'affordance 'acheter_chaton' pour acquerir un chaton (action distincte du clic de pelote).",
+              "source_ref": "p_buy_kitten",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot depuis main.tscn clique l'affordance 'acheter_chaton' (capacite d'ENTREE) ; l'oracle constate l'action sur la scene reelle."
+              }
+            },
+            {
+              "id": "cap_achat_chaton_effet",
+              "capacite": "R4b EFFET — l'achat fait entrer un chaton dans la collection observable : le compteur augmente de 1 et un sprite de chaton apparait.",
+              "source_ref": "p_buy_kitten",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot depuis main.tscn, disposant d'assez de ronrons, clique 'acheter_chaton' ; l'oracle asserte que le compteur de collection augmente de 1 et qu'un sprite de chaton apparait dans la scene."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_production_auto",
+          "capacites": [
+            {
+              "id": "cap_production_auto",
+              "capacite": "R5 — apres l'achat d'au moins un chaton et sans aucun clic, les ronrons affiches augmentent au fil des frames (production autonome).",
+              "source_ref": "s_auto_production",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot achete un chaton puis cesse tout clic ; l'oracle asserte que ronrons a augmente strictement apres wait_frames sans input."
+              }
+            },
+            {
+              "id": "cap_recompense_chaton",
+              "capacite": "R6 — le chaton achete apparait dans le refuge ET son apport est ajoute au taux de production affiche (recompense immediate et durable).",
+              "source_ref": "s_reward_kitten",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Apres achat d'un chaton, l'oracle asserte que le taux_production a augmente du montant attendu et que le sprite du chaton est present dans la scene."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_registre_chatons",
+          "capacites": [
+            {
+              "id": "cap_registre_chatons",
+              "capacite": "R7 — le jeu embarque un registre de >=6 chatons nommes repartis sur les trois raretes (commune, rare, legendaire).",
+              "source_ref": "c_kittens_named",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "Le build ecrit 03_WORLD/kittens.json contenant >=6 chatons nommes avec un champ rarete couvrant commune, rare et legendaire."
+              }
+            },
+            {
+              "id": "cap_identite_rarete",
+              "capacite": "R8 — chaque rarete (commune, rare, legendaire) est rendue avec une identite visuelle distincte reconnaissable a l'oeil.",
+              "source_ref": "v_rarity_identity",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "07_TESTS/oracle/core_visual_rarity.gd en gpu_window asserte que les 3 raretes rendent des sprites visuellement distincts (difference de palette/silhouette au-dessus d'un seuil)."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_ameliorations",
+      "features": [
+        {
+          "id": "feat_achat_amelioration",
+          "capacites": [
+            {
+              "id": "cap_amelioration_taux",
+              "capacite": "R9 — apres l'achat d'une amelioration, le taux de production affiche est strictement plus eleve qu'avant l'achat.",
+              "source_ref": "s_upgrade_rate",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot releve le taux de production, achete 'acheter_amelioration', releve a nouveau ; l'oracle asserte taux_apres > taux_avant (strict)."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_courbe_paliers",
+          "capacites": [
+            {
+              "id": "cap_variance_couts",
+              "capacite": "R10 — la courbe des couts/paliers porte >=3 valeurs distinctes non triviales (information variable reelle, variance non nulle).",
+              "source_ref": "l_variance_costs",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Un oracle de variance lit la table des paliers et asserte >=3 valeurs de cout distinctes et non triviales (variance non nulle)."
+              }
+            },
+            {
+              "id": "cap_solvabilite_palier",
+              "capacite": "R11 — un bot-joueur deterministe atteint le 3e palier en un nombre de ticks fini (solvabilite du jeu).",
+              "source_ref": "l_palier_curve",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "L'oracle de solvabilite fait jouer un bot deterministe depuis main.tscn ; asserte que le 3e palier est atteint en un nombre de ticks fini et non trivial."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_meta_progression",
+      "features": [
+        {
+          "id": "feat_deblocage_lieu",
+          "capacites": [
+            {
+              "id": "cap_deblocage_lieu_entree",
+              "capacite": "R12a ENTREE — le joueur clique l'affordance 'acheter_amelioration' de deblocage de meta-progression pour ouvrir un nouveau lieu.",
+              "source_ref": "p_unlock_location",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot depuis main.tscn, au seuil requis, clique l'affordance 'acheter_amelioration' de deblocage (capacite d'ENTREE)."
+              }
+            },
+            {
+              "id": "cap_deblocage_lieu_effet",
+              "capacite": "R12b EFFET — le deblocage fait apparaitre un nouveau lieu (jardin) present et selectionnable dans le HUD lieux.",
+              "source_ref": "p_unlock_location",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot depuis main.tscn atteint le seuil et clique 'acheter_amelioration' de deblocage ; l'oracle asserte qu'un nouveau lieu (jardin) devient present et selectionnable dans le HUD lieux."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_lieux",
+          "capacites": [
+            {
+              "id": "cap_registre_lieux",
+              "capacite": "R13 — le jeu embarque un registre de >=2 lieux jouables dont le refuge initial et un lieu debloquable par meta-progression.",
+              "source_ref": "c_locations",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "Le build ecrit 03_WORLD/locations.json contenant >=2 lieux dont un marque comme refuge initial et un comme debloquable par meta-progression."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_prestige",
+          "capacites": [
+            {
+              "id": "cap_prestige_entree",
+              "capacite": "R14a ENTREE — le joueur clique l'affordance 'prestige' au seuil pour declencher la remise a zero contre un bonus permanent.",
+              "source_ref": "p_prestige",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot depuis main.tscn, au seuil, clique l'affordance 'prestige' (capacite d'ENTREE)."
+              }
+            },
+            {
+              "id": "cap_prestige_effet",
+              "capacite": "R14b EFFET — le prestige remet visiblement les ronrons a zero et enregistre un multiplicateur permanent.",
+              "source_ref": "p_prestige",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot depuis main.tscn, au seuil, clique 'prestige' ; l'oracle asserte que ronrons affiche passe a 0 et qu'un multiplicateur permanent est enregistre."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_objectifs",
+      "features": [
+        {
+          "id": "feat_banniere_objectif",
+          "capacites": [
+            {
+              "id": "cap_objectif_initial",
+              "capacite": "R15 — le HUD affiche en permanence une banniere d'objectif portant un premier but non vide (accumuler assez de ronrons pour un premier chaton).",
+              "source_ref": "g_goal_first",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "07_TESTS/oracle/core_goal_display.gd en gpu_window asserte que le HUD 'objectif' affiche un texte de but non vide au lancement de la scene principale."
+              }
+            },
+            {
+              "id": "cap_objectif_jardin",
+              "capacite": "R16 EFFET — une fois le 1er palier franchi, la banniere d'objectif montre un nouveau but textuellement distinct : debloquer et amenager le jardin.",
+              "source_ref": "g_goal_garden",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "07_TESTS/oracle/core_goal_display.gd asserte qu'apres le 1er palier le HUD 'objectif' affiche un texte different du but initial."
+              }
+            },
+            {
+              "id": "cap_objectif_legendaire",
+              "capacite": "R17 EFFET — la banniere d'objectif peut montrer un 3e but textuellement distinct des deux precedents : recueillir un chaton legendaire.",
+              "source_ref": "g_goal_legendary",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "07_TESTS/oracle/core_goal_display.gd asserte que le HUD 'objectif' peut afficher un 3e texte de but distinct des deux precedents."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_contenu_monde",
+      "features": [
+        {
+          "id": "feat_objets",
+          "capacites": [
+            {
+              "id": "cap_registre_objets",
+              "capacite": "R18 — le jeu embarque un registre de >=3 objets identifiables (pelote, patee, coussin), chacun avec un sprite associe.",
+              "source_ref": "c_objects",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "Le build ecrit 03_WORLD/objects.json contenant >=3 objets nommes et identifiables, chacun avec un sprite associe."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_quetes",
+          "capacites": [
+            {
+              "id": "cap_registre_quetes",
+              "capacite": "R19 — le jeu embarque un registre de >=3 quetes, chacune avec un objectif affichable a l'ecran (texte ou seuil de jauge).",
+              "source_ref": "c_quests",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "Le build ecrit 03_WORLD/quests.json contenant >=3 quetes, chacune avec un objectif affichable (texte ou seuil de jauge) verifiable a l'ecran."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_audio",
+      "features": [
+        {
+          "id": "feat_sons_evenements",
+          "capacites": [
+            {
+              "id": "cap_sons_evenements",
+              "capacite": "R20 — chacun des 4 evenements (clic, achat, deblocage, prestige) declenche un son distinct et reconnaissable.",
+              "source_ref": "a_event_sounds",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "07_TESTS/oracle/core_audio.gd journalise un declenchement par evenement et asserte 4 entrees de son distinctes (clic, achat, deblocage, prestige)."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "L'oracle check_decompo (l.131-146) impose la contrainte 'bot_action depuis main.tscn' a TOUTE feuille d'une exigence PLAYER+affordance, y compris la feuille d'EFFET, alors que la regle V4 se lit comme ne l'exigeant que pour l'ENTREE ; une feuille d'effet portant sa preuve heritee sans 'main.tscn' tomberait dans boucle_sans_entree.", "root_cause": "La boucle de couverture de check_decompo teste chaque leaf dont le source_ref est une exigence PLAYER+affordance sans distinguer capacite d'entree et capacite d'effet ; contourne en ancrant les deux feuilles dans main.tscn."}

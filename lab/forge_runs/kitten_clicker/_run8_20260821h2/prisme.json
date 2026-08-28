@@ -1,0 +1,420 @@
+{
+ "game_id": "kitten_clicker",
+ "exigences": [
+  {
+   "id": "g_goal_first",
+   "source": "EXPECTED",
+   "source_role": "s2-worldscan",
+   "reference": "worldscan:games[1].objectives[0].player_goal",
+   "observation": "Neko Atsume fixe au joueur un objectif de collection explicite (rassembler des chats en aménageant l'espace).",
+   "claim": "Un clicker de chatons a besoin d'un premier but affiché et lisible pour amorcer l'intention du joueur dès la minute 1.",
+   "enonce": "Le jeu affiche en permanence une bannière d'objectif portant un premier but non vide (accumuler assez de ronrons pour un premier chaton).",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_goal_display.gd en gpu_window asserte que le HUD 'objectif' affiche un texte de but non vide au lancement de la scene principale."
+   },
+   "destination": "s3-decompo",
+   "acteur": "PLAYER",
+   "loop_role": "PLAYER_GOAL",
+   "observe": {
+    "hud": "objectif",
+    "predicate": "nonempty"
+   }
+  },
+  {
+   "id": "p_click_pelote",
+   "source": "EXPECTED",
+   "source_role": "s2-worldscan",
+   "reference": "worldscan:games[0].loops.minute_1",
+   "observation": "Dans Cookie Clicker, un clic sur le gros cookie donne +1 cookie avec retour immediat (particules, chiffre flottant).",
+   "claim": "Le geste central du produit doit etre un clic sur une cible unique qui incremente une monnaie visible de facon strictement fiable.",
+   "enonce": "Le joueur peut cliquer la cible `pelote` ; le compteur de ronrons affiche monte strictement a chaque clic.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot depuis main.tscn clique 'pelote' N fois ; l'oracle asserte ronrons == N (increment strict, jamais un >=)."
+   },
+   "destination": "s9-build",
+   "acteur": "PLAYER",
+   "loop_role": "PLAYER_ACTION",
+   "affordance": "pelote",
+   "observe": {
+    "hud": "ronrons",
+    "predicate": "increases"
+   },
+   "repeat": 5
+  },
+  {
+   "id": "p_buy_kitten",
+   "source": "EXPECTED",
+   "source_role": "s2.6-story-bible",
+   "reference": "story_bible:characters",
+   "observation": "La story_bible (section characters, GROUNDED) etablit des chatons nommes comme personnages-collectibles a identite reconnaissable.",
+   "claim": "Acquerir un chaton doit etre une action joueur distincte du clic, qui fait entrer un individu dans une collection observable.",
+   "enonce": "Le joueur peut acheter un chaton en cliquant la cible `acheter_chaton` ; la collection affichee augmente d'un chaton.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot ayant assez de ronrons clique 'acheter_chaton' ; l'oracle asserte que le compteur de collection augmente de 1 et qu'un sprite de chaton apparait dans la scene."
+   },
+   "destination": "s9-build",
+   "acteur": "PLAYER",
+   "loop_role": "PLAYER_ACTION",
+   "affordance": "acheter_chaton",
+   "observe": {
+    "hud": "collection",
+    "predicate": "increases"
+   }
+  },
+  {
+   "id": "s_auto_production",
+   "source": "EXPECTED",
+   "source_role": "s2-worldscan",
+   "reference": "worldscan:games[0].loops.minute_10",
+   "observation": "En minute 10 de Cookie Clicker, les premiers batiments produisent seuls et le CPS depasse le rythme de clic manuel.",
+   "claim": "Posseder un chaton doit generer une production autonome mesurable, transformant le jeu actif en jeu passif.",
+   "enonce": "Apres l'achat d'au moins un chaton et sans aucun clic, les ronrons affiches augmentent au fil des frames.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot achete un chaton puis cesse tout clic ; l'oracle asserte que ronrons a augmente strictement apres wait_frames sans input."
+   },
+   "destination": "s9-build",
+   "acteur": "SYSTEM",
+   "loop_role": "GAME_RESPONSE",
+   "observe": {
+    "hud": "ronrons",
+    "predicate": "increases",
+    "wait_frames": 120
+   }
+  },
+  {
+   "id": "s_upgrade_rate",
+   "source": "EXPECTED",
+   "source_role": "s2.7-gm-worldscan",
+   "reference": "gm_worldscan:bonus",
+   "observation": "La dimension bonus du GM World Scan mesure des multiplicateurs (angel investor 5-10%, upgrades x2) qui accroissent le rendement.",
+   "claim": "Une amelioration achetee doit produire un gain de taux observable strictement superieur a l'etat anterieur, pas seulement s'ajouter au catalogue.",
+   "enonce": "Apres l'achat d'une amelioration, le taux de production affiche est strictement plus eleve qu'avant l'achat.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot releve le taux de production, achete 'acheter_amelioration', releve a nouveau ; l'oracle asserte taux_apres > taux_avant (strict)."
+   },
+   "destination": "s9-build",
+   "acteur": "SYSTEM",
+   "loop_role": "GAME_RESPONSE",
+   "observe": {
+    "hud": "taux_production",
+    "predicate": "increases"
+   }
+  },
+  {
+   "id": "s_reward_kitten",
+   "source": "EXPECTED",
+   "source_role": "s2-worldscan",
+   "reference": "worldscan:games[2].loops.minute_1",
+   "observation": "Dans AdVenture Capitalist, l'achat d'un stand credite immediatement un revenu passif ($0.01/sec) attache a l'actif acquis.",
+   "claim": "L'achat d'un chaton doit renvoyer une recompense immediate et durable : le chaton visible ET son apport de production credite.",
+   "enonce": "Le chaton achete apparait dans le refuge et son apport est ajoute au taux de production affiche.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Apres achat d'un chaton, l'oracle asserte que le taux_production a augmente du montant attendu et que le sprite du chaton est present dans la scene."
+   },
+   "destination": "s9-build",
+   "acteur": "SYSTEM",
+   "loop_role": "REWARD",
+   "observe": {
+    "hud": "taux_production",
+    "predicate": "increases"
+   }
+  },
+  {
+   "id": "p_unlock_location",
+   "source": "EXPECTED",
+   "source_role": "s2.7-gm-worldscan",
+   "reference": "gm_worldscan:progression",
+   "observation": "La dimension progression mesure des deblocages structurants (66 chats, tiers de prestige, business multiples) qui ouvrent du contenu neuf.",
+   "claim": "La meta-progression doit permettre au joueur de debloquer activement un nouveau lieu qui devient visible et selectionnable.",
+   "enonce": "Le joueur peut acheter une amelioration de meta-progression via `acheter_amelioration` qui debloque un nouveau lieu ; l'affichage des lieux change et un nouveau lieu apparait.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot atteint le seuil, clique 'acheter_amelioration' de deblocage ; l'oracle asserte qu'un nouveau lieu (jardin) devient present et selectionnable dans le HUD lieux."
+   },
+   "destination": "s9-build",
+   "acteur": "PLAYER",
+   "loop_role": "UNLOCK",
+   "affordance": "acheter_amelioration",
+   "observe": {
+    "hud": "lieux",
+    "predicate": "changes",
+    "appears": "jardin"
+   }
+  },
+  {
+   "id": "g_goal_garden",
+   "source": "EXPECTED",
+   "source_role": "s2.7-gm-worldscan",
+   "reference": "gm_worldscan:metagame",
+   "observation": "La dimension metagame decrit des objectifs long-terme enchaines (prestige, chasse aux raretes, echelle de multiplicateurs).",
+   "claim": "Apres le premier but, le jeu doit presenter un deuxieme objectif textuellement different sur le meme affichage pour relancer l'intention.",
+   "enonce": "Une fois le premier palier franchi, la banniere d'objectif montre un nouveau but distinct : debloquer et amenager le jardin.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_goal_display.gd asserte qu'apres le 1er palier le HUD 'objectif' affiche un texte different du but initial."
+   },
+   "destination": "s3-decompo",
+   "acteur": "SYSTEM",
+   "loop_role": "NEXT_GOAL",
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   }
+  },
+  {
+   "id": "g_goal_legendary",
+   "source": "EXPECTED",
+   "source_role": "s2.7-gm-worldscan",
+   "reference": "gm_worldscan:rarity",
+   "observation": "La dimension rarity mesure une population de collectibles rares (26 chats rares sur 66, 39,4%) comme hook de retention final.",
+   "claim": "Un troisieme but distinct doit viser la rarete, en donnant au joueur un objectif de collection au-dela de la seule production.",
+   "enonce": "La banniere d'objectif montre un troisieme but, textuellement distinct des deux precedents : recueillir un chaton legendaire.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_goal_display.gd asserte que le HUD 'objectif' peut afficher un 3e texte de but distinct des deux precedents."
+   },
+   "destination": "s3-decompo",
+   "acteur": "SYSTEM",
+   "loop_role": "NEXT_GOAL",
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   }
+  },
+  {
+   "id": "p_repeat_newloc",
+   "source": "EXPECTED",
+   "source_role": "s2-worldscan",
+   "reference": "worldscan:games[0].loops.hour_5",
+   "observation": "En heure 5, Cookie Clicker rejoue la meme boucle production/achat/amelioration a une echelle superieure, sans en changer la nature.",
+   "claim": "Dans un lieu nouvellement debloque, le joueur doit pouvoir rejouer les memes gestes de boucle et obtenir a nouveau de la production.",
+   "enonce": "Dans le nouveau lieu, le joueur rejoue clic, production automatique, recompense et deblocage ; les ronrons augmentent de nouveau.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot, une fois le jardin actif, rejoue la sequence (clic, achat, production, deblocage) ; l'oracle asserte que ronrons augmente encore dans le nouvel etat."
+   },
+   "destination": "s9-build",
+   "acteur": "PLAYER",
+   "loop_role": "REPEAT",
+   "observe": {
+    "hud": "ronrons",
+    "predicate": "increases"
+   },
+   "replay": [
+    "p_click_pelote",
+    "s_auto_production",
+    "s_reward_kitten",
+    "p_unlock_location"
+   ]
+  },
+  {
+   "id": "p_prestige",
+   "source": "EXPECTED",
+   "source_role": "s2-worldscan",
+   "reference": "worldscan:games[2].loops.hour_5",
+   "observation": "Le systeme Angel Investors d'AdVenture Capitalist remet la richesse a zero contre un multiplicateur permanent de 5-10%.",
+   "claim": "Le prestige du produit doit etre un geste joueur dont la remise a zero se VOIT a l'ecran, en echange d'un bonus permanent.",
+   "enonce": "Le joueur peut declencher le prestige en cliquant la cible `prestige` ; le compteur de ronrons retombe visiblement a zero et un bonus permanent est acquis.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot au seuil clique 'prestige' ; l'oracle asserte que ronrons affiche passe a 0 et qu'un multiplicateur permanent est enregistre."
+   },
+   "destination": "s9-build",
+   "acteur": "PLAYER",
+   "loop_role": "META_LOOP",
+   "affordance": "prestige",
+   "observe": {
+    "hud": "ronrons",
+    "predicate": "resets"
+   }
+  },
+  {
+   "id": "s_advantage_click",
+   "source": "EXPECTED",
+   "source_role": "s2.7-gm-worldscan",
+   "reference": "gm_worldscan:bonus",
+   "observation": "La dimension bonus mesure un boost permanent post-reset (angel investor) qui rend chaque action ulterieure plus rentable.",
+   "claim": "Apres prestige, la meme action de clic doit rapporter un delta STRICTEMENT superieur au delta d'avant prestige, prouve par mesure.",
+   "enonce": "Apres le prestige, un clic sur `pelote` produit strictement plus de ronrons que le meme clic avant prestige.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "L'oracle mesure le delta d'un clic avant prestige, declenche prestige, remesure un clic ; asserte delta_apres > delta_avant (strict)."
+   },
+   "destination": "s9-build",
+   "acteur": "PLAYER",
+   "loop_role": "ADVANTAGE",
+   "affordance": "pelote",
+   "replay_ref": "p_click_pelote",
+   "observe": {
+    "hud": "ronrons",
+    "predicate": "increases_more_than:p_click_pelote"
+   }
+  },
+  {
+   "id": "c_kittens_named",
+   "source": "EXPECTED",
+   "source_role": "s2.6-story-bible",
+   "reference": "story_bible:characters",
+   "observation": "La section characters (GROUNDED) exige au moins 6 chatons nommes differencies par rarete (commune / rare / legendaire).",
+   "claim": "Le contenu chatons doit exister comme un registre de donnees nomme, source unique consommee par le build et l'affichage.",
+   "enonce": "Le jeu embarque un registre de chatons portant au moins 6 individus nommes repartis sur les trois raretes.",
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "Le build ecrit 03_WORLD/kittens.json contenant >=6 chatons nommes avec un champ rarete couvrant commune, rare et legendaire."
+   },
+   "destination": "s9-build",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE"
+  },
+  {
+   "id": "c_locations",
+   "source": "EXPECTED",
+   "source_role": "s2.6-story-bible",
+   "reference": "story_bible:context",
+   "observation": "La section context (GROUNDED) etablit un monde a plusieurs lieux : un refuge initial puis au moins un lieu debloque par la meta-progression.",
+   "claim": "Les lieux doivent exister comme donnees declarees pour que la WireMap et le build cablent le refuge et le lieu debloquable.",
+   "enonce": "Le jeu embarque un registre de lieux comprenant au moins 2 lieux jouables dont le refuge de depart et un lieu debloquable.",
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "Le build ecrit 03_WORLD/locations.json contenant >=2 lieux dont un marque comme refuge initial et un comme debloquable par meta-progression."
+   },
+   "destination": "s9-build",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE"
+  },
+  {
+   "id": "c_objects",
+   "source": "EXPECTED",
+   "source_role": "s2.6-story-bible",
+   "reference": "story_bible:context",
+   "observation": "La section context nomme l'objet central de confort et de jeu : pelote de laine, patee, coussin.",
+   "claim": "Ces objets doivent etre des entites de donnees identifiables pour etre affiches et reconnaissables a l'ecran.",
+   "enonce": "Le jeu embarque un registre d'objets comprenant au moins 3 objets identifiables (pelote, patee, coussin).",
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "Le build ecrit 03_WORLD/objects.json contenant >=3 objets nommes et identifiables, chacun avec un sprite associe."
+   },
+   "destination": "s9-build",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE"
+  },
+  {
+   "id": "c_quests",
+   "source": "ADDITIONS",
+   "source_role": "s1-prisme",
+   "reference": null,
+   "observation": "Le charter (criteres_demo d) exige au moins 3 petites quetes a objectif visible, mais la section events de la story_bible est NOT_GROUNDED : aucune matiere de quete n'est produite en amont.",
+   "claim": "Faute de producteur narratif amont, le Prisme propose lui-meme un registre de quetes minimal pour honorer l'exigence produit sans inventer une source.",
+   "enonce": "Le jeu embarque un registre d'au moins 3 quetes, chacune portant un objectif affiche a l'ecran sous forme de texte ou de jauge.",
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "Le build ecrit 03_WORLD/quests.json contenant >=3 quetes, chacune avec un objectif affichable (texte ou seuil de jauge) verifiable a l'ecran."
+   },
+   "destination": "s9-build",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE"
+  },
+  {
+   "id": "v_rarity_identity",
+   "source": "EXPECTED",
+   "source_role": "s2.7-gm-worldscan",
+   "reference": "gm_worldscan:rarity",
+   "observation": "La dimension rarity mesure une hierarchie de rarete peuplee (26 rares sur 66) qui structure la valeur percue des collectibles.",
+   "claim": "La rarete doit se lire visuellement : chaque bande de rarete doit rendre une identite distincte discernable a l'oeil.",
+   "enonce": "Chaque rarete (commune, rare, legendaire) est rendue avec une identite visuelle distincte (silhouette ou palette) reconnaissable a l'ecran.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_visual_rarity.gd en gpu_window asserte que les 3 raretes rendent des sprites visuellement distincts (difference de palette/silhouette au-dessus d'un seuil)."
+   },
+   "destination": "s9-build",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE"
+  },
+  {
+   "id": "v_click_feedback",
+   "source": "EXPECTED",
+   "source_role": "s2-worldscan",
+   "reference": "worldscan:games[0].loops.minute_1",
+   "observation": "Cookie Clicker accompagne chaque clic d'un feedback 0-50ms : particules dorees et chiffre flottant.",
+   "claim": "Le clic du produit doit porter un feedback visuel explicite pour que le geste soit percu comme satisfaisant et lisible.",
+   "enonce": "Chaque clic sur la pelote declenche un feedback visuel explicite a l'ecran (rebond de la pelote ou particule ronron qui s'envole).",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_click_feedback.gd en gpu_window asserte qu'un clic produit un changement visuel transitoire (rebond ou particule) dans la frame suivante."
+   },
+   "destination": "s9-build",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE"
+  },
+  {
+   "id": "a_event_sounds",
+   "source": "EXPECTED",
+   "source_role": "s2-worldscan",
+   "reference": "worldscan:games[0].retention_answer",
+   "observation": "Le retention_answer de Cookie Clicker documente des conventions audio : chime a chaque deblocage, SFX d'achat, silence percu comme un defaut.",
+   "claim": "Le produit doit associer un son distinct a chacun de ses 4 evenements-systeme pour que chaque action soit reconnaissable a l'oreille.",
+   "enonce": "Chacun des 4 evenements (clic, achat, deblocage, prestige) declenche un son distinct et reconnaissable.",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "07_TESTS/oracle/core_audio.gd journalise un declenchement par evenement et asserte 4 entrees de son distinctes (clic, achat, deblocage, prestige)."
+   },
+   "destination": "s9-build",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE"
+  },
+  {
+   "id": "l_palier_curve",
+   "source": "EXPECTED",
+   "source_role": "s2.7-gm-worldscan",
+   "reference": "gm_worldscan:progression",
+   "observation": "La dimension progression mesure des paliers structurants atteignables (cout premier batiment 10, tiers, seuils de prestige).",
+   "claim": "La longueur du jeu doit etre prouvee par une courbe de paliers atteignable qu'un bot deterministe peut parcourir jusqu'au 3e palier.",
+   "enonce": "Un bot-joueur deterministe atteint le 3e palier en un nombre de ticks fini, les valeurs de palier etant affichees a l'ecran.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "L'oracle de solvabilite fait jouer un bot deterministe depuis main.tscn ; asserte que le 3e palier est atteint en un nombre de ticks fini et non trivial."
+   },
+   "destination": "s9-build",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE"
+  },
+  {
+   "id": "l_variance_costs",
+   "source": "EXPECTED",
+   "source_role": "s2.7-gm-worldscan",
+   "reference": "gm_worldscan:economy",
+   "observation": "La dimension economy mesure des ecarts de cout marques (ratio cout/revenu x100, seuils differencies) au fil de la progression.",
+   "claim": "La courbe des couts doit porter une information variable reelle : au moins 3 valeurs de palier distinctes et non triviales.",
+   "enonce": "La courbe des couts/paliers affiche au moins 3 valeurs distinctes non triviales, verifiees sur echantillon.",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "Un oracle de variance lit la table des paliers et asserte >=3 valeurs de cout distinctes et non triviales (variance non nulle)."
+   },
+   "destination": "s9-build",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE"
+  },
+  {
+   "id": "m_click_strict",
+   "source": "EXPECTED",
+   "source_role": "s2-worldscan",
+   "reference": "worldscan:games[0].loops.minute_1",
+   "observation": "Le feedback minute_1 de Cookie Clicker etablit un increment de +1 exact et fiable par clic, pas une borne inferieure.",
+   "claim": "La correction de l'increment de clic doit etre prouvee par mutation : un handler tautologique (>=) doit etre tue par le test.",
+   "enonce": "Le gestionnaire de clic incremente les ronrons de exactement 1 par clic, propriete garantie contre une regression tautologique.",
+   "expected_proof": {
+    "kind": "mutation",
+    "statement": "Une mutation qui remplace ronrons+=1 par une borne >= est TUEE par l'oracle : le test asserte ronrons == n+1 strict et echoue sur le mutant."
+   },
+   "destination": "s9-build",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE"
+  }
+ ]
+}

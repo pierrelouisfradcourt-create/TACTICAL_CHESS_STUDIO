@@ -1,0 +1,23 @@
+Red-team CODE terminé — rapport écrit dans `lab/forge_runs/driver_smoke_v4_20260807/rapport_redteam_code.md`.
+
+## Synthèse (advisory)
+
+**Objet réel du run** (ancre `state.json`) : `is_game: false`, `profile: patch`, nom « driver_smoke_v4 » → **run de fumée du pipeline Forge**, pas un jeu. Le code est un `clamp(x, lo, hi)` de 3 lignes, correct sur le domaine standard, et l'oracle indépendant (`evidence/…log`) prouve **3/3 pass** de façon non factice.
+
+**Aucune faille HIGH. Aucune preuve factice, aucun test tautologique.** J'ai refusé d'inventer de la sévérité sur un smoke test trivial et correct.
+
+3 constats, tous prouvés par ancre statique reproductible (permission `run: aucun` → repros = calculs déterministes exécutables par un oracle aval) :
+
+| # | Angle | Sévérité | Constat |
+|---|---|---|---|
+| 1 | Force de l'oracle | **MEDIUM** | Oracle mince : 3 points happy-path, aucun bord exact (`x==lo`/`x==hi`), inversé (`lo>hi`), NaN → une régression aux bornes ne serait pas détectée. L'oracle prouve moins que son nom. |
+| 2 | Garde-fou d'entrée | LOW | Pas d'invariant `lo<=hi` : `clamp(5,10,0)=10` (renvoie `lo`, ignore `hi` silencieusement). |
+| 3 | Robustesse numérique | LOW | `clamp(NaN,0,10)=NaN` : passthrough non gardé. |
+
+**Ce que j'ai vérifié et écarté** : les tests A+B pinnent bien les deux bornes (pas tautologiques) ; l'oracle log est un run indépendant (pas une recopie) ; le code correspond bien au fix décrit ; la SOLVABILITÉ du pré-mortem s10a **ne s'applique pas** (`is_game:false`).
+
+**fog → HumanGate** : Failles 2 & 3 reposent sur une intention non transmise (bornes inversées / NaN autorisés ou à garder ?) → non tranchables par oracle, remontées à Pierre, jamais claim auto-certifié.
+
+Verdicts : `software_verdict: OK` (oracle indépendant vert) · `evidence_verdict: MECHANICAL_VALIDATION_ONLY` · `claim_verdict: NO_CLAIM_ALLOWED`.
+
+Le bloc JSON en fin de rapport reprend exactement les 3 constats de la prose, pour le parseur déterministe `forge.run_real.extract_redteam_findings` (→ `redteam_advisory` du verdict signé, jamais `software_verdict`/`humangate_flags` directement).

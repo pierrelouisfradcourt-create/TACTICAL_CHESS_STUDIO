@@ -1,0 +1,82 @@
+All validated and the inventory conforms to the map. Here is my final report.
+
+---
+
+## RAPPORT FINAL — s9-build-godot-standard · kitten_clicker-20260821c (dispatch 2)
+
+**Contexte** : dispatch **attempt 2** (`pool: retry même tier 2/2`). L'attempt 1 avait construit la logique de jeu correctement mais suivi le patron **pré-standard `chess_tcg`** — d'où l'échec du gate : `s10a` e2e FAIL (`DirAccess.open` absent), `s10s` BLOCKED (`00_CHARTER/game_contract.yaml` + `09_WIREMAP/wiremap.json` absents), volet visuel jamais activé (pas de descripteur `proof:`), et une wiremap de RUN au **constat fabriqué** (runner `grun.mjs` inexistant, « 73 passed », visuels `ok:true` jamais exécutés).
+
+### software_verdict: OK · evidence_verdict: MECHANICAL_VALIDATION_ONLY · claim_verdict: NO_CLAIM_ALLOWED
+
+Chaque affirmation cite la commande exécutée et sa sortie réelle (preuve d'exécution).
+
+| Oracle non-LLM | Commande | Sortie réelle | Verdict |
+|---|---|---|---|
+| Mécanique headless | `node scripts/forge/godot_oracle.mjs games/kitten_clicker` | `=== RESULT: 104 passed, 0 failed (fichiers: 1) ===`, exit 0 (104==EXPECTED_ASSERTS) | **OK** |
+| Solvabilité (R9, bot GAGNE) | idem (`solvability_godot.mjs`) | `trials=20 won=20 lost=0 failed_seeds=[] verdict=OK`, exit 0 | **OK** |
+| e2e harness (Godot) | `check_e2e_harness(games/kitten_clicker)` | `{passed: True, raisons: []}` (SceneTree + DirAccess + EXPECTED_ASSERTS) | **OK** |
+| harness_no_hardcoded_flags | `check_harness_no_hardcoded_flags(...)` | `{passed: True}` | **OK** |
+| s10s standard (6 volets) | `contract_completeness/budget/line_states/placement/index/collisions` | **6/6 passed** | **OK** |
+| Visuels GPU (advisory) | `product_oracle_godot.run_godot_product_oracle(...)` | `main_screen_render status=OK mode=gpu_window` · `gallery_render status=OK mode=gpu_window`, `fails=[]` | **OK** |
+
+### Gate mutation (score BRUT, survivants compris)
+
+Autorité = le driver (verdict signé HMAC). **Vérifié en local** (confronter au réel, mêmes fonctions que le driver) :
+
+- `run_mutation_from_descriptor` → **total=39, killed=35, survived=4** (89,7 % tués bruts).
+- Renforcement des tests : **25 → 4 survivants** (ajout de 31 assertions de bornes/logique/entrées invalides, 73 → 104).
+- `check_mutation_gate` + `mutation_triage.json` → **passed=True**, `survivants_non_tries=[]`, `triage_perimes=[]`, **`exception=True`** (4 survivants triés ⇒ HumanGate obligatoire par doctrine).
+
+**Les 4 survivants — tous prouvés équivalents, triés avec justification nommée :**
+1. `offline_gains.gd` `le->lt` L20 (`rate <= 0.0`) — à `rate==0`, garde et calcul rendent tous deux `0.0` (`rate*0==0`) ; `rate<0` inatteignable (`passive_rate>=0`).
+2. `offline_gains.gd` `le->lt` L22 (`duration_s <= 0.0`) — idem (`rate*0==0`).
+3. `game_state.gd` `ge->gt` L29 — mutation **à l'intérieur d'un commentaire** (`# (>=1)` → `(>1)`) : zéro effet comportemental.
+4. `game_state.gd` `le->lt` L33 — mutation **à l'intérieur d'un commentaire** (`# (<= time_s ...)`).
+
+### Périmètre / ownership — fichiers touchés vs carte
+
+Créés (adresses `repo_map` en périmètre) : `00_CHARTER/game_contract.yaml` (`charter`), `09_WIREMAP/wiremap.json` (`wiremap`, v2, 14 systèmes / 20 lignes, couvre les 10 CORE), `07_TESTS/unit/kitten_clicker.test.gd` (`test.unit`), `mutation_triage.json` (racine, lu par `check_mutation_gate`).
+Modifiés : `tests/run_tests.gd` (`godot.project_tests` — ré-écrit en énumération `DirAccess` de `07_TESTS/unit/*.test.gd`, EXPECTED_ASSERTS=104) ; `05_SYSTEMS/offline_gains/offline_gains.gd` (`system` — garde composée `a or b` scindée en deux early-returns équivalentes ; **comportement identique, 104/104 verts avant/après** ; supprime le mutant `or->and` et rend les `<=` triables individuellement).
+Constat rempli : `lab/forge_runs/kitten_clicker/wiremap.json` (champs `constat`).
+**Non touchés** (interdits) : `games/pong/**`, `tests/**`, `autopilot.py`, `scripts/studioV2/`, toute table du standard, tout oracle, le tag `archive/godot-adapter-b0`.
+
+### Lignes BLOCKED / DEFERRED (remontées, jamais improvisées)
+
+Les 10 features du RUN (R1–R10) sont **IMPLEMENTED**. Dans le scaffolding standard (couverture des 10 CORE exigée par `s10s`), 3 exigences CORE portent une décision explicite par **mismatch genre idle/CORE** (fog HumanGate) :
+- **core.end_condition — BLOCKED** : clicker zéro-perte, aucune fin gagnée/perdue par design (charter + R3 « aucun game_over ») ; CORE présuppose win/lose ; `NOT_APPLICABLE` interdit sur CORE ⇒ exemption de genre = décision Pierre.
+- **core.exit — BLOCKED** : aucun système de sortie in-game dans le squelette gelé (le processus quitte via harnais `quit(0)`, mais aucune ligne ne porte `game.exit`) ⇒ besoin non prévu.
+- **core.audio — DEFERRED** (`until`/`decider`=Pierre) : charter — assets audio hors périmètre tant que Grey Blocks non validés.
+
+### CODE_COPIE
+
+**Aucun.** `reused_from` = NEW sur toutes les lignes ; `knowledge_base/search.mjs` (5 intentions) ne rend aucune brique GDScript clicker/économie importable. Aucune empreinte `copy_sha256` à comparer.
+
+### SKIPPED_VALIDATION
+
+| Item | Périmètre | Statut | Raison |
+|---|---|---|---|
+| Verdict signé HMAC (s12) | run complet | non fait | Rôle du driver/HumanGate, hors étape s9. |
+| Reçu mutation **signé** faisant autorité | s10a | non fait (vérifié en équivalent) | Le driver exécute le gate mutation signé ; j'ai reproduit le résultat en local avec les mêmes fonctions (`run_mutation_from_descriptor`/`check_mutation_gate`), sans la signature. |
+| s10b-archi, s10c-wiremap frozen, boucle intégrée s10 du driver | run | non fait | Oracles du driver ; j'ai validé chaque composant isolément avec les fonctions exactes qu'ils appellent, pas la passe intégrée. |
+| Preuve visuelle « click-through navigateur » | e2e | SANS OBJET (assumé) | Aucun navigateur ; remplacé par oracle headless (1) + solvabilité (4) + captures GPU. |
+| Export templates / colis distribuable | build | non requis | La chaîne n'appelle jamais `--export` (fait de poste mesuré). |
+
+### Fogs → HumanGate (jugement Pierre)
+- **Vocabulaire de capacités** : `capabilities.yaml` (fermé) n'a aucun id pour les mécaniques clicker (purr, économie, prestige, collection, hors-ligne, bonus). Les lignes clicker déclarent `provides: []` (choix honnête, jamais un id inventé — table du standard = gate Pierre). Extension proposée à ratifier.
+- **Exemption de genre CORE** pour un idle zéro-perte (end_condition/exit/audio ci-dessus).
+- **Exception mutation** (4 équivalents triés) — HumanGate par doctrine P0.3.
+
+### RETURN LINEAGE
+- **why_task_existed** :
+  - `problem` : l'attempt 1 a produit un build Godot **structurellement incomplet** au regard du STANDARD (pas de `game_contract.yaml`, pas de `09_WIREMAP/wiremap.json`, harnais sans énumération `DirAccess`) et a écrit un constat fabriqué (runner `grun.mjs` inexistant, « 73 passed », visuels jamais exécutés).
+  - `oracle` : `s10a-oracle-code` (e2e `passed:false` — DirAccess absent), `s10s-oracle-standard` (BLOCKED — `game_contract.yaml`/`09_WIREMAP/wiremap.json` absents), `product_oracle_godot_activation.active:false`.
+  - `root_cause` : le contrat s9 désigne `games/chess_tcg` comme **patron du harnais**, or `chess_tcg` **précède le STANDARD** et ne porte AUCUN des trois éléments que les oracles s10 exigent désormais (les vrais patrons conformes sont `snake`/`breakout_v2`/`tetris`). Un builder fidèle à la référence citée produit mécaniquement un build qui échoue `s10s`+e2e. (Famille de la leçon `forge.instrument_assumes_instead_of_reads`.)
+  - `action_reason` : j'ai calqué le patron **réellement vert** (snake) — scaffolding standard complet, harnais `DirAccess`, descripteur de preuve — puis durci les tests et trié les mutants équivalents, en remontant les gaps de genre plutôt qu'en les improvisant.
+- **result** : 104/104 mécanique · solvabilité 20/20 · 6/6 s10s · e2e vert · mutation 35/39 tués + 4 triés (gate passed, exception→HumanGate) · 2 visuels GPU OK. software_verdict OK, sous réserve du reçu signé du driver et des fogs ci-dessus.
+- **proof** : `node scripts/forge/godot_oracle.mjs games/kitten_clicker` → `RESULT: 104 passed, 0 failed`, exit 0, `verdict=OK` ; 6 `check_*` standard `passed=True` ; `check_mutation_gate` `passed=True`.
+- **learning** : sur un nouveau runtime, le patron cité par le contrat peut être périmé face aux oracles ; vérifier la référence contre les jeux **réellement verts** (snake/breakout/tetris), pas contre la plus ancienne. Le méta-oracle de mutation mute des opérateurs **à l'intérieur des commentaires GDScript** (2 des 4 survivants), contredisant sa docstring « traite `#` comme commentaire ».
+- **next_reason** : le niveau supérieur (driver → s10s/s10b/s10c → s12) doit exécuter la passe intégrée et **signer** le verdict/reçu mutation, puis HumanGate (Pierre) tranche : exemption de genre CORE, extension de `capabilities.yaml`, exception mutation. La chaîne causale du build est close côté forgeron (toutes preuves vertes en local).
+
+SKIPPED_VALIDATION : voir tableau ci-dessus (aucune validation silencieusement omise).
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le contrat s9-build-godot-standard designe games/chess_tcg comme patron de harnais, mais chess_tcg precede le STANDARD et ne porte ni game_contract.yaml, ni 09_WIREMAP/wiremap.json, ni un tests/run_tests.gd a enumeration DirAccess : un builder fidele a cette reference produit mecaniquement un build qui echoue s10s et l'oracle e2e (les vrais patrons conformes sont snake/breakout_v2/tetris).", "root_cause": "Reference de harnais citee par le contrat perimee vis-a-vis des exigences actuelles des oracles s10 (standard scaffolding + DirAccess) ; secondairement, profil full_godot_narratif absent de _STANDARD_TOPOLOGY_PROFILES, et meta-oracle de mutation qui mute des operateurs a l'interieur des commentaires GDScript."}

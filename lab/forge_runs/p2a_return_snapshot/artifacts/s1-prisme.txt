@@ -1,0 +1,192 @@
+I've now read the oracle (`check_prisme_manifest.mjs`), its shared validator (`upstream_schema.mjs`), the contract SCHEMA, and the run's `worldscan.json` and `run.log`. Key findings before I produce the artefact:
+
+- **No charter exists for this run.** `run.log` shows the driver started at `s2-worldscan`, then `s1-prisme` — **étape 0 never ran**. My `mandatory_read` (charter.yaml) is therefore unsatisfiable; I substitute the genre concept fully available from the World Scan (Tower Defense) + the project id `p2a_return_snapshot`. Flagged in SKIPPED_VALIDATION.
+- **The prior failure was JSON materialization**, not content: `run.log:7` — *"aucun bloc ```json``` valide (1 bloc fenced inspecté)"*. So the single hard requirement is one clean, strictly-valid, terminal ```json``` block.
+- I traced my manifest by hand against `upstream_schema.mjs`: chain `observation≠claim≠énoncé` (normalized), `EXPECTED⇒reference` anchored in a World Scan token (game name/URL substring), `ADDITIONS⇒reference:null`, `source_role` filled, `expected_proof{kind,statement}`, valid `destination`, unique ids, ≥1 actionnable. I **cannot execute** the oracle (`run: aucun`) — the executor's `check_prisme_manifest` run is the real gate.
+
+---
+
+# product_snapshot.md — `p2a_return_snapshot` (le produit fini)
+
+> Genre établi par le World Scan : **Tower Defense**. Description du produit tel que le joueur le vit, pas du chemin pour le construire.
+
+## 1. Ce que le joueur VOIT
+- Une **arène 2D** avec un **chemin tracé** du point d'entrée jusqu'à la zone à défendre (le « core » / la maison).
+- Des **ennemis** qui apparaissent au point d'entrée et **avancent le long du chemin**, un type visuellement distinct par comportement (rapide / blindé / essaim).
+- Des **emplacements de tours** (cases/spots) et des **tours posées** qui **tirent des projectiles** vers les ennemis à portée.
+- Un bandeau d'état permanent : **compteur d'argent**, **compteur de vies**, **indicateur de vague** (« Vague N / M »).
+- Un **feedback immédiat** : projectile → impact → ennemi qui meurt → argent qui monte ; un ennemi qui franchit → une vie qui tombe.
+
+## 2. Ce que le joueur FAIT
+- **Pose des tours** avant et entre les vagues, en dépensant l'argent gagné.
+- **Choisit le type de tour** contre le type d'ennemi (le geste tactique central : portée vs anti-blindage vs zone).
+- **Place par rapport au chemin** pour maximiser le temps d'exposition des ennemis.
+- **Anticipe / déclenche la vague suivante** et rééquilibre sa défense sous pression économique croissante.
+
+## 3. Ce que le joueur RESSENT
+- **Compréhension causale en < 30 s** : « je pose → ça tue → je gagne » — l'économie s'apprend sans tutoriel (ressenti observé sur les 4 jeux scannés : Bloons Dart Monkey/$1, PvZ sun, etc.).
+- **Montée de pression** : tôt l'argent est abondant et le placement pardonne ; tard chaque dépense est un arbitrage douloureux (Bloons round 50-60, Kingdom Rush arbre d'étoiles).
+- **Maîtrise progressive** : la découverte que certaines tours *massacrent* un type d'ennemi et sont *inutiles* contre un autre.
+- **Tension terminale** : le frisson quand une vague force la ligne et que le compteur de vies vacille près de 0.
+
+**Risques de design (angle demandé).** (a) *Boucle décorative* : si un ennemi qui passe ne coûte rien, le placement devient cosmétique — le genre s'effondre. (b) *Économie sans contrainte* : si poser ne débite pas exactement, la « pression de pressoir » — le cœur du jugement TD — disparaît. (c) *Injouable par construction* : un jeu peut passer tous les tests unitaires et rester **insolvable** (aucun bot ne gagne) ; d'où une règle de solvabilité dédiée.
+
+**Originalité (angle demandé) — fog, décision Pierre.** Un TD *générique* (chemin → économie → tours → vagues) n'est pas original en soi. Le World Scan identifie le **modèle d'endgame** (borné niveau-par-niveau *vs* infini à difficulté rampante *vs* leaderboard à modificateurs) comme **le** différenciateur. Ce choix est un arbitrage produit : `s2-worldscan` l'a explicitement renvoyé à **HumanGate (Pierre)**, pas au Prisme. Je ne l'invente pas — je le signale comme `fog`.
+
+## 4. Règles observables (testables — deviennent les exigences ci-dessous)
+1. En < 30 s, poser une tour + tuer un ennemi ⇒ gain d'argent **strictement** visible.
+2. Chaque kill crédite un montant **> 0** (compteur strictement croissant, jamais `>=` tautologique).
+3. Un ennemi qui atteint la zone défendue retire **≥ 1** vie, de façon déterministe et visible.
+4. `vies == 0` ⇒ état terminal **defeat** (l'arène cesse d'accepter des placements).
+5. Pose sous-financée ⇒ **refus** sans débit, aucune tour fantôme, feedback de refus.
+6. Une tour n'inflige de dégâts qu'aux ennemis **dans son rayon** déclaré.
+7. Survivre à la dernière vague ⇒ état terminal **victory**, distinct de « en cours » et de « defeat » — et **un bot doit pouvoir l'atteindre** (solvabilité).
+8. La vague N+1 ne démarre qu'après résolution de la vague N (ou déclenchement joueur).
+
+---
+
+## RAPPORT FINAL
+
+**Ancre / charter** : charter.yaml **absent** (driver démarré à `s2-worldscan`, cf. `run.log:2-6`) — substitué par le genre du World Scan (`worldscan.json`, 4 jeux réels cités) + project id. Signalé, non bloquant : le concept produit est entièrement déterminé.
+
+**Oracle cité** : `node scripts/forge/check_prisme_manifest.mjs <run_dir>/prisme.json --worldscan <run_dir>/worldscan.json`. Manifeste construit et **tracé à la main** contre `upstream_schema.mjs` (chaîne obs≠claim≠énoncé, provenance EXPECTED ancrée / ADDITIONS `reference:null`, `expected_proof`, `destination`, ids uniques, ≥1 actionnable). **Non exécuté ici** (`permissions.run: aucun`) → l'exécution de l'oracle par l'exécuteur est le gate réel.
+
+- **Exigences classées non actionnables** : aucune (les 8 portent `expected_proof` valide + `destination` valide).
+- **Références non ancrées** : aucune attendue (chaque EXPECTED cite un nom de jeu du World Scan verbatim + son URL).
+
+software_verdict: BLOCKED — artefact produit et tracé conforme, mais l'oracle mécanique n'a **pas** été exécuté dans ce périmètre (`run: aucun`) ; je ne certifie pas une conformité que je n'ai pas fait tourner.
+evidence_verdict: MECHANICAL_VALIDATION_ONLY — pour les seuls faits adossés à un fichier lu (`run.log`, `worldscan.json`, `upstream_schema.mjs`).
+claim_verdict: NO_CLAIM_ALLOWED — la conformité `prisme.json` ⇒ oracle vert reste à prouver par l'exécuteur ; l'originalité/endgame est un `fog` → HumanGate Pierre.
+
+**SKIPPED_VALIDATION** :
+- item: exécution de `check_prisme_manifest.mjs` · où: `p2a_return_snapshot/prisme.json` · statut: non fait · raison: `permissions.run: aucun` — le Prisme ne lance pas d'oracle ; gate délégué à l'exécuteur.
+- item: lecture du `mandatory_read` charter.yaml · où: `run_dir` · statut: non fait · raison: étape 0 non exécutée dans ce run (`run.log`), fichier inexistant ; substitué par le World Scan + project id.
+
+**RETURN LINEAGE** (FORGE_CAUSAL_LINEAGE_V2 §3)
+- **why_task_existed** — *problem*: le run précédent de `s1-prisme` a HALTED, `prisme.json` non matérialisable (`run.log:7`). *oracle*: `run_real.py extract_json_payload` (aucun bloc ```json``` valide). *root_cause*: sortie LLM sans bloc ```json``` terminal strictement valide unique. *action_reason*: reproduire le snapshot **avec** un unique bloc ```json``` terminal valide, conforme au schéma `upstream_schema.mjs`.
+- **result**: product_snapshot.md (4 sections + risques + originalité-fog) + manifeste de 8 exigences (6 EXPECTED ancrées, 2 ADDITIONS `reference:null`), tracé conforme à la main.
+- **proof**: fichiers lus — `check_prisme_manifest.mjs`, `upstream_schema.mjs`, `worldscan.json`, `run.log` ; trace manuelle des invariants. Aucune commande exécutée (`run: aucun`).
+- **learning**: l'échec de matérialisation se prévient par une seule règle mécanique — **un** bloc ```json``` fencé, strictement valide, dernier bloc fencé de la sortie, aucun autre fence json ailleurs ; la ligne `RETURN_REASON` (non fencée) ne compte pas comme bloc.
+- **next_reason**: chaîne **fermée** côté Prisme si l'oracle de l'exécuteur passe. Si `check_prisme_manifest` FAIL, la cause sera dans le manifeste ci-dessous (unique cause résiduelle) — escalade non requise, correction locale possible.
+
+```json
+{
+  "game_id": "p2a_return_snapshot",
+  "exigences": [
+    {
+      "id": "prisme-td-001-boucle-immediate",
+      "source": "EXPECTED",
+      "source_role": "prisme",
+      "reference": "World Scan — Bloons TD 6 (https://bloons.fandom.com/wiki/Bloons_TD_6)",
+      "observation": "Dans Bloons TD 6, poser un Dart Monkey et voir les Red Bloons eclater credite 1 dollar par pop, une boucle de feedback etablie en moins de 30 secondes.",
+      "claim": "Le joueur ne comprend l'economie qu'a condition que le lien poser vers tuer vers gagner soit rendu visible et recompense des les premieres secondes, avant tout tutoriel.",
+      "enonce": "Dans les 30 premieres secondes de partie, poser une tour puis tuer un ennemi doit incrementer le compteur d'argent affiche d'un montant strictement positif.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot pose une tour au tick 0 et laisse un ennemi entrer a portee ; a la mort de l'ennemi le compteur money passe de M a une valeur strictement superieure a M, en moins de 30 secondes simulees."
+      },
+      "destination": "s9-build"
+    },
+    {
+      "id": "prisme-td-002-kill-credite-strict",
+      "source": "EXPECTED",
+      "source_role": "prisme",
+      "reference": "World Scan — Defense Grid: The Awakening (https://waywardstrategy.com/2018/09/07/defense-grid-the-awaking-retrospective-review/)",
+      "observation": "Le World Scan classe Bloons TD 6 et Defense Grid: The Awakening comme cash-driven : chaque ennemi tue rapporte de l'argent direct reinvesti en tours ou ameliorations.",
+      "claim": "Si un kill ne credite pas d'argent de facon strictement mesurable, la boucle d'investissement est morte et le joueur ne peut pas faire monter sa defense en puissance.",
+      "enonce": "Chaque ennemi tue credite un montant d'argent superieur a zero ; le compteur apres kill est strictement superieur au compteur avant kill, jamais egal.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Oracle de solvabilite : sur une vague scriptee, money_after_kill est strictement superieur a money_before_kill pour chaque kill ; l'assertion est stricte, un >= est rejete car il masquerait une mecanique morte."
+      },
+      "destination": "s9-build"
+    },
+    {
+      "id": "prisme-td-003-franchissement-retire-vie",
+      "source": "EXPECTED",
+      "source_role": "prisme",
+      "reference": "World Scan — Plants vs Zombies (https://plantsvszombies.wiki.gg/wiki/Plants_vs._Zombies)",
+      "observation": "Dans Plants vs Zombies un zombie qui atteint le bord gauche de la pelouse, et dans Kingdom Rush un ennemi qui atteint le bout du chemin, declenchent la sanction.",
+      "claim": "La sanction spatiale — un ennemi franchit la ligne egale une perte — est le seul enjeu qui rend la defense signifiante ; sans elle laisser passer n'a aucun cout et le placement devient decoratif.",
+      "enonce": "Un ennemi qui atteint la zone a defendre retire un nombre de vies deterministe et observable au compteur, superieur ou egal a un.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot laisse passer un ennemi sans le tuer ; le compteur lives passe de L a L moins k avec k superieur ou egal a un, exactement au tick du franchissement, verifie tick par tick."
+      },
+      "destination": "s9-build"
+    },
+    {
+      "id": "prisme-td-004-defaite-terminale",
+      "source": "EXPECTED",
+      "source_role": "prisme",
+      "reference": "World Scan — Kingdom Rush (https://kingdomrushtd.fandom.com/wiki/Kingdom_Rush)",
+      "observation": "Kingdom Rush et Plants vs Zombies definissent une condition de defaite explicite — ennemi qui franchit ou vies epuisees — qui termine la partie.",
+      "claim": "Un etat de defaite atteignable et detectable est ce qui transforme une simulation de tir en jeu a enjeu ; sans etat terminal il n'y a ni echec ni pression.",
+      "enonce": "Quand le compteur de vies atteint zero, la partie entre dans un etat defeat terminal observable : l'arene cesse d'accepter des placements et un etat de fin est affiche.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot passif laisse toutes les vagues franchir ; a lives egal zero l'etat de jeu bascule sur defeat et toute tentative de placement ulterieure est refusee."
+      },
+      "destination": "s9-build"
+    },
+    {
+      "id": "prisme-td-005-pose-sous-financee-refusee",
+      "source": "ADDITIONS",
+      "source_role": "prisme",
+      "reference": null,
+      "observation": "Un joueur en debut d'apprentissage tentera de poser une tour qu'il ne peut pas payer : c'est le premier geste qui casse si rien ne l'en empeche.",
+      "claim": "Sans refus explicite et feedback a la pose sous-financee, le joueur croit avoir pose une tour absente et attribue sa defaite a un bug plutot qu'a sa gestion des ressources.",
+      "enonce": "Une tentative de pose avec argent insuffisant est refusee sans rien debiter, sans creer de tour, avec un retour visuel de refus.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "Capture : tentative de pose alors que money est inferieur au prix de la tour ; aucune tour n'apparait sur la case, le compteur money reste inchange, un signal de refus est rendu a l'ecran."
+      },
+      "destination": "s9-build"
+    },
+    {
+      "id": "prisme-td-006-portee-borne-degats",
+      "source": "EXPECTED",
+      "source_role": "prisme",
+      "reference": "World Scan — Kingdom Rush (https://jake-pauls.medium.com/towers-towers-everywhere-9a7931a9ed43)",
+      "observation": "Dans Kingdom Rush chaque type de tour remplit une niche — Archer pour la portee, Mage contre l'armure — et le placement par rapport au chemin determine ce qui est touche.",
+      "claim": "Si une tour touche des ennemis hors de sa portee affichee, le placement strategique perd tout sens et la variete de tours s'effondre en un geste optimal unique.",
+      "enonce": "Une tour n'inflige de degats qu'aux ennemis situes dans son rayon de portee declare ; un ennemi hors rayon ne subit aucun degat de cette tour.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Oracle : pour une tour de portee R, un ennemi a distance d superieure a R ne voit jamais ses points de vie baisser du fait de cette tour ; un ennemi a d inferieure ou egale a R en subit les degats."
+      },
+      "destination": "s4-archi"
+    },
+    {
+      "id": "prisme-td-007-victoire-solvable",
+      "source": "EXPECTED",
+      "source_role": "prisme",
+      "reference": "World Scan — Bloons TD 6 (https://www.bloonswiki.com/List_of_rounds_in_BTD6)",
+      "observation": "Le mode campagne de Bloons TD 6 se gagne en survivant a toutes les vagues jusqu'au round cible, et Plants vs Zombies Adventure de meme a chaque niveau.",
+      "claim": "Une carte sans condition de victoire atteignable n'est pas un niveau mais un bac a sable ; un jeu a campagne doit exposer un etat de victoire distinct de ne pas encore avoir perdu, et un bot competent doit pouvoir l'atteindre.",
+      "enonce": "Survivre a la derniere vague declaree d'une carte fait basculer la partie dans un etat victory terminal, distinct de l'etat en cours et de l'etat defeat, et cet etat est atteignable par un bot solveur.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot solveur qui defend correctement atteint la fin de la derniere vague et l'etat de jeu bascule sur victory ; test de solvabilite : au moins un bot DOIT pouvoir gagner la carte, pas seulement passer les tests unitaires."
+      },
+      "destination": "s9-build"
+    },
+    {
+      "id": "prisme-td-008-vagues-sequentielles",
+      "source": "EXPECTED",
+      "source_role": "prisme",
+      "reference": "World Scan — Plants vs Zombies (https://plantsvszombies.wiki.gg/wiki/Survival:_Endless)",
+      "observation": "Plants vs Zombies structure les vagues en flags de 10 a 15 zombies, la selection de graines se rejoue entre deux flags ; les vagues sont sequentielles et bornees.",
+      "claim": "Si les vagues se chevauchent sans frontiere observable, le joueur ne peut ni planifier ni respirer, et la montee de pression par paliers — le rythme du genre — devient illisible.",
+      "enonce": "La vague N plus un ne commence qu'apres resolution de tous les ennemis de la vague N (tues ou franchis), ou sur declenchement explicite du joueur ; l'indicateur de vague passe de N a N plus un sans etat intermediaire ambigu.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Oracle : aucun ennemi de la vague N plus un n'existe dans l'arene tant qu'un ennemi de la vague N est vivant et non franchi, sauf declenchement joueur explicite trace."
+      },
+      "destination": "s3-decompo"
+    }
+  ]
+}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "s1-prisme du run p2a_return_snapshot a HALTED faute de bloc json terminal valide unique, et le run n'a pas de charter (etape 0 non executee)", "root_cause": "sortie LLM sans un unique bloc ```json``` terminal strictement valide, extract_json_payload n'a rien pu materialiser"}

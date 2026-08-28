@@ -1,0 +1,83 @@
+objectif: 'Produire un clicker de chatons mignons jouable plusieurs heures sur Godot
+  4.6.3 desktop, avec une boucle de progression et une méta-progression cohérentes.
+  Boucle principale : CLIC sur la zone centrale (pelote de laine / pâtée / coussin)
+  -> RONRONS -> achat de CHATONS -> PRODUCTION AUTOMATIQUE -> AMÉLIORATIONS -> déblocage
+  de NOUVEAUX CHATONS et LIEUX -> MÉTA-PROGRESSION. Le run doit démontrer que les
+  données amont (World Scan : conditions_victoire, conditions_defaite, objectifs_joueur,
+  progression, boucles_recompense ; Histoire : chatons, lieux, objets, petites quêtes)
+  sont réellement CONSOMMÉES par les Grey Blocks, la WireMap, le Builder et les oracles
+  — pas seulement présentes dans les documents.'
+reference_jeu: 'Cookie Clicker (boucle incrémentale / progression / paliers) + Neko
+  Atsume (collection de chatons / attractivité / identité mignonne). Source Pierre
+  : lab/forge_runs/kitten_clicker/design_intent.md (2026-08-21). Choisi par Pierre,
+  jamais inventé ni supposé par l''agent.'
+plateforme_cible: 'Godot 4.6.3, desktop, fenêtre GPU (rendu réel, pas headless — la
+  capture Godot exige une fenêtre GPU). Source Pierre : lab/forge_runs/kitten_clicker/design_intent.md.'
+hors_scope:
+- Pas de multijoueur, de réseau, de synchronisation cloud ni de classement en ligne
+- Pas de monétisation, d'achats intégrés ni de publicité
+- 'Pas de build web/HTML : la cible est Godot 4.6.3 desktop uniquement'
+- 'Pas de genre hors clicker/incrémental : ni combat temps réel, ni PvP, ni action-plateforme'
+- 'Ne touche pas aux lanes protégées ou gelées : src/, tests/, autopilot.py, scripts/studioV2/'
+- 'Le charter cadre, il n''exécute pas : ni World Scan (étape 2), ni architecture
+  (étape 4), ni build'
+criteres_succes:
+- 'Le clic produit des ronrons : le compteur augmente strictement à chaque clic (comportement
+  strict, jamais un >= tautologique)'
+- 'Production automatique réelle : après l''achat d''au moins un chaton, les ronrons
+  augmentent sans aucun clic'
+- Une amélioration achetée augmente le taux de production de façon mesurable (taux
+  après > taux avant, strict)
+- La méta-progression débloque au moins un nouveau lieu au-delà du refuge initial
+- 'Solvabilité prouvée : un bot-joueur déterministe atteint le 3e palier en un nombre
+  de ticks fini (oracle de solvabilité, obligatoire s9-build)'
+- 'Traversée amont mesurée : conditions_victoire, conditions_defaite, objectifs_joueur,
+  progression et boucles_recompense issus du World Scan sont consommés par Grey Blocks,
+  WireMap et Builder (sonde check_amont_traversal.mjs, advisory)'
+- 'Règle de variance : la courbe des coûts/paliers porte au moins 3 valeurs distinctes
+  non triviales, prouvée sur échantillon'
+- 'Profondeur suffisante pour une jouabilité de plusieurs heures : paliers multiples
+  et méta-progression réellement atteignables'
+actions_interdites:
+- 'Jamais de git commit ni git push : merge/reject/freeze appartient au HumanGate
+  (Pierre)'
+- 'Ne jamais inventer ni supposer reference_jeu ou plateforme_cible : sans source
+  Pierre explicite, remonter en fog HumanGate'
+- 'Aucun oracle LLM-as-judge : les oracles restent déterministes non-LLM (code, archi,
+  wiremap, mutation, solvabilité)'
+- 'Aucun claim auto-certifié sans oracle : claim_verdict reste NO_CLAIM_ALLOWED, sinon
+  fog HumanGate'
+- 'Jamais de >= tautologique dans un test : asserter le comportement strict (kill
+  tue vraiment, compteur == n+1)'
+- 'Aucun reçu de code sans evidence_path : exécution non prouvable => BLOCKED (leçon
+  s12-verdict)'
+- Aucune métrique à variance nulle servant à classer, générer ou calibrer le jeu
+- 'Ne jamais étendre unilatéralement les tables figées du standard (capabilities.yaml,
+  repo_map.yaml, core_requirements.yaml) pour le genre clicker : cette extension est
+  un gate Pierre, pas une invention d''agent'
+criteres_demo:
+- MÉCANIQUE 1 — au clic sur la zone centrale, le compteur de ronrons affiché à l'écran
+  monte immédiatement
+- MÉCANIQUE 2 — après un achat, un nouveau chaton est visible à l'écran (sprite présent
+  dans la scène)
+- MÉCANIQUE 3 — une fois un chaton acquis, les ronrons continuent de monter à l'écran
+  sans aucun clic (production visible)
+- MÉCANIQUE 4 — après achat d'une amélioration, le rythme d'augmentation des ronrons
+  à l'écran est visiblement plus rapide qu'avant
+- MÉCANIQUE 5 — un bot-joueur joue seul et atteint un palier visible à l'écran (progression
+  affichée)
+- (a) Au moins 6 chatons nommés, chacun avec une identité visuelle distincte par rareté
+  (au moins commune / rare / légendaire discernables à l'oeil)
+- '(b) Au moins 2 lieux jouables : le refuge de départ plus au moins 1 lieu débloqué
+  par la méta-progression'
+- (c) Au moins 3 objets présents et identifiables à l'écran
+- (d) Au moins 3 petites quêtes dont l'objectif est visible à l'écran (texte ou jauge
+  d'avancement)
+- (e) Un son distinct et reconnaissable pour chacun des 4 événements clic, achat,
+  déblocage et prestige, déclenché par l'événement (audio procédural accepté ; preuve
+  = volet 07_TESTS/oracle/core_audio.gd avec journal des déclenchements)
+- (f) Un feedback visuel explicite au clic (ex. la pelote rebondit, une particule
+  ronron s'envole)
+- (g) La courbe des paliers affiche au moins 3 valeurs distinctes à l'écran (règle
+  de variance des métriques)
+- (h) Un bot atteint le 3e palier en un nombre de ticks fini (solvabilité vérifiable)

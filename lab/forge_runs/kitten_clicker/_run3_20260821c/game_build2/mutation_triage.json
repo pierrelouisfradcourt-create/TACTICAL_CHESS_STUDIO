@@ -1,0 +1,30 @@
+[
+  {
+    "name": "le->lt",
+    "line": 20,
+    "fichier": "05_SYSTEMS/offline_gains/offline_gains.gd",
+    "expression": "rate <= 0.0",
+    "justification": "MUTANT EQUIVALENT PROUVE. Garde `rate <= 0.0 -> return 0.0`. Le seul point de divergence entre `<=` et `<` est rate == 0.0 exactement. A rate == 0.0, l'original retourne 0.0 (garde vraie) ; le mutant `rate < 0.0` (faux) tombe dans le calcul et rend brut = 0.0 * duration_s = 0.0. Les deux rendent 0.0 : AUCUNE entree ne peut les distinguer (rate*0 == 0). De plus passive_rate est toujours >= 0, donc rate < 0 est inatteignable. Equivalent, non tuable sans changer le comportement."
+  },
+  {
+    "name": "le->lt",
+    "line": 22,
+    "fichier": "05_SYSTEMS/offline_gains/offline_gains.gd",
+    "expression": "duration_s <= 0.0",
+    "justification": "MUTANT EQUIVALENT PROUVE. Garde `duration_s <= 0.0 -> return 0.0`. Divergence `<=` vs `<` seulement a duration_s == 0.0. A D == 0.0, l'original retourne 0.0 ; le mutant `D < 0.0` (faux) calcule brut = rate * 0.0 = 0.0. Les deux rendent 0.0 : indistinguables (rate*0 == 0). Equivalent, non tuable sans changer le comportement."
+  },
+  {
+    "name": "ge->gt",
+    "line": 29,
+    "fichier": "05_SYSTEMS/game_state/game_state.gd",
+    "expression": "permanent (>=1)",
+    "justification": "MUTANT DANS UN COMMENTAIRE. Ligne 29 = declaration `var prestige_mult ...  # multiplicateur permanent (>=1), ...`. Le seul `>=` de la ligne vit DANS LE COMMENTAIRE ; le muter en `>` change le texte du commentaire, jamais le comportement. Aucun test ne peut le tuer (le commentaire n'est pas execute). DEFAUT AMONT SIGNALE (fog) : le meta-oracle de mutation devrait traiter `#` comme commentaire (docstring du contrat) et ne pas generer ce mutant."
+  },
+  {
+    "name": "le->lt",
+    "line": 33,
+    "fichier": "05_SYSTEMS/game_state/game_state.gd",
+    "expression": "(<= time_s",
+    "justification": "MUTANT DANS UN COMMENTAIRE. Ligne 33 = declaration `var bonus_expiry_s ...  # ... (<= time_s => inactif)`. Le seul `<=` de la ligne vit DANS LE COMMENTAIRE ; le muter en `<` change le texte du commentaire, jamais le comportement. Non tuable. DEFAUT AMONT SIGNALE (fog) : voir triage ge->gt L29 (mutation d'operateur a l'interieur d'un commentaire GDScript)."
+  }
+]

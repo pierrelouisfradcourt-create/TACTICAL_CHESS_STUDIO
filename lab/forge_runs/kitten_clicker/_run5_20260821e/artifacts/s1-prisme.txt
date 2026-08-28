@@ -1,0 +1,400 @@
+I have the complete resolver and schema semantics. Key facts confirmed:
+
+- **`validateChaine`**: `observation`/`claim`/`enonce` must all be non-empty **and normalized-distinct**.
+- **`validateProvenance`**: `source ∈ {EXPECTED,ADDITIONS}`; `source_role` non-empty; EXPECTED → `reference` non-empty; ADDITIONS → `reference` present and **exactly `null`**.
+- **`check_prisme_manifest`** FAILs only on bad chain/provenance/id or **zero actionable** exigences. Worldscan anchoring and story_bible/gm_worldscan anchoring are **classified, not FAIL** (confirmed line 144 + pré-mortem `515ca55`).
+- **`canonicalize`** resolves `worldscan:<jsonpath>` (non-null nodes only), `story_bible:<sectionId>`, `gm_worldscan:<dimId>`.
+- **`check_prisme.mjs`**: 4 numbered headers, ≥40 chars each, ≥1 `- **Rn`, no placeholders — a `## 5.` heading cleanly terminates section 4.
+
+Here is my delivery. Everything below (except the terminal `json` block and the final `RETURN_REASON` line) **is** `product_snapshot.md`.
+
+---
+
+Kitten Clicker est un petit clicker de chatons mignons pour Godot 4.6.3 desktop. Le joueur nourrit une colonie en cliquant sur un coussin central qui produit des ronrons ; la colonie grandit, se peuple de chatons nommés, débloque un second lieu, et se relance par prestige. Ce document décrit le produit **fini tel que le joueur le vit** — pas le chemin pour le construire.
+
+## 1. CE QUE LE JOUEUR VOIT
+
+Au démarrage : la scène du **refuge de départ**, chaude et douce, sans surcharge d'interface. Au centre de l'écran, un **objet cliquable** (pelote / coussin) qui appelle le clic. En haut, un **compteur de ronrons** grand et toujours visible, qui monte en direct, et juste sous lui un **taux de production (ronrons/sec)** qui agrège toutes les sources. Au fil du jeu, des **chatons nommés** peuplent le refuge sous forme de sprites distincts, chacun avec son nom affiché et une **apparence visuellement différente selon sa rareté** (couleur / cadre / taille) reconnaissable au premier coup d'œil. Un **panneau de boutique** liste les chatons et améliorations avec leurs prix qui montent à chaque achat. Un **panneau de quêtes** montre au moins trois objectifs et leur état. Des **objets** décorent et habitent la scène. À chaque clic, une **réaction visible** se produit sur l'objet central. Une fois le seuil atteint, l'écran de **prestige** apparaît, et après prestige un **second lieu** s'ouvre. Les très grands nombres s'affichent en notation abrégée (12.3K, 4.5M) plutôt qu'en chiffres bruts illisibles.
+
+## 2. CE QUE LE JOUEUR FAIT
+
+Il **clique** sur l'objet central pour gagner des ronrons, geste primaire toujours disponible. Il **achète des chatons** : chaque achat fait apparaître un nouveau chaton visible qui se met à produire tout seul. Il **achète des améliorations** qui font monter le taux de production, valeur qu'il voit changer à l'écran. Il **laisse tourner la production automatique** pendant qu'il ne clique pas, et revient voir les ronrons accumulés. Il **franchit des paliers** de progression. Il **accomplit de petites quêtes** dont les objectifs sont lisibles à l'écran. Il **débloque le second lieu** par la méta-progression. Quand il a assez avancé, il **déclenche le prestige** : il remet sa progression à zéro en échange d'un multiplicateur permanent, et repart plus fort. Aucune de ces actions ne peut le faire perdre — il n'y a pas d'état de défaite.
+
+## 3. CE QUE LE JOUEUR RESSENT
+
+Une **récompense immédiate** à chaque clic : le compteur bouge dans la même fraction de seconde, et l'objet réagit — la dopamine du compteur qui monte. Un sentiment de **puissance croissante** à mesure que les nombres grossissent et que le taux/sec s'emballe. Un calme **cosy et sans échec** : le refuge est mignon, bienveillant, sans violence ni menace, on ne peut que progresser. Une **envie de collection** : chaque rareté de chaton tire vers « les avoir tous », et le rare qu'on n'a pas encore appelle à continuer. Au prestige, un **second souffle** — le plaisir de tout relancer en sachant qu'on ira plus vite et plus loin qu'au tour précédent.
+
+## 4. RÈGLES OBSERVABLES
+
+Chacune est un fait vérifiable à l'écran ou par oracle déterministe (testable plus tard, jamais un `>=` tautologique).
+
+- **R1.** Cliquer sur l'objet central incrémente le compteur de ronrons affiché d'une valeur strictement positive à chaque clic (assertion stricte `==`).
+- **R2.** Le compteur de ronrons ET le taux ronrons/sec sont visibles à l'écran en permanence et se mettent à jour en direct.
+- **R3.** Après l'achat d'un chaton, un nouveau sprite de chaton nommé apparaît et reste visible jusqu'à la fin de la session.
+- **R4.** Avec ≥1 chaton possédé et sans aucun clic pendant T ticks, le compteur augmente d'exactement `taux_production × T`.
+- **R5.** Acheter une amélioration augmente strictement le taux de production affiché (ronrons/sec).
+- **R6.** Le coût du N-ième chaton d'un type est strictement supérieur au (N−1)-ième, escalade fixe ≥ +10 % par achat.
+- **R7.** Le jeu embarque un registre d'au moins 6 chatons nommés, aux noms uniques, chacun porteur d'un palier de rareté, tous affichables à l'écran.
+- **R8.** La rareté d'un chaton est distinguable visuellement sans lire de texte (différence de pixels au-delà d'un seuil entre tiers).
+- **R9.** L'acquisition de chatons suit une distribution de rareté où les tiers rares sont strictement moins fréquents que les tiers communs (≥2 fréquences distinctes).
+- **R10.** Le jeu définit ≥2 lieux : le refuge disponible au départ et ≥1 lieu débloqué uniquement après un seuil de prestige.
+- **R11.** Le jeu contient ≥3 objets distincts, chacun présent dans le monde et identifiable.
+- **R12.** Le jeu définit ≥3 quêtes, chacune avec un objectif affiché à l'écran et une condition de complétion atteignable.
+- **R13.** Chaque clic sur l'objet central déclenche une réaction visible à l'écran dans la même frame que l'entrée.
+- **R14.** Le jeu joue un son DISTINCT pour chacun des quatre événements clic / achat / déblocage / prestige, déclenché par l'événement correspondant (journal des déclenchements).
+- **R15.** La courbe de paliers porte au moins 3 valeurs de seuil strictement distinctes et non triviales (règle de variance).
+- **R16.** Un bot déterministe atteint le 3e palier en un nombre de ticks FINI et borné, prouvé par assertion stricte d'atteinte (`palier == 3`, ticks ≤ borne explicite).
+- **R17.** Effectuer un prestige remet ronrons et chatons à zéro et octroie un multiplicateur de production permanent > 1 qui persiste après le reset.
+- **R18.** Aucun contenu du jeu ne représente combat, dégâts, défaite ou PvP ; chatons, objets et événements restent doux et mignons.
+- **R19.** Un total de ronrons ≥ 10000 s'affiche en notation abrégée (K/M/B), jamais en chiffres bruts.
+- **R20.** La progression (ronrons, chatons, lieux, état de prestige) persiste localement sur disque et est restaurée à l'identique au relancement (round-trip strict).
+- **R21.** Au premier lancement, l'objet central porte un indicateur visuel et un clic change le compteur affiché dans les 3 premières secondes d'entrée.
+- **R22.** Tout chaton nommé possédé augmente strictement le taux total de ronrons/sec de sa contribution déclarée — aucun chaton n'est du contenu mort sans consommateur.
+
+## 5. TRAÇABILITÉ & RESTITUTION (annexe contrat — hors description produit)
+
+**Ancre charter.** Sections 1–4 dérivent du `charter.yaml` (étape 0) : `objectif` (boucle clic→ronrons→chatons→production auto→améliorations→lieux→prestige), `criteres_demo` (a) 6 chatons nommés par rareté, (b) 2 lieux, (c) 3 objets, (d) 3 quêtes, (e) sons distincts, (f) feedback de clic, (g) courbe ≥3 paliers, (h) bot au 3e palier ; `criteres_succes` (variance, solvabilité stricte, producteur avec lecteur). Sources amont consommées : `worldscan.json`, `story_bible.json` (context/characters/coherence_rules GROUNDED ; chronology/stakes/factions/relations/events NOT_GROUNDED), `gm_worldscan.json` (7 dimensions MEASURED, `combat` NOT_MEASURED).
+
+**Reçu d'oracle.** Je n'ai PAS exécuté `check_prisme_manifest.mjs` (permissions `run: aucun`) ; il tourne à la matérialisation par l'exécuteur (`node scripts/forge/check_prisme_manifest.mjs <run_dir>/prisme.json --worldscan <run_dir>/worldscan.json`). Le bloc JSON est construit en conformité stricte à `upstream_schema.mjs` : trio observation/claim/énoncé distinct par exigence, provenance EXPECTED (adresse résolvant dans l'artefact cité) / ADDITIONS (`reference: null`), et chaque exigence actionnable (kind ∈ PROOF_KINDS + destination ∈ DESTINATIONS).
+- `software_verdict: BLOCKED` sur l'axe *preuve exécutée* (oracle non lancé dans ce contexte).
+- `evidence_verdict: MECHANICAL_VALIDATION_ONLY`.
+- `claim_verdict: NO_CLAIM_ALLOWED`.
+
+**Exigences classées non actionnables :** aucune. Les 22 portent une `expected_proof{kind,statement}` exploitable et une `destination` valide.
+
+**Références EXPECTED non ancrées dans le World Scan (classification advisory de `check_prisme_manifest`, PAS un défaut).** L'oracle ne construit ses jetons d'ancrage qu'à partir de `worldscan.json` (noms de jeux, URLs, `games[i]`). Les 8 exigences dont la `reference` est `story_bible:*` (C1, C2, C5, V1) ou `gm_worldscan:*` (C3, C4, G4, G5, G6, G7, G8, A1, L1, L2) seront donc reportées `references_non_ancrees`. Leur ancrage cross-artefact relève de `check_amont_traversal.mjs` (sonde distincte, non exécutée ici) où chaque adresse `story_bible:<section>` / `gm_worldscan:<dimension>` résout. C'est l'écart mesuré au pré-mortem `manifest-515ca55` : deux oracles de périmètres différents, pas un artefact bancal. Les 10 exigences `worldscan:*` (G1, G2, G3, G9, V2, A1…) s'ancrent, elles, via le jeton `games N`.
+
+**fog → HumanGate (Pierre).** Deux exigences sont des ADDITIONS (proposées par le Prisme, hors source amont) : **D2** persistance locale à la relance et **D1** lisibilité des 30 premières secondes. Le charter exclut la sauvegarde *cloud* mais reste muet sur la sauvegarde *locale* ; ces deux promesses produit sont un jugement de conception à ratifier, pas un fait ancré.
+
+**SKIPPED_VALIDATION :**
+- item : exécution de `check_prisme_manifest.mjs` · périmètre : `prisme.json` de ce run · statut : non fait · raison : permissions `run: aucun` — l'oracle tourne à la matérialisation.
+- item : exécution de la sonde `check_amont_traversal.mjs` · périmètre : ancrage cross-artefact des adresses `story_bible:` / `gm_worldscan:` · statut : non fait · raison : `run: aucun` ; adresses vérifiées par lecture (résolution `canonicalize`) mais non exécutées.
+- item : `check_prisme.mjs` (forme markdown du snapshot) · périmètre : sections 1–4 ci-dessus · statut : non fait · raison : `run: aucun` — validé à la matérialisation ; construit au format exigé (4 en-têtes, ≥40 car., règles `- **Rn`, zéro placeholder).
+
+**RETURN LINEAGE.**
+- why_task_existed :
+  - problem : la chaîne Forge exige un artefact `prisme.json` structuré qui transforme les faits amont (World Scan, Story Bible, GM World Scan) en exigences falsifiables routables vers l'aval — sans lui, `s3-decompo` n'a aucune ligne candidate à décomposer.
+  - oracle : `check_prisme_manifest.mjs` (conformité chaîne + provenance + actionnabilité) et `check_prisme.mjs` (forme du snapshot).
+  - root_cause : non transmis (activation par la séquence normale du pipeline `full_godot_narratif`, pas par un défaut).
+  - action_reason : produire les deux sorties (product_snapshot + prisme.json) en conformité stricte au schéma pour que l'aval consomme des exigences prouvables.
+- result : 22 exigences émises (19 EXPECTED, 3 ADDITIONS) couvrant les familles GAMEPLAY, CONTENT, VISUAL, AUDIO, LONGUEUR ; chaînes obs/claim/énoncé distinctes ; 22/22 actionnables ; product_snapshot à 4 sections + 22 règles observables.
+- proof : lecture des validateurs `upstream_schema.mjs` (validateChaine l.146, validateProvenance l.98, validateExpectedProof l.74) et des résolveurs `canonicalize`/`resolvePath` (`check_amont_traversal.mjs` l.39, l.88) ; adresses vérifiées présentes dans les artefacts lus. Exécution des oracles déléguée à la matérialisation (`run: aucun`).
+- learning : dans ce run, l'ancrage `story_bible:`/`gm_worldscan:` est structurellement invisible pour `check_prisme_manifest` (jetons worldscan-only) et n'est mesuré que par `check_amont_traversal` ; router une famille CONTENT/LONGUEUR sur ces adresses est correct mais sera toujours reporté `references_non_ancrees` par le manifest — à ne pas confondre avec un défaut d'artefact.
+- next_reason : chaîne causale FERMÉE ici pour ce qui relève de l'oracle (artefact conforme, actionnable) ; escalade limitée au fog HumanGate ci-dessus (in-scope des additions D1/D2), jugement de conception que le Prisme ne tranche pas.
+
+```json
+{
+  "game_id": "kitten_clicker",
+  "exigences": [
+    {
+      "id": "G1",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "worldscan:games[0].loops.minute_1",
+      "observation": "Le World Scan note qu'a la minute 1 de Cookie Clicker, un clic sur le cookie geant rend +1 avec une sensation immediate de recompense.",
+      "claim": "Le clic manuel doit donc etre l'acte de production primaire, toujours disponible, dont le resultat est lisible a l'ecran a l'instant meme du clic.",
+      "enonce": "Cliquer sur la pelote/coussin central incremente le compteur de ronrons affiche d'une valeur strictement positive a chaque clic.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot clique N fois sans rien acheter ; l'oracle asserte que le compteur de ronrons affiche a augmente d'exactement N*taux_clic (assertion stricte ==, jamais >=)."
+      },
+      "destination": "s9-build"
+    },
+    {
+      "id": "G2",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "worldscan:games[2].loops.minute_10",
+      "observation": "Le World Scan note qu'a la minute 10 de Kittens Game, acquerir plus de chatons fait visiblement grandir la colonie a l'ecran (plus de chatons = plus de recolte).",
+      "claim": "Un achat de chaton doit produire une entite persistante et visible a l'ecran, pas seulement un changement de nombre, pour que l'achat se lise comme peupler un refuge.",
+      "enonce": "Apres l'achat d'un chaton, un nouveau sprite de chaton nomme apparait et reste visible a l'ecran pour le reste de la session.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_visible_chaton.gd en gpu_window : capture avant/apres achat, asserte que le nombre de sprites-chatons visibles augmente d'exactement 1 et que le nouveau sprite persiste au frame suivant."
+      },
+      "destination": "s9-build"
+    },
+    {
+      "id": "G3",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "worldscan:games[0].loops.minute_10",
+      "observation": "Le World Scan note qu'a la minute 10 de Cookie Clicker la production continue passivement (regarder les nombres monter, batiments produisant tout seuls).",
+      "claim": "Des qu'au moins un producteur est possede, le total de ronrons doit monter sans aucune entree du joueur, rendant le temps d'inactivite productif.",
+      "enonce": "Avec au moins 1 chaton possede et aucun clic pendant T ticks, le compteur de ronrons augmente du taux de production possede.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot achete 1 chaton puis n'interagit plus pendant T ticks ; l'oracle asserte que le compteur augmente d'exactement production_rate*T (assertion stricte)."
+      },
+      "destination": "s9-build"
+    },
+    {
+      "id": "G4",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "gm_worldscan:bonus",
+      "observation": "La dimension bonus du GM World Scan mesure des multiplicateurs et paliers d'efficacite (tech multiplicateurs, seuils de batiments) qui augmentent la production.",
+      "claim": "Acheter une amelioration doit produire une hausse observable de la valeur du taux de production, pas seulement debloquer un texte cosmetique.",
+      "enonce": "Acheter une amelioration augmente strictement le taux de production affiche (ronrons/sec) a l'ecran.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot mesure le taux avant/apres achat d'une amelioration et asserte taux_apres > taux_avant par assertion stricte."
+      },
+      "destination": "s9-build"
+    },
+    {
+      "id": "G5",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "gm_worldscan:progression",
+      "observation": "La dimension progression du GM World Scan mesure une courbe d'escalade de prix de +15% par achat du meme type (Cookie Clicker).",
+      "claim": "Une rampe de prix monotone est requise pour que chaque chaton successif coute plus cher, sinon l'economie se trivialise et aucun palier ne gate la progression.",
+      "enonce": "Le cout du N-ieme chaton d'un type est strictement superieur au (N-1)-ieme, suivant une escalade fixe d'au moins +10% par achat.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "07_TESTS/oracle/core_economy.gd : achete 5 chatons du meme type et asserte cost[i] > cost[i-1] pour tout i (strict), avec ratio >= 1.10."
+      },
+      "destination": "s4-archi"
+    },
+    {
+      "id": "G6",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "gm_worldscan:economy",
+      "observation": "La dimension economy du GM World Scan mesure une ressource tertiaire de prestige (Heavenly Chips : capital permanent, +1% de production par niveau accumule sur les resets).",
+      "claim": "Kitten Clicker a besoin d'un prestige qui echange la progression courante contre un multiplicateur permanent, donnant a la session de plusieurs heures sa boucle de second ordre.",
+      "enonce": "Effectuer un prestige remet ronrons et chatons a zero et octroie un multiplicateur de production permanent strictement superieur a 1 qui persiste apres le reset.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot atteint le seuil de prestige, prestige, puis re-mesure : la production de depart post-prestige > la production de depart initiale par assertion stricte."
+      },
+      "destination": "s3-decompo"
+    },
+    {
+      "id": "G7",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "gm_worldscan:economy",
+      "observation": "La dimension economy du GM World Scan mesure une production monocentrique ou tous les batiments et multiplicateurs convergent vers une seule metrique visible (cookies/sec).",
+      "claim": "Kitten Clicker devrait exposer un unique taux de production toujours visible (ronrons/sec) agregeant chaque source, comme jauge de feedback primaire du joueur.",
+      "enonce": "Un unique taux ronrons/sec, sommant tous les producteurs et multiplicateurs, est affiche a l'ecran en permanence et mis a jour en direct.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_hud.gd en gpu_window : asserte la presence d'un label de taux ronrons/sec a l'ecran et sa mise a jour apres un achat."
+      },
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "G8",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "gm_worldscan:rarity",
+      "observation": "La dimension rarity du GM World Scan mesure des pools de collectibles decomposes par rarete (86 chats Neko Atsume : 40 courants, 26 rares, 20 autres).",
+      "claim": "La rarete des chatons doit etre une distribution reelle (communs frequents, rares rares), pas un simple libelle uniforme, pour que la rarete porte une information que le joueur ressent.",
+      "enonce": "L'acquisition de chatons suit une distribution de rarete ou les tiers rares sont strictement moins frequents que les tiers communs (au moins 2 frequences distinctes).",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "07_TESTS/oracle/core_rarity_dist.gd : simule 200 acquisitions et asserte freq(commun) > freq(rare) strictement et au moins 2 frequences distinctes non triviales."
+      },
+      "destination": "s4-archi"
+    },
+    {
+      "id": "G9",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "worldscan:games[2].loops.minute_10",
+      "observation": "Le World Scan note dans Kittens Game (minute 10) que plus de chatons donne plus de recolte : chaque chaton ajoute augmente la sortie.",
+      "claim": "Chaque chaton nomme du registre doit etre cable pour reellement augmenter la production, sinon les chatons nommes deviennent du contenu decoratif sans consommateur (producteur sans lecteur).",
+      "enonce": "Posseder un chaton augmente strictement le taux total de ronrons/sec de la contribution declaree de ce chaton.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot achete chaque type de chaton une fois et asserte que le taux total augmente strictement a chaque achat, la hausse == contribution declaree (strict)."
+      },
+      "destination": "s9-build"
+    },
+    {
+      "id": "C1",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "story_bible:characters",
+      "observation": "La section characters de la Story Bible (GROUNDED) etablit que le monde comporte au moins six chatons nommes, chacun avec un nom affiche et une identite visuelle distincte differenciee selon sa rarete.",
+      "claim": "Cela oblige un registre concret et enumerable : les chatons nommes ne peuvent pas rester un compte abstrait, ils doivent etre des donnees que le jeu lit pour instancier et etiqueter chacun.",
+      "enonce": "Le jeu embarque un registre d'au moins 6 chatons, chacun avec un nom affiche unique et un palier de rarete, tous chargeables et affiches a l'ecran.",
+      "expected_proof": {
+        "kind": "file_write",
+        "statement": "03_WORLD/chatons.json contient >=6 entrees {nom, rarete} aux noms uniques ; un test charge le registre et compte >=6 noms distincts."
+      },
+      "destination": "s3-decompo"
+    },
+    {
+      "id": "C2",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "story_bible:context",
+      "observation": "La section context de la Story Bible (GROUNDED) etablit un cadre spatial : un refuge de depart plus au moins un lieu supplementaire debloque par la meta-progression (prestige).",
+      "claim": "La structure a deux lieux doit etre adossee a un registre de lieux gate sur l'etat de prestige, pour que le second lieu soit un vrai deblocage et non un texte decoratif.",
+      "enonce": "Le jeu definit au moins 2 lieux : le refuge disponible au depart et au moins 1 lieu debloque uniquement apres un seuil de prestige/meta-progression.",
+      "expected_proof": {
+        "kind": "file_write",
+        "statement": "03_WORLD/lieux.json contient >=2 lieux dont au moins un porte condition_deblocage=prestige ; un test asserte 2 lieux et 1 gate de prestige."
+      },
+      "destination": "s3-decompo"
+    },
+    {
+      "id": "C3",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "gm_worldscan:construction",
+      "observation": "La dimension construction du GM World Scan mesure des objets diegetiques du genre (meubles et jouets de Neko Atsume, decoratifs et fonctionnels).",
+      "claim": "Un refuge a chatons ne se lit comme habite que s'il contient des objets distincts, donc au moins trois objets concrets doivent exister comme donnees, pas comme decor.",
+      "enonce": "Le jeu contient au moins 3 objets distincts, chacun une entree nommee presente dans le monde et identifiable en jeu.",
+      "expected_proof": {
+        "kind": "file_write",
+        "statement": "03_WORLD/objets.json contient >=3 objets distincts ; un test asserte >=3 ids uniques presents dans le monde."
+      },
+      "destination": "s3-decompo"
+    },
+    {
+      "id": "C4",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "gm_worldscan:progression",
+      "observation": "La dimension progression du GM World Scan mesure des pools d'objectifs optionnels structures du genre (637 achievements, collection de 86 chats).",
+      "claim": "Kitten Clicker a besoin de ses propres petits objectifs explicites - trois quetes dont les buts sont lisibles a l'ecran - pour donner une direction au-dela du simple compteur.",
+      "enonce": "Le jeu definit au moins 3 quetes, chacune avec un objectif affiche a l'ecran et une condition de completion que le joueur peut atteindre.",
+      "expected_proof": {
+        "kind": "file_write",
+        "statement": "03_WORLD/quetes.json contient >=3 quetes {objectif_affiche, condition_completion} ; un test asserte >=3 quetes et la presence des deux champs sur chacune."
+      },
+      "destination": "s3-decompo"
+    },
+    {
+      "id": "C5",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "story_bible:coherence_rules",
+      "observation": "La section coherence_rules de la Story Bible (GROUNDED) etablit un monde mignon et bienveillant, sans etat de defaite, avec combat/PvP/action temps reel explicitement hors-scope.",
+      "claim": "Tout artefact de contenu (chatons, objets, evenements) doit rester dans un registre non-violent et doux, ce qui contraint l'art et la copie en aval.",
+      "enonce": "Aucun contenu du jeu ne represente combat, degats, defaite ou PvP ; tous les chatons/objets/evenements se lisent comme doux et mignons.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "07_TESTS/oracle/core_content_tone.gd : lint de contenu qui asserte qu'aucune entree de 03_WORLD/*.json ne porte de champ de degats, combat ou defaite."
+      },
+      "destination": "s3-decompo"
+    },
+    {
+      "id": "V1",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "story_bible:characters",
+      "observation": "La section characters de la Story Bible declare la rarete comme axe de differenciation de l'identite visuelle des chatons.",
+      "claim": "La rarete doit se rendre comme une difference visuelle immediate (palette/cadre/taille), pas un simple libelle texte, pour que le joueur lise le tier d'un chaton sans inspecter ses stats.",
+      "enonce": "Chaque palier de rarete rend une apparence de chaton visuellement distincte, distinguable a l'ecran sans lire de texte.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_visual_rarity.gd en gpu_window : rend un chaton par rarete et asserte que les captures different au-dela d'un seuil de pixels entre tiers."
+      },
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "V2",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "worldscan:games[0].loops.minute_1",
+      "observation": "Le World Scan note qu'a la minute 1 de Cookie Clicker le clic produit une recompense sensorielle immediate (sensation immediate de recompense).",
+      "claim": "Le clic a besoin d'une reaction visible a l'ecran declenchee a l'instant du clic (rebond/particule/pop de nombre), sinon l'acte central parait mort meme quand le compteur bouge.",
+      "enonce": "Chaque clic sur l'objet central declenche une reaction visible a l'ecran dans la meme frame que l'entree.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_click_feedback.gd en gpu_window : capture au frame du clic vs frame precedent et asserte une difference de pixels dans la zone de l'objet central."
+      },
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "A1",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "gm_worldscan:progression",
+      "observation": "La dimension progression du GM World Scan mesure des evenements de progression distincts (achats a cout escaladant, cycle de reset de prestige) que le joueur declenche.",
+      "claim": "Chaque evenement declenche par le joueur (clic, achat, deblocage, prestige) a besoin de sa propre signature sonore, pour que l'oreille distingue un achat d'un deblocage sans regarder.",
+      "enonce": "Le jeu joue un son DISTINCT pour chacun des quatre evenements clic/achat/deblocage/prestige, declenche par l'evenement correspondant.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "07_TESTS/oracle/core_audio.gd tient un journal des declenchements : provoque les 4 evenements et asserte 4 entrees de son aux ids distincts deux a deux (audio procedural accepte)."
+      },
+      "destination": "s9-build"
+    },
+    {
+      "id": "L1",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "gm_worldscan:progression",
+      "observation": "La dimension progression du GM World Scan mesure des courbes d'escalade a plusieurs seuils distincts (ex. gates 50k -> 1M -> 100M+ science dans Kittens Game).",
+      "claim": "La progression de Kitten Clicker doit etre gatee par une courbe de paliers portant au moins trois valeurs de seuil DISTINCTES non triviales, sinon la promesse de plusieurs heures s'effondre en un grind plat.",
+      "enonce": "Le jeu definit une courbe de paliers d'au moins 3 valeurs de seuil strictement distinctes (regle de variance : >=2 distinctes, ici >=3).",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot joue jusqu'au palier 3 ; l'oracle lit la courbe de paliers et asserte >=3 valeurs strictement distinctes (aucune egalite, pas de trivial 1,2,3)."
+      },
+      "destination": "s9-build"
+    },
+    {
+      "id": "L2",
+      "source": "EXPECTED",
+      "source_role": "prisme_produit",
+      "reference": "gm_worldscan:progression",
+      "observation": "La dimension progression du GM World Scan montre un genre concu pour progresser en continu avec des tiers atteignables (aucune defaite, paliers finalement franchis).",
+      "claim": "La solvabilite doit etre prouvee et non supposee : un bot deterministe doit reellement atteindre le 3e palier en un nombre fini et borne de ticks, sinon les objectifs peuvent etre inatteignables alors que les tests unitaires passent.",
+      "enonce": "Un bot deterministe atteint le 3e palier de progression en un nombre de ticks FINI et asserte (assertion stricte d'atteinte, jamais un >= tautologique).",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "07_TESTS/oracle/solvability.gd : bot deterministe, asserte palier_atteint == 3 en ticks <= BORNE finie explicite (atteinte stricte)."
+      },
+      "destination": "s9-build"
+    },
+    {
+      "id": "D1",
+      "source": "ADDITIONS",
+      "source_role": "prisme_produit",
+      "reference": null,
+      "observation": "Le charter promet un petit clicker mignon jouable plusieurs heures mais ne nomme aucune guidance de premiere session pour un nouveau joueur.",
+      "claim": "Sans un temps d'ouverture lisible, un nouveau joueur peut ne pas decouvrir que cliquer l'objet central demarre la production, bloquant la boucle centrale avant qu'elle ne commence.",
+      "enonce": "Au premier lancement, l'objet central cliquable est visuellement mis en avant et un clic produit un changement visible du compteur dans les 3 premieres secondes d'entree.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_onboarding.gd en gpu_window : au boot, asserte que l'objet central porte un indicateur visuel et qu'un clic simule change le compteur affiche."
+      },
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "D2",
+      "source": "ADDITIONS",
+      "source_role": "prisme_produit",
+      "reference": null,
+      "observation": "Un idle/clicker joue sur plusieurs heures se joue implicitement sur plusieurs sessions, or le charter exclut la sauvegarde cloud sans traiter la sauvegarde locale.",
+      "claim": "La progression doit survivre a la fermeture locale de l'application desktop, sinon la progression de plusieurs heures est perdue entre sessions et la boucle de prestige ne paie jamais.",
+      "enonce": "Le jeu persiste ronrons, chatons possedes, lieux debloques et etat de prestige sur le disque local et les restaure au relancement.",
+      "expected_proof": {
+        "kind": "file_write",
+        "statement": "Un test ecrit un etat, relance, et asserte que 06_RUNTIME/save recharge exactement l'etat ecrit (round-trip strict champ par champ)."
+      },
+      "destination": "s4-archi"
+    },
+    {
+      "id": "D3",
+      "source": "ADDITIONS",
+      "source_role": "prisme_produit",
+      "reference": null,
+      "observation": "Le compteur d'un clicker croit sans borne sur une session de plusieurs heures, produisant des valeurs trop grandes pour se lire en chiffres bruts.",
+      "claim": "Des grands nombres non formates deviennent illisibles (ex. 1000000000000), cassant la dopamine du compteur qui porte le genre.",
+      "enonce": "Les totaux de ronrons >= 10000 sont affiches en notation abregee (ex. 12.3K, 4.5M) a l'ecran.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_number_format.gd en gpu_window : rend un total de 12345678 et asserte que l'affichage contient une abreviation (K/M/B), pas 8 chiffres bruts."
+      },
+      "destination": "s5-wiremap"
+    }
+  ]
+}
+```
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Les 8 exigences EXPECTED routees sur des adresses story_bible: / gm_worldscan: (familles CONTENT et LONGUEUR, imposees par le contrat) seront classees references_non_ancrees par check_prisme_manifest, qui ne construit ses jetons d'ancrage qu'a partir de worldscan.json ; seules les 10 exigences worldscan: s'ancrent.", "root_cause": "check_prisme_manifest.mjs et check_amont_traversal.mjs mesurent des perimetres differents : l'ancrage cross-artefact des adresses story_bible:/gm_worldscan: releve de la sonde de traversal, non executee par cette station, donc l'ecart n'est pas un defaut de l'artefact mais une frontiere entre deux oracles (pre-mortem manifest-515ca55)."}

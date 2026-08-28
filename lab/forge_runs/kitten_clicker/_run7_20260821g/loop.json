@@ -1,0 +1,79 @@
+{
+ "schema_version": 1,
+ "game_id": "kitten_clicker",
+ "steps": [
+  {
+   "role": "PLAYER_GOAL",
+   "ref": "EX01",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "nonempty"
+   }
+  },
+  {
+   "role": "PLAYER_ACTION",
+   "ref": "EX02",
+   "affordance": "pelote",
+   "repeat": 5,
+   "observe": {
+    "hud": "ronrons",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "PLAYER_ACTION",
+   "ref": "EX18",
+   "affordance": "acheter_amelioration",
+   "repeat": 1,
+   "observe": {
+    "hud": "production_par_seconde",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "GAME_RESPONSE",
+   "ref": "EX03",
+   "repeat": 1,
+   "observe": {
+    "hud": "ronrons",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "REWARD",
+   "ref": "EX04",
+   "repeat": 1
+  },
+  {
+   "role": "UNLOCK",
+   "ref": "EX05",
+   "affordance": "acheter_chaton",
+   "repeat": 1,
+   "observe": {
+    "hud": "production_par_seconde",
+    "predicate": "increases"
+   },
+   "wait_frames": 30
+  },
+  {
+   "role": "NEXT_GOAL",
+   "ref": "EX06",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "changes"
+   }
+  },
+  {
+   "role": "META_LOOP",
+   "ref": "EX07",
+   "affordance": "prestige",
+   "repeat": 1,
+   "observe": {
+    "hud": "lieux",
+    "predicate": "increases"
+   }
+  }
+ ]
+}

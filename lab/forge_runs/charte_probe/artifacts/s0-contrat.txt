@@ -1,0 +1,130 @@
+Write is disabled in this session — so the deliverable is the terminal YAML block itself (as the task explicitly requests: *"Rends le charter dans un bloc yaml terminal, les 7 champs remplis"*). Here is the charter.
+
+```yaml
+# charter.yaml — station s0-contrat (charte-20260814)
+# Projet : roguelike de donjon SOLO (Godot 4) — l'Archiviste et la Bibliotheque qui se reecrit.
+# Source d'intention : prompt Pierre (verbatim, non reinterprete). reference_jeu et
+# plateforme_cible = design-intent CHOISI PAR PIERRE (traces au prompt, jamais inventes).
+
+objectif: >-
+  Produire un roguelike de donjon SOLO en Godot 4, structure run-based a la Hades
+  (une partie = une descente ; la mort renvoie au hub ; un PNJ d'accueil recurrent
+  ponctue chaque retour), ou le joueur incarne un archiviste enferme dans une
+  bibliotheque infinie qui se reecrit a chaque mort. Toile de fond : deux factions
+  s'opposent sur la conservation ou la destruction des livres ; la Bibliothecaire
+  accueille le joueur a chaque retour au hub. OBJECTIF DU JOUEUR : traverser les
+  salles et atteindre la Salle des Origines.
+
+hors_scope:
+  - "Multijoueur, coop ou reseau sous toute forme — le jeu est explicitement SOLO."
+  - "Toute autre cible technique que Godot 4 (web/HTML, mobile natif, autre moteur) — hors gate Pierre."
+  - "Toute autre reference de jeu que Hades comme modele structurel (choix Pierre, non substituable par un agent)."
+  - >-
+    Meta-progression complete facon Hades au-dela du minimum demande (arsenal d'armes,
+    miroir de deblocages, arbre de relations PNJ etendu) — reservee a des iterations
+    ulterieures, non demandee ici.
+  - >-
+    Ecriture narrative exhaustive des deux factions au-dela de leur presence en toile de
+    fond et de la Bibliothecaire d'accueil (dialogues complets, lore etendu, embranchements).
+  - "Direction artistique definitive et assets finaux (Art Bible = etape ulterieure, hors station s0)."
+  - "Decisions d'architecture, de wiremap et de generation procedurale des salles (etapes s3/s4/s5, hors s0)."
+  - "Toute ecriture hors charter.yaml (code, scene, systeme) et toute lane protegee (src/, tests/, autopilot.py)."
+
+criteres_succes:
+  - >-
+    Point d'entree runtime present ET lancable en Godot 4 : scene principale + bootstrap
+    declares et executables (invariant structurel verifie en ABSENCE comme en presence —
+    un jeu peut tout prouver et rester impossible a lancer).
+  - >-
+    Une partie (run) se joue du hub jusqu'a au moins une salle, avec une condition de
+    resolution de salle EXPLICITE et testee de facon STRICTE (salle resolue == etat vrai,
+    jamais un >= tautologique).
+  - >-
+    La resolution d'une salle declenche l'ouverture d'une porte OBSERVABLE a l'ecran
+    (lien direct avec criteres_demo — la preuve est visuelle, pas un flag interne).
+  - >-
+    La mort renvoie le joueur au hub aupres de la Bibliothecaire, et une nouvelle partie
+    est relancable (boucle run-based fermee : descente -> mort -> retour -> nouvelle descente).
+  - >-
+    La Salle des Origines existe comme objectif ATTEIGNABLE : la solvabilite est prouvee
+    par un bot qui GAGNE (atteint la Salle des Origines), pas seulement par des mecaniques
+    testees en isolation.
+  - >-
+    Une session automatique bornee se deroule sans exception non gardee (entrees invalides
+    absorbees, etat de partie jamais invalide), et toute preuve d'execution porte un
+    evidence_path (sans lui : execution non prouvable = BLOCKED).
+
+actions_interdites:
+  - "Ne pas introduire de multijoueur/coop/reseau : le jeu reste SOLO."
+  - "Ne pas changer de moteur ni de plateforme cible (Godot 4 impose) sans gate Pierre explicite."
+  - "Ne pas substituer une autre reference a Hades : reference_jeu est une decision Pierre, jamais d'agent."
+  - >-
+    Ne pas prouver le critere de demo par un critere mecanique interne (log, flag, assertion)
+    au lieu d'un observable a l'ecran : la porte doit s'OUVRIR VISIBLEMENT quand la salle est resolue.
+  - "Ne pas ecrire un test tautologique (>= masquant une mecanique morte) : asserter le comportement STRICT."
+  - "Ne pas rendre software_verdict: OK sans preuve d'execution adossee a un oracle deterministe non-LLM."
+  - "Ne pas utiliser d'API LLM externe ni d'assets non-libres sans validation Pierre."
+  - "Ne pas toucher aux lanes protegees (src/, tests/, autopilot.py, scripts/studioV2/) ni git commit/push sans go Pierre."
+
+plateforme_cible: "Godot 4 (moteur de jeu ; cible desktop). Source : prompt Pierre (verbatim « en Godot 4 »)."
+
+reference_jeu: >-
+  Hades (Supergiant Games) — modele roguelike run-based : une partie = une descente,
+  la mort renvoie au hub, un PNJ d'accueil recurrent (ici la Bibliothecaire) ponctue
+  chaque retour et la progression se construit d'un run a l'autre. CHOIX EXPLICITE PIERRE
+  (prompt : « reference_jeu CHOISI PAR PIERRE : Hades »), jamais suppose par l'agent.
+
+criteres_demo:
+  - >-
+    Une porte VISIBLE s'ouvre a l'ecran lorsqu'une salle est resolue — critere observable
+    explicite du prompt Pierre (« La demo doit montrer une porte qui s'ouvre a l'ecran
+    quand une salle est resolue »). Seul critere de demo trace a une source Pierre ; toute
+    autre exigence observable de demo est remontee en fog HumanGate, pas inventee ici.
+```
+
+---
+
+## RAPPORT FINAL — s0-contrat / charte-20260814
+
+**software_verdict:** BLOCKED
+**evidence_verdict:** MECHANICAL_VALIDATION_ONLY
+**claim_verdict:** NO_CLAIM_ALLOWED
+
+### Oracle charter cité
+Aucun oracle CHARTER déterministe n'a été **exécuté** sur ce livrable. Deux ancres non-LLM vérifiées par lecture, pas par run :
+- **`scripts/forge/standard_oracles.py`** — les 6+2 oracles du standard ne comportent **aucun** validateur de charter (docstring l.1-54 : contract/budget/line_states/placement/index/collisions + observable/genre). Le validateur CHARTER décrit dans mon `tests_oracles` n'est donc pas parmi eux.
+- **`lab/forge_evidence/P1_INJECTION_20260813/oracles_probe.json`** (clé `charte_probe`, l.66-73) — l'oracle configuré pour cette famille de runs est un **stub** : `node -e "console.error(...); process.exit(1)"`, explicitement annoté « aucun oracle produit — sonde amont_only uniquement, **ne jamais lire comme vert** ». Je ne peux donc pas produire un `software_verdict: OK` : sans validateur mécanique disponible → **fog HumanGate**, pas de claim (Règle de restitution).
+
+### Conformité de schéma (vérifiée par inspection, non par oracle)
+Les **7 champs requis** sont tous remplis, non vides, sans « à définir » : `objectif`, `hors_scope[]` (8), `criteres_succes[]` (6), `actions_interdites[]` (8), `plateforme_cible`, `reference_jeu`, `criteres_demo[]` (1). Ancre : `scripts/forge/contracts/s0-contrat.yaml` (`output_contract`, l.98-105) + noms canoniques croisés avec `standard/repo_map.yaml` (root `charter: 00_CHARTER/`). YAML volontairement limité aux 7 clés (schémas du standard = **fermés** ; toute clé inconnue = FAIL), la provenance vit dans ce rapport, pas dans l'artefact.
+
+### Design-intent — provenance Pierre
+Les trois champs sous garde-fou ont une **source Pierre tracée au prompt**, aucune invention :
+- `plateforme_cible` = Godot 4 (« en Godot 4 »).
+- `reference_jeu` = Hades (« reference_jeu CHOISI PAR PIERRE : Hades »).
+- `criteres_demo[]` = porte visible qui s'ouvre à la résolution d'une salle (verbatim prompt).
+
+### Flous du prompt — résolus vs remontés
+**Résolus (cadrage, hors garde-fou design-intent) :** hors-scope (solo ⇒ pas de multi ; Godot 4 ⇒ pas d'autre cible), critères de succès et actions interdites dérivés du prompt + pré-mortem (solvabilité par bot gagnant, entrypoint invariant, anti-tautologie `>=`, evidence_path obligatoire, preuve observable ≠ flag interne).
+
+**Remontés en fog HumanGate (jugement Pierre, non inventés) :**
+1. **`criteres_demo[]` — un seul critère explicite.** Pierre n'a fourni que « la porte qui s'ouvre ». Des observables évidents (archiviste visible qui se déplace, retour visible au hub auprès de la Bibliothécaire, marque visuelle « salle résolue ») **renforceraient** la démo mais n'ont **pas** de source Pierre → je ne les ajoute pas au champ (leçon AutoBattler). Pierre veut-il enrichir la liste ?
+2. **Identifiant de projet / emplacement du game dir.** Le prompt ne nomme pas de `game_id` ni de dossier `games/<jeu>/` ; le charter n'en pose pas (hors s0). À trancher avant s3/s4.
+3. **Portée de la « bibliothèque qui se réécrit ».** Reformulation narrative vs vraie génération procédurale des salles — décision d'architecture (s4), signalée comme hors-scope s0.
+
+### SKIPPED_VALIDATION
+- **item :** écriture physique de `charter.yaml` sur disque · **périmètre :** `create: charter.yaml` (permission contrat) · **statut :** non fait · **raison :** l'outil `Write` est **désactivé** dans cette session (subagents inclus) ; l'artefact est émis intégralement dans le bloc YAML terminal ci-dessus, qui EST le livrable de cette station-sonde amont.
+- **item :** exécution d'un oracle CHARTER déterministe · **périmètre :** validation de schéma du charter · **statut :** non fait · **raison :** aucun validateur CHARTER n'existe dans `standard_oracles.py` ; l'oracle configuré (`charte_probe`) est un stub qui exit 1 et interdit toute lecture verte. Conformité vérifiée par inspection seulement → fog HumanGate.
+
+### RETURN LINEAGE
+- **why_task_existed:**
+  - **problem:** un projet de jeu ne peut pas démarrer la boucle Forge sans charter borné (objectif, frontières, critères) ; sans lui les étapes aval (Prisme, World Scan, archi) sont structurellement aveugles.
+  - **oracle:** aucun — activation par décision humaine (intention de projet fournie par Pierre, marqueur `FORGE_DISPATCH:s0-contrat:charte-20260814`).
+  - **root_cause:** non établie (pas un défaut : point d'entrée nominal de la chaîne).
+  - **action_reason:** rédiger charter.yaml aux 7 champs remplis est précisément le livrable de la station s0.
+- **result:** charter aux 7 champs remplis, sans « à définir », design-intent tracé à Pierre ; émis en bloc terminal (Write désactivé) ; 3 fogs remontés.
+- **proof:** inspection croisée `s0-contrat.yaml` (output_contract l.98-105), `standard/repo_map.yaml` (root charter), `standard_oracles.py` (absence de validateur charter), `oracles_probe.json` (charte_probe = stub exit 1). Aucun oracle exécuté (aucun disponible).
+- **learning:** la famille de runs « amont »/sonde n'a pas d'oracle produit — un `software_verdict` vert y est structurellement impossible ; s0 doit sortir BLOCKED + fog tant que le validateur CHARTER n'est pas câblé, jamais un OK auto-certifié.
+- **next_reason:** le niveau supérieur (HumanGate/orchestrateur) doit trancher les 3 fogs (enrichissement criteres_demo, game_id/emplacement, portée « réécriture ») ET décider si un validateur CHARTER déterministe doit être câblé — deux décisions humaines réelles, la chaîne causale ne se ferme donc pas ici.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "aucun validateur CHARTER deterministe non-LLM n'existe pour la station s0 : standard_oracles.py n'en porte aucun et l'oracle configure charte_probe est un stub qui exit 1", "root_cause": "le champ charter est produit (M4 materialiseur) mais sa validation de schema n'est pas cablee comme oracle non-LLM dans la chaine"}

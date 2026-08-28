@@ -1,0 +1,46 @@
+Livré. Rapport final ci-dessous.
+
+---
+
+## RAPPORT FINAL — s2.5-artbible / kitten_clicker-20260821g
+
+**Oracle cité :** `node scripts/forge/check_artbible.mjs lab/forge_runs/kitten_clicker/art_bible.md lab/forge_runs/kitten_clicker/asset_requests.json` → `verdict: OK`, exit 0. Reçu : `lab/forge_runs/kitten_clicker/artbible_check_receipt.json` (evidence_path).
+
+**Artefacts produits (les deux seuls fichiers écrits) :**
+- `lab/forge_runs/kitten_clicker/art_bible.md` — frontmatter `{styles:[flat-cute-svg, cozy-pastel], mood_keywords:[9]}` + 3 sections (IDENTITÉ VISUELLE / RATIONALE / BESOINS VISUELS) + bloc `visual_requirements` de 17 entrées.
+- `lab/forge_runs/kitten_clicker/asset_requests.json` — 16 requests (Asset Contract V0.1), `no_assets_needed:false`.
+
+**Procédure imposée, suivie dans l'ordre :** (1) relecture section par section du `product_snapshot.md` run-g (VOIT/FAIT/RESSENT + R1–R16) et énumération de chaque entité visuelle distincte ; (2) `required:true` pour toute entité citée par une Règle Rn, `required:false` seulement pour `ambient_decor_props` (décor cosmétique non cité) ; (3) une request par entité `required:true` du même `entity_role` (jamais de requête générique fourre-tout) ; (4) `check_artbible.mjs` jusqu'à `verdict === 'OK'`.
+
+**Mapping besoin → Rn (corrigé — les artefacts des runs archivés `_run4..6` citaient des Rn d'une version antérieure du snapshot, R17–R25, inexistants dans le snapshot run-g) :** wool_ball→R1/R2 · 6 chatons→R5/R6 · rarity_frame_set→R6 · refuge_start→R7 · place_garden_unlocked→R7/R13 · 3 objets→R8 · upgrade_icon_set→R4 · click_feedback_pop→R2 · ui_panel_frame→R9/R14/R15.
+
+**FORMAT CIBLE svg :** le schéma V0.1 n'a pas de champ `format:svg` (enum `constraints.format ∈ {2D,3D}`) ; l'intention SVG est portée par `type:sprite|icon|vfx` + `constraints.format:"2D"`/`runtime:"godot"` + `references:["target-format:svg-vector-texture", …]` + descriptions en primitives dessinables. Le builder écrit lui-même les `.svg` (aucun générateur d'images 2D dans le studio).
+
+**Asset_requests + statut de resolution (advisory, JAMAIS un critère pass/fail) :** les 16 requests → **0 OK / 16 BLOCKED** contre le catalogue réel. C'est un `resolution_stats.blocked` **légitime** (catalogue incomplet, aucun chaton flat-cute-svg catalogué), pas un `coverage.missing`. Rapporté tel quel, sans assouplir aucune `constraint` pour forcer OK (interdiction de gaming de l'oracle respectée). `coverage.missing` = **vide** (16/16 satisfied).
+
+**Verdicts (RÈGLE DE RESTITUTION) :**
+- `software_verdict: OK` — appuyé par `check_artbible.mjs` (`verdict:OK`, coverage 16/16, forme conforme).
+- `evidence_verdict: MECHANICAL_VALIDATION_ONLY` — seule la conformité structurelle + couverture besoin↔requête est prouvée mécaniquement.
+- `claim_verdict: NO_CLAIM_ALLOWED` — je ne certifie aucune qualité esthétique.
+
+**fog → HumanGate (Pierre) :**
+- Conformité esthétique des SVG à produire : non évaluable mécaniquement (`style_tag_match` compare des tags, pas des pixels) — jugement Pierre.
+- 16/16 requests BLOCKED en resolution : le catalogue n'a pas ces assets et le studio n'a pas de générateur 2D ; la décision « le builder écrit les SVG lui-même » est le chemin prévu par la mission, mais l'existence effective des octets reste à prouver à l'étape build.
+- Adéquation viewpoint : `style_tag_match` ne vérifie pas la sémantique de vue (défaut connu v0.1) — non couvert ici.
+
+**SKIPPED_VALIDATION :**
+- item: exécution de `node scripts/forge/asset_request.mjs <req>` en standalone sur chaque request · périmètre: scripts/forge · statut: non fait séparément · raison: `check_artbible.mjs` délègue déjà à `validateRequestShape` + `evaluateAssetRequest` (les 16 sont passées en resolution, reflétées dans `resolution_stats`) — un double appel n'apporterait rien.
+- item: jugement de qualité esthétique des styles/couleurs · périmètre: art_bible.md · statut: non fait (interdit) · raison: hors périmètre Art Director, resolution mécanique uniquement (gardeFou) → fog HumanGate.
+
+**RETURN LINEAGE :**
+- `why_task_existed:`
+  - `problem:` kitten_clicker-20260821g n'avait pas d'art_bible.md/asset_requests.json valides dans le run-dir actif ; la chaîne aval (build) exige un contrat d'asset structuré couvrant chaque entité visuelle du snapshot.
+  - `oracle:` `check_artbible.mjs` (forme + couverture besoin↔requête v0.1).
+  - `root_cause:` non transmis explicitement par l'amont ; constat direct : les artefacts existants (`_run4..6`) sont des runs archivés dont les Rn ne correspondent plus au `product_snapshot.md` run-g (R1–R16), donc inutilisables tels quels.
+  - `action_reason:` produire une bible + 16 requests re-mappées sur R1–R16, une request par entité `required:true`, validées OK par l'oracle.
+- `result:` art_bible.md (3 sections, 17 visual_requirements) + asset_requests.json (16 requests, no_assets_needed:false) → `verdict:OK`, coverage 16/16, resolution 0/16 (advisory).
+- `proof:` `node scripts/forge/check_artbible.mjs … --json` → `{"pass":true,"verdict":"OK","coverage":{"missing":[],"satisfied":[16 ids]},"resolution_stats":{"ok":0,"blocked":16,"total":16}}`, exit 0 ; reçu sauvegardé `artbible_check_receipt.json`.
+- `learning:` sous le schéma V0.1 il n'existe pas de `format:svg` structuré — l'intention SVG doit passer par `type`+`references`+description en primitives ; et un run archivé ne peut PAS être réutilisé sans re-vérifier que ses Rn correspondent au snapshot du run courant (les Rn ont un sens différent d'une version de snapshot à l'autre).
+- `next_reason:` chaîne causale FERMÉE côté s2.5 — artefacts OK, couverture complète, route vers l'aval (build). Seuls reports ouverts = fog HumanGate (esthétique + existence des octets SVG), hors autorité de l'Art Director, pas une escalade technique.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "les artefacts art_bible/asset_requests des runs archives _run4..6 citent des Rn (R17-R25) absents du product_snapshot.md du run-g (R1-R16), donc non reutilisables sans re-mapping", "root_cause": "un product_snapshot regenere renumerote/redefinit ses regles observables sans garantie de stabilite inter-runs, et rien ne lie mecaniquement un art_bible archive a la version de snapshot contre laquelle il fut ecrit"}

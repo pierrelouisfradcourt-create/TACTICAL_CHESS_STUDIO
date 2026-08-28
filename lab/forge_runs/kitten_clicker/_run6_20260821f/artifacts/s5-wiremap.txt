@@ -1,0 +1,569 @@
+Write/Bash are disabled — I'm a content-producing subagent. Per the established pattern (the s2.6 story-bible agent returned its JSON inline for the executor `run_real.py` to materialize), I deliver the complete `wiremap.json` in my report and the executor writes it + runs the oracle. I verified conformance by **inspection of the oracle source** (`check_wiremap_contract.mjs`, `upstream_schema.mjs`, `standard_oracles.py`), since I have `run: aucun` and Bash/Write are disabled.
+
+---
+
+## RAPPORT FINAL — s5-wiremap / kitten_clicker-20260821f
+
+**Livrable** : `lab/forge_runs/kitten_clicker/wiremap.json` (schéma v2), à matérialiser par l'exécuteur. WireMap isomorphe à l'ownership du blueprint (chaque système porte son `blueprint_module`), **42 lignes**, **18 systèmes**, **les 25 capacités de featuremap couvertes** par `couvre`, `provides` **uniquement** des identifiants du registre gelé.
+
+```json
+{
+  "schema_version": 2,
+  "game_id": "kitten_clicker",
+  "run_id": "kitten_clicker-20260821f",
+  "etape": "s5-wiremap",
+  "dispatch_marker": "FORGE_DISPATCH:s5-wiremap:kitten_clicker-20260821f:1",
+  "plateforme": "Godot 4.6.3 (desktop, fenetre GPU) — charter.plateforme_cible",
+  "statut_artefact": "PROPOSITION — gel non ratifie (HumanGate Pierre). state=REQUIRED sur toutes les lignes : moment 'frozen' (avant build), UNKNOWN et IMPLEMENTED interdits.",
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
+
+  "reference_amont": {
+    "charter": "lab/forge_runs/kitten_clicker/charter.yaml",
+    "featuremap": "lab/forge_runs/kitten_clicker/featuremap.json (8 systemes, 20 features, 25 capacites cap_*) — cible du champ `couvre`",
+    "blueprint": "lab/forge_runs/kitten_clicker/blueprint.json (7 modules : 05_SYSTEMS, 06_RUNTIME, 02_ENTITIES, 03_WORLD, render, input, audio ; deps_interdites 05_SYSTEMS->render/input/audio) — chaque systeme porte son `blueprint_module`",
+    "art_bible": "lab/forge_runs/kitten_clicker/art_bible.md",
+    "asset_requests": "lab/forge_runs/kitten_clicker/asset_requests.json (16 requetes sprite) — une ligne asset.sprite par requete",
+    "repo_map": "scripts/forge/standard/repo_map.yaml (table FIGEE : tranche ou va chaque fichier)",
+    "core": "scripts/forge/standard/core_requirements.yaml (10 exigences CORE, not_applicable_allowed: false)",
+    "capabilities": "scripts/forge/standard/capabilities.yaml (registre PRODUIT ferme) + scripts/forge/standard/factory_capabilities.yaml (registre USINE ferme)"
+  },
+
+  "registre_provides": {
+    "regle_appliquee": "check_collisions (standard_oracles.py) fait echouer s10s sur tout `provides`/`requires` absent des DEUX registres (identifiants_inconnus). C'est exactement l'echec du run precedent (manifest-130043515fbb0708 : 17 provides inventes). Cette carte n'emploie donc QUE des identifiants ratifies : les 10 capacites CORE + game.params + game.events (capabilities.yaml) + bot.solvability (factory_capabilities.yaml).",
+    "consequence": "Les capacites de DOMAINE du clicker (production passive, amelioration, prestige, palier, suivi de collection, registres de contenu, spawn de chaton) n'ont AUCUN identifiant dans le registre gele (gate Pierre). Leurs lignes portent provides: [] et realisent leur capacite de featuremap via `couvre` uniquement. Les inventer = FAIL check_collisions. Besoin remonte en fog (voir fog[]).",
+    "provides_ratifies_utilises": ["game.boot", "game.loop", "game.state", "game.end", "game.restart", "game.exit", "input.action", "render.frame", "audio.cue", "error.guard", "game.params", "game.events", "bot.solvability"]
+  },
+
+  "divergences_signalees": [
+    "04_ASSETS hors blueprint : le blueprint ne modelise AUCUN module d'assets, mais art_bible + asset_requests + repo_map (asset.sprite) imposent 16 sprites. La section `sprites` (category asset.sprite) n'est isomorphe a aucun module du blueprint — le blueprint a sous-modelise les assets. Signale, non invente : les sprites sont exiges par les artefacts amont.",
+    "Placement des registres de contenu : la featuremap ecrit '03_WORLD/kittens.json' (racine 03_WORLD nue), mais repo_map (table FIGEE) n'offre AUCUNE categorie pour un fichier directement sous 03_WORLD/ — seulement `world.rules` (03_WORLD/rules/{id}/). Les registres sont donc places a 03_WORLD/rules/<registre>/<fichier>.json. Ecart de chemin force par la table figee, pas un choix libre.",
+    "Consolidation des volets observables : la featuremap nomme ~10 volets GPU distincts (click_feedback, hud_readout, kitten_spawn, rarity_identity, kitten_identity, collection_hud, place_decor, object_effect). Ce run consolide la preuve observable en 2 volets gpu_window (main_screen_render.gd, gallery_render.gd) + core_audio.gd + solvability.gd, conformement a la tache de dispatch. Les expected_proof nomment les volets consolides.",
+    "CORE sans decomposition featuremap : core.exit (game.exit) n'a aucune capacite de featuremap naturelle ; `couvre` cite cap_no_network (contrainte systemique la plus proche). Ancrage assume, non une realisation exacte."
+  ],
+
+  "systems": [
+    { "id": "params",            "category": "system",         "blueprint_module": "05_SYSTEMS", "allowed_deps": [] },
+    { "id": "game_state",        "category": "system",         "blueprint_module": "05_SYSTEMS", "allowed_deps": ["params"] },
+    { "id": "economy",           "category": "system",         "blueprint_module": "05_SYSTEMS", "allowed_deps": ["params", "game_state"] },
+    { "id": "meta",              "category": "system",         "blueprint_module": "05_SYSTEMS", "allowed_deps": ["params", "game_state"] },
+    { "id": "collection",        "category": "system",         "blueprint_module": "05_SYSTEMS", "allowed_deps": ["game_state"] },
+    { "id": "events",            "category": "system",         "blueprint_module": "05_SYSTEMS", "allowed_deps": ["game_state"] },
+
+    { "id": "kittens_registry",  "category": "world.rules",    "blueprint_module": "03_WORLD",   "allowed_deps": [] },
+    { "id": "places_registry",   "category": "world.rules",    "blueprint_module": "03_WORLD",   "allowed_deps": [] },
+    { "id": "objects_registry",  "category": "world.rules",    "blueprint_module": "03_WORLD",   "allowed_deps": [] },
+    { "id": "quests_registry",   "category": "world.rules",    "blueprint_module": "03_WORLD",   "allowed_deps": [] },
+
+    { "id": "kitten",            "category": "entity",         "blueprint_module": "02_ENTITIES","allowed_deps": [] },
+    { "id": "wool_ball",         "category": "entity",         "blueprint_module": "02_ENTITIES","allowed_deps": [] },
+
+    { "id": "render",            "category": "system.adapter", "blueprint_module": "render",     "allowed_deps": ["game_state", "params"] },
+    { "id": "input",             "category": "system.adapter", "blueprint_module": "input",      "allowed_deps": ["game_state"] },
+    { "id": "audio",             "category": "system.adapter", "blueprint_module": "audio",      "allowed_deps": ["events"] },
+    { "id": "runtime",           "category": "system.adapter", "blueprint_module": "06_RUNTIME", "allowed_deps": ["game_state", "render", "input", "audio"] },
+    { "id": "solvability_bot",   "category": "system.adapter", "blueprint_module": "06_RUNTIME", "allowed_deps": ["game_state", "input"] },
+
+    { "id": "sprites",           "category": "asset.sprite",   "blueprint_module": null,         "allowed_deps": [] }
+  ],
+
+  "lines": [
+    {
+      "id": "core.boot", "source": "CORE", "source_role": null, "reference": null,
+      "provides": ["game.boot"], "requires": [], "owner": true,
+      "category": "system.adapter", "system_parent": "runtime", "address": "06_RUNTIME/adapters/runtime/",
+      "expected_proof": { "kind": "bot_action", "statement": "Lancement -> etat initial observable (refuge affiche + HUD total/taux) atteint sans erreur ni intervention ; sonde runtime_alive verte sur la scene produite." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "06_RUNTIME/adapters/runtime/runtime.gd", "category": "system.adapter" } ],
+      "fonction": "Racine de composition : amorce la scene Godot sur le refuge, instancie l'etat et cable les adaptateurs. Atteint un etat initial observable.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_hud_total_taux"]
+    },
+    {
+      "id": "core.main_loop", "source": "CORE", "source_role": null, "reference": null,
+      "provides": ["game.loop"], "requires": ["game.state"], "owner": true,
+      "category": "system.adapter", "system_parent": "runtime", "address": "06_RUNTIME/adapters/runtime/",
+      "expected_proof": { "kind": "test", "statement": "Meme etat + meme seed -> meme etat suivant sur N ticks ; la production passive avance d'un delta deterministe par tick sans intervention." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "06_RUNTIME/adapters/runtime/runtime.gd", "category": "system.adapter" } ],
+      "fonction": "Boucle de tick deterministe : convertit le temps moteur en avancee d'etat (production passive), sans alea non seede.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_prod_passive"]
+    },
+    {
+      "id": "core.input", "source": "CORE", "source_role": null, "reference": null,
+      "provides": ["input.action"], "requires": ["game.state"], "owner": true,
+      "category": "system.adapter", "system_parent": "input", "address": "06_RUNTIME/adapters/input/",
+      "expected_proof": { "kind": "bot_action", "statement": "Un clic emis via l'adaptateur d'entree incremente le compteur de ronrons de gain>0 strict (compteur == N*gain, jamais un >= tautologique)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "06_RUNTIME/adapters/input/input.gd", "category": "system.adapter" } ],
+      "fonction": "Adaptateur d'entree : capture le clic sur la pelote et les achats, les traduit en appels a l'API de la logique. Direction input -> logique uniquement.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_clic_gain"]
+    },
+    {
+      "id": "core.game_state", "source": "CORE", "source_role": null, "reference": null,
+      "provides": ["game.state"], "requires": [], "owner": true,
+      "category": "system", "system_parent": "game_state", "address": "05_SYSTEMS/game_state/",
+      "expected_proof": { "kind": "test", "statement": "L'etat (ronrons, taux, chatons, paliers, statut) est lisible a tout instant et ne prend que des valeurs declarees ; aucun etat 'defaite'/'game_over' atteignable." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "05_SYSTEMS/game_state/game_state.gd", "category": "system" }, { "path": "07_TESTS/unit/game_state.test.gd", "category": "test.unit" } ],
+      "fonction": "Etat de partie pur : detient ronrons, taux, colonie, paliers, statut dans un vocabulaire ferme. Detient, n'agit pas.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_no_gameover"]
+    },
+    {
+      "id": "core.end_condition", "source": "CORE", "source_role": null, "reference": null,
+      "provides": ["game.end"], "requires": ["game.state"], "owner": true,
+      "category": "system", "system_parent": "game_state", "address": "05_SYSTEMS/game_state/",
+      "expected_proof": { "kind": "bot_action", "statement": "La 'fin' du genre incremental = franchir un palier de meta-progression ; un bot deterministe atteint le 3e palier en un nombre fini de ticks, l'etat final est un palier franchi, jamais indefini." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "05_SYSTEMS/game_state/end_conditions.gd", "category": "system" }, { "path": "07_TESTS/unit/end_conditions.test.gd", "category": "test.unit" } ],
+      "fonction": "Definit la condition de fin par les regles : franchissement de palier (pas de game-over). Expose le palier atteint.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_solvabilite_bot"]
+    },
+    {
+      "id": "core.restart", "source": "CORE", "source_role": null, "reference": null,
+      "provides": ["game.restart"], "requires": ["game.state"], "owner": true,
+      "category": "system", "system_parent": "game_state", "address": "05_SYSTEMS/game_state/",
+      "expected_proof": { "kind": "bot_action", "statement": "Le prestige remet la production a la base en conservant un bonus permanent ; reatteindre le meme palier prend strictement moins de ticks (etat initial propre + residu bonus, aucun autre residu)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "05_SYSTEMS/game_state/restart.gd", "category": "system" }, { "path": "07_TESTS/unit/restart.test.gd", "category": "test.unit" } ],
+      "fonction": "Relance dans un etat initial propre (le prestige EST le restart du genre) : reset de la production, conservation du bonus permanent.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_prestige_reset_bonus"]
+    },
+    {
+      "id": "core.exit", "source": "CORE", "source_role": null, "reference": null,
+      "provides": ["game.exit"], "requires": [], "owner": true,
+      "category": "system.adapter", "system_parent": "runtime", "address": "06_RUNTIME/adapters/runtime/",
+      "expected_proof": { "kind": "bot_action", "statement": "Sortie demandee -> processus termine, code de sortie 0, aucune ressource laissee active, aucun appel reseau ouvert." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "06_RUNTIME/adapters/runtime/runtime.gd", "category": "system.adapter" } ],
+      "fonction": "Termine le processus proprement sur demande (exit 0), sans ressource residuelle. CORE sans capacite featuremap dediee (voir divergences).",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_no_network"]
+    },
+    {
+      "id": "core.render", "source": "CORE", "source_role": null, "reference": null,
+      "provides": ["render.frame"], "requires": ["game.state"], "owner": true,
+      "category": "system.adapter", "system_parent": "render", "address": "06_RUNTIME/adapters/render/",
+      "expected_proof": { "kind": "visual", "statement": "Deux captures a des etats differents different ; aucune capture n'est monochrome. Le feedback de clic et le HUD changent visiblement quand l'etat change." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "06_RUNTIME/adapters/render/render.gd", "category": "system.adapter" } ],
+      "fonction": "Adaptateur de sortie visuelle : lit l'etat et l'affiche, ne le mute jamais. Proprietaire de render.frame ; les volets d'ecran (main_screen/gallery) le realisent.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_clic_feedback", "cap_hud_total_taux"]
+    },
+    {
+      "id": "core.audio", "source": "CORE", "source_role": null, "reference": null,
+      "provides": ["audio.cue"], "requires": ["game.events"], "owner": true,
+      "category": "system.adapter", "system_parent": "audio", "address": "06_RUNTIME/adapters/audio/",
+      "reused_from": { "type": "CONCEPT", "source": "games/pacman/06_RUNTIME/adapters/audio/audio.gd" },
+      "reused_from_note": "Adaptateur audio procedural REUTILISE de Pacman : fabrique le son a l'execution a partir d'un descripteur de synthese, seule couche a connaitre une API audio, aucune decision de jeu. Recable sur les 4 evenements du clicker (click/buy/unlock/prestige) recus de la logique ; le fichier vit dans l'arbre kitten_clicker (copie/adaptation), provenance tracee ici.",
+      "expected_proof": { "kind": "oracle", "statement": "Volet 07_TESTS/oracle/core_audio.gd journalise les 4 declenchements 'click','buy','unlock','prestige' avec 4 identifiants deux a deux distincts, chacun declenche par son evenement de jeu." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "06_RUNTIME/adapters/audio/audio.gd", "category": "system.adapter" }, { "path": "07_TESTS/oracle/core_audio.gd", "category": "test.oracle" } ],
+      "fonction": "Adaptateur audio procedural (reuse Pacman) : joue un son distinct par evenement (click, buy, unlock, prestige) sur reception du signal. Proprietaire de audio.cue.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_clic_son", "cap_achat_son", "cap_unlock_son", "cap_prestige_son"]
+    },
+    {
+      "id": "core.error_handling", "source": "CORE", "source_role": null, "reference": null,
+      "provides": ["error.guard"], "requires": ["game.state"], "owner": true,
+      "category": "system", "system_parent": "game_state", "address": "05_SYSTEMS/game_state/",
+      "expected_proof": { "kind": "test", "statement": "Entrees hors domaine (nulle, hors bornes, achat sans ronrons suffisants, clics simultanes) -> etat de jeu toujours valide, colonie jamais perdue." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "05_SYSTEMS/game_state/error_guard.gd", "category": "system" }, { "path": "07_TESTS/unit/error_guard.test.gd", "category": "test.unit" } ],
+      "fonction": "Absorbe les entrees invalides sans invalider l'etat de partie (achat impossible ignore, bornes respectees).",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_no_gameover"]
+    },
+
+    {
+      "id": "economy.passive_production", "source": "DERIVED", "source_role": null,
+      "reference": "featuremap.json#capacites[cap_prod_passive] + blueprint.json#responsabilites[05_SYSTEMS]",
+      "provides": [], "requires": ["game.state"], "owner": false,
+      "category": "system", "system_parent": "economy", "address": "05_SYSTEMS/economy/",
+      "expected_proof": { "kind": "bot_action", "statement": "Un bot achete 1 chaton puis n'agit plus ; le compteur de ronrons augmente strictement entre deux ticks sans clic (delta>0)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "05_SYSTEMS/economy/economy.gd", "category": "system" }, { "path": "07_TESTS/unit/passive_production.test.gd", "category": "test.unit" } ],
+      "fonction": "Production passive : au moins un chaton achete fait monter les ronrons a un taux strictement positif par seconde, sans interaction. provides: [] (aucun id de domaine dans le registre gele).",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_prod_passive"]
+    },
+    {
+      "id": "economy.upgrade_rate", "source": "DERIVED", "source_role": null,
+      "reference": "featuremap.json#capacites[cap_upgrade_taux] + blueprint.json#responsabilites[05_SYSTEMS]",
+      "provides": [], "requires": ["game.state"], "owner": false,
+      "category": "system", "system_parent": "economy", "address": "05_SYSTEMS/economy/",
+      "expected_proof": { "kind": "oracle", "statement": "Un test deterministe lit le taux affiche avant/apres achat d'amelioration et asserte taux_apres > taux_avant (strict, pas >=)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "05_SYSTEMS/economy/upgrades.gd", "category": "system" }, { "path": "07_TESTS/unit/upgrade_rate.test.gd", "category": "test.unit" } ],
+      "fonction": "Ameliorations : acheter une amelioration augmente de facon observable et stricte le taux de ronrons par seconde. provides: [] (registre gele).",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_upgrade_taux"]
+    },
+    {
+      "id": "meta.thresholds_params", "source": "DERIVED", "source_role": null,
+      "reference": "featuremap.json#capacites[cap_paliers_variance] + blueprint.json#responsabilites[05_SYSTEMS] + charter#criteres_succes(variance)",
+      "provides": ["game.params"], "requires": [], "owner": true,
+      "category": "system", "system_parent": "params", "address": "05_SYSTEMS/params/",
+      "expected_proof": { "kind": "bot_action", "statement": "La courbe de paliers declaree porte au moins 3 valeurs de seuil distinctes et non triviales (regle de variance : distribution, pas egalite tautologique) ; bloc UNIQUE de constantes equilibrables." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "05_SYSTEMS/params/params.gd", "category": "system" }, { "path": "07_TESTS/unit/thresholds_variance.test.gd", "category": "test.unit" } ],
+      "fonction": "Bloc unique des constantes equilibrables (seuils de paliers, gain au clic, couts, taux). Porte la courbe de paliers a variance prouvee. Proprietaire de game.params.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_paliers_variance"]
+    },
+    {
+      "id": "meta.prestige", "source": "DERIVED", "source_role": null,
+      "reference": "featuremap.json#capacites[cap_prestige_reset_bonus] + blueprint.json#responsabilites[05_SYSTEMS]",
+      "provides": [], "requires": ["game.state"], "owner": false,
+      "category": "system", "system_parent": "meta", "address": "05_SYSTEMS/meta/",
+      "expected_proof": { "kind": "bot_action", "statement": "Un bot atteint un palier, prestige, puis reatteint le meme palier en un nombre de ticks strictement inferieur (bonus permanent effectif)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "05_SYSTEMS/meta/prestige.gd", "category": "system" }, { "path": "07_TESTS/unit/prestige.test.gd", "category": "test.unit" } ],
+      "fonction": "Meta-progression : logique de prestige (reset base + bonus permanent persistant). provides: [] (registre gele).",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_prestige_reset_bonus"]
+    },
+    {
+      "id": "events.game_events", "source": "DERIVED", "source_role": null,
+      "reference": "featuremap.json#capacites[cap_unlock_son] + blueprint.json#responsabilites[audio]",
+      "provides": ["game.events"], "requires": ["game.state"], "owner": true,
+      "category": "system", "system_parent": "events", "address": "05_SYSTEMS/events/",
+      "expected_proof": { "kind": "oracle", "statement": "Emet des evenements NOMMES (click, buy, unlock, prestige) derives des transitions d'etat, consommes par l'adaptateur audio ; ne joue aucun son, ne connait aucune API audio." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "05_SYSTEMS/events/events.gd", "category": "system" }, { "path": "07_TESTS/unit/events.test.gd", "category": "test.unit" } ],
+      "fonction": "Nomme et derive les 4 evenements sonores des transitions d'etat (dont le deblocage/unlock). La logique signale ; elle n'entend rien. Proprietaire de game.events.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_unlock_son"]
+    },
+    {
+      "id": "collection.tracker", "source": "DERIVED", "source_role": null,
+      "reference": "featuremap.json#capacites[cap_collection_compteur] + blueprint.json#responsabilites[05_SYSTEMS]",
+      "provides": [], "requires": ["game.state"], "owner": false,
+      "category": "system", "system_parent": "collection", "address": "05_SYSTEMS/collection/",
+      "expected_proof": { "kind": "visual", "statement": "Le compteur de collection (chatons obtenus / total) progresse de X/T a (X+1)/T apres deblocage d'un chaton distinct ; affiche a l'ecran (volet gallery_render)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "05_SYSTEMS/collection/collection.gd", "category": "system" }, { "path": "07_TESTS/unit/collection.test.gd", "category": "test.unit" } ],
+      "fonction": "Suivi de collection : compte les chatons distincts debloques sur le total. provides: [] (registre gele).",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_collection_compteur"]
+    },
+
+    {
+      "id": "content.kittens_registry", "source": "DERIVED", "source_role": null,
+      "reference": "featuremap.json#capacites[cap_kittens_registry,cap_kittens_rarete] + blueprint.json#responsabilites[03_WORLD]",
+      "provides": [], "requires": [], "owner": false,
+      "category": "world.rules", "system_parent": "kittens_registry", "address": "03_WORLD/rules/kittens_registry/",
+      "expected_proof": { "kind": "file_write", "statement": "kittens.json contient >=6 chatons a id/nom uniques et >=3 valeurs de rarete distinctes reellement representees ; un oracle de contenu compte les entrees et les classes." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "03_WORLD/rules/kittens_registry/kittens.json", "category": "world.rules" }, { "path": "07_TESTS/unit/kittens_registry.test.gd", "category": "test.unit" } ],
+      "fonction": "Registre declaratif des chatons (>=6 distincts, >=3 raretes). Donnee pure, aucune logique. Place sous 03_WORLD/rules/ (repo_map n'offre pas 03_WORLD nu ; voir divergences).",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_kittens_registry", "cap_kittens_rarete"]
+    },
+    {
+      "id": "content.places_registry", "source": "DERIVED", "source_role": null,
+      "reference": "featuremap.json#capacites[cap_places_registry] + blueprint.json#responsabilites[03_WORLD]",
+      "provides": [], "requires": [], "owner": false,
+      "category": "world.rules", "system_parent": "places_registry", "address": "03_WORLD/rules/places_registry/",
+      "expected_proof": { "kind": "file_write", "statement": "places.json contient >=2 lieux a id unique (l'un marque initial, l'autre debloque par palier), chacun a decor distinct ; un oracle compte et verifie les marqueurs." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "03_WORLD/rules/places_registry/places.json", "category": "world.rules" }, { "path": "07_TESTS/unit/places_registry.test.gd", "category": "test.unit" } ],
+      "fonction": "Registre declaratif des lieux (refuge initial + >=1 debloque). Donnee pure.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_places_registry"]
+    },
+    {
+      "id": "content.objects_registry", "source": "DERIVED", "source_role": null,
+      "reference": "featuremap.json#capacites[cap_objects_registry] + blueprint.json#responsabilites[03_WORLD]",
+      "provides": [], "requires": [], "owner": false,
+      "category": "world.rules", "system_parent": "objects_registry", "address": "03_WORLD/rules/objects_registry/",
+      "expected_proof": { "kind": "file_write", "statement": "objects.json contient >=3 objets a id unique portant chacun un champ icone non vide et un champ effet non vide ; oracle de contenu." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "03_WORLD/rules/objects_registry/objects.json", "category": "world.rules" }, { "path": "07_TESTS/unit/objects_registry.test.gd", "category": "test.unit" } ],
+      "fonction": "Registre declaratif des objets (>=3, icone + effet declares). Donnee pure.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_objects_registry"]
+    },
+    {
+      "id": "content.quests_registry", "source": "DERIVED", "source_role": null,
+      "reference": "featuremap.json#capacites[cap_quests_registry] + blueprint.json#responsabilites[03_WORLD]",
+      "provides": [], "requires": [], "owner": false,
+      "category": "world.rules", "system_parent": "quests_registry", "address": "03_WORLD/rules/quests_registry/",
+      "expected_proof": { "kind": "file_write", "statement": "quests.json contient >=3 quetes a id unique portant objectif (cible chiffree), champ de progression et etat d'accomplissement ; oracle de contenu." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "03_WORLD/rules/quests_registry/quests.json", "category": "world.rules" }, { "path": "07_TESTS/unit/quests_registry.test.gd", "category": "test.unit" } ],
+      "fonction": "Registre declaratif des quetes (>=3, objectif chiffre + progression + accomplissement). Donnee pure.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_quests_registry"]
+    },
+
+    {
+      "id": "entity.kitten", "source": "DERIVED", "source_role": null,
+      "reference": "featuremap.json#capacites[cap_achat_spawn] + blueprint.json#responsabilites[02_ENTITIES]",
+      "provides": [], "requires": [], "owner": false,
+      "category": "entity", "system_parent": "kitten", "address": "02_ENTITIES/kitten/",
+      "expected_proof": { "kind": "visual", "statement": "Acheter un chaton fait apparaitre un sprite distinct et persistant dans le refuge (capture avant/apres achat sur le volet main_screen_render)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "02_ENTITIES/kitten/kitten.gd", "category": "entity" }, { "path": "07_TESTS/unit/kitten_entity.test.gd", "category": "test.unit" } ],
+      "fonction": "Chaton instanciable et persistant apres achat (sprite distinct par rarete). Scene/script autonome pilote par le runtime, sans regle d'economie.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_achat_spawn"]
+    },
+    {
+      "id": "entity.wool_ball", "source": "DERIVED", "source_role": null,
+      "reference": "featuremap.json#capacites[cap_clic_gain] + blueprint.json#responsabilites[02_ENTITIES]",
+      "provides": [], "requires": [], "owner": false,
+      "category": "entity", "system_parent": "wool_ball", "address": "02_ENTITIES/wool_ball/",
+      "expected_proof": { "kind": "bot_action", "statement": "La pelote centrale est cliquable ; chaque clic route vers l'adaptateur d'entree qui declenche le gain et le feedback." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "02_ENTITIES/wool_ball/wool_ball.gd", "category": "entity" }, { "path": "07_TESTS/unit/wool_ball_entity.test.gd", "category": "test.unit" } ],
+      "fonction": "Pelote centrale : cible cliquable, objet d'amorcage de la boucle. Sans regle d'economie.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_clic_gain"]
+    },
+
+    {
+      "id": "render.main_screen", "source": "DERIVED", "source_role": null,
+      "reference": "featuremap.json#capacites[cap_hud_total_taux,cap_clic_feedback,cap_achat_spawn,cap_decor_distinct,cap_objet_icone_effet] + blueprint.json#responsabilites[render]",
+      "provides": [], "requires": ["game.state"], "owner": false,
+      "category": "system.adapter", "system_parent": "render", "address": "06_RUNTIME/adapters/render/",
+      "expected_proof": { "kind": "visual", "statement": "Volet 07_TESTS/oracle/main_screen_render.gd en gpu_window prouve a l'ecran : HUD total+taux mis a jour au tick, feedback immediat au clic, chaton spawn persistant apres achat, decor du refuge, icones d'objets possedes. Volet consolide (voir divergences)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "06_RUNTIME/adapters/render/render.gd", "category": "system.adapter" }, { "path": "07_TESTS/oracle/main_screen_render.gd", "category": "test.oracle" } ],
+      "fonction": "Rendu de l'ecran principal (refuge) : HUD, feedback de clic, spawn de chaton, decor, icones d'objets. Lit l'etat, ne le mute pas.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_hud_total_taux", "cap_clic_feedback", "cap_achat_spawn", "cap_decor_distinct", "cap_objet_icone_effet"]
+    },
+    {
+      "id": "render.gallery", "source": "DERIVED", "source_role": null,
+      "reference": "featuremap.json#capacites[cap_sprite_distinct,cap_rarete_visuelle,cap_collection_compteur] + blueprint.json#responsabilites[render]",
+      "provides": [], "requires": ["game.state"], "owner": false,
+      "category": "system.adapter", "system_parent": "render", "address": "06_RUNTIME/adapters/render/",
+      "expected_proof": { "kind": "visual", "statement": "Volet 07_TESTS/oracle/gallery_render.gd en gpu_window prouve : >=6 sprites de chatons deux a deux non pixel-identiques, traitement visuel distinct par classe de rarete (difference de pixels au-dessus d'un seuil), compteur de collection X/T affiche. Volet consolide (voir divergences)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "06_RUNTIME/adapters/render/gallery.gd", "category": "system.adapter" }, { "path": "07_TESTS/oracle/gallery_render.gd", "category": "test.oracle" } ],
+      "fonction": "Rendu de la galerie de collection : sprites de chatons distincts, identite visuelle par rarete, compteur de collection. Lit l'etat, ne le mute pas.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_sprite_distinct", "cap_rarete_visuelle", "cap_collection_compteur"]
+    },
+    {
+      "id": "runtime.offline", "source": "DERIVED", "source_role": null,
+      "reference": "featuremap.json#capacites[cap_no_network] + blueprint.json#responsabilites[06_RUNTIME]",
+      "provides": [], "requires": [], "owner": false,
+      "category": "system.adapter", "system_parent": "runtime", "address": "06_RUNTIME/adapters/runtime/",
+      "expected_proof": { "kind": "oracle", "statement": "Un scan statique des scripts 06_RUNTIME asserte l'absence de tout appel reseau (HTTPRequest / socket / API externe) ; toute occurrence est un finding." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "06_RUNTIME/adapters/runtime/runtime.gd", "category": "system.adapter" }, { "path": "07_TESTS/unit/offline_scan.test.gd", "category": "test.unit" } ],
+      "fonction": "Invariant hors-ligne : aucun appel reseau au runtime. Verifie par scan statique des scripts 06_RUNTIME.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_no_network"]
+    },
+    {
+      "id": "solvability.bot", "source": "DERIVED", "source_role": null,
+      "reference": "featuremap.json#capacites[cap_solvabilite_bot,cap_paliers_variance] + charter#criteres_succes(solvabilite)",
+      "provides": ["bot.solvability"], "requires": ["game.state", "input.action"], "owner": true,
+      "category": "system.adapter", "system_parent": "solvability_bot", "address": "06_RUNTIME/adapters/solvability_bot/",
+      "expected_proof": { "kind": "bot_action", "statement": "Un bot deterministe joue seul via le canal public (intentions, jamais de forcage d'etat), atteint le 3e palier de meta-progression en <=T ticks (T fini borne), et enregistre les seuils franchis : >=3 valeurs distinctes non triviales. Le bot GAGNE, pas de mecanique en isolation, aucun comparateur >= tautologique." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "06_RUNTIME/adapters/solvability_bot/solvability_bot.gd", "category": "system.adapter" }, { "path": "07_TESTS/oracle/solvability.gd", "category": "test.solvability" } ],
+      "fonction": "Bot de solvabilite : pilote une partie de bout en bout par le canal public du joueur et prouve l'atteinte du 3e palier en un nombre fini de ticks. Proprietaire de bot.solvability (registre usine).",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_solvabilite_bot", "cap_paliers_variance"]
+    },
+
+    {
+      "id": "asset.wool_ball", "source": "DERIVED", "source_role": null,
+      "reference": "art_bible.md#wool_ball + asset_requests.json#wool_ball",
+      "provides": [], "requires": [], "owner": false,
+      "category": "asset.sprite", "system_parent": "sprites", "address": "04_ASSETS/sprites/",
+      "expected_proof": { "kind": "file_write", "statement": "Le sprite 04_ASSETS/sprites/wool_ball.svg existe (SVG vectoriel) et est importable comme texture Godot ; realise cap_clic_feedback (pelote cliquable centrale)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "04_ASSETS/sprites/wool_ball.svg", "category": "asset.sprite" } ],
+      "fonction": "Sprite de la pelote de laine centrale (flat-cute-svg).",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_clic_feedback"]
+    },
+    {
+      "id": "asset.kitten_tabby_common", "source": "DERIVED", "source_role": null,
+      "reference": "art_bible.md#kitten_tabby_common + asset_requests.json#kitten_tabby_common",
+      "provides": [], "requires": [], "owner": false,
+      "category": "asset.sprite", "system_parent": "sprites", "address": "04_ASSETS/sprites/",
+      "expected_proof": { "kind": "file_write", "statement": "Le sprite 04_ASSETS/sprites/kitten_tabby_common.svg existe (SVG vectoriel) ; realise cap_sprite_distinct (chaton distinct)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "04_ASSETS/sprites/kitten_tabby_common.svg", "category": "asset.sprite" } ],
+      "fonction": "Sprite du chaton commun roux tigre.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_sprite_distinct"]
+    },
+    {
+      "id": "asset.kitten_gray_common", "source": "DERIVED", "source_role": null,
+      "reference": "art_bible.md#kitten_gray_common + asset_requests.json#kitten_gray_common",
+      "provides": [], "requires": [], "owner": false,
+      "category": "asset.sprite", "system_parent": "sprites", "address": "04_ASSETS/sprites/",
+      "expected_proof": { "kind": "file_write", "statement": "Le sprite 04_ASSETS/sprites/kitten_gray_common.svg existe (SVG vectoriel) ; realise cap_sprite_distinct (chaton distinct)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "04_ASSETS/sprites/kitten_gray_common.svg", "category": "asset.sprite" } ],
+      "fonction": "Sprite du chaton commun gris.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_sprite_distinct"]
+    },
+    {
+      "id": "asset.kitten_calico_common", "source": "DERIVED", "source_role": null,
+      "reference": "art_bible.md#kitten_calico_common + asset_requests.json#kitten_calico_common",
+      "provides": [], "requires": [], "owner": false,
+      "category": "asset.sprite", "system_parent": "sprites", "address": "04_ASSETS/sprites/",
+      "expected_proof": { "kind": "file_write", "statement": "Le sprite 04_ASSETS/sprites/kitten_calico_common.svg existe (SVG vectoriel) ; realise cap_sprite_distinct (chaton distinct)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "04_ASSETS/sprites/kitten_calico_common.svg", "category": "asset.sprite" } ],
+      "fonction": "Sprite du chaton commun calico tricolore.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_sprite_distinct"]
+    },
+    {
+      "id": "asset.kitten_tuxedo_rare", "source": "DERIVED", "source_role": null,
+      "reference": "art_bible.md#kitten_tuxedo_rare + asset_requests.json#kitten_tuxedo_rare",
+      "provides": [], "requires": [], "owner": false,
+      "category": "asset.sprite", "system_parent": "sprites", "address": "04_ASSETS/sprites/",
+      "expected_proof": { "kind": "file_write", "statement": "Le sprite 04_ASSETS/sprites/kitten_tuxedo_rare.svg existe (SVG vectoriel, tier rare) ; realise cap_sprite_distinct et cap_rarete_visuelle." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "04_ASSETS/sprites/kitten_tuxedo_rare.svg", "category": "asset.sprite" } ],
+      "fonction": "Sprite du chaton rare smoking (cadre bleu).",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_sprite_distinct", "cap_rarete_visuelle"]
+    },
+    {
+      "id": "asset.kitten_siamese_rare", "source": "DERIVED", "source_role": null,
+      "reference": "art_bible.md#kitten_siamese_rare + asset_requests.json#kitten_siamese_rare",
+      "provides": [], "requires": [], "owner": false,
+      "category": "asset.sprite", "system_parent": "sprites", "address": "04_ASSETS/sprites/",
+      "expected_proof": { "kind": "file_write", "statement": "Le sprite 04_ASSETS/sprites/kitten_siamese_rare.svg existe (SVG vectoriel, tier rare) ; realise cap_sprite_distinct et cap_rarete_visuelle." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "04_ASSETS/sprites/kitten_siamese_rare.svg", "category": "asset.sprite" } ],
+      "fonction": "Sprite du chaton rare siamois (cadre bleu).",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_sprite_distinct", "cap_rarete_visuelle"]
+    },
+    {
+      "id": "asset.kitten_golden_legendary", "source": "DERIVED", "source_role": null,
+      "reference": "art_bible.md#kitten_golden_legendary + asset_requests.json#kitten_golden_legendary",
+      "provides": [], "requires": [], "owner": false,
+      "category": "asset.sprite", "system_parent": "sprites", "address": "04_ASSETS/sprites/",
+      "expected_proof": { "kind": "file_write", "statement": "Le sprite 04_ASSETS/sprites/kitten_golden_legendary.svg existe (SVG vectoriel, tier legendary) ; realise cap_sprite_distinct et cap_rarete_visuelle." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "04_ASSETS/sprites/kitten_golden_legendary.svg", "category": "asset.sprite" } ],
+      "fonction": "Sprite du chaton legendaire dore (cadre or + halo).",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_sprite_distinct", "cap_rarete_visuelle"]
+    },
+    {
+      "id": "asset.rarity_frame_set", "source": "DERIVED", "source_role": null,
+      "reference": "art_bible.md#rarity_frame_set + asset_requests.json#rarity_frame_set",
+      "provides": [], "requires": [], "owner": false,
+      "category": "asset.sprite", "system_parent": "sprites", "address": "04_ASSETS/sprites/",
+      "expected_proof": { "kind": "file_write", "statement": "Le sprite 04_ASSETS/sprites/rarity_frame_set.svg existe (3 cadres : common/rare/legendary) ; realise cap_rarete_visuelle." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "04_ASSETS/sprites/rarity_frame_set.svg", "category": "asset.sprite" } ],
+      "fonction": "Jeu de cadres/badges de rarete (common gris-menthe / rare bleu+etoiles / legendary or+halo).",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_rarete_visuelle"]
+    },
+    {
+      "id": "asset.refuge_start", "source": "DERIVED", "source_role": null,
+      "reference": "art_bible.md#refuge_start + asset_requests.json#refuge_start",
+      "provides": [], "requires": [], "owner": false,
+      "category": "asset.sprite", "system_parent": "sprites", "address": "04_ASSETS/sprites/",
+      "expected_proof": { "kind": "file_write", "statement": "Le sprite 04_ASSETS/sprites/refuge_start.svg existe (decor interieur 640x480) ; realise cap_decor_distinct (refuge de depart)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "04_ASSETS/sprites/refuge_start.svg", "category": "asset.sprite" } ],
+      "fonction": "Decor du refuge de depart (interieur cosy).",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_decor_distinct"]
+    },
+    {
+      "id": "asset.place_garden_unlocked", "source": "DERIVED", "source_role": null,
+      "reference": "art_bible.md#place_garden_unlocked + asset_requests.json#place_garden_unlocked",
+      "provides": [], "requires": [], "owner": false,
+      "category": "asset.sprite", "system_parent": "sprites", "address": "04_ASSETS/sprites/",
+      "expected_proof": { "kind": "file_write", "statement": "Le sprite 04_ASSETS/sprites/place_garden_unlocked.svg existe (decor exterieur jardin) ; realise cap_decor_distinct (2e lieu, arriere-plan visiblement different du refuge)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "04_ASSETS/sprites/place_garden_unlocked.svg", "category": "asset.sprite" } ],
+      "fonction": "Decor du second lieu debloque par palier (jardin cosy).",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_decor_distinct"]
+    },
+    {
+      "id": "asset.object_scratching_post", "source": "DERIVED", "source_role": null,
+      "reference": "art_bible.md#object_scratching_post + asset_requests.json#object_scratching_post",
+      "provides": [], "requires": [], "owner": false,
+      "category": "asset.sprite", "system_parent": "sprites", "address": "04_ASSETS/sprites/",
+      "expected_proof": { "kind": "file_write", "statement": "Le sprite 04_ASSETS/sprites/object_scratching_post.svg existe ; realise cap_objet_icone_effet (griffoir, icone + effet observable)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "04_ASSETS/sprites/object_scratching_post.svg", "category": "asset.sprite" } ],
+      "fonction": "Sprite de l'objet griffoir/arbre a chat.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_objet_icone_effet"]
+    },
+    {
+      "id": "asset.object_food_bowl", "source": "DERIVED", "source_role": null,
+      "reference": "art_bible.md#object_food_bowl + asset_requests.json#object_food_bowl",
+      "provides": [], "requires": [], "owner": false,
+      "category": "asset.sprite", "system_parent": "sprites", "address": "04_ASSETS/sprites/",
+      "expected_proof": { "kind": "file_write", "statement": "Le sprite 04_ASSETS/sprites/object_food_bowl.svg existe ; realise cap_objet_icone_effet (gamelle, icone + effet observable)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "04_ASSETS/sprites/object_food_bowl.svg", "category": "asset.sprite" } ],
+      "fonction": "Sprite de l'objet gamelle de croquettes.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_objet_icone_effet"]
+    },
+    {
+      "id": "asset.object_yarn_basket", "source": "DERIVED", "source_role": null,
+      "reference": "art_bible.md#object_yarn_basket + asset_requests.json#object_yarn_basket",
+      "provides": [], "requires": [], "owner": false,
+      "category": "asset.sprite", "system_parent": "sprites", "address": "04_ASSETS/sprites/",
+      "expected_proof": { "kind": "file_write", "statement": "Le sprite 04_ASSETS/sprites/object_yarn_basket.svg existe ; realise cap_objet_icone_effet (panier de pelotes, icone + effet observable)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "04_ASSETS/sprites/object_yarn_basket.svg", "category": "asset.sprite" } ],
+      "fonction": "Sprite de l'objet panier de pelotes.",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_objet_icone_effet"]
+    },
+    {
+      "id": "asset.upgrade_icon_set", "source": "DERIVED", "source_role": null,
+      "reference": "art_bible.md#upgrade_icon_set + asset_requests.json#upgrade_icon_set",
+      "provides": [], "requires": [], "owner": false,
+      "category": "asset.sprite", "system_parent": "sprites", "address": "04_ASSETS/sprites/",
+      "expected_proof": { "kind": "file_write", "statement": "Le sprite 04_ASSETS/sprites/upgrade_icon_set.svg existe (3 pastilles) ; realise cap_upgrade_taux (icones d'amelioration de la boutique)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "04_ASSETS/sprites/upgrade_icon_set.svg", "category": "asset.sprite" } ],
+      "fonction": "Pastilles d'ameliorations pour la boutique (patte / fleche montante / etoile).",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_upgrade_taux"]
+    },
+    {
+      "id": "asset.click_feedback_pop", "source": "DERIVED", "source_role": null,
+      "reference": "art_bible.md#click_feedback_pop + asset_requests.json#click_feedback_pop",
+      "provides": [], "requires": [], "owner": false,
+      "category": "asset.sprite", "system_parent": "sprites", "address": "04_ASSETS/sprites/",
+      "expected_proof": { "kind": "file_write", "statement": "Le sprite 04_ASSETS/sprites/click_feedback_pop.svg existe ; realise cap_clic_feedback (pop de ronrons anime au clic)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "04_ASSETS/sprites/click_feedback_pop.svg", "category": "asset.sprite" } ],
+      "fonction": "Sprite du feedback de clic (pop de ronrons + particules + texte +N).",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_clic_feedback"]
+    },
+    {
+      "id": "asset.ui_panel_frame", "source": "DERIVED", "source_role": null,
+      "reference": "art_bible.md#ui_panel_frame + asset_requests.json#ui_panel_frame",
+      "provides": [], "requires": [], "owner": false,
+      "category": "asset.sprite", "system_parent": "sprites", "address": "04_ASSETS/sprites/",
+      "expected_proof": { "kind": "file_write", "statement": "Le sprite 04_ASSETS/sprites/ui_panel_frame.svg existe (chrome d'interface : cadre + barre compteurs + barre de progression) ; realise cap_hud_total_taux (chrome du HUD)." },
+      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [ { "path": "04_ASSETS/sprites/ui_panel_frame.svg", "category": "asset.sprite" } ],
+      "fonction": "Chrome d'interface (cadre de panneau + barre total/taux + barre de progression).",
+      "preuve": "", "statut": "REQUIRED", "couvre": ["cap_hud_total_taux"]
+    }
+  ],
+
+  "discarded": [],
+
+  "fog": [
+    {
+      "sujet": "Registre de capacites du domaine clicker",
+      "besoin": "Les capacites de domaine (production passive, amelioration, prestige, palier, suivi de collection, registres de contenu, spawn de chaton) n'ont AUCUN identifiant dans capabilities.yaml (registre PRODUIT gele, gate Pierre). Les declarer en `provides` ferait echouer check_collisions (identifiants_inconnus) — l'echec exact du run precedent. Elles portent donc provides: [] et sont realisees via `couvre`.",
+      "decision_humaine": "Ratifier (ou non) un bloc de capacites kitten_clicker dans capabilities.yaml via le mecanisme de proposition mesuree (driver._propose_capability_gaps), OU accepter provides: [] pour la logique de domaine. La Forge ne peut pas trancher : le registre est une table figee sous gate Pierre.",
+      "claim_verdict": "NO_CLAIM_ALLOWED"
+    },
+    {
+      "sujet": "Assets hors blueprint",
+      "besoin": "16 sprites sont exiges par art_bible + asset_requests, mais le blueprint ne modelise aucun module d'assets. La section `sprites` n'est isomorphe a aucun module du blueprint.",
+      "decision_humaine": "Accepter la section assets ajoutee, ou renvoyer le blueprint (s4) pour qu'il modelise 04_ASSETS.",
+      "claim_verdict": "NO_CLAIM_ALLOWED"
+    }
+  ]
+}
+```
+
+### Restitution (chaque affirmation adossée à un ancrage non-LLM)
+
+- **Couverture featuremap→wiremap** — adossé à `check_wiremap_contract.mjs` (lu, l.79-118) + `upstream_schema.collectLeaves` (lu, l.224-242). Les 25 feuilles `cap_*` de `featuremap.json` sont chacune portée par ≥1 ligne `couvre` ; aucune entrée `couvre` hors des 25 (aucune couverture fantôme) ; toute ligne porte `couvre` non vide. → **software_verdict: OK** (par inspection de la source de l'oracle), **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — le reçu mécanique est produit en aval par l'exécuteur (je n'ai exécuté aucun oracle : `run: aucun`, Bash/Write désactivés).
+- **Non-régression s10s** — adossé à `standard_oracles.py` (lu) : `check_line_states` (10 CORE présentes, aucun `UNKNOWN`/`IMPLEMENTED`, `system_parent` sur chaque ligne) · `check_placement` (catégories mappées dans `repo_map`, adresses cohérentes, `system_parent`→systèmes réels, `fichiers[]` {path,category} cohérents, artefacts nommés uniques) · `check_collisions` (`provides`/`requires` **uniquement** des ids ratifiés ; propriétaire unique par capacité ; tout `requires` a un fournisseur). → conforme **par inspection**.
+- **Réutilisation audio** — `core.audio.reused_from` cite `games/pacman/06_RUNTIME/adapters/audio/audio.gd` + `reused_from_note` (requalification non vide → pas de finding `reused_concept_non_requalifie`).
+
+**Capacités non couvertes** : aucune (25/25).
+**claim_verdict: NO_CLAIM_ALLOWED.**
+
+### SKIPPED_VALIDATION
+- **item**: exécution de `check_wiremap_contract.mjs` sur le livrable · **périmètre**: wiremap.json de ce run vs featuremap.json · **statut**: non fait · **raison**: `run: aucun` + Bash désactivé ; l'exécuteur (`run_real.py`) lance l'oracle à la matérialisation. Conformité assurée par lecture de la source de l'oracle, pas par exécution.
+- **item**: matérialisation du fichier `lab/forge_runs/kitten_clicker/wiremap.json` · **périmètre**: disque · **statut**: non fait · **raison**: Write désactivé pour ce sous-agent ; le livrable est retourné inline pour matérialisation par l'exécuteur (même patron que s2.6-story-bible).
+- **item**: oracles APRÈS build (`forge.static_oracles.check_wiremap` s10c, `check_architecture` s10b) · **périmètre**: fichiers/fonctions réels · **statut**: hors périmètre (aval) · **raison**: aucun fichier de jeu n'est écrit en amont ; ces oracles jugent le code produit, pas cette carte.
+
+**RETURN LINEAGE** — `why_task_existed:` {`problem:` re-génération de la WireMap kitten_clicker après échec s10s du squelette précédent (manifest-130043515fbb0708 : 10 lignes CORE omises + 17 `provides` inventés) · `oracle:` `check_line_states` (core_omis) + `check_collisions` (identifiants_inconnus) · `root_cause:` la carte précédente était self-cohérente mais non conforme aux tables figées (core_requirements + capabilities) — écart invisible avant s10s · `action_reason:` produire une carte qui (a) inclut les 10 lignes CORE, (b) n'emploie que des `provides` ratifiés, (c) couvre les 25 capacités par `couvre`} · `result:` wiremap.json v2 livrée — 42 lignes, 18 systèmes, 25/25 capacités couvertes, 0 `provides` hors registre, 10 CORE présentes, conforme par inspection à check_line_states/check_placement/check_collisions/check_wiremap_contract · `proof:` inspection des sources d'oracle (check_wiremap_contract.mjs l.79-118, upstream_schema.mjs l.224-242, standard_oracles.py check_line_states/check_placement/check_collisions) ; aucune exécution (run: aucun) · `learning:` le registre de capacités gelé ne contient AUCUNE capacité de domaine d'un clicker ; sur ce parc, déclarer un `provides` de domaine = FAIL check_collisions, donc les lignes de domaine portent `provides: []` et se prouvent via `couvre` — la croissance du registre passe par le mécanisme de proposition mesurée (gate Pierre), jamais par invention dans la carte · `next_reason:` la chaîne causale du s5 est FERMÉE (carte conforme produite) ; deux besoins persistent en fog pour HumanGate (ratifier un bloc de capacités kitten_clicker, et statuer sur les assets hors-blueprint) — décisions humaines, non des corrections d'agent.
+
+SKIPPED_VALIDATION: voir section ci-dessus (3 items déclarés).
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le registre de capacites gele (capabilities.yaml + factory_capabilities.yaml) ne contient aucun identifiant pour les capacites de domaine d'un clicker (production passive, amelioration, prestige, palier, suivi de collection, registres de contenu, spawn) ; les declarer en provides ferait echouer check_collisions (identifiants_inconnus), donc ces lignes portent provides:[] et ne sont couvertes que par `couvre`. En outre le blueprint ne modelise aucun module 04_ASSETS alors que 16 sprites sont exiges, et repo_map n'offre aucune categorie pour un registre directement sous 03_WORLD/.", "root_cause": "Les tables figees du standard (capabilities.yaml, blueprint amont, repo_map) sont centrees sur les jeux deja passes (Pong/Snake/Breakout/Tetris) et n'ont pas encore ete etendues au genre incremental/clicker ; l'extension du registre est un gate Pierre via proposition mesuree, jamais une invention d'agent."}

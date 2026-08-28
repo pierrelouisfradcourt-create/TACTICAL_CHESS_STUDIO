@@ -1,0 +1,107 @@
+objectif: 'Produire un petit clicker de chatons mignons sur Godot 4.6.3 desktop, jouable
+  plusieurs heures, avec une boucle de progression et une meta-progression coherentes.
+  Boucle centrale : le joueur clique sur une pelote/patee/coussin central pour produire
+  des ronrons, ronrons qui achetent des chatons, chatons qui produisent automatiquement,
+  production financee par des ameliorations, le tout debloquant de nouveaux chatons
+  et lieux jusqu''a une meta-progression (prestige). Chaine CLICK vers RONRONS vers
+  CHATONS vers PRODUCTION AUTOMATIQUE vers AMELIORATIONS vers NOUVEAUX CHATONS ET
+  LIEUX vers META-PROGRESSION. Le run doit demontrer que les conditions de victoire/defaite,
+  objectifs joueur, progression et contraintes narratives produites en amont atteignent
+  reellement les Grey Blocks, la WireMap, le Builder et les oracles, pas seulement
+  presentes dans les documents.'
+hors_scope:
+- Pas de multijoueur, reseau, serveur ni sauvegarde cloud.
+- Pas de monetisation ni microtransactions.
+- 'Pas d''art final ni d''assets 3D : Grey Blocks / placeholders 2D acceptes au stade
+  build (identite visuelle par forme/couleur/taille, pas par art fini).'
+- 'Pas de portage web ni mobile : cible unique Godot 4.6.3 desktop, fenetre GPU.'
+- 'Pas de preuve d''equilibrage sur plusieurs heures reelles : le run prouve la boucle,
+  la variance des paliers et la solvabilite par un bot, pas le tuning fin longue duree.'
+- 'N''ecrit pas de code, ne decide pas l''architecture (etape 4) ni le world scan
+  (etape 2) : cette etape ne produit QUE charter.yaml.'
+- Ne touche pas aux lanes protegees (src/, tests/, autopilot.py, lane STUDIO gelee).
+criteres_succes:
+- 'charter.yaml valide : les 7 champs (objectif, hors_scope, criteres_succes, actions_interdites,
+  plateforme_cible, reference_jeu, criteres_demo) remplis, aucun vide ni a definir.'
+- World scan produit explicitement conditions_victoire, conditions_defaite, objectifs_joueur,
+  progression, boucles_recompense, ET ces informations sont CONSOMMEES en aval (Grey
+  Blocks / WireMap / Builder), mesure par la sonde check_amont_traversal.mjs (advisory).
+- 'Grey Blocks : les competences click, production, upgrades, deblocages, evenements,
+  quetes, meta-progression sont reellement reconnaissables a l''execution, pas seulement
+  declarees.'
+- WireMap reconcilie intention visuelle avec architecture technique avec donnees avec
+  runtime Godot ; l'oracle wiremap deterministe (isomorphisme WireMap vers code) PASS.
+- Build Godot passe l'oracle standard s10s (scaffolding standard + tests/run_tests.gd
+  a enumeration DirAccess + garde EXPECTED_ASSERTS) ; patron de harnais = snake /
+  breakout_v2 / tetris, JAMAIS chess_tcg (pre-STANDARD, non conforme).
+- 'Solvabilite (oracle de JEU) : un bot automatise atteint le 3e palier de progression
+  en un nombre de ticks fini, assertion STRICTE (jamais un plus-grand-ou-egal tautologique)
+  ; un jeu aux objectifs inatteignables est un FAIL meme si tous les tests unitaires
+  passent.'
+- 'Courbe de paliers : au moins 3 valeurs distinctes (regle de variance ratifiee Pierre
+  2026-07-21) ; une metrique de palier a variance nulle ne mesure pas ce que son nom
+  promet.'
+- 'Audio : volet 07_TESTS/oracle/core_audio.gd journalise 4 declenchements DISTINCTS
+  (clic, achat, deblocage, prestige), un son par evenement.'
+- Verdict de sortie signe HMAC re-verifie par forge.verify_run ; software_verdict
+  issu UNIQUEMENT des recus d'oracle ; claim_verdict NO_CLAIM_ALLOWED ; HumanGate
+  (Pierre) decide merge/reject/freeze.
+actions_interdites:
+- 'Ne jamais commiter ni pusher : gate Pierre explicite obligatoire.'
+- Ne pas toucher src/, tests/, autopilot.py, scripts/studioV2/, ni la lane STUDIO
+  gelee.
+- 'Ne pas inventer ni re-choisir reference_jeu ou plateforme_cible : fixes par Pierre
+  (design_intent.md) ; un changement passe par HumanGate.'
+- 'Pas de plus-grand-ou-egal tautologique dans un oracle de solvabilite : asserter
+  le comportement STRICT (compteur egal n+1, le bot atteint reellement le 3e palier)
+  ; un plus-grand-ou-egal masque une mecanique morte.'
+- 'Pas de flag de succes ecrit en dur dans un harnais/oracle (passed vrai, ok vrai...)
+  : le statut se CALCULE, jamais ne se declare.'
+- 'Aucun claim sans oracle non-LLM execute : claim_verdict NO_CLAIM_ALLOWED, sinon
+  fog HumanGate ; jamais de LLM-as-judge sur le code.'
+- 'Ne pas declarer une competence, un chaton, un lieu, un objet ou une quete seulement
+  en prose : chaque item promis dans criteres_demo doit etre reconnaissable/cable
+  a l''execution.'
+- 'Aucune metrique a variance nulle (ou identiquement egale a une autre grandeur)
+  servant a classer/generer/calibrer : prouver au moins 2 valeurs distinctes non triviales
+  avant usage.'
+- 'Ne pas citer chess_tcg comme patron de harnais Godot (perime, ni game_contract.yaml
+  ni 09_WIREMAP ni run_tests.gd DirAccess) : utiliser snake / breakout_v2 / tetris.'
+- 'Aucun recu de verdict sans evidence_path : execution non prouvable donne BLOCKED.'
+plateforme_cible: Godot 4.6.3, desktop, fenetre GPU obligatoire (rendu fenetre). Le
+  mode headless rend une texture nulle (driver dummy) et rend impossible toute capture
+  GPU ou preuve pixel ; la capture exige une fenetre GPU reelle.
+reference_jeu: 'Cookie Clicker (boucle incrementale, progression, paliers) plus Neko
+  Atsume (collection de chatons, attractivite, identite mignonne). CHOISI PAR PIERRE.
+  Source tracable : lab/forge_runs/kitten_clicker/design_intent.md l.3 (Pierre 2026-08-21)
+  et dispatch s0-contrat kitten_clicker-20260821d (2026-08-22). Non invente ni suppose
+  par l''agent.'
+criteres_demo:
+- 'Compteur de ronrons : cliquer sur la pelote centrale incremente le compteur AFFICHE
+  a l''ecran d''exactement plus 1 par clic (assertion stricte compteur egal n+1, jamais
+  plus-grand-ou-egal).'
+- 'Chaton visible apres achat : acheter un chaton fait APPARAITRE a l''ecran un chaton
+  (sprite/bloc) qui n''etait pas present avant l''achat.'
+- 'Production sans clic : sans aucune interaction, des qu''au moins un chaton est
+  acquis, le compteur de ronrons augmente au fil des ticks.'
+- 'Amelioration qui monte le taux : acheter une amelioration fait passer le taux de
+  production par tick a une valeur STRICTEMENT superieure, visible a l''ecran.'
+- 'Bot au palier : un bot automatise atteint un palier de progression en un nombre
+  de ticks fini (solvabilite, assertion stricte).'
+- '(a) Au moins 6 chatons NOMMES, chacun avec une identite visuelle distincte PAR
+  RARETE : forme, couleur ou taille differenciant les raretes a l''ecran, pas seulement
+  dans les donnees.'
+- '(b) Au moins 2 lieux jouables : le refuge de depart plus au moins 1 lieu debloque
+  par la meta-progression, chaque lieu visuellement distinct a l''ecran.'
+- (c) Au moins 3 objets distincts, chacun visible et identifiable a l'ecran.
+- (d) Au moins 3 petites quetes dont l'OBJECTIF est affiche a l'ecran (texte d'objectif
+  plus etat d'avancement visibles).
+- (e) Un son DISTINCT pour chacun des 4 evenements clic, achat, deblocage, prestige,
+  declenche par l'evenement. Audio procedural accepte ; preuve egal volet 07_TESTS/oracle/core_audio.gd
+  journalisant les declenchements par evenement.
+- (f) Un feedback visuel au clic (la pelote se deforme/pulse, une particule ronron
+  s'envole...) visible a chaque clic.
+- '(g) Une courbe de paliers portant au moins 3 valeurs DISTINCTES (regle de variance
+  : couts/seuils de palier non identiquement egaux).'
+- (h) Un bot atteint le 3e palier en un nombre de ticks FINI (solvabilite stricte,
+  borne de ticks explicite, jamais un plus-grand-ou-egal tautologique).

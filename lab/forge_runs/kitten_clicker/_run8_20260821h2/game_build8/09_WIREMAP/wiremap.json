@@ -1,0 +1,1408 @@
+{
+ "schema_version": 2,
+ "game_id": "kitten_clicker",
+ "systems": [
+  {
+   "id": "economy",
+   "category": "system",
+   "allowed_deps": [
+    "content"
+   ]
+  },
+  {
+   "id": "input_adapters",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "economy"
+   ]
+  },
+  {
+   "id": "presentation",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "economy",
+    "content",
+    "media"
+   ]
+  },
+  {
+   "id": "content",
+   "category": "world.rules",
+   "allowed_deps": []
+  },
+  {
+   "id": "media",
+   "category": "asset.sprite",
+   "allowed_deps": []
+  },
+  {
+   "id": "proof",
+   "category": "test.oracle",
+   "allowed_deps": [
+    "economy",
+    "presentation",
+    "input_adapters",
+    "content"
+   ]
+  }
+ ],
+ "lines": [
+  {
+   "id": "sys.click_economy",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "rule.click_ronron"
+   ],
+   "requires": [
+    "content.objects"
+   ],
+   "owner": true,
+   "system_parent": "economy",
+   "address": "05_SYSTEMS/economy/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot depuis main.tscn clique 'pelote' N fois ; l'oracle asserte ronrons == N (increment strict, jamais un >=)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/economy/click_economy.gd",
+     "category": "system"
+    }
+   ],
+   "couvre": [
+    "cap_clic_pelote_effet",
+    "cap_clic_increment_strict"
+   ],
+   "fonction": "ClickEconomy.click(state): ronrons += click_value (base 1.0, strict)",
+   "preuve": "run_tests.gd test_click_strict (5 clics -> ronrons==5); volet mutation_click ok (before 0, delta 6)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "sys.purchase_kitten",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "rule.buy_kitten"
+   ],
+   "requires": [
+    "content.kittens"
+   ],
+   "owner": true,
+   "system_parent": "economy",
+   "address": "05_SYSTEMS/economy/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot depuis main.tscn, disposant d'assez de ronrons, clique 'acheter_chaton' ; le compteur de collection augmente de 1 et un sprite de chaton apparait."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/economy/purchase_kitten.gd",
+     "category": "system"
+    }
+   ],
+   "couvre": [
+    "cap_achat_chaton_effet"
+   ],
+   "fonction": "PurchaseKitten.buy(state): collection+=1 si finançable (1er gratuit)",
+   "preuve": "run_tests.gd test_purchase_kitten; player_loop p_buy_kitten collection 0->1",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "sys.production",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "rule.auto_production"
+   ],
+   "requires": [
+    "content.kittens"
+   ],
+   "owner": true,
+   "system_parent": "economy",
+   "address": "05_SYSTEMS/economy/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot achete un chaton puis cesse tout clic ; ronrons augmente strictement apres wait_frames sans input, et taux_production augmente du montant attendu."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/economy/production.gd",
+     "category": "system"
+    }
+   ],
+   "couvre": [
+    "cap_production_auto",
+    "cap_recompense_chaton"
+   ],
+   "fonction": "Production.tick/taux(state): base par chaton + affinite croissante",
+   "preuve": "run_tests.gd test_production_*; player_loop s_auto_production ronrons 63->720",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "sys.upgrade",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "rule.upgrade_rate"
+   ],
+   "requires": [
+    "content.objects"
+   ],
+   "owner": true,
+   "system_parent": "economy",
+   "address": "05_SYSTEMS/economy/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot releve le taux, achete 'acheter_amelioration', releve a nouveau ; taux_apres > taux_avant (strict)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/economy/upgrade.gd",
+     "category": "system"
+    }
+   ],
+   "couvre": [
+    "cap_amelioration_taux"
+   ],
+   "fonction": "Upgrade.buy_upgrade(state): upgrade_level+1 -> taux strictement releve",
+   "preuve": "run_tests.gd test_upgrade_raises_rate_strict (+0.25 exact); affordance acheter_amelioration",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "sys.cost_curve",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "rule.cost_curve"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "economy",
+   "address": "05_SYSTEMS/economy/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "Un oracle de variance lit la table des paliers et asserte >=3 valeurs de cout distinctes et non triviales (variance non nulle)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/economy/cost_curve.gd",
+     "category": "system"
+    }
+   ],
+   "couvre": [
+    "cap_variance_couts"
+   ],
+   "fonction": "CostCurve: hub params + table couts + initial_state + palier",
+   "preuve": "run_tests.gd test_cost_curve_variance; volet variance ok [6,15,34,72,150]",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "sys.meta_unlock",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "rule.meta_unlock"
+   ],
+   "requires": [
+    "content.locations"
+   ],
+   "owner": true,
+   "system_parent": "economy",
+   "address": "05_SYSTEMS/economy/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot au seuil clique 'acheter_amelioration' de deblocage ; un nouveau lieu (jardin) devient present et selectionnable dans le HUD lieux."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/economy/meta_unlock.gd",
+     "category": "system"
+    }
+   ],
+   "couvre": [
+    "cap_deblocage_lieu_effet"
+   ],
+   "fonction": "MetaUnlock.unlock(state): locations+=1 si finançable",
+   "preuve": "run_tests.gd test_meta_unlock; player_loop p_unlock_location lieux 1->2 appears jardin",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "sys.prestige",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "rule.prestige"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "economy",
+   "address": "05_SYSTEMS/economy/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot au seuil clique 'prestige' ; ronrons affiche passe a 0 et un multiplicateur permanent est enregistre."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/economy/prestige.gd",
+     "category": "system"
+    }
+   ],
+   "couvre": [
+    "cap_prestige_effet"
+   ],
+   "fonction": "Prestige.prestige(state): reset ronrons/collection + mult permanent",
+   "preuve": "run_tests.gd test_prestige; player_loop p_prestige ronrons 7672->0 (resets)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "adapter.pelote",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "affordance:pelote"
+   ],
+   "requires": [
+    "rule.click_ronron"
+   ],
+   "owner": true,
+   "system_parent": "input_adapters",
+   "address": "06_RUNTIME/adapters/input_adapters/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot depuis main.tscn clique l'affordance 'pelote' N fois (capacite d'ENTREE) ; l'action est bien recue par la scene reelle et deleguee a rule.click_ronron."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/input_adapters/pelote.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "couvre": [
+    "cap_clic_pelote_entree"
+   ],
+   "fonction": "pelote.gd (TextureButton, groupe affordance) delegue rule.click_ronron",
+   "preuve": "player_loop p_click_pelote 0->61; runtime_alive changed_after_click=true",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "adapter.acheter_chaton",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "affordance:acheter_chaton"
+   ],
+   "requires": [
+    "rule.buy_kitten"
+   ],
+   "owner": true,
+   "system_parent": "input_adapters",
+   "address": "06_RUNTIME/adapters/input_adapters/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot depuis main.tscn clique l'affordance 'acheter_chaton' (capacite d'ENTREE) ; l'action est recue par la scene reelle et deleguee a rule.buy_kitten."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/input_adapters/acheter_chaton.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "couvre": [
+    "cap_achat_chaton_entree"
+   ],
+   "fonction": "acheter_chaton.gd (Button, groupe affordance) delegue rule.buy_kitten",
+   "preuve": "player_loop p_buy_kitten (collection 0->1)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "adapter.acheter_amelioration",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "affordance:acheter_amelioration"
+   ],
+   "requires": [
+    "rule.meta_unlock"
+   ],
+   "owner": true,
+   "system_parent": "input_adapters",
+   "address": "06_RUNTIME/adapters/input_adapters/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot depuis main.tscn, au seuil, clique l'affordance 'acheter_amelioration' de deblocage (capacite d'ENTREE) ; l'action est recue par la scene reelle et deleguee a rule.meta_unlock."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/input_adapters/acheter_amelioration.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "couvre": [
+    "cap_deblocage_lieu_entree"
+   ],
+   "fonction": "acheter_amelioration.gd delegue rule.upgrade_rate + rule.meta_unlock",
+   "preuve": "player_loop p_unlock_location (lieux change, appears jardin)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "adapter.prestige",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "affordance:prestige"
+   ],
+   "requires": [
+    "rule.prestige"
+   ],
+   "owner": true,
+   "system_parent": "input_adapters",
+   "address": "06_RUNTIME/adapters/input_adapters/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot depuis main.tscn, au seuil, clique l'affordance 'prestige' (capacite d'ENTREE) ; l'action est recue par la scene reelle et deleguee a rule.prestige."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/input_adapters/prestige.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "couvre": [
+    "cap_prestige_entree"
+   ],
+   "fonction": "prestige.gd (Button, groupe affordance) delegue rule.prestige",
+   "preuve": "player_loop p_prestige (ronrons resets a 0)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "render.click_feedback",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "render.feedback"
+   ],
+   "requires": [
+    "rule.click_ronron"
+   ],
+   "owner": true,
+   "system_parent": "presentation",
+   "address": "06_RUNTIME/adapters/presentation/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_click_feedback.gd en gpu_window asserte qu'un clic produit un changement visuel transitoire (rebond ou particule) dans la frame suivante."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/presentation/click_feedback.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "couvre": [
+    "cap_clic_feedback"
+   ],
+   "fonction": "click_feedback.gd: pop transitoire (scale/fade, compteur de trames)",
+   "preuve": "runtime_alive changed_after_click=true; main_screen_render nonmonochrome",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "render.rarity",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "render.rarity"
+   ],
+   "requires": [
+    "content.kittens",
+    "media.sprites"
+   ],
+   "owner": true,
+   "system_parent": "presentation",
+   "address": "06_RUNTIME/adapters/presentation/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_visual_rarity.gd en gpu_window asserte que les 3 raretes rendent des sprites visuellement distincts."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/presentation/rarity_view.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "couvre": [
+    "cap_identite_rarete"
+   ],
+   "fonction": "rarity_view.gd: sprite + teinte distincte par rarete (galerie)",
+   "preuve": "volet gallery_render ok (6 gallery_nodes, 6 distinct_colors)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "render.goal_banner",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "render.goal"
+   ],
+   "requires": [
+    "rule.meta_unlock"
+   ],
+   "owner": true,
+   "system_parent": "presentation",
+   "address": "06_RUNTIME/adapters/presentation/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_goal_display.gd asserte un but non vide au lancement, un 2e but distinct apres le 1er palier, un 3e but distinct."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/presentation/goal_banner.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "couvre": [
+    "cap_objectif_initial",
+    "cap_objectif_jardin",
+    "cap_objectif_legendaire"
+   ],
+   "fonction": "goal_banner.gd: text_for(state) = \"Palier N — phrase\" (monotone)",
+   "preuve": "volet core_goal_display ok (3 buts distincts); player_loop g_goal_garden/legendary new_distinct",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "render.audio_trigger",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "render.audio"
+   ],
+   "requires": [
+    "rule.click_ronron",
+    "rule.buy_kitten",
+    "rule.meta_unlock",
+    "rule.prestige"
+   ],
+   "owner": false,
+   "system_parent": "presentation",
+   "address": "06_RUNTIME/adapters/audio/",
+   "reused_from": "games/pacman/06_RUNTIME/adapters/audio/audio.gd",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "07_TESTS/oracle/core_audio.gd journalise un declenchement par evenement et asserte 4 entrees de son distinctes (clic, achat, deblocage, prestige)."
+   },
+   "state": "BLOCKED",
+   "reason": "CODE_COPIE pacman audio.gd (empreinte deposee, sha256 646e6e9a...) a une cloture transitive de preload OFF-MAP : audio.gd -> sound_bank.gd -> settings.gd -> params.gd. Ces 3 dependances vivent a des adresses NON declarees par la wiremap gelee (06_RUNTIME/adapters/sound_bank/, 05_SYSTEMS/settings/, 05_SYSTEMS/params/) et params.gd est le systeme de parametres du jeu PACMAN. Les ajouter viole 'la carte fait loi' ; les omettre rend la copie non compilable. Cablee, elle casserait tout le build jouable et toutes les sondes. Remonte AMONT, non improvise (garde-fou (a)).",
+   "fichiers": [
+    {
+     "path": "games/pacman/06_RUNTIME/adapters/audio/audio.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "couvre": [
+    "cap_sons_evenements"
+   ],
+   "fonction": "",
+   "preuve": "",
+   "statut": "BLOCKED"
+  },
+  {
+   "id": "content.kittens",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "content.kittens"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "content",
+   "address": "03_WORLD/",
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "Le build ecrit 03_WORLD/kittens.json contenant >=6 chatons nommes avec un champ rarete couvrant commune, rare et legendaire."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "03_WORLD/kittens.json",
+     "category": "world.rules"
+    }
+   ],
+   "couvre": [
+    "cap_registre_chatons"
+   ],
+   "fonction": "03_WORLD/kittens.json (6 chatons, raretes commune/rare/legendaire)",
+   "preuve": "file_write; consomme au boot par main.gd _load_registries; rendu galerie",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "content.locations",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "content.locations"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "content",
+   "address": "03_WORLD/",
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "Le build ecrit 03_WORLD/locations.json contenant >=2 lieux dont un refuge initial et un deblocable par meta-progression."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "03_WORLD/locations.json",
+     "category": "world.rules"
+    }
+   ],
+   "couvre": [
+    "cap_registre_lieux"
+   ],
+   "fonction": "03_WORLD/locations.json (refuge initial + jardin deblocable)",
+   "preuve": "file_write; consomme au boot; HUD lieux 1->2->3 (player_loop)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "content.objects",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "content.objects"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "content",
+   "address": "03_WORLD/",
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "Le build ecrit 03_WORLD/objects.json contenant >=3 objets nommes et identifiables, chacun avec un sprite associe."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "03_WORLD/objects.json",
+     "category": "world.rules"
+    }
+   ],
+   "couvre": [
+    "cap_registre_objets"
+   ],
+   "fonction": "03_WORLD/objects.json (pelote, patee, coussin, a sprite)",
+   "preuve": "file_write; consomme au boot par main.gd",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "content.quests",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "content.quests"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "content",
+   "address": "03_WORLD/",
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "Le build ecrit 03_WORLD/quests.json contenant >=3 quetes, chacune avec un objectif affichable (texte ou seuil de jauge)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "03_WORLD/quests.json",
+     "category": "world.rules"
+    }
+   ],
+   "couvre": [
+    "cap_registre_quetes"
+   ],
+   "fonction": "03_WORLD/quests.json (4 quetes, objectif affichable)",
+   "preuve": "file_write; consomme au boot -> labels groupe quests",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.wool_ball",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "media.sprites"
+   ],
+   "requires": [],
+   "owner": false,
+   "system_parent": "media",
+   "address": "04_ASSETS/sprites/wool_ball.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "En gpu_window, le sprite 'wool_ball' (pelote centrale, objet 1/3) est rendu a l'ecran, identifiable."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/wool_ball.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "couvre": [
+    "cap_registre_objets"
+   ],
+   "fonction": "SVG ecrit (wool_ball.svg), importe par Godot comme texture",
+   "preuve": "importe (16 .import generes); rendu a l ecran (runtime_alive nonmonochrome; gallery_render / decor / affordances)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.kitten_tabby_common",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "media.sprites"
+   ],
+   "requires": [],
+   "owner": false,
+   "system_parent": "media",
+   "address": "04_ASSETS/sprites/kitten_tabby_common.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "En gpu_window, le sprite 'kitten_tabby_common' (tier common) est rendu, distinct des autres raretes."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/kitten_tabby_common.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "couvre": [
+    "cap_identite_rarete"
+   ],
+   "fonction": "SVG ecrit (kitten_tabby_common.svg), importe par Godot comme texture",
+   "preuve": "importe (16 .import generes); rendu a l ecran (runtime_alive nonmonochrome; gallery_render / decor / affordances)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.kitten_gray_common",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "media.sprites"
+   ],
+   "requires": [],
+   "owner": false,
+   "system_parent": "media",
+   "address": "04_ASSETS/sprites/kitten_gray_common.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "En gpu_window, le sprite 'kitten_gray_common' (tier common) est rendu, distinct des autres raretes."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/kitten_gray_common.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "couvre": [
+    "cap_identite_rarete"
+   ],
+   "fonction": "SVG ecrit (kitten_gray_common.svg), importe par Godot comme texture",
+   "preuve": "importe (16 .import generes); rendu a l ecran (runtime_alive nonmonochrome; gallery_render / decor / affordances)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.kitten_calico_common",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "media.sprites"
+   ],
+   "requires": [],
+   "owner": false,
+   "system_parent": "media",
+   "address": "04_ASSETS/sprites/kitten_calico_common.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "En gpu_window, le sprite 'kitten_calico_common' (tier common) est rendu, distinct des autres raretes."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/kitten_calico_common.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "couvre": [
+    "cap_identite_rarete"
+   ],
+   "fonction": "SVG ecrit (kitten_calico_common.svg), importe par Godot comme texture",
+   "preuve": "importe (16 .import generes); rendu a l ecran (runtime_alive nonmonochrome; gallery_render / decor / affordances)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.kitten_tuxedo_rare",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "media.sprites"
+   ],
+   "requires": [],
+   "owner": false,
+   "system_parent": "media",
+   "address": "04_ASSETS/sprites/kitten_tuxedo_rare.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "En gpu_window, le sprite 'kitten_tuxedo_rare' (tier rare) est rendu, distinct des tiers common et legendary."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/kitten_tuxedo_rare.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "couvre": [
+    "cap_identite_rarete"
+   ],
+   "fonction": "SVG ecrit (kitten_tuxedo_rare.svg), importe par Godot comme texture",
+   "preuve": "importe (16 .import generes); rendu a l ecran (runtime_alive nonmonochrome; gallery_render / decor / affordances)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.kitten_siamese_rare",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "media.sprites"
+   ],
+   "requires": [],
+   "owner": false,
+   "system_parent": "media",
+   "address": "04_ASSETS/sprites/kitten_siamese_rare.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "En gpu_window, le sprite 'kitten_siamese_rare' (tier rare) est rendu, distinct des tiers common et legendary."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/kitten_siamese_rare.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "couvre": [
+    "cap_identite_rarete"
+   ],
+   "fonction": "SVG ecrit (kitten_siamese_rare.svg), importe par Godot comme texture",
+   "preuve": "importe (16 .import generes); rendu a l ecran (runtime_alive nonmonochrome; gallery_render / decor / affordances)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.kitten_golden_legendary",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "media.sprites"
+   ],
+   "requires": [],
+   "owner": false,
+   "system_parent": "media",
+   "address": "04_ASSETS/sprites/kitten_golden_legendary.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "En gpu_window, le sprite 'kitten_golden_legendary' (tier legendary) est rendu, le plus lumineux, distinct des autres raretes."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/kitten_golden_legendary.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "couvre": [
+    "cap_identite_rarete"
+   ],
+   "fonction": "SVG ecrit (kitten_golden_legendary.svg), importe par Godot comme texture",
+   "preuve": "importe (16 .import generes); rendu a l ecran (runtime_alive nonmonochrome; gallery_render / decor / affordances)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.rarity_frame_set",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "media.sprites"
+   ],
+   "requires": [],
+   "owner": false,
+   "system_parent": "media",
+   "address": "04_ASSETS/sprites/rarity_frame_set.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "En gpu_window, les cadres de rarete (common/rare/legendary) rendent le second signal de rarete a l'oeil."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/rarity_frame_set.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "couvre": [
+    "cap_identite_rarete"
+   ],
+   "fonction": "SVG ecrit (rarity_frame_set.svg), importe par Godot comme texture",
+   "preuve": "importe (16 .import generes); rendu a l ecran (runtime_alive nonmonochrome; gallery_render / decor / affordances)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.refuge_start",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "media.sprites"
+   ],
+   "requires": [],
+   "owner": false,
+   "system_parent": "media",
+   "address": "04_ASSETS/sprites/refuge_start.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "En gpu_window, le decor 'refuge_start' (lieu 1) est rendu plein ecran, distinct du jardin."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/refuge_start.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "couvre": [
+    "cap_registre_lieux"
+   ],
+   "fonction": "SVG ecrit (refuge_start.svg), importe par Godot comme texture",
+   "preuve": "importe (16 .import generes); rendu a l ecran (runtime_alive nonmonochrome; gallery_render / decor / affordances)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.place_garden_unlocked",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "media.sprites"
+   ],
+   "requires": [],
+   "owner": false,
+   "system_parent": "media",
+   "address": "04_ASSETS/sprites/place_garden_unlocked.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "En gpu_window, le decor 'place_garden_unlocked' (lieu 2 debloque) est rendu, distinct du refuge."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/place_garden_unlocked.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "couvre": [
+    "cap_registre_lieux"
+   ],
+   "fonction": "SVG ecrit (place_garden_unlocked.svg), importe par Godot comme texture",
+   "preuve": "importe (16 .import generes); rendu a l ecran (runtime_alive nonmonochrome; gallery_render / decor / affordances)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.object_food_dish",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "media.sprites"
+   ],
+   "requires": [],
+   "owner": false,
+   "system_parent": "media",
+   "address": "04_ASSETS/sprites/object_food_dish.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "En gpu_window, le sprite 'object_food_dish' (patee, objet 2/3) est rendu, distinct de la pelote et du coussin."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/object_food_dish.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "couvre": [
+    "cap_registre_objets"
+   ],
+   "fonction": "SVG ecrit (object_food_dish.svg), importe par Godot comme texture",
+   "preuve": "importe (16 .import generes); rendu a l ecran (runtime_alive nonmonochrome; gallery_render / decor / affordances)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.object_cushion",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "media.sprites"
+   ],
+   "requires": [],
+   "owner": false,
+   "system_parent": "media",
+   "address": "04_ASSETS/sprites/object_cushion.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "En gpu_window, le sprite 'object_cushion' (coussin, objet 3/3) est rendu, distinct de la pelote et de la patee."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/object_cushion.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "couvre": [
+    "cap_registre_objets"
+   ],
+   "fonction": "SVG ecrit (object_cushion.svg), importe par Godot comme texture",
+   "preuve": "importe (16 .import generes); rendu a l ecran (runtime_alive nonmonochrome; gallery_render / decor / affordances)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.upgrade_icon_set",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "media.sprites"
+   ],
+   "requires": [],
+   "owner": false,
+   "system_parent": "media",
+   "address": "04_ASSETS/sprites/upgrade_icon_set.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "En gpu_window, les pastilles d'amelioration sont rendues et lisibles a ~24px dans la boutique."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/upgrade_icon_set.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "couvre": [
+    "cap_amelioration_taux"
+   ],
+   "fonction": "SVG ecrit (upgrade_icon_set.svg), importe par Godot comme texture",
+   "preuve": "importe (16 .import generes); rendu a l ecran (runtime_alive nonmonochrome; gallery_render / decor / affordances)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.prestige_button_icon",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "media.sprites"
+   ],
+   "requires": [],
+   "owner": false,
+   "system_parent": "media",
+   "address": "04_ASSETS/sprites/prestige_button_icon.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "En gpu_window, l'icone du bouton de prestige est rendue, lisible et distincte des icones d'amelioration."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/prestige_button_icon.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "couvre": [
+    "cap_prestige_entree"
+   ],
+   "fonction": "SVG ecrit (prestige_button_icon.svg), importe par Godot comme texture",
+   "preuve": "importe (16 .import generes); rendu a l ecran (runtime_alive nonmonochrome; gallery_render / decor / affordances)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.click_feedback_pop",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "media.sprites"
+   ],
+   "requires": [],
+   "owner": false,
+   "system_parent": "media",
+   "address": "04_ASSETS/sprites/click_feedback_pop.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "En gpu_window, le pop de feedback de clic (ronron + particules) est rendu, superpose au point de clic."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/click_feedback_pop.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "couvre": [
+    "cap_clic_feedback"
+   ],
+   "fonction": "SVG ecrit (click_feedback_pop.svg), importe par Godot comme texture",
+   "preuve": "importe (16 .import generes); rendu a l ecran (runtime_alive nonmonochrome; gallery_render / decor / affordances)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.ui_panel_frame",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "media.sprites"
+   ],
+   "requires": [],
+   "owner": false,
+   "system_parent": "media",
+   "address": "04_ASSETS/sprites/ui_panel_frame.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "En gpu_window, la chrome d'UI (banniere objectif + panneau quetes + barres) est rendue autour des compteurs."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/ui_panel_frame.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "couvre": [
+    "cap_objectif_initial"
+   ],
+   "fonction": "SVG ecrit (ui_panel_frame.svg), importe par Godot comme texture",
+   "preuve": "importe (16 .import generes); rendu a l ecran (runtime_alive nonmonochrome; gallery_render / decor / affordances)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "test.mutation_click",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "proof.mutation_click"
+   ],
+   "requires": [
+    "rule.click_ronron"
+   ],
+   "owner": false,
+   "system_parent": "proof",
+   "address": "07_TESTS/oracle/mutation_click.gd",
+   "expected_proof": {
+    "kind": "mutation",
+    "statement": "Une mutation qui remplace ronrons+=1 par une borne >= est TUEE : le test asserte ronrons == n+1 strict et echoue sur le mutant."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/mutation_click.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "couvre": [
+    "cap_clic_increment_strict"
+   ],
+   "fonction": "07_TESTS/oracle/mutation_click.gd charge main.tscn, clique pelote",
+   "preuve": "volet ok (before 0, after 6, delta 6, exit 0); mutation stricte scellee dans run_tests.gd",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "test.variance",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "proof.variance"
+   ],
+   "requires": [
+    "rule.cost_curve"
+   ],
+   "owner": false,
+   "system_parent": "proof",
+   "address": "07_TESTS/oracle/variance.gd",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "L'oracle de variance lit la table des paliers et asserte >=3 valeurs de cout distinctes non triviales."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/variance.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "couvre": [
+    "cap_variance_couts"
+   ],
+   "fonction": "07_TESTS/oracle/variance.gd lit le groupe cost_ladder de main.tscn",
+   "preuve": "volet ok (distinct_costs [6,15,34,72,150], exit 0)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "test.solvability",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "proof.solvability"
+   ],
+   "requires": [
+    "rule.click_ronron",
+    "rule.auto_production",
+    "rule.upgrade_rate",
+    "rule.cost_curve"
+   ],
+   "owner": false,
+   "system_parent": "proof",
+   "address": "07_TESTS/oracle/solvability.gd",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "L'oracle de solvabilite fait jouer un bot deterministe depuis main.tscn ; asserte que le 3e palier est atteint en un nombre de ticks fini et non trivial."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/solvability.gd",
+     "category": "test.solvability"
+    }
+   ],
+   "couvre": [
+    "cap_solvabilite_palier"
+   ],
+   "fonction": "07_TESTS/oracle/solvability.gd : bot InputEvent depuis main.tscn -> 3e palier",
+   "preuve": "volet ok (reached_palier 3 en 48 trames, non trivial, exit 0)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "test.main_screen_render",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "proof.main_screen_render"
+   ],
+   "requires": [
+    "render.goal",
+    "render.feedback"
+   ],
+   "owner": false,
+   "system_parent": "proof",
+   "address": "07_TESTS/oracle/main_screen_render.gd",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/main_screen_render.gd en gpu_window asserte que la scene principale rend le HUD 'objectif' non vide au lancement."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/main_screen_render.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "couvre": [
+    "cap_objectif_initial"
+   ],
+   "fonction": "07_TESTS/oracle/main_screen_render.gd (gpu) : objectif non vide + image rendue",
+   "preuve": "volet ok (objectif \"Palier 0 —...\", nonmonochrome, exit 0)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "test.gallery_render",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "proof.gallery_render"
+   ],
+   "requires": [
+    "render.rarity"
+   ],
+   "owner": false,
+   "system_parent": "proof",
+   "address": "07_TESTS/oracle/gallery_render.gd",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/gallery_render.gd en gpu_window asserte que la galerie de chatons rend des raretes visuellement distinctes."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/gallery_render.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "couvre": [
+    "cap_identite_rarete"
+   ],
+   "fonction": "07_TESTS/oracle/gallery_render.gd (gpu) : raretes visuellement distinctes",
+   "preuve": "volet ok (6 distinct_colors, exit 0)",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "test.core_audio",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "proof.core_audio"
+   ],
+   "requires": [
+    "render.audio"
+   ],
+   "owner": false,
+   "system_parent": "proof",
+   "address": "07_TESTS/oracle/core_audio.gd",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "07_TESTS/oracle/core_audio.gd journalise un declenchement par evenement et asserte 4 entrees de son distinctes (clic, achat, deblocage, prestige)."
+   },
+   "state": "BLOCKED",
+   "reason": "Depend de render.audio_trigger (BLOCKED). Le volet core_audio.gd chargerait audio.gd, dont la cloture de preload est off-map (voir render.audio_trigger). Non ecrit pour ne pas casser le chargement du projet. Remonte AMONT.",
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/core_audio.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "couvre": [
+    "cap_sons_evenements"
+   ],
+   "fonction": "",
+   "preuve": "",
+   "statut": "BLOCKED"
+  },
+  {
+   "id": "test.core_goal_display",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "proof.core_goal_display"
+   ],
+   "requires": [
+    "render.goal"
+   ],
+   "owner": false,
+   "system_parent": "proof",
+   "address": "07_TESTS/oracle/core_goal_display.gd",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_goal_display.gd asserte 3 textes de but successifs et distincts (initial, jardin, legendaire)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/core_goal_display.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "couvre": [
+    "cap_objectif_jardin",
+    "cap_objectif_legendaire"
+   ],
+   "fonction": "07_TESTS/oracle/core_goal_display.gd charge main.tscn, echantillonne objectif",
+   "preuve": "volet ok (3 buts distincts successifs, exit 0)",
+   "statut": "IMPLEMENTED"
+  }
+ ],
+ "discarded": []
+}

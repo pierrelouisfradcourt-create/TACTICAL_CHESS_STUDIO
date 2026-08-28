@@ -1,0 +1,388 @@
+{
+ "game_id": "kitten_clicker",
+ "systemes": [
+  {
+   "id": "SYS_CLICK",
+   "features": [
+    {
+     "id": "F_click_input",
+     "capacites": [
+      {
+       "id": "clk_click_entry",
+       "capacite": "Le joueur agit sur l'affordance 'pelote' au centre de l'ecran (capacite d'ENTREE de l'action joueur EX02).",
+       "source_ref": "EX02",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "07_TESTS/oracle/solvability.gd charge main.tscn : le bot declenche la cible 'pelote' instanciee dans main.tscn ; l'input de clic est recu par la scene (l'action d'entree existe et est routee depuis main.tscn)."
+       }
+      },
+      {
+       "id": "clk_click_increment",
+       "capacite": "Chaque clic sur la pelote incremente STRICTEMENT le compteur de ronrons affiche (capacite d'EFFET de EX02).",
+       "source_ref": "EX02",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "07_TESTS/oracle/solvability.gd (bot pilotant main.tscn) : n clics sur pelote => ronrons == valeur initiale + n x gain_par_clic (assertion stricte, jamais >=)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "F_click_response",
+     "capacites": [
+      {
+       "id": "clk_click_response",
+       "capacite": "La reponse au clic est double : increment strict des ronrons ET animation de la pelote dans la meme frame.",
+       "source_ref": "EX03",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "07_TESTS/oracle/solvability.gd : apres un clic, ronrons_apres == ronrons_avant + gain ET le flag animation_jouee de la pelote vaut true."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS_PRODUCTION",
+   "features": [
+    {
+     "id": "F_passive_income",
+     "capacites": [
+      {
+       "id": "prod_passive_ronrons",
+       "capacite": "Des qu'au moins un chaton producteur est possede, les ronrons augmentent strictement au fil du temps sans aucun clic.",
+       "source_ref": "EX17",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "07_TESTS/oracle/solvability.gd : apres achat d'un chaton, laisser passer N ticks sans clic ; ronrons_apres > ronrons_avant (strict)."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS_SHOP",
+   "features": [
+    {
+     "id": "F_buy_kitten",
+     "capacites": [
+      {
+       "id": "shop_buy_kitten_entry",
+       "capacite": "Le joueur agit sur l'affordance 'acheter_chaton' (capacite d'ENTREE de l'action joueur EX05).",
+       "source_ref": "EX05",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "07_TESTS/oracle/solvability.gd charge main.tscn : le bot declenche la cible 'acheter_chaton' instanciee dans main.tscn ; l'input d'achat est recu par la scene."
+       }
+      },
+      {
+       "id": "shop_buy_kitten_effect",
+       "capacite": "Apres l'achat d'un chaton, le taux de production par seconde affiche augmente strictement (capacite d'EFFET de EX05).",
+       "source_ref": "EX05",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "07_TESTS/oracle/solvability.gd (bot pilotant main.tscn) : le bot clique acheter_chaton, puis production_par_seconde_apres > production_par_seconde_avant (strict) et les ronrons montent ensuite sans clic."
+       }
+      }
+     ]
+    },
+    {
+     "id": "F_buy_upgrade",
+     "capacites": [
+      {
+       "id": "shop_buy_upgrade_entry",
+       "capacite": "Le joueur agit sur l'affordance 'acheter_amelioration' (capacite d'ENTREE de l'action joueur EX18).",
+       "source_ref": "EX18",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "07_TESTS/oracle/solvability.gd charge main.tscn : le bot declenche la cible 'acheter_amelioration' instanciee dans main.tscn ; l'input d'amelioration est recu par la scene."
+       }
+      },
+      {
+       "id": "shop_buy_upgrade_effect",
+       "capacite": "Apres l'achat d'une amelioration, le taux de production par seconde affiche augmente strictement (capacite d'EFFET de EX18).",
+       "source_ref": "EX18",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "07_TESTS/oracle/solvability.gd (bot pilotant main.tscn) : le bot clique acheter_amelioration, puis production_par_seconde strictement superieure a la valeur d'avant achat."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS_REFUGE",
+   "features": [
+    {
+     "id": "F_kitten_spawn",
+     "capacites": [
+      {
+       "id": "ref_kitten_appears",
+       "capacite": "Le premier achat de chaton fait apparaitre un sprite de chaton nomme, visible dans le refuge, la ou il n'y en avait aucun.",
+       "source_ref": "EX04",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_refuge.gd en gpu_window : avant achat 0 sprite de chaton, apres achat >=1 sprite de chaton nomme present a l'ecran."
+       }
+      }
+     ]
+    },
+    {
+     "id": "F_kitten_life",
+     "capacites": [
+      {
+       "id": "ref_idle_anim",
+       "capacite": "Chaque chaton visible dans le refuge joue une animation d'inactivite en boucle tant qu'il est a l'ecran.",
+       "source_ref": "EX22",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_refuge.gd en gpu_window : deux captures espacees de quelques frames d'un meme chaton au repos different au niveau des pixels (idle animee)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "F_rarity_read",
+     "capacites": [
+      {
+       "id": "ref_rarity_visual",
+       "capacite": "Chaque niveau de rarete de chaton se traduit par un sprite ou une palette distincte, reconnaissable a l'ecran.",
+       "source_ref": "EX12",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_rarity_visual.gd en gpu_window : capture d'au moins 2 chatons de raretes differentes ; les regions de sprite different (hash de pixels non identiques)."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS_PROGRESSION",
+   "features": [
+    {
+     "id": "F_objective_hud",
+     "capacites": [
+      {
+       "id": "prog_objective_permanent",
+       "capacite": "Le HUD affiche en permanence un libelle d'objectif courant non vide.",
+       "source_ref": "EX01",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_hud.gd en gpu_window : le Label 'objectif' est non vide a l'ouverture de la scene."
+       }
+      },
+      {
+       "id": "prog_objective_next",
+       "capacite": "Au franchissement d'un palier, le libelle d'objectif est remplace par le palier suivant, avec un seuil strictement superieur.",
+       "source_ref": "EX06",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_hud.gd : au franchissement d'un palier, le texte du Label 'objectif' change et cite un seuil superieur au precedent."
+       }
+      }
+     ]
+    },
+    {
+     "id": "F_paliers",
+     "capacites": [
+      {
+       "id": "prog_paliers_variance",
+       "capacite": "La courbe de paliers comporte au moins 3 seuils de valeurs strictement distinctes et croissantes (variance non nulle).",
+       "source_ref": "EX16",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "07_TESTS/oracle/core_paliers.gd : lit la table des seuils de palier et verifie >=3 valeurs distinctes strictement croissantes (pas d'egalite tautologique)."
+       }
+      },
+      {
+       "id": "prog_solvability",
+       "capacite": "Un bot joueur atteint le 3e palier de la courbe en un nombre fini de ticks (solvabilite de la progression).",
+       "source_ref": "EX15",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "07_TESTS/oracle/solvability.gd : le bot joue (clics + achats) et atteint palier_courant == 3 en ticks < BORNE_FINIE ; assertion stricte d'egalite au palier 3."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS_META",
+   "features": [
+    {
+     "id": "F_prestige",
+     "capacites": [
+      {
+       "id": "meta_prestige_entry",
+       "capacite": "Le joueur agit sur l'affordance 'prestige' (capacite d'ENTREE de l'action joueur EX07).",
+       "source_ref": "EX07",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "07_TESTS/oracle/solvability.gd charge main.tscn : le bot declenche la cible 'prestige' instanciee dans main.tscn ; l'input de prestige est recu par la scene."
+       }
+      },
+      {
+       "id": "meta_prestige_unlock_place",
+       "capacite": "Le prestige rend visitable un second lieu et fait passer le nombre de lieux affiche de 1 a 2 (capacite d'EFFET de EX07).",
+       "source_ref": "EX07",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "07_TESTS/oracle/solvability.gd (bot pilotant main.tscn) : le bot atteint le seuil de prestige, clique prestige, puis nombre_de_lieux passe de 1 a 2 (strict) et le second lieu devient visitable."
+       }
+      },
+      {
+       "id": "meta_prestige_permanent_bonus",
+       "capacite": "Apres un prestige, un bonus de production permanent est applique et conserve malgre la reinitialisation des ronrons courants.",
+       "source_ref": "EX19",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "07_TESTS/oracle/solvability.gd : mesurer le multiplicateur avant et apres un cycle de prestige ; multiplicateur_apres > multiplicateur_avant et ronrons remis a la base."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS_COLLECTION",
+   "features": [
+    {
+     "id": "F_collection_counter",
+     "capacites": [
+      {
+       "id": "coll_collection_hud",
+       "capacite": "Le HUD affiche un compteur de collection 'possedes / total' qui augmente quand un chaton d'un type non encore possede est acquis.",
+       "source_ref": "EX21",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_hud.gd : le Label 'collection' est non vide et sa valeur augmente apres acquisition d'un chaton d'un type non encore possede."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS_QUESTS",
+   "features": [
+    {
+     "id": "F_quest_display",
+     "capacites": [
+      {
+       "id": "quest_panel_display",
+       "capacite": "Le panneau de quetes affiche au moins 3 quetes, chacune avec son objectif et sa progression courante visibles a l'ecran.",
+       "source_ref": "EX20",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_quetes.gd en gpu_window : le panneau de quetes affiche >=3 quetes, chacune avec un libelle d'objectif non vide et un indicateur de progression."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS_CONTENT",
+   "features": [
+    {
+     "id": "F_registries",
+     "capacites": [
+      {
+       "id": "content_kittens_registry",
+       "capacite": "Le jeu embarque un registre de contenu listant au moins 6 chatons, chacun avec un nom unique et un niveau de rarete.",
+       "source_ref": "EX08",
+       "expected_proof": {
+        "kind": "file_write",
+        "statement": "Registre 03_WORLD/kittens.json present, tableau de >=6 entrees {nom unique, rarete}, verifie par lecture de fichier."
+       }
+      },
+      {
+       "id": "content_locations_registry",
+       "capacite": "Le jeu embarque un registre d'au moins 2 lieux, dont le refuge de depart et au moins un lieu debloque par le prestige.",
+       "source_ref": "EX09",
+       "expected_proof": {
+        "kind": "file_write",
+        "statement": "Registre 03_WORLD/locations.json present, >=2 entrees {id lieu, debloque_par}, dont une debloque_par='prestige'."
+       }
+      },
+      {
+       "id": "content_objects_registry",
+       "capacite": "Le jeu embarque un registre d'au moins 3 objets distincts destines a l'affichage dans le refuge.",
+       "source_ref": "EX10",
+       "expected_proof": {
+        "kind": "file_write",
+        "statement": "Registre 03_WORLD/objects.json present, >=3 entrees {id objet, type}, verifie par lecture de fichier."
+       }
+      },
+      {
+       "id": "content_quests_registry",
+       "capacite": "Le jeu embarque au moins 3 quetes, chacune avec un objectif et une progression courante destines a l'affichage.",
+       "source_ref": "EX11",
+       "expected_proof": {
+        "kind": "file_write",
+        "statement": "Registre 03_WORLD/quests.json present, >=3 entrees {id quete, objectif, cible_progression}, verifie par lecture de fichier."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS_FEEDBACK",
+   "features": [
+    {
+     "id": "F_click_visual",
+     "capacites": [
+      {
+       "id": "fb_click_pelote_anim",
+       "capacite": "Chaque clic sur la pelote produit dans la meme frame une animation visible (rebond ou particule) de la pelote.",
+       "source_ref": "EX13",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_click_feedback.gd en gpu_window : deux captures avant/apres clic different au niveau des pixels de la pelote (animation detectee)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "F_audio",
+     "capacites": [
+      {
+       "id": "fb_event_sounds",
+       "capacite": "Chacun des 4 evenements (clic, achat, deblocage, prestige) declenche un son propre, distinct des trois autres.",
+       "source_ref": "EX14",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "07_TESTS/oracle/core_audio.gd tient un journal des declenchements : apres avoir provoque les 4 evenements, le journal contient 4 identifiants de son distincts, un par evenement."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS_GAME_STATE",
+   "features": [
+    {
+     "id": "F_no_defeat",
+     "capacites": [
+      {
+       "id": "state_no_defeat",
+       "capacite": "Le jeu ne comporte aucun etat de defaite : aucune condition ne termine la partie ni ne reinitialise involontairement la progression.",
+       "source_ref": "EX23",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "07_TESTS/oracle/core_no_defeat.gd : parcours des etats de jeu, aucun etat atteignable n'est marque 'defeat' ou 'game_over'."
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,28 @@
+Je m'arrête ici avant d'exécuter quoi que ce soit, parce que ce que je constate ne colle pas avec la doctrine — et c'est exactement le genre d'écart que mon rôle est censé attraper, pas exécuter en silence.
+
+## Ce que je constate (réel, pas supposé)
+
+**1. Le build existe déjà — complet.** `games/kitten_clicker/` = 150 fichiers : tous les systèmes de la wiremap (`game_state`, `production`, `economy`, `chatons`, `progression`, `persistence`), les adaptateurs render/input/audio, `03_WORLD/rules/content/*.json`, les 17 sprites SVG, `tests/run_tests.gd`, `solvability.gd`, `07_TESTS/oracle/core_audio.gd`, `main.tscn`, `project.godot`. La tâche dit « construis », mais c'est déjà construit — c'est le dispatch `:2`.
+
+**2. L'éditeur Godot a pollué le projet.** Présence de `games/kitten_clicker/.godot/` (cache éditeur, `filesystem_cache`, `uid_cache.bin`, `imported/*.ctex`) + des `.svg.import`. Le contrat lui-même le note : *« c'est l'éditeur qui pollue »*. Quelqu'un a ouvert ce projet dans l'éditeur — ce n'est pas la chaîne headless.
+
+**3. Anomalie de dispatch — et c'est le point bloquant.** Ce contrat `s9-build-godot-standard` est un **contrat de sous-agent forgeron** (marqueur `FORGE_DISPATCH`, rôle « Forgeron GDScript », périmètre borné). Mais il arrive dans **la session principale** (hook SessionStart complet, CLAUDE.md intégral, index mémoire chargé — un vrai sous-agent isolé n'a rien de tout ça). Donc je ne suis pas un sous-agent forge dispatché : je suis l'orchestrateur.
+
+## Pourquoi je ne l'exécute pas tel quel
+
+La doctrine est explicite sur deux points qui se recoupent ici :
+
+- **Périmètre FORGE (ADR-002)** : *« aucun sous-agent sans contrat validé »*, les agents de génération de jeu se spawnent **par la porte** (`forge.dispatch.prepare_dispatch` + hook `pretool_forge_guard`), jamais en collant un contrat dans le chat principal.
+- **Fable poste de commande / répartition par modèle** : la session Opus principale est le **garde-fou à contexte propre**, *« jamais un terminal d'exécution : pas de tâches mécaniques »*. Un s9-build est du bras d'exécution (escalade haiku→sonnet→opus **via la porte**). Si je hand-écris/réécris du GDScript ici, je détruis exactement l'indépendance de contexte qui me rend capable de valider les rapports.
+
+Écrire 150 fichiers « à la main » dans ce contexte serait donc doublement hors doctrine — et en plus le build est déjà là.
+
+## Ce que je peux faire, proprement — dis-moi lequel
+
+**Option A — Mode garde-fou (recommandé, c'est mon vrai rôle) :** je *confronte le build existant au réel*. Je lance l'oracle headless (`godot --headless --path games/kitten_clicker --script res://tests/run_tests.gd` via `godot_bin.mjs`), je vérifie exit code + EXPECTED_ASSERTS, je regarde si les champs de constat de la wiremap sont réellement remplis, et je te remonte un verdict `software/evidence/claim` séparé + la solvabilité. Borné, une commande décisive, pas une exploration longue. Le gate mutation Python reste exécuté par le driver (divergence exécuteur connue P6), pas par moi.
+
+**Option B — Reconstruction propre :** on relance `s9-build` **par la porte forge** comme sous-agent isolé (via `/forge`), et moi je valide le rapport. C'est la voie doctrine-correcte si tu veux réellement reconstruire.
+
+**Dans les deux cas, à trancher** : le `.godot/` + `.import` = pollution éditeur à nettoyer (et à confirmer que ce n'est pas suivi par git), et il faut décider quoi faire de l'existant `:2` avant tout.
+
+Tu veux que je parte sur **A** (vérifier ce qui est là) ou **B** (relancer par la porte) ? Je ne touche à rien tant que tu n'as pas tranché.

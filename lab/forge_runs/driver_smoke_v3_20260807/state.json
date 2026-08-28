@@ -1,0 +1,107 @@
+{
+ "catalog_brick_ids_snapshot": [
+  "pat-damage-floor",
+  "pat-forge-architecture_check_before_human_escalation",
+  "pat-forge-broken_loop_repair_not_report",
+  "pat-forge-diagnosis_is_not_workflow_end",
+  "pat-forge-entrypoint_is_undeclared_invariant",
+  "pat-forge-escalation_costs_avoid_default_route",
+  "pat-forge-forge_oracle_convention_undocumented",
+  "pat-forge-hardcoded_expected_state_breaks_on_growth",
+  "pat-forge-instrument_assumes_instead_of_reads",
+  "pat-forge-kb_humangate_to_controlled_autonomy",
+  "pat-forge-mutation_survivor_equivalence_requires_mechanical_proof",
+  "pat-forge-new_proof_needs_declared_executor",
+  "pat-forge-oracle_fail_vs_not_measured_marker",
+  "pat-forge-preflight_oracle_registration",
+  "pat-forge-reuse_tracking_oracle_dead_since_inception",
+  "pat-forge-run_status_not_liveness_proof",
+  "pat-forge-test_green_via_wrong_causal_path",
+  "pat-forge-timeout_greenfield_by_profile",
+  "pat-forge-wiremap_concept_reuse_requalification",
+  "pat-full-reachability",
+  "pat-zone-of-control",
+  "sys-damage-floor",
+  "sys-evader-basic",
+  "sys-grid-nav-m01",
+  "sys-guardian-zoc",
+  "sys-pursuer-continuous",
+  "sys-pursuer-mobile",
+  "sys-reachability"
+ ],
+ "created_ts": 1786104795.9714692,
+ "escalations": 0,
+ "is_game": false,
+ "model_override": null,
+ "profile": "patch",
+ "project": "driver_smoke_v3_20260807",
+ "run_id": "driver_smoke_v3_20260807-run1",
+ "run_status": "DONE",
+ "steps": {
+  "s10a-oracle-code": {
+   "attempts": 1,
+   "detail": {
+    "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\driver_smoke_v3_20260807\\evidence\\oracle_driver_smoke_v3_20260807.log",
+    "returncode": 0
+   },
+   "status": "OK",
+   "ts": 1786104881.7078145
+  },
+  "s11-redteam-code": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\driver_smoke_v3_20260807\\artifacts\\s11-redteam-code.txt",
+    "artifact_sha256": "ed586ae8904cbcd31e0c2ebb6012cce5a618efab15ecfd55f4d07641f823b483",
+    "cache_creation_tokens": 64471,
+    "cache_read_tokens": 353477,
+    "cost_usd": 1.1547735,
+    "duration_s": 219.31023955345154,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": "Red-team CODE terminé (`driver_smoke_v3_20260807-run1` / s11-redteam-code). Rapport écrit : `lab/forge_runs/driver_smoke_v3_20260807/rapport_redteam_code.md`.\n\n## Ce que j'ai audité (aveuglé)\nCible : `src/logic.mjs` (`clamp = Math.min(Math.max(x,lo),hi)`) + `src/logic.test.mjs` (3 tests). Contexte : `is_game: false`, profil `patch` → smoke test du driver, pas un jeu.\n\n**Points sains confirmés** : implémentation correcte pour `lo<=hi`/x numérique ; assertions en égalité **stricte** (pas de `>=` tautologique) ; oracle recorded **authentique** (`pass 3/fail 0`, `returncode=0`) — **aucune preuve factice** côté oracle.\n\n## 3 failles (advisory, chacune reproductible par oracle non-LLM)\n\n1. **MEDIUM — zone morte de test** : les 3 tests utilisent tous `lo=0,hi=10`. Un mutant qui **hard-code les bornes et ignore `lo`/`hi`** (`Math.min(Math.max(x,0),10)`) passe **3/3**. L'oracle ne prouve donc pas que `clamp` lit ses paramètres — exactement le mode de panne du pré-mortem (mécanique morte qui passe tous les tests unitaires). Test discriminant fourni : `clamp(5,20,30)` doit valoir `20` (le mutant renverrait `10`).\n2. **LOW — cas limites** : bornes exactes jamais assertées (`clamp(0,0,10)`, `clamp(10,0,10)`).\n3. **LOW — robustesse** : bornes inversées (`lo>hi`→`hi` silencieux) et NaN propagé, sans validation. Non tranchable sans spec → **fog HumanGate**.\n\n## Verdicts\n- `software_verdict: OK` (oracle vert, ligne heureuse validée — les failles bornent sa portée, ne le contredisent pas)\n- `evidence_verdict: MECHANICAL_VALIDATION_ONLY`\n- `claim_verdict: NO_CLAIM_ALLOWED` (faille 3 = jugement Pierre : durcir `clamp` ou l'accepter tel quel ?)\n\nLe bloc JSON en fin de rapport alimente `redteam_advisory` du verdict signé (parseur déterministe, jamais `software_verdict`). Je n'ai rien exécuté (`run: aucun`) — les reproductions sont fournies pour un oracle en aval. Section `SKIPPED_VALIDATION` explicite dans le rapport.",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 13861
+   },
+   "status": "OK",
+   "ts": 1786105101.1099823
+  },
+  "s12-verdict": {
+   "attempts": 1,
+   "detail": {
+    "decision": "HUMANGATE_READY",
+    "software_verdict": "OK",
+    "verdict_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\driver_smoke_v3_20260807\\verdict.json",
+    "verify_run": "AUTHENTIQUE"
+   },
+   "status": "OK",
+   "ts": 1786105101.2517009
+  },
+  "s9-build": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\driver_smoke_v3_20260807\\artifacts\\s9-build.txt",
+    "artifact_sha256": "a958031e8b7686239b3b22c7a1424b18e2eb4c005bdefdf6c00ec61ebf36f560",
+    "cache_creation_tokens": 29392,
+    "cache_read_tokens": 487840,
+    "cost_usd": 0.126907,
+    "duration_s": 85.47312664985657,
+    "model": "claude-haiku-4-5-20251001",
+    "model_override": null,
+    "output_excerpt": "lisé :** `node --test logic.test.mjs` (défini dans oracles_override.json)\n\n**Sortie oracle :**\n```\n✔ clamp bounds a value above the range (0.3912ms)\n✔ clamp bounds a value below the range (0.0713ms)\n✔ clamp leaves an in-range value untouched (0.0555ms)\nℹ tests 3\nℹ pass 3\nℹ fail 0\n```\n\n### Fichiers touchés vs ownership\n\n**Périmètre Builder :** `lab/forge_runs/driver_smoke_v3_20260807/src/`\n\n**Fichiers modifiés :**\n- `logic.mjs` — correction de `clamp()` (ajout de Math.max pour la borne inférieure)\n\n**Fichiers protégés (non modifiés) :**\n- `logic.test.mjs` — tests zone protégée (lecture seule)\n\n### Analyse\n\nLa fonction `clamp()` était incomplète : elle n'appliquait que la borne supérieure (`Math.min(x, hi)`) sans gérer la borne inférieure. Le test \"clamp bounds a value below the range\" aurait échoué avec `clamp(-5, 0, 10)` retournant `-5` au lieu de `0`.\n\n**Correction appliquée :**\n```javascript\n// Avant\nreturn Math.min(x, hi);\n\n// Après\nreturn Math.min(Math.max(x, lo), hi);\n```\n\n### RETURN LINEAGE (doctrine FORGE_CAUSAL_LINEAGE_V2)\n\n```\nwhy_task_existed:\n  problem: \"Oracle de code signalait une mécanique incomplète (borne inférieure manquante dans clamp)\"\n  oracle: \"test node:test — assertion strict clamp(-5, 0, 10) == 0\"\n  root_cause: \"logique de clamping asymétrique : seul Math.min appliqué, pas Math.max\"\n  action_reason: \"ajouter Math.max(x, lo) pour rendre symétriques les deux bornes, résout le test failed\"\n\nresult: \"✔ 3/3 tests passent, aucune régression\"\n\nproof: |\n  Commande : cd /c/TACTICAL_CHESS_STUDIO/lab/forge_runs/driver_smoke_v3_20260807/src && node --test logic.test.mjs\n  Sortie : tests 3, pass 3, fail 0, duration_ms 45.3525\n\nlearning: \"Un oracle test = un juge mécanique infaillible ; si un test échoue, la défaillance est factuelle (pas interprétation)\"\n\nnext_reason: \"Chaîne causale FERMÉE — s9-build complète, oracle vert, correction minimale et bornée à l'ownership, prêt pour s10a-oracle-code (etape suivante)\"\n```\n\n---\n\n**Statut : READY FOR NEXT STAGE**",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-haiku-4-5-20251001",
+    "runner": "claude",
+    "tokens": 4723
+   },
+   "status": "OK",
+   "ts": 1786104881.5390594
+  }
+ },
+ "updated_ts": 1786105101.2527013
+}

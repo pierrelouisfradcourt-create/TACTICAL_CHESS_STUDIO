@@ -1,0 +1,160 @@
+{
+ "modules": [
+  "05_SYSTEMS",
+  "02_ENTITIES",
+  "06_RUNTIME",
+  "03_WORLD",
+  "04_ASSETS",
+  "07_TESTS"
+ ],
+ "deps_interdites": [
+  [
+   "05_SYSTEMS",
+   "06_RUNTIME"
+  ],
+  [
+   "05_SYSTEMS",
+   "02_ENTITIES"
+  ],
+  [
+   "05_SYSTEMS",
+   "04_ASSETS"
+  ],
+  [
+   "05_SYSTEMS",
+   "07_TESTS"
+  ],
+  [
+   "03_WORLD",
+   "05_SYSTEMS"
+  ],
+  [
+   "03_WORLD",
+   "06_RUNTIME"
+  ],
+  [
+   "04_ASSETS",
+   "05_SYSTEMS"
+  ]
+ ],
+ "ownership": {
+  "05_SYSTEMS": "Logique / modele pur (economie, production, courbe de paliers, prestige, meta-deblocage) — aucune connaissance de la vue ni de l'input",
+  "02_ENTITIES": "Input / affordances joueur (pelote, acheter_chaton, acheter_amelioration, deblocage, prestige) — capte le geste et le transmet a la logique",
+  "06_RUNTIME": "Rendu / presentation (HUD ronrons, banniere objectif, HUD lieux, feedback de clic, declenchement audio) — lit l'etat, n'en mute aucun",
+  "03_WORLD": "Contenu / registres de donnees (kittens/locations/objects/quests.json) — donnee pure, feuille",
+  "04_ASSETS": "Media (sprites par rarete, sprites d'objets) — ressources rendues distinctement, sans logique",
+  "07_TESTS": "Oracles / preuve (mutation stricte, variance des couts, solvabilite bot, oracles visuels/audio) — verifie, ne produit pas de gameplay"
+ },
+ "responsabilites": [
+  {
+   "module": "05_SYSTEMS",
+   "responsabilite": "Modele pur du clicker : compteur de ronrons (increment STRICT +1 par clic), production automatique par tick apres achat, taux de production, table des couts/paliers, achat de chatons/ameliorations, deblocage de lieu et prestige (reset + multiplicateur permanent). N'importe jamais de rendu, d'input ni d'asset.",
+   "couvre": [
+    "feat_clic_pelote",
+    "feat_achat_chaton",
+    "feat_production_auto",
+    "feat_achat_amelioration",
+    "feat_courbe_paliers",
+    "feat_deblocage_lieu",
+    "feat_prestige"
+   ],
+   "dependances": [
+    "03_WORLD"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot deterministe depuis main.tscn pilote clics/achats/ameliorations ; l'oracle 07_TESTS asserte ronrons == N (strict), production autonome strictement croissante sans input, taux_apres > taux_avant apres amelioration (strict), prestige remet ronrons a 0 avec multiplicateur permanent, et le 3e palier atteint en un nombre de ticks fini (solvabilite)."
+   }
+  },
+  {
+   "module": "02_ENTITIES",
+   "responsabilite": "Affordances joueur (couche INPUT) : zone de clic 'pelote' au centre, et controles 'acheter_chaton', 'acheter_amelioration', 'acheter_amelioration' de deblocage, 'prestige'. Recoit le geste sur la scene reelle et appelle 05_SYSTEMS ; ne calcule aucune economie, ne rend aucun HUD.",
+   "couvre": [
+    "feat_clic_pelote",
+    "feat_achat_chaton",
+    "feat_achat_amelioration",
+    "feat_deblocage_lieu",
+    "feat_prestige"
+   ],
+   "dependances": [
+    "05_SYSTEMS",
+    "03_WORLD",
+    "04_ASSETS"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot depuis main.tscn actionne chaque affordance (capacite d'ENTREE) ; l'oracle constate que chaque action est bien recue par la scene reelle et delegue a la logique, sans que l'entite ne porte de calcul d'economie."
+   }
+  },
+  {
+   "module": "06_RUNTIME",
+   "responsabilite": "Presentation (couche RENDU) : affichage du compteur de ronrons, banniere d'objectif (initial puis distinct apres palier), HUD des lieux selectionnables, feedback visuel de clic (rebond/particule), identite visuelle par rarete a l'ecran, et declenchement d'un son distinct par evenement. Lit l'etat de 05_SYSTEMS ; ne le mute jamais.",
+   "couvre": [
+    "feat_clic_feedback",
+    "feat_registre_chatons",
+    "feat_deblocage_lieu",
+    "feat_banniere_objectif",
+    "feat_sons_evenements"
+   ],
+   "dependances": [
+    "05_SYSTEMS",
+    "03_WORLD",
+    "04_ASSETS"
+   ],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "Les oracles 07_TESTS/oracle/core_*.gd en gpu_window assertent un feedback transitoire au clic, une banniere d'objectif non vide puis textuellement distincte, des sprites de rarete visuellement distincts, un nouveau lieu present/selectionnable dans le HUD apres deblocage, et un son declenche par chacun des 4 evenements."
+   }
+  },
+  {
+   "module": "03_WORLD",
+   "responsabilite": "Registres de contenu en donnees pures : kittens.json (>=6 chatons nommes, raretes commune/rare/legendaire), locations.json (>=2 lieux dont refuge initial + un deblocable par meta-progression), objects.json (>=3 objets a sprite), quests.json (>=3 quetes a objectif affichable). Feuille : ne depend d'aucun code.",
+   "couvre": [
+    "feat_registre_chatons",
+    "feat_lieux",
+    "feat_objets",
+    "feat_quetes"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "file_write",
+    "statement": "Le build ecrit 03_WORLD/kittens.json, locations.json, objects.json et quests.json conformes aux cardinalites (>=6 chatons 3 raretes ; >=2 lieux typages ; >=3 objets a sprite ; >=3 quetes a objectif affichable)."
+   }
+  },
+  {
+   "module": "04_ASSETS",
+   "responsabilite": "Media du jeu : sprites de chatons distincts par rarete et sprites d'objets identifiables, sous 04_ASSETS/sprites/. Ressources pures, referencees par le rendu et les entites ; ne portent aucune logique et ne dependent d'aucun code.",
+   "couvre": [
+    "feat_registre_chatons",
+    "feat_objets"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "En gpu_window, les sprites de chatons (par rarete) et d'objets sont rendus a l'ecran, mutuellement distincts et identifiables — preuve d'usage a l'ecran, pas de simple existence de fichier."
+   }
+  },
+  {
+   "module": "07_TESTS",
+   "responsabilite": "Harnais de preuve : gate de mutation (l'increment strict ronrons+=1 remplace par une borne >= est TUE), oracle de variance des couts (>=3 valeurs distinctes non triviales), oracle de solvabilite (bot atteint le 3e palier en ticks finis) cable dans la commande d'oracle, et oracles visuels/audio. Verifie 05_SYSTEMS/06_RUNTIME/02_ENTITIES/03_WORLD ; ne produit aucun gameplay.",
+   "couvre": [
+    "feat_clic_pelote",
+    "feat_clic_feedback",
+    "feat_registre_chatons",
+    "feat_courbe_paliers",
+    "feat_banniere_objectif",
+    "feat_sons_evenements"
+   ],
+   "dependances": [
+    "05_SYSTEMS",
+    "06_RUNTIME",
+    "02_ENTITIES",
+    "03_WORLD"
+   ],
+   "preuve_attendue": {
+    "kind": "mutation",
+    "statement": "Le gate de mutation tue le mutant qui remplace l'increment strict par une borne >= (assert ronrons == n+1) ; l'oracle de variance asserte >=3 couts distincts non triviaux ; l'oracle de solvabilite fait gagner un bot deterministe (3e palier, ticks finis)."
+   }
+  }
+ ]
+}

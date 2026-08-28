@@ -1,0 +1,152 @@
+{
+ "modules": [
+  "05_SYSTEMS",
+  "03_WORLD",
+  "04_ASSETS",
+  "02_ENTITIES",
+  "render",
+  "input",
+  "audio"
+ ],
+ "deps_interdites": [
+  [
+   "05_SYSTEMS",
+   "render"
+  ],
+  [
+   "05_SYSTEMS",
+   "input"
+  ],
+  [
+   "05_SYSTEMS",
+   "audio"
+  ]
+ ],
+ "ownership": {
+  "05_SYSTEMS": "Etat de jeu et regles pures (ronrons, production passive, economie boutique, courbe de paliers, prestige, collection, progression des quetes, invariant no-defeat). Detient, n'agit pas sur l'ecran ; emet des signaux.",
+  "03_WORLD": "Registres de contenu declaratifs (chatons, lieux, objets, quetes). Donnees seules, aucun comportement.",
+  "04_ASSETS": "Assets visuels et sonores distincts (sprites par rarete, sons d'evenement). Aucun code de jeu.",
+  "02_ENTITIES": "Entites de scene : chaton nomme (animation d'idle, sprite selon rarete) et pelote centrale (rebond au clic). Auto-contenues, ne pilotent aucune regle.",
+  "render": "Adaptateur de rendu/UI : HUD (objectif, collection, production/s, jauge de palier), vue du refuge (instancie les chatons a l'achat), panneau de quetes, reponse visuelle au clic. LIT l'etat, ne decide d'aucune regle.",
+  "input": "Adaptateur d'entree : traduit les InputEvent moteur (clic pelote, achat chaton, achat amelioration, prestige) en appels de la logique pure. Ne connait aucune regle de jeu.",
+  "audio": "Adaptateur audio : un son distinct par evenement (clic, achat, deblocage, prestige), declenche par les signaux de la logique. Ne detient aucun etat de jeu."
+ },
+ "responsabilites": [
+  {
+   "module": "05_SYSTEMS",
+   "responsabilite": "Coeur logique pur du clicker : increment strict des ronrons au clic, production passive strictement croissante des qu'un chaton producteur est possede, effet economique strict des achats (chaton/amelioration augmentent la production/s), courbe de paliers a >=3 seuils distincts croissants, cycle de prestige (bonus permanent + reset des ronrons courants), suivi de collection, progression des quetes, et invariant d'absence totale d'etat de defaite. Emet des signaux, n'importe jamais un adaptateur.",
+   "couvre": [
+    "F_click_input",
+    "F_click_response",
+    "F_passive_income",
+    "F_buy_kitten",
+    "F_buy_upgrade",
+    "F_paliers",
+    "F_prestige",
+    "F_collection_counter",
+    "F_quest_display",
+    "F_no_defeat"
+   ],
+   "dependances": [
+    "03_WORLD"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd (bot pilotant main.tscn) : n clics => ronrons == valeur_initiale + n*gain_par_clic (egalite stricte, jamais >=) ; apres achat d'un chaton, N ticks sans clic => ronrons strictement superieurs ; production_par_seconde strictement superieure apres chaque achat chaton/amelioration ; le bot atteint palier_courant == 3 en ticks < BORNE_FINIE ; multiplicateur post-prestige > pre-prestige avec ronrons remis a la base. Complete par 07_TESTS/oracle/core_paliers.gd (>=3 seuils distincts croissants) et core_no_defeat.gd (aucun etat 'defeat'/'game_over' atteignable)."
+   }
+  },
+  {
+   "module": "03_WORLD",
+   "responsabilite": "Registres de contenu du jeu : au moins 6 chatons nommes uniques avec rarete, 2 lieux dont un debloque_par='prestige', 3 objets, 3 quetes avec objectif et cible de progression. Source unique de verite du contenu, lue par la logique et les entites.",
+   "couvre": [
+    "F_registries"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "file_write",
+    "statement": "Presence et lecture de 03_WORLD/kittens.json (>=6 entrees {nom unique, rarete}), 03_WORLD/locations.json (>=2 entrees {id, debloque_par} dont une 'prestige'), 03_WORLD/objects.json (>=3 entrees {id, type}), 03_WORLD/quests.json (>=3 entrees {id, objectif, cible_progression}). FOG amont : repo_map.yaml n'a pas de categorie pour un registre directement sous 03_WORLD/ — placement a trancher en s5/HumanGate."
+   }
+  },
+  {
+   "module": "04_ASSETS",
+   "responsabilite": "Fournir les assets distincts par rarete (sprites) et par evenement (sons). Chaque niveau de rarete a un sprite/palette reconnaissable, garantissant que deux chatons de raretes differentes ne partagent pas le meme rendu de pixels.",
+   "couvre": [
+    "F_rarity_read"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_rarity_visual.gd en gpu_window : capture d'au moins 2 chatons de raretes differentes ; les regions de sprite different (hash de pixels non identiques) — la distinction de rarete est portee par des assets reellement distincts."
+   }
+  },
+  {
+   "module": "02_ENTITIES",
+   "responsabilite": "Entites de scene auto-contenues : le chaton (joue une animation d'idle en boucle tant qu'il est a l'ecran et choisit son sprite selon sa rarete) et la pelote centrale (produit un rebond/particule visible dans la meme frame que le clic). Aucune regle de jeu, aucun import d'adaptateur.",
+   "couvre": [
+    "F_kitten_life",
+    "F_rarity_read",
+    "F_click_visual"
+   ],
+   "dependances": [
+    "03_WORLD",
+    "04_ASSETS"
+   ],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_refuge.gd en gpu_window : deux captures espacees de quelques frames d'un meme chaton au repos different au niveau des pixels (idle animee) ; 07_TESTS/oracle/core_click_feedback.gd en gpu_window : deux captures avant/apres clic different sur la region de la pelote (animation detectee)."
+   }
+  },
+  {
+   "module": "render",
+   "responsabilite": "Adaptateur de rendu/UI : affiche en permanence l'objectif courant (mis a jour au franchissement de palier vers un seuil superieur), le compteur de collection 'possedes/total', la production/s et la jauge de palier ; instancie un chaton visible dans le refuge apres un achat ; affiche le panneau d'au moins 3 quetes avec objectif et progression ; declenche la reponse visuelle au clic. LIT l'etat de la logique et instancie les entites ; ne decide d'aucune regle.",
+   "couvre": [
+    "F_kitten_spawn",
+    "F_objective_hud",
+    "F_collection_counter",
+    "F_quest_display",
+    "F_click_response"
+   ],
+   "dependances": [
+    "05_SYSTEMS",
+    "02_ENTITIES",
+    "03_WORLD"
+   ],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_hud.gd en gpu_window : Label 'objectif' non vide a l'ouverture, texte change vers un seuil superieur au franchissement, Label 'collection' non vide et croissant apres acquisition d'un type nouveau ; core_refuge.gd : avant achat 0 sprite de chaton, apres achat >=1 sprite nomme present ; core_quetes.gd : panneau affichant >=3 quetes avec libelle non vide et indicateur de progression."
+   }
+  },
+  {
+   "module": "input",
+   "responsabilite": "Adaptateur d'entree : capte les InputEvent moteur (clic sur la pelote, boutons acheter_chaton / acheter_amelioration / prestige) et les traduit en appels de la logique pure. Les affordances joueur (EX02/EX05/EX18/EX07) entrent dans le systeme UNIQUEMENT par ici ; la logique ne connait ni Input ni InputEvent.",
+   "couvre": [
+    "F_click_input",
+    "F_buy_kitten",
+    "F_buy_upgrade",
+    "F_prestige"
+   ],
+   "dependances": [
+    "05_SYSTEMS"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd charge main.tscn : le bot declenche les cibles 'pelote', 'acheter_chaton', 'acheter_amelioration' et 'prestige' instanciees dans main.tscn ; chaque input est recu par la scene et route vers la logique (l'action d'entree existe et produit son effet logique en aval)."
+   }
+  },
+  {
+   "module": "audio",
+   "responsabilite": "Adaptateur audio : joue un son propre et distinct pour chacun des 4 evenements (clic, achat, deblocage, prestige), declenche par le signal emis par la logique correspondante. Ne detient aucun etat de jeu ; aucun son purement decoratif.",
+   "couvre": [
+    "F_audio"
+   ],
+   "dependances": [
+    "05_SYSTEMS",
+    "04_ASSETS"
+   ],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "07_TESTS/oracle/core_audio.gd tient un journal des declenchements : apres avoir provoque les 4 evenements (clic, achat, deblocage, prestige), le journal contient 4 identifiants de son distincts, un par evenement, chacun declenche par son evenement propre."
+   }
+  }
+ ]
+}

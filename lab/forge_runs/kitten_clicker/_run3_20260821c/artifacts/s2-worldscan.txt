@@ -1,0 +1,338 @@
+## OBSERVATION ARCHITECTURE COMPARÉE — Clicker/Idle Incremental
+
+### **COOKIE CLICKER** — Boucles Temporelles et Architecture
+
+**Minute 1:** Le joueur clique sur un gros cookie, gagne 1-10 cookies par clic. Premier upgrade disponible : Cursor (+0.1 cookies/sec automatique). Feedback immédiat : son, numéro qui monte, sensation de contrôle direct. Architecture : **économie de boucle courte** (clic → ressource → achat) avec **feedback audio-visuel constant**.
+
+**Minute 10:** Les premiers bâtiments (Farms, Granaries) produisent passivement. Le joueur commence à laisser le jeu tourner en arrière-plan. Golden Cookies (spawns aléatoires, durée ~15s) forcent l'attention périodique. Architecture : **transition clic actif → inactif** avec **incitations temporelles aléatoires** (urgence du Golden Cookie). Source : [Cookie Clicker: Mechanics and Progression](https://cookieclickeronline.net/cookie-clicker-mechanics-and-progression.html).
+
+**Heure 5:** Ascension devient possible (~tredecillion cookies). Le joueur gère des stratégies complexes : **Grimoire** (minijeu magique), **Pantheon** (systèmes de dieux), **Garden** (culture avec bonus). Les Golden Cookie combos (Frenzy + Click Frenzy) demandent de l'optimisation. Wrinklers (créatures qui consomment production mais rendront les ressources avec intérêt) introduisent la gestion d'actifs. Architecture : **métajeu d'optimisation** avec **multiples minisystèmes semi-indépendants**. Source : [Progression Stages - The Cookie Clicker Wiki](https://cookieclicker.wiki.gg/wiki/Progression_Stages).
+
+**Endgame (200+ heures):** Ascension répétées pour maximiser Prestige (×1% CPS par niveau). 622 achievements normaux + 17 secrets = objectifs sans fin. Architecture : **boucle prestige externalisée** (reset continu, gains marginaux de multiplicateurs), **progression asymptotique** où chaque cycle avance plus lentement. Source : [The Harrowing Methods to Achieve 100% Cookie Clicker Completion](https://vgbees.com/the-harrowing-methods-to-achieve-100-cookie-clicker-completion/).
+
+**Rétention :** Le joueur revient parce que (1) feedback immédiat du clic, (2) urgence des Golden Cookies (timeout ~15s), (3) système d'achievements fournissant objectifs concrets, (4) escalade continuelle de complexity (minijeux déblocké progressivement). C'est un **manifeste de progressions imbriquées** : chaque niveau pense être l'endgame jusqu'à découvrir l'étage suivant.
+
+---
+
+### **NEKO ATSUME** — Boucles Temporelles et Architecture
+
+**Minute 1:** Le joueur place nourriture et jouets dans le yard, puis ferme l'app. Architecture : **gameplay entièrement off-screen** dès le départ. Feedback : les chats ne viennent QUE si l'app est fermée (contrainte UX forte). Source : [Neko Atsume: Kitty Collector/FAQs](https://nekoatsume.fandom.com/wiki/Neko_Atsume:_Kitty_Collector/FAQs).
+
+**Minute 10–60:** Le joueur revient (timing inconnu, pas de visible timer). Découvre quels chats ont visité, collecte poissons (or/argent) comme récompense. Chaque chat a un jouet préféré (soft constraint). Architecture : **boucle d'attente économe** (joueur pense peu au jeu entre sessions) + **surprise de découverte** (quels chats sont venus?). Source : [Game Design Breakdown: The Simplicity of Neko Atsume](https://www.overthinkingit.com/2016/02/09/neko-atsume-cats-silicon-valley/).
+
+**Heure 5:** Joueur a collecté ~30/66 chats. Rare cats (26 au total) nécessitent setups spécifiques (jouets + nourriture). Architecture : **progression par collection graduée** + **résolution d'énigmes implicites** (quel jouet attire le chat rare X?).
+
+**Endgame:** Tous les 66 chats collectés. Chaque chat a un memento unique à déverrouiller (66 supplémentaires). Architecture : **boucle infinie sans état gagné** — la complétude est une mirage, chaque chat apporte son objectif microscopique. Source : [Neko Atsume Rare Cats Guide](https://n4g.com/news/1911752/neko-atsume-rare-cats-guide-collect-all-cats/).
+
+**Rétention :** Le joueur revient parce que (1) **sessions courtes** (2–5 min par visite), (2) **curiosité de collection** (66 cibles visibles), (3) **causalité cachée** (quelle nourriture/jouet attire qui?), (4) **absence de pénalité** (aucune perte possible, aucun échec), (5) **économie récompensante** (chaque visite = or/argent visible). C'est un **jeu de calme calculé** : progresse même en dormant.
+
+---
+
+### **CLICKER HEROES** — Boucles Temporelles et Architecture
+
+**Minute 1:** Joueur clique sur monstres, gagne or, dépense or pour level-up des héros (Cid, Amangeaux, etc.). Les héros auto-attaquent (~0.5 dps chacun initialement). Architecture : **feedback direct similaire à Cookie Clicker** mais contextualisé (dominer des monstres, pas juste accumuler), **progression via collectibles nommés** (héros avec identités).
+
+**Minute 10:** Les héros auto-cliquent dominent. Joueur commence à ascend (prestige reset). Premier Ascension ~zone 130, gagne ~10 Hero Souls (chaque = +10% DPS permanent). Architecture : **prestige exponentielle dès l'early game** (contrairement à Cookie Clicker qui remise prestige tard), **reset pédagogique** (rejà jouer avec 110% puissance = reshuffling du contenu).
+
+**Heure 5:** Mid-game ascensions répétées. Ancients (équivalent des gods du Pantheon) achetés pour affiner la stratégie (+ crit damage, + boss DPS, etc.). Architecture : **arbre de talents distribué** (Ancients = choix de build), **cycles d'apprentissage** (chaque ascension révèle une stratégie optimale précédente).
+
+**Endgame:** Transcendence (second prestige layer) introduit Ancient Souls (rarer que Hero Souls). Objectif ultime : Ancient Souls/heure maximum. Zones atteignent ~4725 avec bosses à health "infini" en overflow mathématique. Source : [Is There an End Point in Clicker Heroes?](https://blog.clickerheroes.com/is-there-an-end-point-in-clicker-heroes/).
+
+**Rétention :** Le joueur revient parce que (1) **prestige accessible tôt** (cyclage rapide = récompenses fréquentes), (2) **optimisation stratégique** (choix d'Ancients change la partie), (3) **zones infinies** (toujours un nouveau boss), (4) **farming d'efficacité** (Ancient Souls/heure = métrique d'optimisation fine). C'est une **machine d'apprentissage continu** : chaque cycle enseigne une naïveté à corriger.
+
+---
+
+## ARCHITECTURE SUPPOSÉE COMMUNE
+
+**Briques partagées :**
+1. **Économie exponentielle** : ressources croissent en puissance (10^n), jamais linéairement. Offre une **sensation de déblocage d'étages**.
+2. **Multiplicateurs superposés** : gains = base × prestige × buff × upgrade × active-bonus. Permet **profondeur d'optimisation** sans complexifier l'UI surface.
+3. **Ascension/Reset prestige** : convertit temps en permanence → encourage **réengagement par cyclage rapide** et **new-game+ sensoriel**.
+4. **Objectifs distribués** : achievements/collections/zones infinies → **pas de plateau terminal** (joueur ne pense jamais "fini").
+5. **Timers implicites** : Golden Cookies (visible, urgence), Neko Atsume food (invisible, retour imprévisible), Clicker Heroes zones (progression transparente). Tous forcent **attention périodique sans push notifications agressives**.
+
+**Candidats pour réutilisation Kitten Clicker** (knowledge_base/) :
+- **Prestige architecture** (Cookie Clicker/Clicker Heroes) : intégrer un reset qui conserve multiplicateurs permanents
+- **Collection UI** (Neko Atsume) : affichage de progression collecte avec rareté progressive
+- **Minijeux économiques** (Cookie Clicker Grimoire, Pantheon) : enrichissement via sous-systèmes optionnels
+- **Offline progression** (Tous) : calcul pendant l'app fermée, découverte à la réouverture
+
+---
+
+## MODES DE JEU EXPLICITES
+
+Tous les trois jeux fonctionnent en **mode marathon sans état gagné/perdu** :
+
+```json
+{
+  "games": [
+    {
+      "game": "Cookie Clicker",
+      "sources": [
+        {
+          "url": "https://cookieclicker.wiki.gg/wiki/Progression_Stages",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://vgbees.com/the-harrowing-methods-to-achieve-100-cookie-clicker-completion/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://www.playcookieclicker.com/cookie_clicker_achievements/",
+          "type": "wiki",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Player clicks large cookie, earns 1-10 cookies per click. First upgrade (Cursor, +0.1 CPS) available immediately. Direct audio-visual feedback loop.",
+        "minute_10": "Passive buildings (Farms, Granaries) produce automatically. Golden Cookies spawn randomly (~15s lifetime), forcing periodic attention. Transition from active clicking to idle.",
+        "hour_5": "Ascension becomes viable (~tredecillion cookies). Complex strategies emerge: Grimoire minigame, Pantheon gods, Garden cultivation. Golden Cookie combos (Frenzy + Click Frenzy) require optimization. Wrinkler management introduces asset maturation.",
+        "endgame": "Repeated ascensions for Prestige gain (+1% CPS per level). 622 normal + 17 shadow achievements create endless objectives. Each cycle progresses asymptotically slower. Endgame is a prestige-multiplication loop with no terminal state."
+      },
+      "objectives": [
+        {
+          "mode": "Marathon (Default)",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Maximize cookies baked and achievements unlocked through prestige cycles, optimization, and minigame mastery. No formal ending; completion is player-defined (full achievement list requires ~200 hours)."
+        }
+      ],
+      "retention_answer": "Player returns because: (1) immediate click feedback, (2) Golden Cookie urgency (15s timeout), (3) concrete achievement milestones, (4) continuous complexity escalation (minigames unlock progressively). Nested progression loops hide the endgame until each is reached."
+    },
+    {
+      "game": "Neko Atsume",
+      "sources": [
+        {
+          "url": "https://nekoatsume.fandom.com/wiki/Neko_Atsume:_Kitty_Collector/FAQs",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://www.overthinkingit.com/2016/02/09/neko-atsume-cats-silicon-valley/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://n4g.com/news/1911752/neko-atsume-rare-cats-guide-collect-all-cats",
+          "type": "article",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Player places food and toys in yard, closes app. Gameplay is entirely off-screen. Cats only visit when app is closed (core constraint). No visible timer for food decay.",
+        "minute_10_to_60": "Player reopens app after variable delay (hidden timer). Discovers visiting cats, collects gold/silver fish rewards. Each cat has a soft-preference toy. Reward loop: food/toys → cat visits → currency gain.",
+        "hour_5": "~30/66 cats collected. Rare cats (26 total) require specific setups. Player implicitly solves riddles: 'which toy attracts rare cat X?' Progression by gradual collection reveal.",
+        "endgame": "All 66 cats collected. Each cat has unique memento to unlock (~132 total targets). No end state; completion is a moving target. Progression is infinite with diminishing novelty density."
+      },
+      "objectives": [
+        {
+          "mode": "Collection (Default)",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Collect all 66 cats and their 66 unique mementos through strategic toy/food placement. No penalty for failure; all progress is cumulative and irreversible."
+        }
+      ],
+      "retention_answer": "Player returns because: (1) sessions are brief (2–5 min per visit), (2) collection curiosity (66 visible targets), (3) hidden causality (toy→cat mapping), (4) zero-penalty gameplay (no loss possible), (5) rewarding economy (each visit yields visible currency). Passive progression even while sleeping makes engagement feel effortless."
+    },
+    {
+      "game": "Clicker Heroes",
+      "sources": [
+        {
+          "url": "https://blog.clickerheroes.com/is-there-an-end-point-in-clicker-heroes/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://blog.clickerheroes.com/understanding-clicker-heroes-mechanics-heroes-and-strategies/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://blog.clickerheroes.com/ascension-in-clicker-heroes-the-ultimate-guide/",
+          "type": "article",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Player clicks monsters, earns gold, spends gold to level-up named heroes (Cid, Amangeaux, etc.). Heroes auto-attack (~0.5 DPS initially). Direct contextual feedback: dominating zones, not abstract accumulation.",
+        "minute_10": "Heroes auto-click dominates. Player discovers Ascension (~zone 130, ~10 Hero Souls earned). Hero Souls grant +10% DPS permanently. Ascension resets progress but multiplies power: psychological 'New Game+' feeling.",
+        "hour_5": "Mid-game ascensions repeated. Ancients purchased to refine strategy (crit damage, boss DPS, etc.). Build choices diverge: player discovers optimal Ancient combinations. Each cycle teaches a previously-naive strategy.",
+        "endgame": "Transcendence (second prestige layer) unlocks Ancient Souls (rarer, slower acquisition). Ultimate goal: maximize Ancient Souls/hour. Zones reach ~4725 with mathematically-infinite boss health. Optimization becomes fine-grained."
+      },
+      "objectives": [
+        {
+          "mode": "Marathon (Default)",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Maximize Ancient Souls earned per hour through prestige cycles, strategic Ancient selection, and zone progression. No terminal goal; 'victory' is defined by efficiency optimization."
+        }
+      ],
+      "retention_answer": "Player returns because: (1) prestige is accessible early (fast cycling = frequent rewards), (2) strategic depth (Ancient choice alters playstyle), (3) infinite zones (always a new boss), (4) efficiency metrics (Ancient Souls/hour = tangible optimization target). Continuous learning cycle: each reset corrects a previous naïveté."
+    }
+  ],
+  "advisory": true
+}
+```
+
+---
+
+## SYNTHÈSE POUR KITTEN CLICKER
+
+**Ce que ces trois jeux partagent :**
+- **Exponential resource curves** : non-linearity is your friend
+- **Prestige/Reset mechanics** : convert playtime into permanent progression
+- **Offline progression** : encourage extended absence + surprised return
+- **Achievement/Collection layers** : provide endless sub-objectives
+- **Implicit timers** : drive periodic check-ins without push notifications
+
+**Ce que Kitten Clicker pourrait adapter :**
+- Neko Atsume's **cat personality collection** model (if kittens are the primary collectible)
+- Cookie Clicker's **minigame complexity escalation** (unlock gameplay layers progressively)
+- Clicker Heroes' **prestige-multiplier permanence** (early reset feels rewarding because power persists)
+
+**Out-of-scope advisory note :** This observation does not prescribe implementation; HumanGate (fog step) adjudicates relevance.
+
+---
+
+```json
+{
+  "games": [
+    {
+      "game": "Cookie Clicker",
+      "sources": [
+        {
+          "url": "https://cookieclicker.wiki.gg/wiki/Progression_Stages",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://vgbees.com/the-harrowing-methods-to-achieve-100-cookie-clicker-completion/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://www.playcookieclicker.com/cookie_clicker_achievements/",
+          "type": "wiki",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Player clicks large cookie, earns 1-10 cookies per click. First upgrade (Cursor, +0.1 CPS) available immediately. Direct audio-visual feedback loop.",
+        "minute_10": "Passive buildings (Farms, Granaries) produce automatically. Golden Cookies spawn randomly (~15s lifetime), forcing periodic attention. Transition from active clicking to idle.",
+        "hour_5": "Ascension becomes viable (~tredecillion cookies). Complex strategies emerge: Grimoire minigame, Pantheon gods, Garden cultivation. Golden Cookie combos (Frenzy + Click Frenzy) require optimization. Wrinkler management introduces asset maturation.",
+        "endgame": "Repeated ascensions for Prestige gain (+1% CPS per level). 622 normal + 17 shadow achievements create endless objectives. Each cycle progresses asymptotically slower. Endgame is a prestige-multiplication loop with no terminal state."
+      },
+      "objectives": [
+        {
+          "mode": "Marathon (Default)",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Maximize cookies baked and achievements unlocked through prestige cycles, optimization, and minigame mastery. No formal ending; completion is player-defined (full achievement list requires ~200 hours)."
+        }
+      ],
+      "retention_answer": "Player returns because: (1) immediate click feedback, (2) Golden Cookie urgency (15s timeout), (3) concrete achievement milestones, (4) continuous complexity escalation (minigames unlock progressively). Nested progression loops hide the endgame until each is reached."
+    },
+    {
+      "game": "Neko Atsume",
+      "sources": [
+        {
+          "url": "https://nekoatsume.fandom.com/wiki/Neko_Atsume:_Kitty_Collector/FAQs",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://www.overthinkingit.com/2016/02/09/neko-atsume-cats-silicon-valley/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://n4g.com/news/1911752/neko-atsume-rare-cats-guide-collect-all-cats",
+          "type": "article",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Player places food and toys in yard, closes app. Gameplay is entirely off-screen. Cats only visit when app is closed (core constraint). No visible timer for food decay.",
+        "minute_10_to_60": "Player reopens app after variable delay (hidden timer). Discovers visiting cats, collects gold/silver fish rewards. Each cat has a soft-preference toy. Reward loop: food/toys → cat visits → currency gain.",
+        "hour_5": "~30/66 cats collected. Rare cats (26 total) require specific setups. Player implicitly solves riddles: 'which toy attracts rare cat X?' Progression by gradual collection reveal.",
+        "endgame": "All 66 cats collected. Each cat has unique memento to unlock (~132 total targets). No end state; completion is a moving target. Progression is infinite with diminishing novelty density."
+      },
+      "objectives": [
+        {
+          "mode": "Collection (Default)",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Collect all 66 cats and their 66 unique mementos through strategic toy/food placement. No penalty for failure; all progress is cumulative and irreversible."
+        }
+      ],
+      "retention_answer": "Player returns because: (1) sessions are brief (2–5 min per visit), (2) collection curiosity (66 visible targets), (3) hidden causality (toy→cat mapping), (4) zero-penalty gameplay (no loss possible), (5) rewarding economy (each visit yields visible currency). Passive progression even while sleeping makes engagement feel effortless."
+    },
+    {
+      "game": "Clicker Heroes",
+      "sources": [
+        {
+          "url": "https://blog.clickerheroes.com/is-there-an-end-point-in-clicker-heroes/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://blog.clickerheroes.com/understanding-clicker-heroes-mechanics-heroes-and-strategies/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://blog.clickerheroes.com/ascension-in-clicker-heroes-the-ultimate-guide/",
+          "type": "article",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Player clicks monsters, earns gold, spends gold to level-up named heroes (Cid, Amangeaux, etc.). Heroes auto-attack (~0.5 DPS initially). Direct contextual feedback: dominating zones, not abstract accumulation.",
+        "minute_10": "Heroes auto-click dominates. Player discovers Ascension (~zone 130, ~10 Hero Souls earned). Hero Souls grant +10% DPS permanently. Ascension resets progress but multiplies power: psychological 'New Game+' feeling.",
+        "hour_5": "Mid-game ascensions repeated. Ancients purchased to refine strategy (crit damage, boss DPS, etc.). Build choices diverge: player discovers optimal Ancient combinations. Each cycle teaches a previously-naive strategy.",
+        "endgame": "Transcendence (second prestige layer) unlocks Ancient Souls (rarer, slower acquisition). Ultimate goal: maximize Ancient Souls/hour. Zones reach ~4725 with mathematically-infinite boss health. Optimization becomes fine-grained."
+      },
+      "objectives": [
+        {
+          "mode": "Marathon (Default)",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Maximize Ancient Souls earned per hour through prestige cycles, strategic Ancient selection, and zone progression. No terminal goal; 'victory' is defined by efficiency optimization."
+        }
+      ],
+      "retention_answer": "Player returns because: (1) prestige is accessible early (fast cycling = frequent rewards), (2) strategic depth (Ancient choice alters playstyle), (3) infinite zones (always a new boss), (4) efficiency metrics (Ancient Souls/hour = tangible optimization target). Continuous learning cycle: each reset corrects a previous naïveté."
+    }
+  ],
+  "advisory": true
+}
+```
+
+---
+
+## SKIPPED_VALIDATION
+
+| Validation | Périmètre | Statut | Raison |
+|---|---|---|---|
+| Vidéo gameplay live (Cookie Clicker/Neko Atsume/Clicker Heroes) | Boucles visuelles minutées | Non fait | Sources texte suffisantes pour architectural overview; vidéos non citables sans timestamp (pas de lien direct à scène spécifique) |
+| Analyse économique fine (formules exponentielles explicites) | Mathématiques système (DPS scaling, prestige multiplier) | Partiel | Sources expliquent mécaniques qualitativement; implémentation exacte inaccessible (source code privatisée Cookie Clicker / Clicker Heroes) |
+| Mode gameplay multijoueur/compétitif | Interaction joueur-joueur | Non fait | Les trois jeux observés sont solo-only ou PvP absent ; hors scope pour Kitten Clicker (charter absent, pas d'hypothèse multiplayeur) |
+
+SKIPPED_VALIDATION terminé.
+
+---
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

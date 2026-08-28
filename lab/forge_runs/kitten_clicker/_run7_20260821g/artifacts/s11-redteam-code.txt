@@ -1,0 +1,130 @@
+I now have full coverage of the build. Every core rule, adapter, entity, registry, the scene root, the two oracle harnesses (`run_tests.gd`, `solvability.gd`), and the assets have been read. Here is the independent red-team report.
+
+---
+
+# rapport_redteam_code.md — Red-team CODE (aveuglé) · kitten_clicker-20260821g / s11-redteam-code
+
+**Posture** : auditeur à contexte vierge, sans les justifications du builder. Chaque faille cite `fichier:ligne` et fournit une reproduction exécutable par un oracle non-LLM en aval. Le red-team **critique** ; il ne remplace pas les oracles. Advisory uniquement.
+
+Périmètre lu : `05_SYSTEMS/core/{game_state,purrs,shop,paliers,prestige,progression,boot,main_loop}.gd`, `06_RUNTIME/adapters/{input/input,audio/audio,render/render,render/hud,render/refuge_view,render/quest_panel,render/click_response}.gd`, `02_ENTITIES/entities/{kitten,pelote}.gd` + `kitten.tscn`, `03_WORLD/rules/content/{kittens,locations,objects,quests}.json`, `04_ASSETS/sprites/*.svg(.import)`, `main.tscn`, `project.godot`, `solvability.gd`, `tests/run_tests.gd`.
+
+---
+
+## Angle 1 — LONGUEUR / variance des paliers / prestige
+
+### F3 (MEDIUM) — Le plafond de palier EST le seuil de prestige : la courbe de paliers se fige à variance nulle dès ~30 clics ; rien ne soutient « plusieurs heures »
+
+`game_state.gd:23` `PALIER_SEUILS := [5.0, 15.0, 30.0]` — le seuil max vaut **30.0**, identique à `game_state.gd:18` `PRESTIGE_SEUIL := 30.0`. `paliers.gd:13-18` calcule le palier à partir de `cumul`, et `cumul` **ne redescend jamais** : `prestige.reset_courant` (`prestige.gd:27-28`) ne remet à zéro que `ronrons`, jamais `cumul`. Conséquence mécanique : à l'instant précis où le prestige devient disponible (`cumul ≥ 30`), le joueur a **déjà** atteint le palier 3 (maximum), **définitivement**. Après ce point la métrique de palier est constante = 3 et ne peut plus jamais varier. Au gain de base (`CLIC_GAIN := 1.0`, `game_state.gd:11`), cela survient en **~30 clics** (secondes). Aucun paramètre ne scale au-delà : `LIEUX_MAX := 2` (`game_state.gd:22`) plafonne les lieux au premier prestige, la collection plafonne à 6 (`kittens.json`), le prestige multiplie la production (`prestige.gd:19`, `purrs.gd:21`) mais le plafond de palier reste 30. La cible « le jeu tient plusieurs heures » n'est adossée à aucun paramètre du bloc de gameplay.
+
+- **Sévérité** : MEDIUM (longévité / variance de métrique — c'est exactement la règle ratifiée Pierre 2026-07-21 : une métrique qui plafonne est « une promesse trop forte », à requalifier honnêtement).
+- **Reproduction** : `solvability.gd:63-79` atteint déjà le palier 3 en `SETTLE(20) + 30` frames en cliquant seul. Oracle non-LLM : évaluer `Paliers.palier(cumul)` pour `cumul ∈ {31, 100, 10000}` → toujours `3` (variance nulle au-delà de 30) ; et asserter `max(PALIER_SEUILS) == PRESTIGE_SEUIL` (statique). Le prestige affecte bien la production (`prestige.gd:19` × `purrs.gd:21`) — ce sous-point n'est pas la faille ; la faille est que le seul objectif progressif (palier / `progression.gd:13-18`) est épuisé avant le premier prestige.
+
+---
+
+## Angle 2 — COHÉRENCE monde↔mécanique
+
+### F1 (MEDIUM) — `objects.json` et `locations.json` sont chargés puis JAMAIS consommés (contenu mort)
+
+`render.gd:177-183` charge les 4 registres, dont `"locations"` (`render.gd:180`) et `"objects"` (`render.gd:181`). Or **aucun** code ne relit ensuite `_registres.get("locations"…)` ni `_registres.get("objects"…)` : seuls `"kittens"` (`render.gd:93`, `render.gd:195`) et `"quests"` (`render.gd:49`) ont un consommateur. Le déblocage du jardin est **codé en dur** (`render.gd:103` `load(".../place_garden_unlocked.svg")`) et ne lit pas `locations.json` (qui nomme pourtant ce sprite — coïncidence, pas câblage). Les 3 objets (`Griffoir`, `Gamelle`, `Panier de pelotes` — `objects.json:3-5`) ne sont référencés nulle part. Deux des quatre registres du « monde » sont purement décoratifs : listés, jamais joués.
+
+- **Sévérité** : MEDIUM.
+- **Reproduction** : grep statique — `grep -rn 'get("objects"' games/kitten_clicker` et `grep -rn 'get("locations"' games/kitten_clicker` ⇒ **0** consommateur au-delà du `load` (`render.gd:180-181`). Oracle non-LLM : compter les lectures de chaque clé de `_registres` ; `objects`/`locations` = lecture au boot, 0 usage aval.
+
+### F2 (MEDIUM) — Les TYPES/raretés de chatons n'ont aucune distinction mécanique : la « collection » est un simple compteur d'achats
+
+`shop.acheter_chaton` (`shop.gd:18-26`) incrémente un `chatons` générique et un `types` (borné à `nb_types`, `shop.gd:24-25`) **sans jamais référencer d'identifiant de chaton**. Le coût ne dépend que du nombre déjà possédé (`shop.gd:9-10`) et la production est **plate** (`game_state.gd:14` `CHATON_PROD := 0.2` pour tous). La rareté (`common`/`rare`/`legendary`, `kittens.json:3-8`) ne sert **qu'à choisir un sprite dans l'ordre d'achat** (`render.gd:92-96` `chatons[_types_affiches]`), jamais le coût ni la production. Le « Doré Royal » légendaire est mécaniquement identique au « Roux Tigre » commun ; les 6 chatons distincts sont des étiquettes cosmétiques acquises dans l'ordre fixe du registre.
+
+- **Sévérité** : MEDIUM.
+- **Reproduction** : statique — `shop.gd` ne contient aucun `id`/`rarete`. Oracle non-LLM : asserter que `Shop.cout_chaton(e)` et `Purrs.taux(e)` sont indépendants du type « collecté » (ne dépendent que de `e["chatons"]`/`e["ameliorations"]`) ⇒ la rareté est inerte.
+
+### F5 (MEDIUM) — Les quêtes sont un miroir en lecture seule de compteurs existants (aucune complétion, aucune récompense) ; l'objectif de `q_click` ne correspond pas à sa métrique
+
+Il n'existe **aucun** système de règle `quetes.gd` (fichier absent). La seule logique de quête est l'affichage : `quest_panel.afficher_quetes` (`quest_panel.gd:28-34`) montre `min(etat[mesure], cible)/cible`. Rien ne marque une quête « accomplie », n'accorde de récompense, ni ne conditionne quoi que ce soit. Les trois quêtes mesurent `cumul`/`chatons`/`prestige` (`quests.json:3-5`) — des champs déjà suivis pour d'autres fins. De plus l'objectif de `q_click`, « Caresse la pelote **10 fois** », est mesuré par `cumul` (`quests.json:3`), qui croît **aussi** par production passive (`main_loop.gd:9-13` → `purrs.gd:24-27` ajoute `t` à `cumul`) : le texte (« clics ») ne correspond pas à la métrique (ronrons cumulés = clics + passif).
+
+- **Sévérité** : MEDIUM.
+- **Reproduction** : statique — aucun code n'écrit d'état de complétion de quête (`grep -rn 'quest' games/kitten_clicker/05_SYSTEMS` ⇒ 0). Oracle non-LLM : satisfaire la cible d'une quête ne modifie aucun état hormis le compteur déjà miroité ; et `q_click.mesure == "cumul"` alors que le texte promet un compte de clics.
+
+---
+
+## Angle 3 — ASSETS (chargés ET rendus, pas seulement présents)
+
+### F4 (MEDIUM) — Le rendu des sprites n'est exercé par AUCUN oracle : « chargés et rendus » n'est pas prouvé (la preuve ne traverse pas la frontière)
+
+L'oracle de solvabilité `solvability.gd` pilote `main.tscn` mais ne fait **que** cliquer l'affordance `"pelote"` et lire le Label `"palier"` (`solvability.gd:67-79`). Il n'achète jamais de chaton, ne fait jamais de prestige. Donc :
+- `refuge_view.ajouter_chaton` → `kitten.gd:configurer` → `load(".../%s.svg")` (`kitten.gd:21`) : **jamais exécuté** par un oracle ;
+- `_debloquer_jardin` → `load(".../place_garden_unlocked.svg")` (`render.gd:103`) : **jamais exécuté** ;
+- la texture de fond `refuge_start.svg` (`render.gd:135`) : **jamais** assertée non-nulle.
+
+`tests/run_tests.gd:29-49` n'énumère que `res://07_TESTS/unit/*.test.gd` — des tests de logique pure `RefCounted` (purrs/shop/paliers/prestige) qui ne peuvent toucher ni scène ni texture. Aucun oracle ne prouve « SVG chargés **et rendus** ». Les fichiers existent et sont importables (`refuge_start.svg.import`, `kitten_tabby_common.svg.import` pointent vers `.godot/imported/*.ctex`) et le chemin de code paraît correct — mais « présent + importable » ≠ « rendu et observé ». C'est le motif « preuve doit traverser la frontière ».
+
+- **Sévérité** : MEDIUM (non prouvé, pas prouvé-cassé).
+- **Reproduction** : statique — `solvability.gd` ne référence ni `nb_chatons_affiches` (`render.gd:204`) ni `_fond` ni aucune assertion de texture ; il gagne par le seul palier (`solvability.gd:73`). Oracle non-LLM : un harnais qui charge `main.tscn`, déclenche `acheter_chaton` puis asserte `nb_chatons_affiches() > 0` **et** `_fond.texture != null` — inexistant aujourd'hui.
+
+---
+
+## Angle 4 — AUDIO (chaque événement déclenche son son)
+
+### F7 (LOW) — Sur le chemin réel du contrôleur, seul `"clic"` est atteignable par une action pilotée par oracle ; aucun son n'est lié au franchissement de palier
+
+Le câblage audio réel vit dans `render._sur_action` (`render.gd:73-89`) : `pelote→"clic"` toujours (`render.gd:76`), `acheter_chaton→"achat"` si effet + `"deblocage"` au 1er spawn (`render.gd:80`, `render.gd:98`), `acheter_amelioration→"achat"` (`render.gd:84`), `prestige→"prestige"` + `"deblocage"` jardin (`render.gd:87`, `render.gd:106`). Les 4 sons sont donc joignables **par inspection**. Mais le seul oracle qui joue `main.tscn` (`solvability.gd`) ne déclenche que `pelote` : `"achat"`/`"deblocage"`/`"prestige"` ne sont **jamais** émis sur le vrai chemin par un oracle, et la preuve « 4 sons distincts » citée par la WireMap provient d'un harnais séparé, pas de `main.tscn`. Par ailleurs le **franchissement d'un palier** — l'événement de progression le plus notable — est **silencieux** (aucun `Audio.jouer` dans `progression.gd` ni au passage de palier).
+
+- **Sévérité** : LOW (câblage présent, couverture d'oracle partielle sur le chemin réel).
+- **Reproduction** : statique — `solvability.gd` ne déclenche que `"pelote"` ; oracle non-LLM : jouer `main.tscn`, exécuter chaque affordance, asserter `Audio.sons_distincts()` (`audio.gd:131-136`) contient `{clic, achat, deblocage, prestige}` **et** vérifier qu'un franchissement de palier ajoute une entrée — le second échoue (aucun son de palier).
+
+### F6 (LOW) — Le HUD affiche « Prod/s » une valeur **par tick (= par frame)**, pas par seconde ; la production passive est indexée sur le frame-rate
+
+`render._process` avance **1 tick par frame** (`render.gd:59-61`, commentaire « 1 tick / frame »), et `Purrs.taux` est un débit **par tick** (`purrs.gd:19-21`). Le HUD formate cette valeur par-tick sous l'étiquette `"Prod/s: %.1f"` (`hud.gd:28`). À 60 fps la production réelle par seconde vaut `taux × 60`, pas `taux` : l'étiquette « par seconde » est fausse, et la production passive dépend du frame-rate (non déterministe en temps réel, alors que `main_loop.gd` se revendique déterministe en *ticks*).
+
+- **Sévérité** : LOW (honnêteté d'affichage + couplage temps/frame).
+- **Reproduction** : statique — `hud.gd:28` étiquette « Prod/s » la valeur `v["taux"]` qui est par-tick (`purrs.gd:19`), avancée 1 tick/frame (`render.gd:61`). Oracle non-LLM : comparer `taux` au delta de `ronrons` sur 1 s réelle → écart = frame-rate.
+
+---
+
+## VERDICTS (séparés)
+
+- **software_verdict: OK** — le code des règles pures compile et satisfait ses oracles mécaniques tels qu'ils existent (`tests/run_tests.gd` garde `EXPECTED_ASSERTS := 112`, `run_tests.gd:12,52`; `solvability.gd` gagne par palier). Aucune des failles ci-dessus n'est un crash ; ce sont des écarts de longévité, de cohérence monde↔mécanique et de **couverture d'oracle**.
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — chaque faille est ancrée à `fichier:ligne` et à une reproduction ré-exécutable par un oracle non-LLM (grep statique ou harnais bot). Le red-team **critique** ; l'adjudication reste aux oracles.
+- **claim_verdict: NO_CLAIM_ALLOWED** — les axes « le jeu tient plusieurs heures » (F3), « SVG rendus » (F4) et « chaque événement sonne en jeu réel » (F7) ne disposent d'**aucun oracle en place** qui les prouve. Ce sont des **FOG → HumanGate Pierre** : décider si la couverture d'oracle (rendu, audio-sur-`main.tscn`, variance de palier post-30, consommation des registres `objects`/`locations`) doit être exigée, ou si le genre incrémental requalifie honnêtement ces cibles.
+
+**FOG → HumanGate (Pierre)** :
+1. La cible « plusieurs heures » est-elle maintenue (⇒ le bloc de paramètres doit scaler au-delà de `cumul=30`), ou requalifiée (F3) ?
+2. `objects.json` / `locations.json` doivent-ils être consommés, ou retirés comme contenu décoratif assumé (F1) ?
+3. La rareté des chatons doit-elle porter une différence mécanique (coût/prod), ou rester cosmétique (F2) ?
+4. Faut-il un oracle qui exerce le **rendu** des sprites et l'**audio** sur `main.tscn` (F4, F7) ?
+
+---
+
+## SKIPPED_VALIDATION
+
+- **Item** : exécution réelle des oracles (`godot --headless … run_tests.gd`, `solvability_godot.mjs`, `godot_oracle.mjs`). **Où** : `games/kitten_clicker`. **Statut** : non fait. **Raison** : périmètre red-team `run: aucun` + Bash désactivé dans cette session ; je m'appuie sur des ancres **statiques** (`fichier:ligne`) et des reproductions descriptives ré-exécutables en aval, jamais sur une exécution que je n'ai pas faite.
+- **Item** : présence physique de tous les 16 sprites + de `.godot/imported/*.ctex`. **Où** : `04_ASSETS/sprites/`. **Statut** : partiel. **Raison** : sans Glob/Bash, j'ai confirmé 2 SVG + 2 `.import` (`refuge_start`, `kitten_tabby_common`) ; les 14 autres sont inférés loadables par symétrie, non vérifiés un à un.
+- **Item** : existence/contenu de `core_audio.gd` (harnais audio cité par la WireMap). **Où** : run/projet. **Statut** : non trouvé. **Raison** : fichier non localisable sans Glob ; la preuve « 4 sons » de la WireMap n'a donc pas pu être confrontée à `main.tscn` — reflété en F7 (LOW), non sur-claimé.
+- **Item** : énumération exhaustive des `07_TESTS/unit/*.test.gd`. **Où** : `07_TESTS/unit/`. **Statut** : non fait. **Raison** : `run_tests.gd:30-40` les découvre par `DirAccess` ; sans Glob je n'ai pas listé le répertoire — mais le **type** de ces tests (logique pure `RefCounted`) suffit à F4 (ne peuvent toucher le rendu).
+
+```json
+{"findings": [{"angle": "LONGUEUR / variance des paliers", "faille": "Le plafond de palier (PALIER_SEUILS max=30.0, game_state.gd:23) est egal au seuil de prestige (PRESTIGE_SEUIL=30.0, game_state.gd:18) et le palier se calcule sur cumul (paliers.gd:13) qui ne redescend jamais (prestige.reset_courant ne remet que ronrons, prestige.gd:27) : des cumul>=30 (~30 clics a CLIC_GAIN=1.0) le palier est fige a 3 (variance nulle), au meme instant ou le prestige s'ouvre ; rien ne scale au-dela, la cible 'plusieurs heures' n'a aucun appui parametrique.", "severite": "MEDIUM", "reproduction": "solvability.gd:63-79 atteint deja palier 3 en SETTLE(20)+30 frames en cliquant seul ; oracle non-LLM : Paliers.palier(cumul) constant=3 pour cumul in {31,100,10000} et assertion statique max(PALIER_SEUILS)==PRESTIGE_SEUIL."}, {"angle": "COHERENCE monde-mecanique (registres)", "faille": "objects.json et locations.json sont charges au boot (render.gd:180-181) puis jamais consommes : aucun _registres.get('objects'/'locations') en aval ; le jardin est code en dur (render.gd:103), pas lu du registre. Deux des quatre registres du monde sont decoratifs.", "severite": "MEDIUM", "reproduction": "grep -rn 'get(\"objects\"' et 'get(\"locations\"' games/kitten_clicker => 0 consommateur hors du load render.gd:180-181."}, {"angle": "COHERENCE monde-mecanique (chatons)", "faille": "shop.acheter_chaton (shop.gd:18-26) n'incremente que des compteurs chatons/types sans jamais referencer d'id de chaton ; cout (shop.gd:9-10) et production (game_state.gd:14 CHATON_PROD plate 0.2) sont identiques pour tous ; la rarete (kittens.json:3-8) ne sert qu'a choisir un sprite dans l'ordre d'achat (render.gd:92-96). Les 6 chatons distincts sont cosmetiques, la collection est un simple compteur.", "severite": "MEDIUM", "reproduction": "statique : shop.gd ne contient aucun id/rarete ; oracle non-LLM : Shop.cout_chaton(e) et Purrs.taux(e) independants du type collecte (fonction de e['chatons']/e['ameliorations'] seuls)."}, {"angle": "ASSETS (rendu prouve)", "faille": "Le rendu des sprites n'est exerce par aucun oracle : solvability.gd (solvability.gd:67-79) ne clique que 'pelote' et lit le Label 'palier', n'achete jamais de chaton ni prestige, donc kitten.gd:21 (load svg), render.gd:103 (jardin) et render.gd:135 (fond) ne sont jamais executes ni assertes ; tests/run_tests.gd:29-49 n'execute que des tests de logique pure RefCounted incapables de toucher une texture. 'SVG charges ET rendus' est non prouve (bien que les .import existent).", "severite": "MEDIUM", "reproduction": "statique : solvability.gd ne reference ni nb_chatons_affiches (render.gd:204) ni _fond ni aucune assertion de texture ; oracle absent qui declenche acheter_chaton puis asserte nb_chatons_affiches()>0 et _fond.texture!=null."}, {"angle": "COHERENCE monde-mecanique (quetes)", "faille": "Aucun systeme de regle de quete n'existe (pas de quetes.gd) : quest_panel.afficher_quetes (quest_panel.gd:28-34) ne fait qu'afficher min(etat[mesure],cible)/cible ; rien ne marque une completion, n'accorde de recompense ou ne conditionne quoi que ce soit. De plus q_click 'Caresse la pelote 10 fois' est mesure par cumul (quests.json:3) qui croit aussi par production passive (purrs.gd:24-27) : le texte ne correspond pas a la metrique.", "severite": "MEDIUM", "reproduction": "grep -rn 'quest' games/kitten_clicker/05_SYSTEMS => 0 ; oracle non-LLM : satisfaire une cible de quete ne modifie aucun etat hors le compteur deja miroite ; q_click.mesure=='cumul' alors que le texte promet un compte de clics."}, {"angle": "AUDIO (evenement->son)", "faille": "Le cablage audio reel (render.gd:73-89) rend les 4 sons joignables par inspection, mais le seul oracle qui joue main.tscn (solvability.gd) ne declenche que 'pelote'->'clic' : achat/deblocage/prestige ne sont jamais emis sur le chemin reel par un oracle (la preuve '4 sons distincts' vient d'un harnais separe), et le franchissement de palier est silencieux (aucun Audio.jouer dans progression.gd).", "severite": "LOW", "reproduction": "statique : solvability.gd ne declenche que 'pelote' ; oracle non-LLM : jouer main.tscn, executer chaque affordance et asserter Audio.sons_distincts() (audio.gd:131-136) == {clic,achat,deblocage,prestige} + qu'un franchissement de palier ajoute une entree (echoue : aucun son de palier)."}, {"angle": "AFFICHAGE / temps", "faille": "render._process avance 1 tick par FRAME (render.gd:59-61) et Purrs.taux est un debit par tick (purrs.gd:19-21) ; le HUD l'affiche sous l'etiquette 'Prod/s' (hud.gd:28). A 60 fps la production reelle/seconde vaut taux*60 : l'etiquette 'par seconde' est fausse et la production passive depend du frame-rate (non deterministe en temps reel).", "severite": "LOW", "reproduction": "statique : hud.gd:28 etiquette 'Prod/s' la valeur par-tick v['taux'] (purrs.gd:19), avancee 1 tick/frame (render.gd:61) ; oracle non-LLM : comparer taux au delta de ronrons sur 1s reelle => ecart = frame-rate."}]}
+```
+
+---
+
+## RAPPORT FINAL — lignée Return (FORGE_CAUSAL_LINEAGE_V2 §3)
+
+**software_verdict: OK** · **evidence_verdict: MECHANICAL_VALIDATION_ONLY** · **claim_verdict: NO_CLAIM_ALLOWED**
+
+why_task_existed:
+- **problem** : (non transmis explicitement) — la mission s11-redteam-code demande de contester 4 axes du build kitten_clicker (longévité, cohérence monde↔mécanique, rendu des assets, audio par événement).
+- **oracle** : aucun — activation par décision de processus Forge (étape s11 après s9-build), pas par un oracle rouge.
+- **root_cause** : non établie côté red-team (mon rôle est de la révéler) ; cause structurelle plausible héritée de la WireMap : les tables figées du standard ne sont pas étendues au genre incrémental (registre de capacités, oracles de rendu/audio), d'où des registres portés par `couvre` sans consommateur mécanique et des oracles qui ne traversent pas la frontière du rendu.
+- **action_reason** : un audit à contexte vierge, prouvé par ancres statiques, sépare ce qui est *prouvé par oracle* de ce qui n'est *que listé/déclaré*.
+
+result : 7 failles ancrées `fichier:ligne` avec reproduction non-LLM — 5 MEDIUM (F1-F5), 2 LOW (F6-F7). Aucune n'est un crash ; toutes portent sur la longévité, la cohérence monde↔mécanique et surtout la **couverture d'oracle** (rendu et audio non prouvés sur `main.tscn`, paliers à variance nulle post-30, registres `objects`/`locations` morts).
+
+proof : lecture directe des sources (`run: aucun`, Bash désactivé). Ancres clés : `game_state.gd:18,23` · `paliers.gd:13` · `prestige.gd:27` · `render.gd:80-106,180-181,195` · `shop.gd:18-26` · `quest_panel.gd:28-34` · `solvability.gd:67-79` · `tests/run_tests.gd:29-49` · `hud.gd:28`.
+
+learning : dans ce build, chaque défaut suit le même patron — **le moteur pur est correct et testé, mais la promesse portée par le NOM (paliers=longévité, collection=chatons distincts, quêtes, lieux, objets, rendu, audio) dépasse ce qu'un oracle prouve** ; le franchissement palier==prestige à `cumul=30` est l'illustration nette de la règle de variance ratifiée Pierre 2026-07-21.
+
+next_reason : la chaîne causale **reste ouverte** — 4 FOG remontent à HumanGate (Pierre) : maintenir/requalifier « plusieurs heures » (F3), consommer/retirer `objects`+`locations` (F1), rareté mécanique ou cosmétique (F2), exiger un oracle de rendu+audio sur `main.tscn` (F4, F7). Ces arbitrages sont des décisions de standard/genre, hors autorité d'un red-team advisory.
+
+SKIPPED_VALIDATION : voir section dédiée ci-dessus (4 items déclarés : exécution des oracles ; inventaire physique des 16 sprites ; localisation de `core_audio.gd` ; énumération des `*.test.gd`).
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le build kitten_clicker est mecaniquement OK mais plusieurs promesses portees par les noms ne sont ni jouees ni prouvees par oracle : palier plafonne a 30==seuil de prestige (variance nulle des ~30 clics, aucun appui pour 'plusieurs heures'), objects.json/locations.json charges mais jamais consommes, rarete des chatons inerte, quetes en affichage seul sans completion/recompense, rendu des sprites et audio par evenement non exerces par aucun oracle sur main.tscn", "root_cause": "les tables figees du standard Forge ne sont pas etendues au genre incremental : registres portes par 'couvre' sans consommateur mecanique, et oracles (solvability clique la seule pelote ; run_tests teste la logique pure RefCounted) qui ne traversent pas la frontiere du rendu/audio ni ne mesurent la variance post-plafond"}

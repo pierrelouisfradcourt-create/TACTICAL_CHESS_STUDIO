@@ -227,3 +227,66 @@ session parallèle `scripts/forge/adapters/godot/` à arbitrer.
 
 ## driver_smoke_v6_20260808-run1 — 2026-08-08
 résultat         : projet=driver_smoke_v6_20260808 · statut=DONE · verdict=OK · ts=2026-08-08T20:40:02Z
+
+## kitten_clicker-20260821-1312 — 2026-08-21
+résultat         : projet=kitten_clicker · statut=HALTED · verdict=BLOCKED · ts=2026-08-21T11:26:03Z
+
+## kitten_clicker-20260821b — 2026-08-21
+résultat         : projet=kitten_clicker · statut=HALTED · verdict=BLOCKED · ts=2026-08-21T12:12:11Z
+
+## kitten_clicker-20260821c — 2026-08-21
+résultat         : projet=kitten_clicker · statut=DONE · verdict=FAIL · ts=2026-08-21T15:08:55Z
+
+## kitten_clicker-20260821d — 2026-08-22
+résultat         : projet=kitten_clicker · statut=HALTED · verdict=BLOCKED · ts=2026-08-22T00:34:02Z
+
+## kitten_clicker-20260821e — 2026-08-22
+résultat         : projet=kitten_clicker · statut=DONE · verdict=FAIL · ts=2026-08-22T03:03:04Z
+
+## kitten_clicker-20260821f — 2026-08-22
+résultat         : projet=kitten_clicker · statut=DONE · verdict=BLOCKED · ts=2026-08-22T09:48:35Z
+
+## kitten_clicker-20260821g — 2026-08-22
+résultat         : projet=kitten_clicker · statut=DONE · verdict=BLOCKED · ts=2026-08-22T14:48:54Z
+
+## kitten_clicker-20260821h — 2026-08-22
+résultat         : projet=kitten_clicker · statut=HALTED · verdict=BLOCKED · ts=2026-08-22T18:22:19Z
+
+## kitten_clicker-20260821h2 — 2026-08-22
+résultat         : projet=kitten_clicker · statut=DONE · verdict=FAIL · ts=2026-08-22T20:31:38Z
+
+## kitten_clicker-20260823a — 2026-08-23
+résultat         : projet=kitten_clicker · statut=DONE · verdict=FAIL · ts=2026-08-23T08:11:35Z
+
+## kitten_clicker-20260823c — 2026-08-23
+résultat         : projet=kitten_clicker · statut=HALTED · verdict=BLOCKED · ts=2026-08-23T17:45:30Z
+
+## kitten_clicker-20260823d — 2026-08-23
+résultat         : projet=kitten_clicker · statut=HALTED · verdict=BLOCKED · ts=2026-08-23T18:00:13Z
+
+## kitten_clicker-20260823e — 2026-08-23
+résultat         : projet=kitten_clicker · statut=HALTED · verdict=BLOCKED · ts=2026-08-23T19:19:00Z
+
+## kitten_clicker-20260823f — 2026-08-23
+résultat         : projet=kitten_clicker · statut=HALTED · verdict=BLOCKED · ts=2026-08-23T23:56:27Z
+
+## kitten_clicker-20260824a — 2026-08-24
+résultat         : projet=kitten_clicker · statut=HALTED · verdict=BLOCKED · ts=2026-08-24T00:07:57Z
+
+## kitten_clicker-20260824b — 2026-08-24
+résultat         : projet=kitten_clicker · statut=HALTED · verdict=BLOCKED · ts=2026-08-24T01:26:06Z
+
+## kitten_clicker-20260824c — 2026-08-24
+résultat         : projet=kitten_clicker · statut=HALTED · verdict=BLOCKED · ts=2026-08-24T05:07:30Z
+
+## kitten_clicker-20260824d — 2026-08-24
+résultat         : projet=kitten_clicker · statut=HALTED · verdict=BLOCKED · ts=2026-08-24T06:41:24Z
+
+## kitten_clicker-20260824e — 2026-08-24
+résultat         : projet=kitten_clicker · statut=HALTED · verdict=BLOCKED · ts=2026-08-24T10:28:35Z
+
+## kitten_clicker-20260824f — 2026-08-24
+résultat         : projet=kitten_clicker · statut=HALTED · verdict=BLOCKED · ts=2026-08-24T13:12:38Z
+
+## kitten_clicker-20260825a — 2026-08-25
+résultat         : projet=kitten_clicker · statut=HALTED · verdict=BLOCKED · ts=2026-08-25T14:21:17Z

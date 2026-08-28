@@ -1,0 +1,165 @@
+I've now grounded myself in the real run. Here's what the run metadata tells me, and it reframes the task:
+
+- `state.json`: `is_game: false`, `profile: "amont_only"`, `run_id: p1-injection-20260813`. This is an **upstream-only injection probe** — not a game build. Its purpose is to verify that the World Scan (s2) is actually **consumed** by the Prisme step (s1).
+- **No `charter.yaml` (étape 0) exists** in this run. The pipeline started at s2-worldscan. My contract names the charter as a mandatory anchor — it isn't there.
+- The concrete task narrows the deliverable to a **narrative artifact, no file written**, along three angles (ressenti joueur / risques de design / originalité) — which differs from the contract's standard 4-section `product_snapshot.md`.
+
+I'll honor the concrete task (narrative, no file I write), prove I consumed the injected World Scan, emit the contract's terminal JSON manifest for the executor (I write no file — the executor materializes `prisme.json`), and flag every divergence honestly. Here is the deliverable.
+
+---
+
+# s1-prisme — Analyse produit du concept `p1_worldscan_injection`
+**POV : Réalisateur / Prisme Produit — le produit FINI tel que le joueur le vit.**
+Genre injecté par le World Scan (s2) : **Tower Defense**, archétype Bloons TD 6 / Plants vs Zombies 2 / Kingdom Rush.
+
+> **Avertissement de cadrage (mesuré, non inventé).** Il n'existe **aucun charter d'intention produit** dans ce run (`profile: amont_only`, aucune étape s0). Le « concept » se réduit donc à **l'archétype moyen** que le World Scan a extrait — pas à une vision différenciée. J'analyse cet archétype ; là où le concept est sous-spécifié, je le signale : c'est un fait mesuré, pas un flou de ma part.
+
+## 1. Ce que le joueur RESSENT (angle : ressenti joueur)
+
+Le produit fini de cet archétype se ressent comme un **rythme respiratoire** : *je planifie → je place → je regarde → j'ajuste*. Entre deux vagues il y a un temps mort volontaire (le World Scan l'appelle « time-to-plan loop » ; les trois jeux le partagent) : c'est là que naît le plaisir de **maîtrise**, pas dans le réflexe.
+
+Trois émotions dominent, toutes ancrées dans les boucles scannées :
+- **Le soulagement de la vague repoussée à 0 fuite** — dans les trois jeux, la punition est binaire et brutale : *une seule* fuite fait perdre (Bloons : « any Bloon leaks — instant loss » ; Kingdom Rush : `lives → 0`). Le joueur finit chaque vague soit indemne-fier, soit puni-sec. Il n'y a pas de demi-teinte, et c'est ça qui crée la tension.
+- **Le dilemme d'investissement** — « je défends *maintenant* ou j'investis dans l'économie pour *plus tard* ? » (Bloons `minute_10` : banana farm posée « for momentum » au lieu d'une tour de tir). C'est le moment de décision le plus riche du genre, et il n'existe que si la monnaie se **gagne** (voir Règle R2).
+- **La métamorphose de la séance** — `minute_1` clairsemée et exploratoire → `hour_5` dense, « strategic theater » (Bloons endgame). Le joueur ne ressent pas « plus dur » mais « plus **mien** » : le champ de bataille devient sa signature. C'est le vrai moteur de rétention observé.
+
+## 2. Risques de design (angle : risques de design)
+
+1. **Sous-différenciation — le risque n°1.** Le World Scan conclut lui-même que les trois références **convergent** sur le même mécanisme de rétention (« layering wins »). Un TD livré « comme scanné » est le TD moyen : rien ne le distingue. Sans charter d'intention, **l'originalité est structurellement à zéro** (voir §3).
+2. **Le modèle économique n'est pas choisi — et c'est une fourche, pas un détail.** Les trois références divergent radicalement : Bloons = **farming profond**, PvZ2 = **daily events**, Kingdom Rush = **fixed slots + star-gate**. Chacun produit un *ressenti* de jeu différent. Tant que le concept ne tranche pas, la moitié de l'expérience est indéfinie. **Fourche = trou de design, à trancher par HumanGate (fog).**
+3. **Dette de rétention.** Les trois jeux tiennent leur second-session hook sur endless / daily / cosmetics. Un prototype sans aucun de ces crochets n'a **aucune preuve de rétention** — il ne mesure pas ce que « TD » promet (cf. doctrine studio : une métrique doit prouver sa variance avant de calibrer).
+4. **Lisibilité de la punition.** Le modèle « une fuite = défaite » n'est jouable que si la trajectoire ennemie et le compteur de vies sont lisibles **avant** l'impact. Sinon, punition = frustration opaque. (→ Règle R1.)
+5. **Piège de la métrique-nom.** Une « bande de difficulté » ou un « score de fun » de TD doit d'abord **prouver sa variance** (≥2 valeurs distinctes non triviales) avant de servir à calibrer. Le World Scan donne des archétypes, **pas** une courbe de difficulté mesurée. (→ Règle R3.)
+
+## 3. Originalité (angle : originalité)
+
+**Telle que donnée : quasi nulle, et c'est un constat mesuré, pas un jugement.** Le World Scan démontre la convergence des trois piliers. L'espace d'originalité *existe* (le choix du modèle-ressource, une contrainte de placement à la Kingdom Rush, un twist sur la boucle time-to-plan) — mais **décider ce twist relève de l'étape 3 (décompo features), hors de mon périmètre.** Je borne donc mon rôle à **marquer l'emplacement du trou d'originalité** comme une exigence à honorer en aval, sans le remplir moi-même.
+
+## 4. Règles observables (signature Prisme — le produit fini, testable)
+
+| # | Règle observable (ce que le joueur peut voir/faire, donc testable) | Ancre World Scan |
+|---|---|---|
+| R1 | Le chemin complet des ennemis **et** un compteur de vies/fuites sont visibles à l'écran en permanence, sans interaction. | Bloons/Rush : leak = défaite |
+| R2 | Chaque ennemi détruit crédite une monnaie strictement > 0 ; le solde n'augmente **jamais** sans kill (hors farm explicite). | Rush : « gold ~400-600 from kills » |
+| R3 | La pression (ennemis × HP par vague) croît de façon **monotone et mesurable** entre vagues, avec ≥2 valeurs distinctes non triviales. | progression slicing (3 jeux) |
+| R4 | Chaque niveau est **gagnable ET perdable** : un bot atteint la victoire, un run passif atteint la défaite. | Bloons campaign : victoire discrète |
+| R5 | Depuis l'écran de victoire, au moins une action mène à un contenu jouable additionnel (endless/replay). | endgame endless (3 jeux) |
+
+---
+
+## Bloc terminal (manifeste s1-prisme — matérialisé en `prisme.json` par l'exécuteur, jamais par moi)
+
+```json
+{
+  "game_id": "p1_worldscan_injection",
+  "exigences": [
+    {
+      "id": "s1-r1-path-lisibilite",
+      "source": "EXPECTED",
+      "source_role": "worldscan",
+      "reference": "https://bloons.fandom.com/wiki/Bloons_TD_6",
+      "observation": "Dans les 3 jeux scannes, une seule fuite d'ennemi jusqu'au bord fait perdre (Bloons: any Bloon leaks; Rush: lives to 0).",
+      "claim": "Le joueur ne tolere cette punition binaire que si la trajectoire ennemie et le point de fuite sont lisibles AVANT l'impact.",
+      "enonce": "Le produit fini affiche en permanence le chemin complet des ennemis et un compteur de vies/fuites visible sans interaction.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "Capture d'un frame de jeu ou le chemin ennemi est trace de bout en bout et le compteur de vies est present a l'ecran."
+      },
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "s1-r2-monnaie-par-kill",
+      "source": "EXPECTED",
+      "source_role": "worldscan",
+      "reference": "https://www.thegamer.com/kingdom-rush-best-upgrades/",
+      "observation": "Kingdom Rush: gold flow ~400-600 gagne par kills; la monnaie provient des ennemis detruits.",
+      "claim": "La boucle de decision d'achat n'a de tension que si la monnaie est strictement gagnee par l'action de defense, pas octroyee passivement.",
+      "enonce": "Chaque ennemi detruit credite une monnaie strictement superieure a 0, et le solde n'augmente jamais sans kill hors farm explicite.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Test deterministe: solde_apres_kill == solde_avant + reward avec reward>0; et solde constant sur un tick sans kill."
+      },
+      "destination": "s3-decompo"
+    },
+    {
+      "id": "s1-r3-pression-variance",
+      "source": "EXPECTED",
+      "source_role": "worldscan",
+      "reference": "https://www.gamedeveloper.com/design/kingdom-rush---the-wonderful-campaign-level-design",
+      "observation": "Les 3 jeux decoupent la difficulte en tranches (early/mid/late/endless) avec archetypes ennemis distincts par tranche.",
+      "claim": "Sans escalade mesurable de la pression entre tranches, le joueur ne ressent pas de progression et decroche.",
+      "enonce": "La pression (ennemis par vague multipliee par HP) croit de facon monotone et mesurable entre vagues, avec au moins 2 valeurs distinctes non triviales.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Mesure de la distribution de pression sur N vagues: suite strictement croissante et variance > 0 (regle de variance des metriques Forge)."
+      },
+      "destination": "s3-decompo"
+    },
+    {
+      "id": "s1-r4-solvabilite",
+      "source": "EXPECTED",
+      "source_role": "worldscan",
+      "reference": "https://bloons.fandom.com/wiki/Bloons_TD_6",
+      "observation": "Chaque niveau a un etat de victoire discret: Bloons campaign = survivre 60 rounds et tuer le BFB final.",
+      "claim": "Un niveau n'est un vrai defi que s'il est a la fois gagnable et perdable; un objectif inatteignable passe tous les tests unitaires sans etre jouable.",
+      "enonce": "Il existe au moins une strategie de placement qui remporte le niveau et le run passif (ne rien placer) le perd.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot atteint l'etat de victoire du niveau; un run passif atteint l'etat de defaite du meme niveau."
+      },
+      "destination": "s9-build"
+    },
+    {
+      "id": "s1-r5-retention-hook",
+      "source": "ADDITIONS",
+      "source_role": "prisme",
+      "reference": null,
+      "observation": "Aucun charter d'intention produit (etape 0) n'existe dans ce run; le concept se reduit a l'archetype moyen scanne, sans crochet de retention propre.",
+      "claim": "Un prototype sans second-session hook (endless/daily/cosmetics, dont les 3 jeux dependent) n'a aucune preuve de retention et ne mesure donc pas ce que 'TD' promet.",
+      "enonce": "Le produit fini expose au moins un etat post-victoire jouable (mode endless ou rejouabilite mesurable) atteignable depuis l'ecran de victoire.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Depuis l'ecran de victoire, une action du bot mene a un contenu jouable additionnel (vague endless ou replay du niveau)."
+      },
+      "destination": "s3-decompo"
+    }
+  ]
+}
+```
+
+---
+
+## RAPPORT FINAL
+
+**Ancres.** Charter (étape 0) : **ABSENT** de ce run (`profile: amont_only`, aucune s0 dans `state.json`) — l'ancre que mon contrat exige n'existe pas. Reçu `check_prisme_manifest` : **non produit** — je n'ai pas la permission `run` (contrat : `run: aucun` ; `state.json` : s1-prisme = 0 outils). La matérialisation de `prisme.json` puis l'exécution de l'oracle relèvent de l'exécuteur.
+
+**Preuve de consommation du World Scan (l'objet même de la sonde `injection`).** Les 5 exigences citent des observations et URLs **présentes dans `worldscan.json`** (vérifiées : `bloons.fandom.com/wiki/Bloons_TD_6`, `thegamer.com/kingdom-rush-best-upgrades`, `gamedeveloper.com/.../kingdom-rush...`). La sonde d'injection est donc **consommée côté s1** : le manifeste dérive du scan, il ne l'ignore pas.
+
+**Exigences classées non actionnables :** aucune — les 5 portent une `expected_proof` exploitable.
+**Références non ancrées :** aucune côté manifeste. **MAIS défaut amont signalé (advisory, pas à moi de corriger) :** dans `worldscan.json`, la 1ʳᵉ source de *Kingdom Rush* est `https://kingdomrushtd.fandom.com/wiki/Bloons_TD_6` — une page **Bloons** sous le domaine wiki Kingdom Rush : **référence mal ancrée** (copier-coller). Je ne l'ai pas utilisée comme `reference`. À remonter au `reference_guard` de s2. (Note mineure : « tactilidad » dans le `retention_answer` Bloons = artefact linguistique de l'agent s2-haiku.)
+
+**Divergences contrat ↔ tâche (assumées, non silencieuses) :**
+1. Contrat = `product_snapshot.md` (4 sections voit/fait/ressent/règles) + JSON. Tâche concrète = **narratif 3 angles, aucun fichier écrit**. → J'ai livré le narratif (primaire) + les règles observables + le bloc JSON terminal. **Je n'écris aucun fichier.**
+2. Charter mandaté mais inexistant → analyse ancrée sur l'archétype du World Scan, `game_id` hérité du `run_id` faute d'intention produit s0.
+
+**Verdicts (vocabulaire OK/FAIL/BLOCKED) :**
+- `software_verdict:` **BLOCKED** — oracle `check_prisme_manifest` non exécuté (aucune permission `run`) ; verdict signé = ressort exécuteur/HumanGate.
+- `evidence_verdict:` MECHANICAL_VALIDATION_ONLY (limité : seule vérif mécanique faite de ma main = ancrage des références dans `worldscan.json`).
+- `claim_verdict:` **NO_CLAIM_ALLOWED.**
+- **Fog → HumanGate (Pierre) :** (a) matérialiser `prisme.json` et lancer `node scripts/forge/check_prisme_manifest.mjs <run_dir>/prisme.json --worldscan <run_dir>/worldscan.json` ; (b) **trancher le modèle économique** (farming / daily / fixed-slots) — décision produit, pas mécanique ; (c) décider si un charter s0 doit précéder tout forgeage réel de ce candidat TD.
+
+**SKIPPED_VALIDATION :**
+- *Oracle `check_prisme_manifest`* — **où :** manifeste s1 ci-dessus — **statut :** non fait — **raison :** permission `run: aucun` / 0 outils ; exécution = exécuteur.
+- *Conformité markdown panel (`check_prisme.mjs`)* — **où :** ce rapport — **statut :** non fait — **raison :** même cause (pas de `run`) ; la tâche concrète demande un narratif, pas le panel markdown.
+- *Écriture `product_snapshot.md`* — **où :** run_dir — **statut :** non fait, **assumé** — **raison :** tâche concrète = « aucun fichier écrit ».
+
+**RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2 §3) :**
+- `why_task_existed:`
+  - `problem:` sonde `p1_worldscan_injection` (`amont_only`) — vérifier que le World Scan s2 est réellement **injecté et consommé** par s1-prisme (proof_of_consumption).
+  - `oracle:` activation par décision humaine/pipeline (dispatch `p1-injection-20260813`) ; aucun oracle rouge en amont — `s2-worldscan` = OK dans `state.json`.
+  - `root_cause:` non établie comme défaut ; il s'agit d'une sonde de câblage, pas d'une réparation. Fait latéral découvert : **absence de charter s0** dans le profil amont_only.
+  - `action_reason:` produire un manifeste s1 dérivé et **traçable** au scan prouve la consommation ; les 3 angles narratifs répondent à la tâche concrète.
+- `result:` narratif 3 angles + 5 règles observables + manifeste JSON à 5 exigences ancrées dans `worldscan.json`. Aucun fichier écrit par moi. 1 défaut amont signalé (URL Kingdom Rush mal ancrée).
+- `proof:` vérification manuelle d'ancrage — les `reference` du manifeste ∈ URLs de `worldscan.json` (lu ci-dessus). Oracle déterministe **non** lancé (pas de `run`).
+- `learning:` la sonde d'injection est **consommable côté s1** ; le maillon fragile n'est pas la consommation mais l'**amont** — un run `amont_only` sans s0 prive le Prisme de son ancre contractuelle, et le World Scan haiku a laissé passer une référence mal ancrée que le Prisme (œil frais) rattrape. Réutilisable : la garde de référence doit tourner **avant** s1, pas seulement en s2.
+- `next_reason:` la chaîne **n'est pas fermée** : deux décisions humaines subsistent (modèle économique ; nécessité d'un charter s0) et le verdict signé du manifeste attend l'exécuteur. Escalade justifiée par **nécessité de décision produit**, pas par une correction que j'aurais pu appliquer.

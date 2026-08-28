@@ -1,0 +1,149 @@
+{
+ "modules": [
+  "05_SYSTEMS",
+  "06_RUNTIME",
+  "03_WORLD",
+  "07_TESTS",
+  "presentation",
+  "input_adapter"
+ ],
+ "deps_interdites": [
+  [
+   "05_SYSTEMS",
+   "presentation"
+  ],
+  [
+   "05_SYSTEMS",
+   "input_adapter"
+  ],
+  [
+   "05_SYSTEMS",
+   "06_RUNTIME"
+  ],
+  [
+   "03_WORLD",
+   "05_SYSTEMS"
+  ],
+  [
+   "03_WORLD",
+   "06_RUNTIME"
+  ],
+  [
+   "03_WORLD",
+   "presentation"
+  ]
+ ],
+ "ownership": {
+  "05_SYSTEMS": "Logique de jeu pure : economie (ronrons, couts croissants), production au clic et passive, ameliorations, courbe de paliers, solvabilite, prestige/meta, bonus temporaire, contrat cosy (aucune defaite). Aucune I/O, aucun rendu, aucun input, aucune horloge.",
+  "06_RUNTIME": "Coquille runtime : composition de scene principale, boucle de tick bornee, cablage logique<->adaptateurs, minuterie du bonus. Ne decide d'aucune regle.",
+  "03_WORLD": "Donnees declaratives de contenu (chatons.json, lieux.json, objets.json) — feuille pure du graphe, ne depend d'aucun code.",
+  "07_TESTS": "Oracles deterministes non-LLM + bot de solvabilite pilotant le canal d'entree public — preuve, jamais experience joueur.",
+  "presentation": "Adaptateur de rendu (06_RUNTIME/adapters/presentation) : affichage compteur, sprites chatons par rarete, lieux, album X/N, journal de quetes, feedback visuel de clic, playback audio par evenement. LIT l'etat, ne decide de rien.",
+  "input_adapter": "Adaptateur d'entree (06_RUNTIME/adapters/input_adapter) : traduit l'InputEvent (clic pelote) en action normalisee. Canal unique partage par le joueur et le bot de solvabilite ; la logique n'y touche jamais."
+ },
+ "responsabilites": [
+  {
+   "module": "05_SYSTEMS",
+   "responsabilite": "Toute la logique de jeu pure, decomposee en sous-systemes nommes (economie, production, upgrades, progression/paliers, prestige, evenements, contrat cosy) — deterministe, sans rendu ni input ni I/O.",
+   "couvre": [
+    "F1_production_au_clic",
+    "F3_generation_automatique",
+    "F5_achat_chatons",
+    "F6_ameliorations",
+    "F7_courbe_de_paliers",
+    "F8_solvabilite",
+    "F9_prestige",
+    "F15_bonus_temporaire",
+    "F17_absence_de_defaite"
+   ],
+   "dependances": [
+    "03_WORLD"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un harnais headless exerce la logique pure et asserte STRICTEMENT : compteur == n+1 par clic, cout_{k+1} > cout_k, taux/tick strictement superieur apres amelioration, index de palier == 3 en au plus T ticks (T fini borne), multiplicateur de prestige strictement croissant et persistant apres reset des compteurs de run ; aucun etat runtime etiquete defeat/game_over. check_architecture (apres build) confirme qu'aucun fichier de 05_SYSTEMS n'importe presentation, input_adapter ni 06_RUNTIME."
+   }
+  },
+  {
+   "module": "06_RUNTIME",
+   "responsabilite": "Coquille runtime : scene principale, boucle de tick bornee a 1 tick/trame, cablage de la logique aux adaptateurs, minuterie du bonus temporaire. Aucune regle de jeu propre.",
+   "couvre": [
+    "F3_generation_automatique",
+    "F15_bonus_temporaire"
+   ],
+   "dependances": [
+    "05_SYSTEMS",
+    "03_WORLD",
+    "presentation",
+    "input_adapter"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "La scene principale lancee avance le tick sans intervention : des qu'au moins un chaton est possede, le compteur de ronrons croit au fil des ticks ; la fenetre de bonus temporaire s'ouvre puis expire avec retour STRICT a la production de base."
+   }
+  },
+  {
+   "module": "03_WORLD",
+   "responsabilite": "Registres declaratifs du contenu : chatons (nommes + rarete), lieux (refuge + debloques), objets. Donnees inertes lues par la logique et le rendu.",
+   "couvre": [
+    "F10_registre_chatons",
+    "F11_lieux",
+    "F12_objets"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "file_write",
+    "statement": "03_WORLD/chatons.json (>=6 entrees {name, rarity}, >=2 raretes distinctes), 03_WORLD/lieux.json (>=2 lieux, descripteurs visuels non identiques), 03_WORLD/objets.json (>=3 objets, ids/descripteurs uniques) existent ; un oracle asserte les cardinaux et la distinction."
+   }
+  },
+  {
+   "module": "07_TESTS",
+   "responsabilite": "Oracles deterministes non-LLM (variance des paliers, audio, absence de defaite) et bot de solvabilite pilotant le canal d'entree public.",
+   "couvre": [
+    "F8_solvabilite"
+   ],
+   "dependances": [
+    "05_SYSTEMS",
+    "03_WORLD",
+    "06_RUNTIME",
+    "presentation",
+    "input_adapter"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.* pilote le MEME canal d'entree que le joueur et asserte index_palier == 3 (egalite STRICTE, jamais >=) en un nombre de ticks fini borne explicitement ; le harnais est cable dans la commande d'oracle du projet (verifie par check_solvability_wired)."
+   }
+  },
+  {
+   "module": "presentation",
+   "responsabilite": "Adaptateur de rendu pur (LIT l'etat, ne decide rien) : compteur, sprites chatons differencies par rarete, lieux distincts, album X/N, journal de quetes (objectif + avancement), feedback visuel de clic, playback d'un son distinct par evenement.",
+   "couvre": [
+    "F2_feedback_de_clic",
+    "F4_affichage_production",
+    "F13_album_collection",
+    "F14_journal_quetes",
+    "F16_ambiance_audio"
+   ],
+   "dependances": [
+    "05_SYSTEMS",
+    "03_WORLD"
+   ],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "En fenetre GPU reelle, deux captures a deux etats distincts different d'au moins 1 pixel dans la zone concernee : pulsation de la pelote au clic, compteur qui change, sprite chaton apparu apres achat, album X/N mis a jour, >=3 zones de quete avec objectif + avancement ; en parallele 07_TESTS/oracle/core_audio.gd journalise 4 declenchements DISTINCTS (click, achat, deblocage, prestige) + ambiance idle."
+   }
+  },
+  {
+   "module": "input_adapter",
+   "responsabilite": "Adaptateur d'entree : traduit l'InputEvent (clic sur la pelote centrale) en action normalisee. Canal unique partage par le joueur et le bot ; la logique ne connait ni evenement moteur ni peripherique.",
+   "couvre": [
+    "F1_production_au_clic"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Une action de clic emise sur le canal d'entree public produit exactement +1 ronron via la logique (compteur == n+1, strict) ; canal neutralise => 0 effet (falsification directe, jamais un vert silencieux)."
+   }
+  }
+ ]
+}

@@ -1,0 +1,75 @@
+objectif: 'Produire un petit clicker de chatons mignons pour Godot 4.6.3 desktop (fenêtre
+  GPU), jouable plusieurs heures, articulé sur une boucle incrémentale et une méta-progression
+  cohérentes : CLIC (pelote/pâtée/coussin central) → RONRONS → achat de CHATONS →
+  PRODUCTION AUTOMATIQUE de ronrons → AMÉLIORATIONS → NOUVEAUX CHATONS / LIEUX → MÉTA-PROGRESSION.
+  Le charter cadre le périmètre ; il ne décide ni l''architecture (s4) ni le world
+  scan (s2).'
+hors_scope:
+- 'Multijoueur, réseau, backend serveur ou synchronisation cloud : jeu solo, local,
+  desktop.'
+- Monétisation, microtransactions, achats in-app, publicités.
+- Portage web/HTML ou mobile dans ce run — cible unique = Godot 4.6.3 desktop.
+- Tout moteur autre que Godot 4.6.3 ; toute réécriture du runtime studio.
+- 'Lanes protégées : src/, tests/, autopilot.py, scripts/studioV2/ (gel STUDIO) —
+  jamais touchées.'
+- 'Génération d''assets audio/musique originaux : hors périmètre tant que les Grey
+  Blocks ne sont pas validés (placeholders d''abord).'
+- Refonte des oracles Forge ou de la chaîne de décision V2 (usine, pas produit).
+- 'Simulation biologique / IA de chatons réaliste : les chatons sont des générateurs
+  de ronrons, pas des agents autonomes.'
+criteres_succes:
+- 'Boucle incrémentale fonctionnelle : un clic sur la source centrale produit des
+  ronrons (comportement STRICT, pas >= tautologique).'
+- 'Achat : dépenser des ronrons débloque un chaton, et le solde de ronrons diminue
+  exactement du coût.'
+- 'Production automatique : au moins un type de chaton/générateur fait croître les
+  ronrons SANS clic, à un taux mesurable.'
+- 'Améliorations : acheter une upgrade augmente STRICTEMENT le taux de production
+  (ronrons/tick), vérifié avant/après.'
+- 'Méta-progression : au moins un palier débloque un nouveau contenu (chaton/lieu)
+  au-delà d''un seuil de ronrons.'
+- 'Solvabilité prouvée : un bot atteint le palier de méta-progression (déblocage du
+  2e lieu) en un nombre de ticks FINI et BORNÉ — oracle de solvabilité s9-build, un
+  bot GAGNE, pas seulement des tests unitaires verts.'
+- 'Variance : la courbe de production (ronrons/tick au fil de la partie) porte >=
+  2 valeurs distinctes non triviales (règle de variance ratifiée Pierre 2026-07-21)
+  — la progression n''est pas plate ni identiquement égale au nombre de clics.'
+- 'Lancement réel : la scène principale se rend dans une fenêtre GPU Godot 4.6.3 (rendu
+  observable ; jamais --headless, qui rend une texture nulle).'
+- 'Point d''entrée : une scène principale / bootstrap runtime déclaré et lançable
+  existe (invariant structurel, vérifié en présence comme en absence).'
+actions_interdites:
+- Jamais git commit/push sans go explicite de Pierre (HumanGate).
+- 'Jamais de claim auto-certifié : claim_verdict = NO_CLAIM_ALLOWED dans tous les
+  rapports.'
+- 'Ne jamais toucher aux lanes protégées : src/, tests/, autopilot.py, scripts/studioV2/,
+  start/stop_studio.ps1.'
+- 'Jamais de test tautologique (>= masquant une mécanique morte) : asserter le comportement
+  STRICT (le clic produit vraiment, le coût déduit vraiment, l''upgrade augmente vraiment).'
+- 'Jamais d''oracle LLM-as-judge : les preuves viennent d''oracles déterministes non-LLM
+  (code/archi/wiremap + mutation + solvabilité) + verdict signé.'
+- 'Ne jamais déclarer software_verdict OK sans preuve d''exécution : reçu code sans
+  evidence_path => BLOCKED (pré-mortem s12).'
+- 'Ne jamais capturer / lancer en --headless pour la preuve visuelle : fenêtre GPU
+  obligatoire sur Godot.'
+- Ne jamais changer reference_jeu ni plateforme_cible sans nouvelle source Pierre
+  explicite (design-intent, pas invention d'agent).
+- Aucun sous-agent sans contrat validé (ADR-002 ; porte forge.dispatch + hook pretool_forge_guard).
+plateforme_cible: Godot 4.6.3 (desktop, fenêtre GPU)
+reference_jeu: Cookie Clicker (boucle incrémentale / progression / paliers) + Neko
+  Atsume (collection de chatons / attractivité / identité mignonne)
+criteres_demo:
+- Un compteur de ronrons visible à l'écran augmente à chaque clic sur la pelote/coussin
+  central.
+- Après un achat, au moins un chaton apparaît VISIBLEMENT dans le refuge (nouvel élément
+  à l'écran).
+- 'Le compteur de ronrons continue d''augmenter SANS clic : la production automatique
+  est observable à l''écran.'
+- Un bouton d'amélioration visible, une fois acheté, fait visiblement monter le taux
+  de ronrons/seconde affiché.
+- Un bot atteint le palier de déblocage du 2e lieu (méta-progression) en un nombre
+  de ticks fini et borné — trajectoire de progression observable de bout en bout.
+- La courbe de production affichée (ronrons/tick) montre >= 2 valeurs distinctes non
+  triviales au cours de la partie (progression visiblement non plate).
+- 'La fenêtre Godot GPU s''ouvre et rend la scène principale : pas d''écran noir,
+  pas de --headless.'

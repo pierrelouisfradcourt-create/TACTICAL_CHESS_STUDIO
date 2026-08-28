@@ -1,0 +1,84 @@
+# KITTEN CLICKER — contrat de jeu. Clicker de chatons (Cookie Clicker + Neko Atsume).
+# Format : scripts/forge/standard/SCHEMA.md §1 — schema FERME, 6 cles obligatoires + `proof`.
+# STATUT : PROPOSITION (build s9). Mecaniquement validable (check_contract_completeness +
+# check_budget) ; NON RATIFIE — HumanGate Pierre.
+schema_version: 1
+game_id: kitten_clicker
+node: 6
+runtimes: [rules, godot]
+
+budget:
+  # reuses VIDE : aucune brique de bibliotheque au tier `validated` n'est declaree. La
+  # reutilisation de l'adaptateur audio de Pacman est une reutilisation de CONCEPT tracee
+  # dans la wiremap (core.audio.reused_from.type = CONCEPT), pas un depot de bibliotheque —
+  # elle ne consomme donc aucun delta de budget (elle n'ajoute rien au catalogue).
+  reuses: []
+  # adds VIDE : ce build ne PROMET aucun depot en bibliotheque. `check_budget` fait de `adds`
+  # une OBLIGATION (violation `promis_non_depose` si une brique promise n'est pas deposee) ;
+  # rien n'est promis, donc rien a tenir. Respecte la loi d'empilement (len(adds) <= 1).
+  adds: []
+
+assets:
+  # `generated` (plan B) : le studio n'a pas de generateur d'images 2D et aucun CC0 ne
+  # convient a l'identite flat-cute-svg de l'art bible. Le builder ECRIT lui-meme chaque
+  # sprite `04_ASSETS/sprites/<id>.svg` en primitives (cercles, rectangles arrondis),
+  # importe par Godot 4 comme texture. Aucun octet telecharge, aucune generation a l'execution.
+  plan: generated
+
+# =====================================================================================
+# DESCRIPTEUR DE PREUVE — contrat docs/forge/CONTRAT_PREUVE_MUTATION_V1.md (FIGE).
+# =====================================================================================
+proof:
+  schema_version: 1
+  runtime: godot
+
+  mutation:
+    # §2 regle 4 : toute categorie portee par la wiremap est soit JUGEE, soit EXCLUE.
+    # Categories presentes dans wiremap.json (lines[].fichiers[].category) :
+    #   system · system.adapter · test.unit · test.oracle · test.solvability ·
+    #   world.rules · entity · asset.sprite
+    #
+    # SEULE la logique PURE (05_SYSTEMS, categorie `system`) est mutee : c'est la mesure
+    # Pong 2026-07-27 (systemes purs 95 % de mutants tues, adaptateurs 0 %). Les autres
+    # categories sont EXCLUES pour un motif nomme, jamais par oubli.
+    categories_mutables: [system]
+    categories_exclues:
+      - system.adapter    # 06_RUNTIME/adapters/* : rendu/input/audio/runtime/bot -> oracle produit, pas mutation
+      - test.unit         # 07_TESTS/unit/*.test.gd : le harnais, pas la cible
+      - test.oracle       # 07_TESTS/oracle/*.gd : volets produits, pas du code de regle
+      - test.solvability  # 07_TESTS/oracle/solvability.gd : harnais R9, pas une regle
+      - world.rules       # 03_WORLD/rules/*/*.json : donnees de contenu declaratives, pas du code
+      - entity            # 02_ENTITIES/* : porteurs de sprite/presentation, aucune regle d'economie
+      - asset.sprite      # 04_ASSETS/sprites/*.svg : art vectoriel, rien a muter
+      - godot.project_root  # solvability.gd (entree R9 moteur) : harnais, pas une regle de jeu
+      - godot.project_tests # tests/run_tests.gd : point d'entree du harnais, pas du code de regle
+
+    command: ["<bin:godot>", "--headless", "--path", ".", "--script", "res://tests/run_tests.gd"]
+    cwd: "games/kitten_clicker"
+    binary_ref: godot
+    expects_exit_zero: true
+
+    budget:
+      max_mutants: 400
+      timeout_per_mutant_s: 30
+      total_timeout_s: 900
+      cost_class: engine
+
+    seals:
+      wrapper: []
+      test_scripts: ["tests/run_tests.gd"]
+
+  solvability:
+    # Entree R9 REELLEMENT executee par le gate : scripts/forge/godot_oracle.mjs charge
+    # `res://solvability.gd` (racine). check_solvability_wired (descripteur) verifie que ce
+    # fichier existe sous le jeu et que le wrapper (godot_oracle.mjs) reference son basename.
+    entry: "solvability.gd"
+    # Aligne sur scripts/forge/oracles.json (kitten_clicker.solvability) : trials/max_ticks/
+    # trial_timeout_ms tenus coherents avec la declaration lue par godot_oracle.mjs
+    # (solvability_budget_audit compare les deux et signale toute divergence).
+    max_ticks: 20000
+    trials: 20
+    trial_timeout_ms: 120000
+    # Filet de securite : 20 essais de clicker en headless sont tres rapides (partie bornee a
+    # quelques centaines de ticks de logique pure), largement sous les 300 s de oracle.py.
+    total_timeout_s: 250

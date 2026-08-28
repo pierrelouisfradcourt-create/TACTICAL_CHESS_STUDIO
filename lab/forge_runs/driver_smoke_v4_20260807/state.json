@@ -1,0 +1,108 @@
+{
+ "catalog_brick_ids_snapshot": [
+  "pat-damage-floor",
+  "pat-forge-architecture_check_before_human_escalation",
+  "pat-forge-broken_loop_repair_not_report",
+  "pat-forge-diagnosis_is_not_workflow_end",
+  "pat-forge-entrypoint_is_undeclared_invariant",
+  "pat-forge-escalation_costs_avoid_default_route",
+  "pat-forge-forge_oracle_convention_undocumented",
+  "pat-forge-hardcoded_expected_state_breaks_on_growth",
+  "pat-forge-instrument_assumes_instead_of_reads",
+  "pat-forge-kb_humangate_to_controlled_autonomy",
+  "pat-forge-mutation_survivor_equivalence_requires_mechanical_proof",
+  "pat-forge-new_proof_needs_declared_executor",
+  "pat-forge-oracle_fail_vs_not_measured_marker",
+  "pat-forge-preflight_oracle_registration",
+  "pat-forge-reuse_tracking_oracle_dead_since_inception",
+  "pat-forge-run_status_not_liveness_proof",
+  "pat-forge-test_green_via_wrong_causal_path",
+  "pat-forge-timeout_greenfield_by_profile",
+  "pat-forge-wiremap_concept_reuse_requalification",
+  "pat-full-reachability",
+  "pat-zone-of-control",
+  "sys-damage-floor",
+  "sys-evader-basic",
+  "sys-grid-nav-m01",
+  "sys-guardian-zoc",
+  "sys-pursuer-continuous",
+  "sys-pursuer-mobile",
+  "sys-reachability"
+ ],
+ "created_ts": 1786202789.394074,
+ "escalations": 0,
+ "is_game": false,
+ "model_override": null,
+ "profile": "patch",
+ "project": "driver_smoke_v4_20260807",
+ "run_id": "driver_smoke_v4_20260807-run1",
+ "run_status": "DONE",
+ "steps": {
+  "s10a-oracle-code": {
+   "attempts": 1,
+   "detail": {
+    "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\driver_smoke_v4_20260807\\evidence\\oracle_driver_smoke_v4_20260807.log",
+    "returncode": 0
+   },
+   "status": "OK",
+   "ts": 1786202889.4159417
+  },
+  "s11-redteam-code": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\driver_smoke_v4_20260807\\artifacts\\s11-redteam-code.txt",
+    "artifact_sha256": "c34122958cbeb07617faebdf3e02522d3eabc381026a777e0727bf2327e23015",
+    "cache_creation_tokens": 53785,
+    "cache_read_tokens": 274130,
+    "cost_usd": 0.9773600000000001,
+    "duration_s": 195.78868865966797,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": " Synthèse (advisory)\n\n**Objet réel du run** (ancre `state.json`) : `is_game: false`, `profile: patch`, nom « driver_smoke_v4 » → **run de fumée du pipeline Forge**, pas un jeu. Le code est un `clamp(x, lo, hi)` de 3 lignes, correct sur le domaine standard, et l'oracle indépendant (`evidence/…log`) prouve **3/3 pass** de façon non factice.\n\n**Aucune faille HIGH. Aucune preuve factice, aucun test tautologique.** J'ai refusé d'inventer de la sévérité sur un smoke test trivial et correct.\n\n3 constats, tous prouvés par ancre statique reproductible (permission `run: aucun` → repros = calculs déterministes exécutables par un oracle aval) :\n\n| # | Angle | Sévérité | Constat |\n|---|---|---|---|\n| 1 | Force de l'oracle | **MEDIUM** | Oracle mince : 3 points happy-path, aucun bord exact (`x==lo`/`x==hi`), inversé (`lo>hi`), NaN → une régression aux bornes ne serait pas détectée. L'oracle prouve moins que son nom. |\n| 2 | Garde-fou d'entrée | LOW | Pas d'invariant `lo<=hi` : `clamp(5,10,0)=10` (renvoie `lo`, ignore `hi` silencieusement). |\n| 3 | Robustesse numérique | LOW | `clamp(NaN,0,10)=NaN` : passthrough non gardé. |\n\n**Ce que j'ai vérifié et écarté** : les tests A+B pinnent bien les deux bornes (pas tautologiques) ; l'oracle log est un run indépendant (pas une recopie) ; le code correspond bien au fix décrit ; la SOLVABILITÉ du pré-mortem s10a **ne s'applique pas** (`is_game:false`).\n\n**fog → HumanGate** : Failles 2 & 3 reposent sur une intention non transmise (bornes inversées / NaN autorisés ou à garder ?) → non tranchables par oracle, remontées à Pierre, jamais claim auto-certifié.\n\nVerdicts : `software_verdict: OK` (oracle indépendant vert) · `evidence_verdict: MECHANICAL_VALIDATION_ONLY` · `claim_verdict: NO_CLAIM_ALLOWED`.\n\nLe bloc JSON en fin de rapport reprend exactement les 3 constats de la prose, pour le parseur déterministe `forge.run_real.extract_redteam_findings` (→ `redteam_advisory` du verdict signé, jamais `software_verdict`/`humangate_flags` directement).",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 12105
+   },
+   "status": "OK",
+   "ts": 1786203085.292627
+  },
+  "s12-verdict": {
+   "attempts": 1,
+   "detail": {
+    "decision": "HUMANGATE_READY",
+    "software_verdict": "OK",
+    "verdict_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\driver_smoke_v4_20260807\\verdict.json",
+    "verify_run": "AUTHENTIQUE"
+   },
+   "status": "OK",
+   "ts": 1786203085.4236257
+  },
+  "s9-build": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\driver_smoke_v4_20260807\\artifacts\\s9-build.txt",
+    "artifact_sha256": "3f6038231bef3bee799d5e3d7394acfb805e47600b4987f314e831e300b23b84",
+    "cache_creation_tokens": 30183,
+    "cache_read_tokens": 540830,
+    "cost_usd": 0.132354,
+    "duration_s": 99.76685619354248,
+    "model": "claude-haiku-4-5-20251001",
+    "model_override": null,
+    "output_excerpt": "**Fix complete.** All tests pass. Here's the final report:\n\n---\n\n## RETURN LINEAGE — s9-build:driver_smoke_v4_20260807-run1\n\n**why_task_existed:**\n- **problem:** test suite invoked via `oracles_override.json` (node --test logic.test.mjs) → 3 test cases defined, 2 expected to fail on incomplete `clamp` implementation\n- **oracle:** node:test harness + logic.test.mjs (mechanical validation, non-LLM)\n- **root_cause:** `clamp` function incomplete: applied Math.max(x, lo) only, missing upper-bound clamp via Math.min(x, hi)\n- **action_reason:** Correct the function to apply both bounds: Math.max(Math.min(x, hi), lo) — standard clamp semantics required by all 3 test cases\n\n**result:** \n- Fixed: logic.mjs:clamp now correctly bounds values to [lo, hi] range\n- All 3 tests now PASS:\n  - ✔ clamp(15, 0, 10) → 10 (upper bound)\n  - ✔ clamp(-5, 0, 10) → 0 (lower bound)\n  - ✔ clamp(5, 0, 10) → 5 (in-range passthrough)\n\n**proof:**\n```\ncd C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\driver_smoke_v4_20260807\\src && node --test logic.test.mjs\n\n✔ clamp bounds a value above the range (0.3999ms)\n✔ clamp bounds a value below the range (0.073ms)\n✔ clamp leaves an in-range value untouched (0.0532ms)\n\nℹ tests 3 | ℹ pass 3 | ℹ fail 0\n```\n\n**learning:** \nIncomplete Math.max-only clamp is a known pattern defect (pat-forge-broken_loop_repair_not_report in catalog) — incomplete bounds-checking masks half the semantics and fails silently on half the domain.\n\n**next_reason:**\nRepair chain CLOSES. oracle code ✓ (3/3 tests pass). No upstream blueprint/wiremap (NOT_TRANSMITTED reason), no solvability requirement (is_game: false). s9-build complete; ready for s10a-oracle-code verification.\n\n---\n\n**software_verdict:** OK  \n**evidence_verdict:** MECHANICAL_VALIDATION_ONLY  \n**claim_verdict:** NO_CLAIM_ALLOWED  \n\n**SKIPPED_VALIDATION:** aucun — oracle test run complete and passing.",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-haiku-4-5-20251001",
+    "runner": "claude",
+    "tokens": 3653
+   },
+   "status": "OK",
+   "ts": 1786202889.2509463
+  }
+ },
+ "transition": "OK",
+ "updated_ts": 1786203095.3400953
+}

@@ -1,0 +1,128 @@
+{
+ "schema_version": 1,
+ "game_id": "kitten_clicker",
+ "steps": [
+  {
+   "role": "PLAYER_GOAL",
+   "ref": "g_goal_first",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "nonempty"
+   }
+  },
+  {
+   "role": "PLAYER_ACTION",
+   "ref": "p_buy_kitten",
+   "affordance": "acheter_chaton",
+   "repeat": 1,
+   "observe": {
+    "hud": "collection",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "PLAYER_ACTION",
+   "ref": "p_click_pelote",
+   "affordance": "pelote",
+   "repeat": 5,
+   "observe": {
+    "hud": "ronrons",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "GAME_RESPONSE",
+   "ref": "s_auto_production",
+   "repeat": 1,
+   "observe": {
+    "hud": "ronrons",
+    "predicate": "increases"
+   },
+   "wait_frames": 120
+  },
+  {
+   "role": "GAME_RESPONSE",
+   "ref": "s_upgrade_rate",
+   "repeat": 1,
+   "observe": {
+    "hud": "taux_production",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "REWARD",
+   "ref": "s_reward_kitten",
+   "repeat": 1,
+   "observe": {
+    "hud": "taux_production",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "UNLOCK",
+   "ref": "p_unlock_location",
+   "affordance": "acheter_amelioration",
+   "repeat": 1,
+   "observe": {
+    "hud": "lieux",
+    "predicate": "changes",
+    "appears": "jardin"
+   }
+  },
+  {
+   "role": "NEXT_GOAL",
+   "ref": "g_goal_garden",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   }
+  },
+  {
+   "role": "NEXT_GOAL",
+   "ref": "g_goal_legendary",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   }
+  },
+  {
+   "role": "REPEAT",
+   "ref": "p_repeat_newloc",
+   "repeat": 1,
+   "observe": {
+    "hud": "ronrons",
+    "predicate": "increases"
+   },
+   "replay": [
+    "p_click_pelote",
+    "s_auto_production",
+    "s_reward_kitten",
+    "p_unlock_location"
+   ]
+  },
+  {
+   "role": "META_LOOP",
+   "ref": "p_prestige",
+   "affordance": "prestige",
+   "repeat": 1,
+   "observe": {
+    "hud": "ronrons",
+    "predicate": "resets"
+   }
+  },
+  {
+   "role": "ADVANTAGE",
+   "ref": "s_advantage_click",
+   "affordance": "pelote",
+   "repeat": 1,
+   "observe": {
+    "hud": "ronrons",
+    "predicate": "increases_more_than:p_click_pelote"
+   },
+   "replay_ref": "p_click_pelote"
+  }
+ ]
+}

@@ -1,0 +1,75 @@
+objectif: Produire un petit clicker de chatons mignons pour Godot 4.6.3 desktop, jouable
+  plusieurs heures, avec une boucle de progression (clic -> ronrons -> chatons ->
+  production automatique -> ameliorations -> nouveaux chatons et lieux) et une meta-progression
+  (prestige) coherentes et solvables. Le joueur nourrit une colonie de chatons en
+  cliquant sur une pelote/pate/coussin central qui produit des ronrons.
+plateforme_cible: Godot 4.6.3 (desktop, fenetre GPU)
+reference_jeu: Cookie Clicker + Neko Atsume
+hors_scope:
+- Multijoueur, reseau, classements en ligne ou toute fonctionnalite online
+- Monetisation reelle, microtransactions, publicites ou boutique a argent reel
+- Portage web, mobile ou console — la cible unique est Godot 4.6.3 desktop
+- Combat, PvP, mecaniques d'action ou d'adresse en temps reel
+- Narration scenarisee longue, cinematiques ou dialogues ramifies
+- Generation procedurale 3D de niveaux ou monde ouvert
+- Sauvegarde cloud, comptes utilisateurs, synchronisation multi-appareils
+criteres_succes:
+- 'charter.yaml valide au sens de forge.static_oracles.check_charter : 7 champs requis
+  remplis, aucun placeholder residuel'
+- Le World Scan produit explicitement conditions_victoire, conditions_defaite, objectifs_joueur,
+  progression et boucles_recompense, ET ces donnees sont consommees en aval (sonde
+  advisory check_amont_traversal.mjs), pas seulement presentes dans le document
+- Les Grey Blocks du Game Master rendent RECONNAISSABLES (pas seulement declarees)
+  le clic, la production, les upgrades, les deblocages, les evenements, les quetes
+  et la meta-progression
+- La WireMap reconcilie intention visuelle, architecture technique, donnees et runtime
+  Godot, et passe l'oracle wiremap s10c sans vert par vacuite
+- 'Le build Godot passe l''oracle code s10a : garde e2e structurelle (tests/run_tests.gd,
+  extends SceneTree, DirAccess, EXPECTED_ASSERTS) et gate mutation sans survivant
+  non justifie'
+- 'Solvabilite prouvee : un bot deterministe atteint le 3e palier en un nombre de
+  ticks FINI, par assertion stricte (jamais un >= tautologique)'
+- La courbe de paliers porte au moins 3 valeurs distinctes non triviales (regle de
+  variance des metriques Forge)
+- Le verdict final est signe HMAC et re-verifiable par forge.verify_run ; claim_verdict
+  NO_CLAIM_ALLOWED ; merge/reject/freeze reserve a HumanGate (Pierre)
+actions_interdites:
+- 'Modifier les lanes protegees : src/, tests/, autopilot.py, scripts/studioV2/, start_studio.ps1,
+  stop_studio.ps1'
+- git commit ou git push sans gate explicite de Pierre dans la conversation
+- Ecrire un test tautologique (>= la ou un == strict est attendu) qui masquerait une
+  mecanique morte
+- Appeler une API LLM externe (Anthropic ou autre) ; les oracles restent deterministes
+  non-LLM et Qwen reste red-team advisory
+- Utiliser une metrique a variance nulle pour classer, generer ou calibrer sans preuve
+  prealable de variance (au moins 2 valeurs distinctes non triviales)
+- Emettre un software_verdict OK sans recu d'oracle signe et execute (pas de vert
+  non prouve)
+- Inventer ou supposer reference_jeu, plateforme_cible ou un element de design-intent
+  sans source Pierre — un manque remonte en fog HumanGate, il ne se comble pas
+- Laisser un chaton, lieu, objet ou quete produit en amont sans consommateur reel
+  en aval (producteur sans lecteur)
+criteres_demo:
+- 'MECANIQUE — Compteur au clic : le compteur de ronrons affiche a l''ecran augmente
+  a chaque clic sur la pelote/pate centrale'
+- 'MECANIQUE — Chaton visible apres achat : apres l''achat d''un chaton, un nouveau
+  chaton apparait et reste visible a l''ecran'
+- 'MECANIQUE — Production sans clic : le compteur de ronrons monte tout seul (production
+  automatique) sans aucune interaction du joueur'
+- 'MECANIQUE — Amelioration qui monte le taux : acheter une amelioration fait augmenter
+  le taux de production, valeur observable a l''ecran'
+- 'MECANIQUE — Bot au palier : un bot deterministe declenche un palier de progression,
+  visible a l''ecran'
+- (a) Au moins 6 chatons NOMMES, chacun avec un nom affiche et une identite visuelle
+  distincte selon sa rarete, visibles a l'ecran
+- '(b) Au moins 2 lieux : le refuge de depart plus au moins 1 lieu debloque par la
+  meta-progression'
+- (c) Au moins 3 objets distincts presents dans le jeu
+- (d) Au moins 3 petites quetes dont les objectifs sont visibles a l'ecran
+- (e) Un son DISTINCT pour clic, achat, deblocage et prestige, declenche par l'evenement
+  correspondant — audio procedural accepte, preuve = 07_TESTS/oracle/core_audio.gd
+  avec journal des declenchements
+- '(f) Un feedback visuel au clic : une reaction visible a l''ecran au moment ou le
+  joueur clique'
+- (g) Une courbe de paliers portant au moins 3 valeurs distinctes (regle de variance)
+- (h) Un bot atteint le 3e palier en un nombre de ticks FINI

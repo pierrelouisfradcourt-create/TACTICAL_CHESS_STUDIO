@@ -1,0 +1,41 @@
+Oracle exit 0 confirms OK. Both deliverables produced and verified. Here is the final report.
+
+---
+
+## RAPPORT FINAL — s2.5-artbible / kitten_clicker-20260821h2
+
+**Livrables produits** (run root `lab/forge_runs/kitten_clicker/`) :
+- `art_bible.md` — frontmatter `{styles: [flat-cute-svg, cozy-pastel], mood_keywords: [9]}` + 3 sections (IDENTITÉ VISUELLE / RATIONALE / BESOINS VISUELS), la dernière portant un bloc `json` `{visual_requirements}` de 17 entrées (16 `required:true` + 1 `required:false` cosmétique déclaré).
+- `asset_requests.json` — 16 `asset_requests` (Asset Contract V0.1), une par entité `required:true`, format cible SVG (`format:2D`, `runtime:godot`, `style:flat-cute-svg`), descriptions dessinables en primitives.
+- `check_artbible_receipt.json` — reçu oracle (evidence_path).
+
+**Oracle** (`node scripts/forge/check_artbible.mjs`, déterministe non-LLM) :
+- `evidence_path`: `lab/forge_runs/kitten_clicker/check_artbible_receipt.json`
+- **`verdict: OK`** · exit 0 · `coverage.checked:true`, `coverage.missing:[]`, 16 besoins `required:true` tous satisfaits par une requête de même `entity_role`.
+
+**Traçabilité besoin→R (product_snapshot courant R1–R14)** : wool_ball (R1/R10/R7 obj 1) · 6 chatons collectible (R2/R5) · rarity_frame_set (R5, 2e signal) · refuge_start + place_garden_unlocked (R6) · object_food_dish=pâtée + object_cushion=coussin (R7 obj 2-3, nommés explicitement par R7) · upgrade_icon_set (R4) · prestige_button_icon (R13) · click_feedback_pop (R10) · ui_panel_frame (R8/R12 chrome). Hors besoins visuels, **déclarés** : pas d'avatar joueur (gardien invisible, Neko Atsume) ; R9 audio (hors périmètre visuel, → build/audio) ; R3/R11/R12-texte/R14 = logique/texte moteur.
+
+**Statut de resolution (ADVISORY, jamais pass/fail)** : `0 OK / 16 BLOCKED / 16 total`. Ce BLOCKED est un `resolution_stats.blocked` **légitime** (catalogue sans asset `flat-cute-svg` `2D`/`godot` — le studio n'a aucun générateur 2D, le builder écrira lui-même les SVG). Il est rapporté **tel quel**, sans assouplissement de contraintes (pas de gaming d'oracle). Distinct de `coverage.missing`, qui est vide.
+
+**Verdicts**
+- software_verdict: **OK** (appuyé par `check_artbible.mjs`, exit 0, verdict:OK)
+- evidence_verdict: **MECHANICAL_VALIDATION_ONLY**
+- claim_verdict: **NO_CLAIM_ALLOWED**
+
+**fog (jugement HumanGate Pierre requis)** : la conformité **esthétique** ("est-ce vraiment mignon / lisible à 640×480 à l'œil") n'est jamais évaluée par l'oracle (`style_tag_match` compare des tags, pas des pixels). L'adéquation viewpoint et la qualité visuelle réelle restent un fog assumé, jamais un claim.
+
+**SKIPPED_VALIDATION** :
+- item: resolution contre catalogue en `OK` · périmètre: `asset_requests.json` · statut: non applicable (par conception) · raison: la resolution est advisory ; aucun asset SVG cute-cat n'existe au catalogue, le builder les produit — un `resolution.BLOCKED` bien formé n'est pas une validation manquante mais un fait légitime.
+- item: jugement esthétique / adéquation viewpoint · périmètre: art_bible.md · statut: non fait · raison: hors périmètre Art Director (jugement humain, fog HumanGate — jamais un oracle LLM).
+
+**why_task_existed**
+- problem: étape s2.5 de la chaîne Forge — traduire le product_snapshot (ce que le joueur voit/fait/ressent) en identité visuelle + contrat d'assets structuré vérifiable, préalable au build.
+- oracle: `check_artbible.mjs` (couverture besoin↔requête v0.1) — l'activation vient de la séquence de dispatch Forge (décision de pipeline), pas d'un défaut mesuré.
+- root_cause: non applicable (étape planifiée, pas correction d'un défaut).
+- action_reason: produire art_bible.md + asset_requests.json couvrant chaque entité `required:true`, prouvés par l'oracle de conformité structurelle.
+- result: `verdict: OK`, 16/16 besoins couverts, reçu écrit.
+- proof: `node scripts/forge/check_artbible.mjs … --json` → `{"pass":true,"verdict":"OK","coverage":{"missing":[]},"resolution_stats":{"ok":0,"blocked":16}}`, exit 0.
+- learning: le product_snapshot de CE run diffère des runs archivés (R1–R14 ici ; R7 nomme les 3 objets *pelote/pâtée/coussin* — d'où object_food_dish/object_cushion, pas les griffoir/panier des runs précédents). Toujours ré-ancrer sur le snapshot du run, jamais recopier une bible antérieure.
+- next_reason: chaîne causale **FERMÉE** ici — l'artefact est bien formé et couvert, le seul BLOCKED est une resolution advisory attendue (catalogue sans SVG cute-cat, résolue en aval par le builder). Aucune cause non résolue ni preuve manquante n'appelle d'escalade.
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

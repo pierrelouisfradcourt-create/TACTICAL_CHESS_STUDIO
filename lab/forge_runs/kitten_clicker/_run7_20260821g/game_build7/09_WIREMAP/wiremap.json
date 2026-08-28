@@ -1,0 +1,1778 @@
+{
+ "schema_version": 2,
+ "game_id": "kitten_clicker",
+ "run_id": "kitten_clicker-20260821g",
+ "etape": "s5-wiremap",
+ "dispatch_marker": "FORGE_DISPATCH:s5-wiremap:kitten_clicker-20260821g:1",
+ "version": 2,
+ "statut_artefact": "REQUIRED_GEL",
+ "claim_verdict": "NO_CLAIM_ALLOWED",
+ "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
+ "reference_amont": {
+  "blueprint": "lab/forge_runs/kitten_clicker/blueprint.json (7 modules : 05_SYSTEMS, 03_WORLD, 04_ASSETS, 02_ENTITIES, render, input, audio) — la carte lui est ISOMORPHE : un systeme (passe 1) par module, allowed_deps LU dans les `dependances` du module, aucune arete de `deps_interdites` (05_SYSTEMS -/-> render|input|audio).",
+  "featuremap": "lab/forge_runs/kitten_clicker/featuremap.json (11 systemes, 17 features, 27 capacites-feuilles) — cible UNIQUE du champ `couvre`. Les 27 feuilles sont toutes portees par >=1 ligne (verifie a la main contre check_wiremap_contract, cf. rapport).",
+  "charter": "lab/forge_runs/kitten_clicker/charter.yaml",
+  "art_bible": "lab/forge_runs/kitten_clicker/art_bible.md + asset_requests.json (16 sprites, entity_role, adresse 04_ASSETS/sprites/<id>.svg)",
+  "loop": "lab/forge_runs/kitten_clicker/loop.json (V4 GAME LOOP) — 4 affordances joueur : pelote (EX02), acheter_amelioration (EX18), acheter_chaton (EX05), prestige (EX07)",
+  "repo_map": "scripts/forge/standard/repo_map.yaml (table FIGEE : c'est ELLE qui tranche « ou va ce fichier »)",
+  "core": "scripts/forge/standard/core_requirements.yaml (10 exigences CORE, not_applicable_allowed: false)"
+ },
+ "notes_de_generation": {
+  "isomorphisme": "systems[] = 7 entrees, une par module du blueprint (section = module = dossier). Le blueprint de ce jeu est COARSE (un module = un dossier de premier niveau), donc chaque `system` de categorie `system`/`system.adapter`/`entity`/`world.rules` porte un {id} qui devient un sous-dossier du gabarit repo_map (05_SYSTEMS/core/, 06_RUNTIME/adapters/render/, 02_ENTITIES/entities/, 03_WORLD/rules/content/). Cout cosmetique assume (un sous-dossier eponyme), pas une liste plate.",
+  "provides_domaine_vide": "MESURE HERITEE (manifest-dd19321279544151, ce meme jeu, generation anterieure) : le registre de capacites GELE (capabilities.yaml + factory_capabilities.yaml) ne contient AUCUN identifiant pour les capacites de domaine d'un clicker (production passive, amelioration, prestige, palier, collection, spawn). Declarer ces provides ferait echouer check_collisions (identifiants_inconnus). Les lignes de domaine portent donc `provides: []` et ne sont reliees au plan que par `couvre`. L'extension du registre au genre incremental est un GATE PIERRE (proposition mesuree), jamais une invention d'agent. FOG remonte.",
+  "godot_project_root_inclus": "MESURE HERITEE (manifest-d4fe9bfbe1c8e420) : la WireMap gelee anterieure OMETTAIT les lignes godot.project_root (racine solvability.gd, main.tscn, project.godot, tests/run_tests.gd) ; l'absence de la racine res://solvability.gd exigee par godot_oracle.mjs fut la cause EXACTE de l'echec de solvabilite. CORRIGE ICI : la ligne runtime.godot_project depose ces 4 artefacts nommes a la racine du projet (categories godot.project_root / godot.project_tests), chacun revendique par UNE seule ligne (regle REPO_MAP_TEMPLATE_IDENTITY_V1).",
+  "affordances_v4": "REGLE V4 GAME LOOP (ratifiee Pierre 2026-08-22, GO) : une ligne system.adapter par affordance de loop.json, `provides: [\"affordance:<nom>\"]`, `fichiers` = l'adaptateur d'entree qui la relie a sa regle, `couvre` = la capacite d'ENTREE correspondante. RISQUE DECLARE : le prefixe `affordance:*` est plus recent que le registre gele ; si check_collisions le refuse (identifiant inconnu), c'est un GATE PIERRE d'extension du registre, pas une erreur de la carte. FOG remonte.",
+  "audio_reuse": "La ligne audio.events REUTILISE games/pacman/06_RUNTIME/adapters/audio/audio.gd (son procedural a l'execution, AudioStreamGenerator, ZERO asset audio). `reused_from` explicite. NOTE BUILD : l'original precharge res://06_RUNTIME/adapters/sound_bank/sound_bank.gd et res://05_SYSTEMS/settings/settings.gd (chemins pacman) — l'etape build devra fournir/adapter ces deux dependances transitives dans l'arbre kitten_clicker. Constat, pas une decision de cette etape.",
+  "registres_03_world": "MESURE HERITEE : repo_map n'offre AUCUNE categorie pour un registre directement sous 03_WORLD/<id>.json (comme l'ecrivent la featuremap et le charter). La categorie legale la plus proche est `world.rules` -> 03_WORLD/rules/{id}/. La ligne content.registries depose donc les 4 registres sous 03_WORLD/rules/content/ (interne coherent). DIVERGENCE assumee vs le texte de la featuremap (03_WORLD/kittens.json) : FOG remonte — l'ajout d'une categorie repo_map est un GATE PIERRE.",
+  "core_genre_tension": "MESURE : core_requirements.yaml impose 10 lignes CORE (not_applicable_allowed: false) a TOUT jeu. Deux ne cadrent pas avec un clicker : core.end_condition (proof: un bot atteint une fin gagne/perdu) et core.exit (aucune capacite-feuille de sortie), sur un jeu SANS etat de defaite (state_no_defeat). Elles sont incluses (presence exigee par check_line_states) et `couvre` la feuille la moins mensongere (state_no_defeat), mais leur proof_expectation CORE est genre-incompatible. FOG remonte — meme cause que l'extension du registre : le standard n'est pas encore etendu au genre incremental."
+ },
+ "systems": [
+  {
+   "id": "core",
+   "category": "system",
+   "allowed_deps": [
+    "content"
+   ],
+   "blueprint_module": "05_SYSTEMS",
+   "role": "Coeur logique pur du clicker : increment strict au clic, production passive strictement croissante, effet economique strict des achats, courbe de paliers >=3 seuils distincts croissants, cycle de prestige (bonus permanent + reset des ronrons courants), suivi de collection, progression des quetes, invariant no-defeat. Emet des signaux, n'importe aucun adaptateur."
+  },
+  {
+   "id": "content",
+   "category": "world.rules",
+   "allowed_deps": [],
+   "blueprint_module": "03_WORLD",
+   "role": "Registres de contenu declaratifs (chatons, lieux, objets, quetes). Donnees seules, aucun comportement."
+  },
+  {
+   "id": "sprites",
+   "category": "asset.sprite",
+   "allowed_deps": [],
+   "blueprint_module": "04_ASSETS",
+   "role": "Assets visuels distincts par rarete (sprites) et par role de scene. Aucun code de jeu."
+  },
+  {
+   "id": "entities",
+   "category": "entity",
+   "allowed_deps": [
+    "content",
+    "sprites"
+   ],
+   "blueprint_module": "02_ENTITIES",
+   "role": "Entites de scene auto-contenues : chaton (idle en boucle, sprite selon rarete) et pelote centrale (rebond dans la meme frame que le clic). Aucune regle de jeu."
+  },
+  {
+   "id": "render",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "core",
+    "entities",
+    "content"
+   ],
+   "blueprint_module": "render",
+   "role": "Adaptateur de rendu/UI : HUD, vue du refuge, panneau de quetes, reponse visuelle au clic. LIT l'etat, ne decide d'aucune regle."
+  },
+  {
+   "id": "input",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "core"
+   ],
+   "blueprint_module": "input",
+   "role": "Adaptateur d'entree : traduit les InputEvent moteur en appels de la logique pure. Les affordances joueur entrent UNIQUEMENT par ici."
+  },
+  {
+   "id": "audio",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "core",
+    "sprites"
+   ],
+   "blueprint_module": "audio",
+   "role": "Adaptateur audio : un son distinct par evenement, declenche par les signaux de la logique. REUTILISE l'adaptateur procedural de pacman."
+  }
+ ],
+ "lines": [
+  {
+   "id": "input.pelote",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[clk_click_entry] + blueprint.json#input + loop.json#steps[EX02]",
+   "provides": [
+    "affordance:pelote"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "input",
+   "address": "06_RUNTIME/adapters/input/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd charge main.tscn : le bot declenche la cible 'pelote' instanciee dans main.tscn ; l'input de clic est recu par la scene et route vers la logique (clk_click_entry)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/input/input.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "sur_pelote",
+   "preuve": "input.gd : clic pelote -> Purrs.clic. godot_oracle.mjs games/kitten_clicker : run_tests.gd 112/112 + solvabilite R9 20/20 won verdict OK (FORGE_TRIAL succeeded, palier 3 atteint via main.tscn).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "clk_click_entry"
+   ]
+  },
+  {
+   "id": "input.acheter_chaton",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[shop_buy_kitten_entry] + blueprint.json#input + loop.json#steps[EX05]",
+   "provides": [
+    "affordance:acheter_chaton"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "input",
+   "address": "06_RUNTIME/adapters/input/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd charge main.tscn : le bot declenche la cible 'acheter_chaton' instanciee dans main.tscn ; l'input d'achat est recu par la scene (shop_buy_kitten_entry)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/input/input.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "sur_acheter_chaton",
+   "preuve": "input.gd : bouton -> Shop.acheter_chaton. godot_oracle.mjs games/kitten_clicker : run_tests.gd 112/112 + solvabilite R9 20/20 won verdict OK (FORGE_TRIAL succeeded, palier 3 atteint via main.tscn).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "shop_buy_kitten_entry"
+   ]
+  },
+  {
+   "id": "input.acheter_amelioration",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[shop_buy_upgrade_entry] + blueprint.json#input + loop.json#steps[EX18]",
+   "provides": [
+    "affordance:acheter_amelioration"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "input",
+   "address": "06_RUNTIME/adapters/input/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd charge main.tscn : le bot declenche la cible 'acheter_amelioration' instanciee dans main.tscn ; l'input d'amelioration est recu par la scene (shop_buy_upgrade_entry)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/input/input.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "sur_acheter_amelioration",
+   "preuve": "input.gd : bouton -> Shop.acheter_amelioration. Sonde player_loop EX18 pass (Prod/s 0.0->0.5).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "shop_buy_upgrade_entry"
+   ]
+  },
+  {
+   "id": "input.prestige",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[meta_prestige_entry] + blueprint.json#input + loop.json#steps[EX07]",
+   "provides": [
+    "affordance:prestige"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "input",
+   "address": "06_RUNTIME/adapters/input/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd charge main.tscn : le bot declenche la cible 'prestige' instanciee dans main.tscn ; l'input de prestige est recu par la scene (meta_prestige_entry)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/input/input.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "sur_prestige",
+   "preuve": "input.gd : bouton -> Prestige.prestige. core_audio.gd (headless) : FORGE_ORACLE ok=true, journal = 4 sons distincts [clic, achat, deblocage, prestige].",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "meta_prestige_entry"
+   ]
+  },
+  {
+   "id": "core.purrs",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[clk_click_increment,prod_passive_ronrons] + blueprint.json#05_SYSTEMS",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "category": "system",
+   "system_parent": "core",
+   "address": "05_SYSTEMS/core/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd : n clics => ronrons == valeur_initiale + n*gain_par_clic (egalite STRICTE, jamais >=) ; apres achat d'un chaton producteur, N ticks sans clic => ronrons_apres > ronrons_avant (strict)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/core/purrs.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "clic",
+   "preuve": "purrs.gd increment strict (test_purrs.test.gd) ; godot_oracle.mjs games/kitten_clicker : run_tests.gd 112/112 + solvabilite R9 20/20 won verdict OK (FORGE_TRIAL succeeded, palier 3 atteint via main.tscn).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "clk_click_increment",
+    "prod_passive_ronrons"
+   ]
+  },
+  {
+   "id": "core.shop",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[shop_buy_kitten_effect,shop_buy_upgrade_effect] + blueprint.json#05_SYSTEMS",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "category": "system",
+   "system_parent": "core",
+   "address": "05_SYSTEMS/core/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd : apres achat d'un chaton, production_par_seconde_apres > production_par_seconde_avant (strict) ; apres achat d'une amelioration, production_par_seconde strictement superieure a la valeur d'avant achat."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/core/shop.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "acheter_chaton",
+   "preuve": "shop.gd effet strict de la production (test_shop.test.gd, bornes strictes) ; run_tests.gd : 112/112 assertions, exit 0 (oracle mecanique headless, garde EXPECTED_ASSERTS).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "shop_buy_kitten_effect",
+    "shop_buy_upgrade_effect"
+   ]
+  },
+  {
+   "id": "core.paliers",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[prog_paliers_variance] + blueprint.json#05_SYSTEMS",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "category": "system",
+   "system_parent": "core",
+   "address": "05_SYSTEMS/core/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "07_TESTS/oracle/core_paliers.gd : lit la table des seuils de palier et verifie >=3 valeurs distinctes strictement croissantes (regle de variance des metriques ; pas d'egalite tautologique)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/core/paliers.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/oracle/core_paliers.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "seuils",
+   "preuve": "paliers.gd table [5,15,30] (test_paliers.test.gd) ; core_paliers.gd (headless) : FORGE_ORACLE ok=true, seuils observes [5,15,30] distincts strictement croissants.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "prog_paliers_variance"
+   ]
+  },
+  {
+   "id": "core.progression",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[prog_solvability] + blueprint.json#05_SYSTEMS",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "category": "system",
+   "system_parent": "core",
+   "address": "05_SYSTEMS/core/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd : le bot joue (clics + achats) et atteint palier_courant == 3 en ticks < BORNE_FINIE ; assertion STRICTE d'egalite au palier 3 (solvabilite non tautologique)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/core/progression.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "palier_courant",
+   "preuve": "progression.gd (test_progression.test.gd) ; godot_oracle.mjs games/kitten_clicker : run_tests.gd 112/112 + solvabilite R9 20/20 won verdict OK (FORGE_TRIAL succeeded, palier 3 atteint via main.tscn).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "prog_solvability"
+   ]
+  },
+  {
+   "id": "core.prestige",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[meta_prestige_unlock_place,meta_prestige_permanent_bonus] + blueprint.json#05_SYSTEMS",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "category": "system",
+   "system_parent": "core",
+   "address": "05_SYSTEMS/core/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd : au seuil de prestige, clic prestige => nombre_de_lieux passe de 1 a 2 (strict) et le second lieu devient visitable ; multiplicateur_apres > multiplicateur_avant avec ronrons remis a la base."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/core/prestige.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "prestige",
+   "preuve": "prestige.gd mult*1.5, lieux 1->2, reset ronrons (test_prestige.test.gd) ; run_tests.gd : 112/112 assertions, exit 0 (oracle mecanique headless, garde EXPECTED_ASSERTS).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "meta_prestige_unlock_place",
+    "meta_prestige_permanent_bonus"
+   ]
+  },
+  {
+   "id": "core.no_defeat",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[state_no_defeat] + blueprint.json#05_SYSTEMS",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "category": "system",
+   "system_parent": "core",
+   "address": "05_SYSTEMS/core/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "07_TESTS/oracle/core_no_defeat.gd : parcours des etats de jeu, aucun etat atteignable n'est marque 'defeat' ni 'game_over' ; aucune condition ne reinitialise involontairement la progression."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/core/game_state.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/oracle/core_no_defeat.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "phases_possibles",
+   "preuve": "game_state.gd invariant no-defeat (test_game_state.test.gd) ; core_no_defeat.gd (headless) : FORGE_ORACLE ok=true, etats_possibles=[jeu], aucune phase de defaite atteinte.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "state_no_defeat"
+   ]
+  },
+  {
+   "id": "runtime.godot_project",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[prog_solvability] + scripts/forge/godot_oracle.mjs (charge res://solvability.gd, res://tests/run_tests.gd) + manifest-d4fe9bfbe1c8e420 (racine omise = cause de l'echec de solvabilite)",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "category": "godot.project_root",
+   "system_parent": "core",
+   "address": "solvability.gd",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "node scripts/forge/godot_oracle.mjs games/kitten_clicker charge res://solvability.gd et res://tests/run_tests.gd ; le bot pilote main.tscn (scene assemblee) et atteint le 3e palier en ticks finis. main.tscn instancie les 4 cibles d'affordance."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "solvability.gd",
+     "category": "godot.project_root"
+    },
+    {
+     "path": "main.tscn",
+     "category": "godot.project_root"
+    },
+    {
+     "path": "project.godot",
+     "category": "godot.project_root"
+    },
+    {
+     "path": "tests/run_tests.gd",
+     "category": "godot.project_tests"
+    }
+   ],
+   "fonction": "_initialize",
+   "preuve": "solvability.gd + main.tscn + project.godot + tests/run_tests.gd deposes a la racine. godot_oracle.mjs games/kitten_clicker : run_tests.gd 112/112 + solvabilite R9 20/20 won verdict OK (FORGE_TRIAL succeeded, palier 3 atteint via main.tscn).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "prog_solvability"
+   ]
+  },
+  {
+   "id": "render.hud",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[prog_objective_permanent,prog_objective_next,coll_collection_hud] + blueprint.json#render",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "category": "system.adapter",
+   "system_parent": "render",
+   "address": "06_RUNTIME/adapters/render/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/main_screen_render.gd en gpu_window : Label 'objectif' non vide a l'ouverture ; au franchissement de palier le texte change vers un seuil superieur ; Label 'collection' non vide et croissant apres acquisition d'un type nouveau."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/render/hud.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "rafraichir",
+   "preuve": "hud.gd Labels groupe hud (objectif/collection). main_screen_render.gd (gpu_window) : FORGE_ORACLE ok=true (objectif non vide + change au palier, collection 0->1, pelote et refuge changent au pixel).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "prog_objective_permanent",
+    "prog_objective_next",
+    "coll_collection_hud"
+   ]
+  },
+  {
+   "id": "render.refuge",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[ref_kitten_appears] + blueprint.json#render",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "category": "system.adapter",
+   "system_parent": "render",
+   "address": "06_RUNTIME/adapters/render/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/main_screen_render.gd en gpu_window : avant achat 0 sprite de chaton dans le refuge, apres achat >=1 sprite de chaton nomme present a l'ecran."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/render/refuge_view.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "ajouter_chaton",
+   "preuve": "refuge_view.gd instancie un chaton a l'achat. main_screen_render.gd (gpu_window) : FORGE_ORACLE ok=true (objectif non vide + change au palier, collection 0->1, pelote et refuge changent au pixel).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "ref_kitten_appears"
+   ]
+  },
+  {
+   "id": "render.click_response",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[clk_click_response] + blueprint.json#render",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "category": "system.adapter",
+   "system_parent": "render",
+   "address": "06_RUNTIME/adapters/render/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd : apres un clic, ronrons_apres == ronrons_avant + gain ET le flag animation_jouee de la pelote vaut true (reponse double dans la meme frame)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/render/click_response.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "reagir_au_clic",
+   "preuve": "click_response.gd rebond + pop meme frame. main_screen_render.gd (gpu_window) : FORGE_ORACLE ok=true (objectif non vide + change au palier, collection 0->1, pelote et refuge changent au pixel).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "clk_click_response"
+   ]
+  },
+  {
+   "id": "render.quests",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[quest_panel_display] + blueprint.json#render",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "category": "system.adapter",
+   "system_parent": "render",
+   "address": "06_RUNTIME/adapters/render/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/main_screen_render.gd en gpu_window : le panneau de quetes affiche >=3 quetes, chacune avec un libelle d'objectif non vide et un indicateur de progression."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/render/quest_panel.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "afficher_quetes",
+   "preuve": "quest_panel.gd affiche 3 quetes avec progression (registre quests.json). main_screen_render.gd (gpu_window) : FORGE_ORACLE ok=true (objectif non vide + change au palier, collection 0->1, pelote et refuge changent au pixel).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "quest_panel_display"
+   ]
+  },
+  {
+   "id": "entity.kitten",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[ref_idle_anim,ref_rarity_visual] + blueprint.json#02_ENTITIES",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "category": "entity",
+   "system_parent": "entities",
+   "address": "02_ENTITIES/entities/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/gallery_render.gd en gpu_window : deux captures espacees d'un meme chaton au repos different au pixel (idle animee) ; deux chatons de raretes differentes ont des regions de sprite distinctes (hash non identiques)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "02_ENTITIES/entities/kitten.gd",
+     "category": "entity"
+    },
+    {
+     "path": "02_ENTITIES/entities/kitten.tscn",
+     "category": "entity"
+    }
+   ],
+   "fonction": "animer_idle",
+   "preuve": "kitten.gd idle + sprite selon rarete. gallery_render.gd (gpu_window) : FORGE_ORACLE ok=true (diff_rarete=1916, diff_idle=753).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "ref_idle_anim",
+    "ref_rarity_visual"
+   ]
+  },
+  {
+   "id": "entity.pelote",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[fb_click_pelote_anim] + blueprint.json#02_ENTITIES",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "category": "entity",
+   "system_parent": "entities",
+   "address": "02_ENTITIES/entities/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/main_screen_render.gd en gpu_window : deux captures avant/apres clic different au pixel sur la region de la pelote (rebond/particule detecte dans la meme frame)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "02_ENTITIES/entities/pelote.gd",
+     "category": "entity"
+    },
+    {
+     "path": "02_ENTITIES/entities/pelote.tscn",
+     "category": "entity"
+    }
+   ],
+   "fonction": "rebondir",
+   "preuve": "pelote.gd rebond dans la meme frame que le clic. main_screen_render.gd (gpu_window) : FORGE_ORACLE ok=true (objectif non vide + change au palier, collection 0->1, pelote et refuge changent au pixel). sonde runtime_alive (gpu_window) : FORGE_ORACLE ok=true (scene chargee, non-monochrome, image change apres clic, 7 scripts systeme).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "fb_click_pelote_anim"
+   ]
+  },
+  {
+   "id": "content.registries",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[content_kittens_registry,content_locations_registry,content_objects_registry,content_quests_registry] + blueprint.json#03_WORLD",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "category": "world.rules",
+   "system_parent": "content",
+   "address": "03_WORLD/rules/content/",
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "Presence et lecture de kittens.json (>=6 entrees {nom unique, rarete}), locations.json (>=2 entrees {id, debloque_par} dont une 'prestige'), objects.json (>=3 entrees {id, type}), quests.json (>=3 entrees {id, objectif, cible_progression}). FOG placement : repo_map n'a pas de categorie pour un registre directement sous 03_WORLD/ — pose sous 03_WORLD/rules/content/, divergence assumee vs le texte featuremap (03_WORLD/kittens.json)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "03_WORLD/rules/content/kittens.json",
+     "category": "world.rules"
+    },
+    {
+     "path": "03_WORLD/rules/content/locations.json",
+     "category": "world.rules"
+    },
+    {
+     "path": "03_WORLD/rules/content/objects.json",
+     "category": "world.rules"
+    },
+    {
+     "path": "03_WORLD/rules/content/quests.json",
+     "category": "world.rules"
+    }
+   ],
+   "fonction": "",
+   "preuve": "Registres JSON (kittens>=6, locations>=2 dont prestige, objects>=3, quests>=3) deposes et lus au boot par render.gd (_charger_registres).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "content_kittens_registry",
+    "content_locations_registry",
+    "content_objects_registry",
+    "content_quests_registry"
+   ]
+  },
+  {
+   "id": "audio.events",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[fb_event_sounds] + blueprint.json#audio",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "reused_from": "games/pacman/06_RUNTIME/adapters/audio/audio.gd",
+   "category": "system.adapter",
+   "system_parent": "audio",
+   "address": "06_RUNTIME/adapters/audio/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "07_TESTS/oracle/core_audio.gd tient un journal des declenchements : apres les 4 evenements (clic, achat, deblocage, prestige), le journal contient 4 identifiants de son distincts, un par evenement."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/audio/audio.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "jouer",
+   "preuve": "audio.gd synthese procedurale, 4 descripteurs distincts. core_audio.gd (headless) : FORGE_ORACLE ok=true, journal = 4 sons distincts [clic, achat, deblocage, prestige].",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "fb_event_sounds"
+   ]
+  },
+  {
+   "id": "asset.wool_ball",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "asset_requests.json#requests[wool_ball] + featuremap.json#capacites[fb_click_pelote_anim] + blueprint.json#04_ASSETS",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "asset.sprite",
+   "system_parent": "sprites",
+   "address": "04_ASSETS/sprites/wool_ball.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Le sprite 04_ASSETS/sprites/wool_ball.svg existe et est charge comme texture ; la pelote animee est detectable au pixel (fb_click_pelote_anim) via main_screen_render.gd."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/wool_ball.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "Sprite wool_ball.svg depose sous 04_ASSETS/sprites/ et charge comme texture (godot --import OK). Distinction de rarete / apparition verifiee au pixel par gallery_render.gd et main_screen_render.gd.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "fb_click_pelote_anim"
+   ]
+  },
+  {
+   "id": "asset.kitten_tabby_common",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "asset_requests.json#requests[kitten_tabby_common] + featuremap.json#capacites[ref_kitten_appears,ref_idle_anim,ref_rarity_visual] + blueprint.json#04_ASSETS",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "asset.sprite",
+   "system_parent": "sprites",
+   "address": "04_ASSETS/sprites/kitten_tabby_common.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Le sprite 04_ASSETS/sprites/kitten_tabby_common.svg existe, tete+queue isolees pour l'idle ; contribue a ref_kitten_appears, ref_idle_anim et a la distinction de rarete (gallery_render.gd)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/kitten_tabby_common.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "Sprite kitten_tabby_common.svg depose sous 04_ASSETS/sprites/ et charge comme texture (godot --import OK). Distinction de rarete / apparition verifiee au pixel par gallery_render.gd et main_screen_render.gd.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "ref_kitten_appears",
+    "ref_idle_anim",
+    "ref_rarity_visual"
+   ]
+  },
+  {
+   "id": "asset.kitten_gray_common",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "asset_requests.json#requests[kitten_gray_common] + featuremap.json#capacites[ref_kitten_appears,ref_idle_anim,ref_rarity_visual] + blueprint.json#04_ASSETS",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "asset.sprite",
+   "system_parent": "sprites",
+   "address": "04_ASSETS/sprites/kitten_gray_common.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Le sprite 04_ASSETS/sprites/kitten_gray_common.svg existe, tete+queue isolees ; contribue a ref_kitten_appears, ref_idle_anim, ref_rarity_visual (gallery_render.gd)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/kitten_gray_common.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "Sprite kitten_gray_common.svg depose sous 04_ASSETS/sprites/ et charge comme texture (godot --import OK). Distinction de rarete / apparition verifiee au pixel par gallery_render.gd et main_screen_render.gd.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "ref_kitten_appears",
+    "ref_idle_anim",
+    "ref_rarity_visual"
+   ]
+  },
+  {
+   "id": "asset.kitten_calico_common",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "asset_requests.json#requests[kitten_calico_common] + featuremap.json#capacites[ref_kitten_appears,ref_idle_anim,ref_rarity_visual] + blueprint.json#04_ASSETS",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "asset.sprite",
+   "system_parent": "sprites",
+   "address": "04_ASSETS/sprites/kitten_calico_common.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Le sprite 04_ASSETS/sprites/kitten_calico_common.svg existe, tete+queue isolees ; contribue a ref_kitten_appears, ref_idle_anim, ref_rarity_visual (gallery_render.gd)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/kitten_calico_common.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "Sprite kitten_calico_common.svg depose sous 04_ASSETS/sprites/ et charge comme texture (godot --import OK). Distinction de rarete / apparition verifiee au pixel par gallery_render.gd et main_screen_render.gd.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "ref_kitten_appears",
+    "ref_idle_anim",
+    "ref_rarity_visual"
+   ]
+  },
+  {
+   "id": "asset.kitten_tuxedo_rare",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "asset_requests.json#requests[kitten_tuxedo_rare] + featuremap.json#capacites[ref_rarity_visual,ref_idle_anim,ref_kitten_appears] + blueprint.json#04_ASSETS",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "asset.sprite",
+   "system_parent": "sprites",
+   "address": "04_ASSETS/sprites/kitten_tuxedo_rare.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Le sprite 04_ASSETS/sprites/kitten_tuxedo_rare.svg existe (tier rare, cadre bleu + etoiles), tete+queue isolees ; distinct au pixel d'un chaton common (gallery_render.gd, ref_rarity_visual)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/kitten_tuxedo_rare.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "Sprite kitten_tuxedo_rare.svg depose sous 04_ASSETS/sprites/ et charge comme texture (godot --import OK). Distinction de rarete / apparition verifiee au pixel par gallery_render.gd et main_screen_render.gd.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "ref_rarity_visual",
+    "ref_idle_anim",
+    "ref_kitten_appears"
+   ]
+  },
+  {
+   "id": "asset.kitten_siamese_rare",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "asset_requests.json#requests[kitten_siamese_rare] + featuremap.json#capacites[ref_rarity_visual,ref_idle_anim,ref_kitten_appears] + blueprint.json#04_ASSETS",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "asset.sprite",
+   "system_parent": "sprites",
+   "address": "04_ASSETS/sprites/kitten_siamese_rare.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Le sprite 04_ASSETS/sprites/kitten_siamese_rare.svg existe (tier rare), tete+queue isolees ; distinct au pixel d'un chaton common (gallery_render.gd, ref_rarity_visual)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/kitten_siamese_rare.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "Sprite kitten_siamese_rare.svg depose sous 04_ASSETS/sprites/ et charge comme texture (godot --import OK). Distinction de rarete / apparition verifiee au pixel par gallery_render.gd et main_screen_render.gd.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "ref_rarity_visual",
+    "ref_idle_anim",
+    "ref_kitten_appears"
+   ]
+  },
+  {
+   "id": "asset.kitten_golden_legendary",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "asset_requests.json#requests[kitten_golden_legendary] + featuremap.json#capacites[ref_rarity_visual,ref_idle_anim,ref_kitten_appears] + blueprint.json#04_ASSETS",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "asset.sprite",
+   "system_parent": "sprites",
+   "address": "04_ASSETS/sprites/kitten_golden_legendary.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Le sprite 04_ASSETS/sprites/kitten_golden_legendary.svg existe (tier legendary, cadre or + halo), tete+queue isolees ; le plus lumineux, distinct au pixel des tiers common/rare (gallery_render.gd, ref_rarity_visual)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/kitten_golden_legendary.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "Sprite kitten_golden_legendary.svg depose sous 04_ASSETS/sprites/ et charge comme texture (godot --import OK). Distinction de rarete / apparition verifiee au pixel par gallery_render.gd et main_screen_render.gd.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "ref_rarity_visual",
+    "ref_idle_anim",
+    "ref_kitten_appears"
+   ]
+  },
+  {
+   "id": "asset.rarity_frame_set",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "asset_requests.json#requests[rarity_frame_set] + featuremap.json#capacites[ref_rarity_visual] + blueprint.json#04_ASSETS",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "asset.sprite",
+   "system_parent": "sprites",
+   "address": "04_ASSETS/sprites/rarity_frame_set.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Le sprite 04_ASSETS/sprites/rarity_frame_set.svg existe (3 cadres empaquetes common/rare/legendary) : second signal de rarete, pose derriere le chaton (ref_rarity_visual)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/rarity_frame_set.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "Sprite rarity_frame_set.svg depose sous 04_ASSETS/sprites/ et charge comme texture (godot --import OK). Distinction de rarete / apparition verifiee au pixel par gallery_render.gd et main_screen_render.gd.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "ref_rarity_visual"
+   ]
+  },
+  {
+   "id": "asset.refuge_start",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "asset_requests.json#requests[refuge_start] + featuremap.json#capacites[content_locations_registry] + blueprint.json#04_ASSETS",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "asset.sprite",
+   "system_parent": "sprites",
+   "address": "04_ASSETS/sprites/refuge_start.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Le sprite 04_ASSETS/sprites/refuge_start.svg existe (decor interieur cosy 640x480) : realise visuellement le lieu de depart du registre des lieux (content_locations_registry)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/refuge_start.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "Sprite refuge_start.svg depose sous 04_ASSETS/sprites/ et charge comme texture (godot --import OK). Distinction de rarete / apparition verifiee au pixel par gallery_render.gd et main_screen_render.gd.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "content_locations_registry"
+   ]
+  },
+  {
+   "id": "asset.place_garden_unlocked",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "asset_requests.json#requests[place_garden_unlocked] + featuremap.json#capacites[meta_prestige_unlock_place] + blueprint.json#04_ASSETS",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "asset.sprite",
+   "system_parent": "sprites",
+   "address": "04_ASSETS/sprites/place_garden_unlocked.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Le sprite 04_ASSETS/sprites/place_garden_unlocked.svg existe (jardin exterieur 640x480, distinct du refuge) : realise le second lieu rendu visitable par le prestige (meta_prestige_unlock_place)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/place_garden_unlocked.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "Sprite place_garden_unlocked.svg depose sous 04_ASSETS/sprites/ et charge comme texture (godot --import OK). Distinction de rarete / apparition verifiee au pixel par gallery_render.gd et main_screen_render.gd.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "meta_prestige_unlock_place"
+   ]
+  },
+  {
+   "id": "asset.object_scratching_post",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "asset_requests.json#requests[object_scratching_post] + featuremap.json#capacites[content_objects_registry] + blueprint.json#04_ASSETS",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "asset.sprite",
+   "system_parent": "sprites",
+   "address": "04_ASSETS/sprites/object_scratching_post.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Le sprite 04_ASSETS/sprites/object_scratching_post.svg existe (griffoir, silhouette haute etroite) : realise l'objet 1/3 du registre des objets (content_objects_registry)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/object_scratching_post.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "Sprite object_scratching_post.svg depose sous 04_ASSETS/sprites/ et charge comme texture (godot --import OK). Distinction de rarete / apparition verifiee au pixel par gallery_render.gd et main_screen_render.gd.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "content_objects_registry"
+   ]
+  },
+  {
+   "id": "asset.object_food_bowl",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "asset_requests.json#requests[object_food_bowl] + featuremap.json#capacites[content_objects_registry] + blueprint.json#04_ASSETS",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "asset.sprite",
+   "system_parent": "sprites",
+   "address": "04_ASSETS/sprites/object_food_bowl.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Le sprite 04_ASSETS/sprites/object_food_bowl.svg existe (gamelle, silhouette basse large) : realise l'objet 2/3 du registre des objets (content_objects_registry)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/object_food_bowl.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "Sprite object_food_bowl.svg depose sous 04_ASSETS/sprites/ et charge comme texture (godot --import OK). Distinction de rarete / apparition verifiee au pixel par gallery_render.gd et main_screen_render.gd.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "content_objects_registry"
+   ]
+  },
+  {
+   "id": "asset.object_yarn_basket",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "asset_requests.json#requests[object_yarn_basket] + featuremap.json#capacites[content_objects_registry] + blueprint.json#04_ASSETS",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "asset.sprite",
+   "system_parent": "sprites",
+   "address": "04_ASSETS/sprites/object_yarn_basket.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Le sprite 04_ASSETS/sprites/object_yarn_basket.svg existe (panier de pelotes, silhouette ronde-trapue) : realise l'objet 3/3 du registre des objets (content_objects_registry)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/object_yarn_basket.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "Sprite object_yarn_basket.svg depose sous 04_ASSETS/sprites/ et charge comme texture (godot --import OK). Distinction de rarete / apparition verifiee au pixel par gallery_render.gd et main_screen_render.gd.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "content_objects_registry"
+   ]
+  },
+  {
+   "id": "asset.upgrade_icon_set",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "asset_requests.json#requests[upgrade_icon_set] + featuremap.json#capacites[shop_buy_upgrade_entry] + blueprint.json#04_ASSETS",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "asset.sprite",
+   "system_parent": "sprites",
+   "address": "04_ASSETS/sprites/upgrade_icon_set.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Le sprite 04_ASSETS/sprites/upgrade_icon_set.svg existe (3 pastilles rondes patte/fleche/etoile) : realise l'affordance visuelle d'achat d'amelioration dans la boutique (shop_buy_upgrade_entry)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/upgrade_icon_set.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "Sprite upgrade_icon_set.svg depose sous 04_ASSETS/sprites/ et charge comme texture (godot --import OK). Distinction de rarete / apparition verifiee au pixel par gallery_render.gd et main_screen_render.gd.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "shop_buy_upgrade_entry"
+   ]
+  },
+  {
+   "id": "asset.click_feedback_pop",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "asset_requests.json#requests[click_feedback_pop] + featuremap.json#capacites[fb_click_pelote_anim] + blueprint.json#04_ASSETS",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "asset.sprite",
+   "system_parent": "sprites",
+   "address": "04_ASSETS/sprites/click_feedback_pop.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Le sprite 04_ASSETS/sprites/click_feedback_pop.svg existe (pop ronron/coeur + 3 particules + texte +N) : realise le feedback visuel du clic detectable au pixel (fb_click_pelote_anim)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/click_feedback_pop.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "Sprite click_feedback_pop.svg depose sous 04_ASSETS/sprites/ et charge comme texture (godot --import OK). Distinction de rarete / apparition verifiee au pixel par gallery_render.gd et main_screen_render.gd.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "fb_click_pelote_anim"
+   ]
+  },
+  {
+   "id": "asset.ui_panel_frame",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "asset_requests.json#requests[ui_panel_frame] + featuremap.json#capacites[prog_objective_permanent,coll_collection_hud,quest_panel_display] + blueprint.json#04_ASSETS",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "asset.sprite",
+   "system_parent": "sprites",
+   "address": "04_ASSETS/sprites/ui_panel_frame.svg",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Le sprite 04_ASSETS/sprites/ui_panel_frame.svg existe (chrome de panneau + barres) : realise la chrome du HUD objectif permanent, du compteur de collection et du panneau de quetes (valeurs/textes dessines par le moteur)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/ui_panel_frame.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "Sprite ui_panel_frame.svg depose sous 04_ASSETS/sprites/ et charge comme texture (godot --import OK). Distinction de rarete / apparition verifiee au pixel par gallery_render.gd et main_screen_render.gd.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "prog_objective_permanent",
+    "coll_collection_hud",
+    "quest_panel_display"
+   ]
+  },
+  {
+   "id": "oracle.main_screen_render",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[prog_objective_permanent,prog_objective_next,coll_collection_hud,clk_click_response,ref_kitten_appears] + dispatch (volet 07_TESTS/oracle/main_screen_render.gd)",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "test.oracle",
+   "system_parent": "render",
+   "address": "07_TESTS/oracle/main_screen_render.gd",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/main_screen_render.gd (# forge:run_mode = gpu_window) : Label 'objectif' non vide a l'ouverture et change vers un seuil superieur au palier ; Label 'collection' non vide et croissant ; avant/apres clic la pelote differe au pixel ; avant/apres achat un sprite de chaton apparait dans le refuge. Emet FORGE_ORACLE main_screen_render {ok,fails,...}."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/main_screen_render.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "_run",
+   "preuve": "main_screen_render.gd (gpu_window) : FORGE_ORACLE ok=true (objectif non vide + change au palier, collection 0->1, pelote et refuge changent au pixel).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "prog_objective_permanent",
+    "prog_objective_next",
+    "coll_collection_hud",
+    "clk_click_response",
+    "ref_kitten_appears"
+   ]
+  },
+  {
+   "id": "oracle.gallery_render",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[ref_rarity_visual,ref_idle_anim] + dispatch (volet 07_TESTS/oracle/gallery_render.gd)",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "test.oracle",
+   "system_parent": "entities",
+   "address": "07_TESTS/oracle/gallery_render.gd",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/gallery_render.gd (# forge:run_mode = gpu_window) : >=2 chatons de raretes differentes -> regions de sprite distinctes (hash non identiques, ref_rarity_visual) ; deux captures espacees d'un meme chaton au repos different (idle animee, ref_idle_anim). Emet FORGE_ORACLE gallery_render {ok,fails,...}."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/gallery_render.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "_run",
+   "preuve": "gallery_render.gd (gpu_window) : FORGE_ORACLE ok=true (diff_rarete=1916, diff_idle=753).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "ref_rarity_visual",
+    "ref_idle_anim"
+   ]
+  },
+  {
+   "id": "oracle.core_audio",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "featuremap.json#capacites[fb_event_sounds] + charter.yaml#criteres_succes + dispatch (volet 07_TESTS/oracle/core_audio.gd)",
+   "provides": [],
+   "requires": [],
+   "owner": true,
+   "category": "test.oracle",
+   "system_parent": "audio",
+   "address": "07_TESTS/oracle/core_audio.gd",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "07_TESTS/oracle/core_audio.gd tient un journal des declenchements : apres les 4 evenements (clic, achat, deblocage, prestige), le journal contient 4 identifiants de son DISTINCTS, un par evenement. Emet FORGE_ORACLE core_audio {ok,fails,...}."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/core_audio.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "_emettre",
+   "preuve": "core_audio.gd (headless) : FORGE_ORACLE ok=true, journal = 4 sons distincts [clic, achat, deblocage, prestige].",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "fb_event_sounds"
+   ]
+  },
+  {
+   "id": "core.boot",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "game.boot"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system",
+   "system_parent": "core",
+   "address": "05_SYSTEMS/core/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Lancement -> etat initial atteint sans erreur, sans intervention humaine : a l'ouverture de main.tscn, le HUD objectif est non vide (etat initial observable)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/core/boot.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "etat_initial",
+   "preuve": "boot.gd etat initial + objectif non vide (test_boot.test.gd). sonde runtime_alive (gpu_window) : FORGE_ORACLE ok=true (scene chargee, non-monochrome, image change apres clic, 7 scripts systeme).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "prog_objective_permanent"
+   ]
+  },
+  {
+   "id": "core.main_loop",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "game.loop"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system",
+   "system_parent": "core",
+   "address": "05_SYSTEMS/core/",
+   "expected_proof": {
+    "kind": "test",
+    "statement": "Meme etat + meme entree + meme seed -> meme etat suivant, sur N ticks : la production passive fait avancer l'etat de maniere deterministe."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/core/main_loop.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "avancer",
+   "preuve": "main_loop.gd avance deterministe (test_main_loop.test.gd). run_tests.gd : 112/112 assertions, exit 0 (oracle mecanique headless, garde EXPECTED_ASSERTS).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "prod_passive_ronrons"
+   ]
+  },
+  {
+   "id": "core.input",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "input.action"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "input",
+   "address": "06_RUNTIME/adapters/input/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Une action emise modifie l'etat de jeu de facon observable : le clic sur la pelote incremente les ronrons."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/input/input.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "declencher",
+   "preuve": "input.gd route une action vers la logique. godot_oracle.mjs games/kitten_clicker : run_tests.gd 112/112 + solvabilite R9 20/20 won verdict OK (FORGE_TRIAL succeeded, palier 3 atteint via main.tscn).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "clk_click_entry"
+   ]
+  },
+  {
+   "id": "core.game_state",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "game.state"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system",
+   "system_parent": "core",
+   "address": "05_SYSTEMS/core/",
+   "expected_proof": {
+    "kind": "test",
+    "statement": "L'etat est lisible a tout instant et ne prend que des valeurs declarees : le compteur de collection 'possedes/total' est un etat observable et nomme."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/core/game_state.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "nouvel_etat",
+   "preuve": "game_state.gd etat observable nomme (test_game_state.test.gd). run_tests.gd : 112/112 assertions, exit 0 (oracle mecanique headless, garde EXPECTED_ASSERTS).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "coll_collection_hud"
+   ]
+  },
+  {
+   "id": "core.end_condition",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "game.end"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system",
+   "system_parent": "core",
+   "address": "05_SYSTEMS/core/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "FOG GENRE (voir notes_de_generation.core_genre_tension) : le clicker N'A PAS d'etat de defaite/victoire terminale (charter : aucun etat de defaite). La 'condition de fin' definie par les regles est l'invariant no-defeat : aucun etat atteignable n'est marque defeat/game_over. Le proof_expectation CORE (bot atteint gagne/perdu) est genre-incompatible et remonte a HumanGate."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/core/game_state.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "est_defaite",
+   "preuve": "game_state.gd : pour ce genre la fin EST l'absence de defaite (FOG genre remonte). core_no_defeat.gd (headless) : FORGE_ORACLE ok=true, etats_possibles=[jeu], aucune phase de defaite atteinte.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "state_no_defeat"
+   ]
+  },
+  {
+   "id": "core.restart",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "game.restart"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system",
+   "system_parent": "core",
+   "address": "05_SYSTEMS/core/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Apres un cycle de prestige, les ronrons courants sont remis a la base (etat courant propre) tandis que le bonus permanent est conserve : le mecanisme de relance dans un etat initial propre le plus proche du genre."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/core/prestige.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "reset_courant",
+   "preuve": "prestige.gd remet les ronrons courants a la base (test_prestige.test.gd). run_tests.gd : 112/112 assertions, exit 0 (oracle mecanique headless, garde EXPECTED_ASSERTS).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "meta_prestige_permanent_bonus"
+   ]
+  },
+  {
+   "id": "core.exit",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "game.exit"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "render",
+   "address": "06_RUNTIME/adapters/render/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "FOG GENRE (voir notes_de_generation.core_genre_tension) : sortie demandee -> processus termine, code de sortie 0, aucune ressource laissee active. Aucune capacite-feuille ne modelise la sortie applicative ; ancre par defaut sur state_no_defeat (etat toujours valide, aucun residu). Contenu propre de core.exit remonte a HumanGate."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/render/app_lifecycle.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "quitter",
+   "preuve": "app_lifecycle.gd sortie propre code 0 (FOG genre remonte : aucune feuille de sortie). run_tests.gd : 112/112 assertions, exit 0 (oracle mecanique headless, garde EXPECTED_ASSERTS).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "state_no_defeat"
+   ]
+  },
+  {
+   "id": "core.render",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "render.frame"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "render",
+   "address": "06_RUNTIME/adapters/render/",
+   "expected_proof": {
+    "kind": "pixel",
+    "statement": "Deux captures a des etats differents different ; aucune capture n'est monochrome : deux captures avant/apres clic de la pelote different au pixel (main_screen_render.gd, gpu_window)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/render/render.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "assembler",
+   "preuve": "render.gd assemble main.tscn ; l'affichage change quand l'etat change. main_screen_render.gd (gpu_window) : FORGE_ORACLE ok=true (objectif non vide + change au palier, collection 0->1, pelote et refuge changent au pixel). sonde runtime_alive (gpu_window) : FORGE_ORACLE ok=true (scene chargee, non-monochrome, image change apres clic, 7 scripts systeme).",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "fb_click_pelote_anim"
+   ]
+  },
+  {
+   "id": "core.audio",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "audio.cue"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "audio",
+   "address": "06_RUNTIME/adapters/audio/",
+   "expected_proof": {
+    "kind": "artifact",
+    "statement": "Un retour sonore existe, est reference par le contrat, et son declenchement est trace : core_audio.gd journalise 4 sons distincts, un par evenement."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/audio/audio.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "consommer",
+   "preuve": "audio.gd retour sonore trace par evenement. core_audio.gd (headless) : FORGE_ORACLE ok=true, journal = 4 sons distincts [clic, achat, deblocage, prestige].",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "fb_event_sounds"
+   ]
+  },
+  {
+   "id": "core.error_handling",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "error.guard"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system",
+   "system_parent": "core",
+   "address": "05_SYSTEMS/core/",
+   "expected_proof": {
+    "kind": "test",
+    "statement": "Entrees hors domaine (nulle, hors bornes, repetee, simultanee) -> etat de jeu toujours valide : aucun etat atteignable n'est marque defeat/game_over (core_no_defeat.gd), aucune reinitialisation involontaire."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/core/game_state.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "etat_valide",
+   "preuve": "game_state.gd : entree hors domaine -> etat toujours valide (test_game_state.test.gd). core_no_defeat.gd (headless) : FORGE_ORACLE ok=true, etats_possibles=[jeu], aucune phase de defaite atteinte.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "state_no_defeat"
+   ]
+  }
+ ],
+ "discarded": []
+}

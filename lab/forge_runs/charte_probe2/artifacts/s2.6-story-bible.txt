@@ -1,0 +1,110 @@
+I've now read the contract's mandatory files (SCHEMA.md, FORGE_PIPELINE_TARGET_V1.md), both injected sources (charter.yaml + s2-worldscan.txt), and the exact oracle that will adjudicate my output (`check_story_bible`, `static_oracles.py:1230-1331`). I have everything needed to produce the anchored Story Bible.
+
+---
+
+## RAPPORT FINAL — s2.6-story-bible / charte_probe2
+
+**Ancres réelles (non-LLM / entrées vérifiées)**
+- `charter.yaml` (présent, injecté) — cité champ par champ : `objectif`, `reference_jeu`, `hors_scope`, `criteres_succes`, `criteres_demo`. C'est la **seule** source qui décrit le monde de *charte_probe2*.
+- `artifacts/s2-worldscan.txt` (présent, injecté) — observation de genre sur **3 jeux comparables** (Hades, Isaac, Slay the Spire) : `games[].loops`, `objectives`, `retention_answer`. Ne décrit pas le monde de *charte_probe2* ; ne fonde que des **inférences de lignée de genre** (toutes marquées `inferred: true`).
+- Oracle lu (non exécuté par moi) : `forge.static_oracles.check_story_bible` (`static_oracles.py:1230-1331`) + `STORY_BIBLE_SECTIONS` (:1222) + `_gm_is_placeholder` (:1117). La bible ci-dessous vise sa spécification de forme : 8 sections uniques, `status` explicite, GROUNDED ⇒ ≥1 élément `statement/source/ref` non vides + `inferred` booléen + `source ∈ {worldscan, charter}`, NOT_GROUNDED ⇒ `reason` non vide, zéro placeholder.
+
+**Sections NOT_GROUNDED et raison (déclarées honnêtement)**
+- `chronology` → **NOT_GROUNDED** : ni le charter ni le worldscan ne fournissent de chronologie/histoire du monde (fondation de la bibliothèque, début du conflit des factions, datation). La seule structure temporelle est la boucle de run cyclique (traitée sous `events`/`coherence_rules`) ; « Salle des Origines » nomme une origine sans la dater. Ancrer une chronologie serait du remplissage.
+- Les 7 autres sections sont **GROUNDED**, chacune adossée à un passage cité. Faits **dits** par le charter : `inferred: false`. Déductions déclarées (attribution des deux pôles conservation/destruction aux deux factions, règles de cohérence, lignée de genre worldscan) : `inferred: true`.
+
+**Ce qui n'est PAS fourni par les entrées — non inventé, non canon** : noms des factions, allégeance de l'archiviste, histoire d'origine de la bibliothèque. Consigné en règle de cohérence, jamais comblé.
+
+**Verdicts**
+- Aucun oracle exécuté de mon côté : `permissions.run = aucun` (le contrat me l'interdit). `check_story_bible` sera lancé par l'exécuteur (`run_real.py`) après matérialisation de `story_bible.json`.
+- N'ayant **aucun reçu d'oracle exécuté**, je ne certifie pas la conformité : `claim_verdict: NO_CLAIM_ALLOWED`. La conformité par lecture de l'oracle ≠ preuve mécanique.
+- `fog → HumanGate` : (1) fidélité sémantique de chaque `ref` à son passage (un oracle de forme ne lit pas la source) ; (2) pertinence des déductions `inferred: true` — jugement humain hors portée non-LLM.
+
+**SKIPPED_VALIDATION**
+- item : exécution de `forge.static_oracles.check_story_bible` · où : `story_bible.json` produit · statut : non fait · raison : `run = aucun` — l'oracle est exécuté par `run_real.py` après matérialisation.
+- item : vérification que chaque `ref` cite fidèlement le passage source · où : les 8 sections · statut : partiel · raison : l'oracle ne lit pas le contenu ; j'ai cité des champs réels du charter/worldscan, la fidélité sémantique relève d'une lecture humaine (fog).
+- item : pertinence des déductions `inferred: true` · où : `factions`, `coherence_rules`, éléments worldscan de `context`/`events` · statut : non fait · raison : hors portée d'un oracle non-LLM (fog → Pierre).
+
+```json
+{
+  "game_id": "charte_probe2",
+  "inputs_recus": { "worldscan": true, "charter": true },
+  "sections": [
+    {
+      "id": "context",
+      "status": "GROUNDED",
+      "elements": [
+        { "statement": "Le monde est une bibliothèque infinie qui se réécrit à chaque mort du joueur.", "source": "charter", "ref": "objectif : « une bibliothèque infinie qui se RÉÉCRIT à chaque mort »", "inferred": false },
+        { "statement": "Le joueur incarne un archiviste enfermé dans cette bibliothèque.", "source": "charter", "ref": "objectif : « le joueur incarne un archiviste enfermé dans une bibliothèque infinie »", "inferred": false },
+        { "statement": "Le monde est vécu en solo, du seul point de vue de l'archiviste.", "source": "charter", "ref": "hors_scope : « le jeu est SOLO (posé par Pierre) »", "inferred": false },
+        { "statement": "Le monde s'inscrit dans la lignée du roguelike de donjon à hub, où la mort renvoie le joueur à un PNJ récurrent — patron observé sur Hades.", "source": "worldscan", "ref": "games[Hades].loops.endgame : « retour au hub House of Hades ... déblocages narratifs » ; synthèse : « Hub persistent de retour (Hades) : pattern de psychological safety post-mort »", "inferred": true }
+      ]
+    },
+    {
+      "id": "chronology",
+      "status": "NOT_GROUNDED",
+      "reason": "Ni le charter ni le worldscan ne fournissent de chronologie ou d'historique du monde (fondation de la bibliothèque, début du conflit des factions, datation d'événements). La seule structure temporelle disponible est la boucle de run cyclique (mort -> réécriture -> retour), traitée sous 'events' et 'coherence_rules' ; la « Salle des Origines » nomme une origine sans la dater ni la décrire. Ancrer une chronologie ici serait du remplissage."
+    },
+    {
+      "id": "stakes",
+      "status": "GROUNDED",
+      "elements": [
+        { "statement": "Deux factions s'affrontent sur la conservation ou la destruction des livres — l'enjeu de fond du monde.", "source": "charter", "ref": "objectif : « Deux factions s'opposent sur la conservation ou la destruction des livres »", "inferred": false },
+        { "statement": "L'enjeu du joueur est de traverser les salles jusqu'à atteindre la Salle des Origines.", "source": "charter", "ref": "objectif : « traverser les salles jusqu'à atteindre la Salle des Origines »", "inferred": false },
+        { "statement": "La mort ne clôt pas la partie mais réinitialise le run et réécrit l'agencement — l'enjeu d'un run est donc impermanent (lecture de l'effet de la mort).", "source": "charter", "ref": "criteres_succes : « La mort du joueur réinitialise le run, réécrit l'agencement »", "inferred": true }
+      ]
+    },
+    {
+      "id": "factions",
+      "status": "GROUNDED",
+      "elements": [
+        { "statement": "Le monde compte exactement deux factions.", "source": "charter", "ref": "objectif : « Deux factions s'opposent sur la conservation ou la destruction des livres »", "inferred": false },
+        { "statement": "Une faction vise la conservation des livres (déduction : le pôle « conservation » de l'axe cité, attribué à l'une des deux factions).", "source": "charter", "ref": "objectif : « ...sur la conservation ou la destruction des livres »", "inferred": true },
+        { "statement": "L'autre faction vise la destruction des livres (déduction symétrique : le pôle « destruction » de l'axe).", "source": "charter", "ref": "objectif : « ...sur la conservation ou la destruction des livres »", "inferred": true },
+        { "statement": "Les factions sont un cadre narratif du monde, pas un système simulé dans ce run.", "source": "charter", "ref": "hors_scope : « elles sont un cadre narratif du monde, pas un système à modéliser dans ce run »", "inferred": false }
+      ]
+    },
+    {
+      "id": "characters",
+      "status": "GROUNDED",
+      "elements": [
+        { "statement": "La Bibliothécaire : personnage récurrent qui accueille le joueur à chaque retour de run, visible à l'écran.", "source": "charter", "ref": "objectif : « la Bibliothécaire, accueille le joueur à chaque retour de run » ; criteres_demo : « La Bibliothécaire est visible à l'écran et accueille le joueur au démarrage / au retour d'un run »", "inferred": false },
+        { "statement": "L'archiviste : personnage-joueur enfermé dans la bibliothèque, visible et mobile dans une salle.", "source": "charter", "ref": "objectif : « le joueur incarne un archiviste enfermé » ; criteres_demo : « L'archiviste incarné par le joueur est visible et se déplace dans une salle »", "inferred": false },
+        { "statement": "L'archiviste et la Bibliothécaire sont les deux seuls personnages nommés par les entrées ; aucun autre PNJ n'est fourni.", "source": "charter", "ref": "objectif (aucun autre personnage cité dans les deux entrées)", "inferred": true }
+      ]
+    },
+    {
+      "id": "relations",
+      "status": "GROUNDED",
+      "elements": [
+        { "statement": "La Bibliothécaire accueille l'archiviste à chaque retour — relation d'hôte à revenant ; sa nature précise (mentor, allié, geôlière) n'est pas donnée par les entrées.", "source": "charter", "ref": "objectif : « la Bibliothécaire, accueille le joueur à chaque retour de run »", "inferred": false },
+        { "statement": "Les deux factions sont en relation d'opposition autour du sort des livres.", "source": "charter", "ref": "objectif : « Deux factions s'opposent sur la conservation ou la destruction des livres »", "inferred": false }
+      ]
+    },
+    {
+      "id": "events",
+      "status": "GROUNDED",
+      "elements": [
+        { "statement": "Événement de mort : réinitialise le run et réécrit l'agencement de la bibliothèque.", "source": "charter", "ref": "criteres_succes : « La mort du joueur réinitialise le run, réécrit l'agencement »", "inferred": false },
+        { "statement": "Événement de retour : après mort et réécriture, le joueur est ramené face à la Bibliothécaire.", "source": "charter", "ref": "criteres_succes : « ...et ramène le joueur face à la Bibliothécaire »", "inferred": false },
+        { "statement": "Événement de résolution de salle : résoudre une salle déclenche l'ouverture d'une porte (changement d'état visible).", "source": "charter", "ref": "criteres_demo : « Une porte VISIBLE à l'écran s'OUVRE ... au moment où une salle est résolue »", "inferred": false },
+        { "statement": "La boucle de run est un cycle récurrent : run -> mort -> réécriture -> retour à la Bibliothécaire.", "source": "charter", "ref": "objectif : « la boucle roguelike (run -> mort -> réécriture -> retour à la Bibliothécaire) »", "inferred": false },
+        { "statement": "L'événement « la mort renvoie au hub/PNJ » reproduit le patron de genre où la mort est un temps de récit et non une punition (observé sur Hades).", "source": "worldscan", "ref": "games[Hades].retention_answer : « Death is reframed as a story beat rather than punishment »", "inferred": true }
+      ]
+    },
+    {
+      "id": "coherence_rules",
+      "status": "GROUNDED",
+      "elements": [
+        { "statement": "La bibliothèque se réécrit à chaque mort : la géographie du monde n'est pas stable entre runs ; la narration ne doit pas présupposer un plan fixe.", "source": "charter", "ref": "objectif / criteres_succes : « une bibliothèque infinie qui se RÉÉCRIT à chaque mort » ; « réécrit l'agencement »", "inferred": true },
+        { "statement": "Dans la fiction, la mort n'est pas terminale : l'archiviste revient auprès de la Bibliothécaire plutôt que de disparaître définitivement.", "source": "charter", "ref": "criteres_succes : « ramène le joueur face à la Bibliothécaire »", "inferred": true },
+        { "statement": "La Salle des Origines doit rester atteignable : le monde offre une chaîne de salles résolubles jusqu'à elle ; un objectif inatteignable romprait la cohérence.", "source": "charter", "ref": "criteres_succes : « il existe une chaîne de salles résolubles menant à la Salle des Origines »", "inferred": true },
+        { "statement": "Les factions restent une toile de fond narrative : ne pas narrer la guerre des factions comme un système de jeu simulé.", "source": "charter", "ref": "hors_scope : « un cadre narratif du monde, pas un système à modéliser dans ce run »", "inferred": false },
+        { "statement": "Non fournis par les entrées, donc non canoniques et à ne pas inventer en aval : les noms des factions, l'allégeance de l'archiviste, et l'histoire d'origine de la bibliothèque.", "source": "charter", "ref": "objectif + hors_scope (aucun nom de faction, aucune allégeance de l'archiviste, aucune origine datée fournis dans les deux entrées)", "inferred": true }
+      ]
+    }
+  ]
+}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le worldscan injecté ne fournit AUCUN fait de monde propre a charte_probe2 : il observe 3 jeux de genre comparables (Hades/Isaac/Slay) et ne fonde que des inferences de lignee (context/events, inferred:true), laissant l'ancrage du monde reposer entierement sur le charter ; si le charter avait ete plus mince, la majorite des 8 sections s'effondrerait en NOT_GROUNDED.", "root_cause": "Le s2-worldscan de l'agent artistique doit observer « le monde ET les references » (FORGE_PIPELINE_TARGET_V1 §1) mais l'artefact injecte ne porte que la moitie references (games[], loops, objectives, retention) ; la moitie monde est absente, donc la Story Bible n'a qu'une source d'ancrage effective, le charter."}

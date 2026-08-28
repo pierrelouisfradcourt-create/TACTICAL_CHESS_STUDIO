@@ -1,0 +1,240 @@
+Analyzing le genre clicker/idle incremental à travers trois architectures majeures : **Cookie Clicker** (établisseur de genre), **Neko Atsume** (variante collection-passive), **AdVenture Capitalist** (tycoon/prestige).
+
+---
+
+## OBSERVATION COMPARATIVE
+
+### **Cookie Clicker** — Fondations du Genre (Clicker Actif → Idle Passif)
+
+**Boucle minute 1** : Un clic → +1 cookie visible. Feedback immédiat : particules, chiffre flottant. Coût premier bâtiment (10 cookies) atteint en ~10 clics. [Progression Stages Wiki](https://cookieclicker.wiki.gg/wiki/Progression_Stages), [Wikipedia](https://en.wikipedia.org/wiki/Cookie_Clicker).
+
+**Boucle minute 10** : Premiers bâtiments (cursor, grandma) génèrent production autonome. CPS (cookies/sec) dépasse le taux de clic manuel. Acquisition des trois premiers upgrades (multiplicateurs 2×). Sensation de transition active→passive commence. [Mechanics Article](https://cookieclickeronline.net/cookie-clicker-mechanics-and-progression.html).
+
+**Boucle heure 5** : Production génère 1M+ cookies. Le seuil d'ascension (prestige reset) devient accessible. Décision stratégique : « continuer accumulation » vs « réinitialiser pour heavenly chips ». Wrinklers (parasites CPS) ajoutent tactique de gestion. [Medium: Technical Architecture](https://medium.com/@tommcfly2025/clicker-games-a-technical-exploration-of-incremental-system-architecture-b6d842e6963e).
+
+**Endgame** : Cycles de prestige infinis. 637+ achievements = soft goals. Grandmapocalypse lore, seasonal events, sugar lumps, minijeux (Farm, Bank). **Aucune fin** : jeu explicitement sans win condition. [Ultimate Strategy Guide](https://pekis.net/article/cookie-clicker-ultimate-guide-mastering-game).
+
+**Conventions visuelles/sonores** : Clic satisfaisant (feedback 0-50ms), particules dorées explosives, sons de *chime* à chaque milestone, ascension visual ramp-up en couleur/taille bâtiments. [Feedback Lessons Medium](https://medium.com/@fernando1lins/lessons-learned-in-audio-feedback-for-game-and-app-design-e4818c9b72fd).
+
+**Rétention** : Ladder climbing effect (prestige cycles), dopamine hits exponentiels (chaque upgrade > précédent), achievement hunt structuré, events saisonniers, FOMO soft (Krumblor, wrinklers = engagement continu).
+
+**Risque monotonie** : Au-delà d'une heure sans nouveau système, clics deviennent inerte mécanique (tap fatigue). Atténué ici par prestige/achievements/lore.
+
+---
+
+### **Neko Atsume** — Collection Passive (Opposite Loop)
+
+**Boucle minute 1** : Place nourriture + 1 jouet. Quitte le jeu. Interface minimaliste comprendre seule. [Medium Game Design](https://alexiamandeville.medium.com/game-design-breakdown-the-simplicity-of-neko-atsume-a8616a937a47).
+
+**Boucle minute 10** : Reviens vérifier. 1-3 chats visités, chacun laisse poisson (currency). Photographier chat = collect memento. Compréhension : fréquence retour = revenu, variété toys/food = diversité chat. [iMore Guide](https://www.imore.com/neko-atsume-game-guide-how-collect-all-cats).
+
+**Boucle heure 5** : Long gaps génèrent anticipation. Rare cats (26/66) need specific toy+food combos. Trial-and-error de layouts = re-engagement. Mementos créent collection dopamine (tangible progress hors chiffres). [Neko Atsume Wiki](https://nekoatsume.fandom.com/wiki/Neko_Atsume).
+
+**Endgame** : **Collecte 66 chats = zéro terminus** : jeu continue infiniment si poisson/nourriture offerts. Mementos accumulent mais aucun « tous reçus = victoire ». [Daily Dot Guide](https://www.dailydot.com/news/neko-atsume-cat-collecting-guide/).
+
+**Conventions visuelles** : Sprites chats mignons (anthropomorphe), animation dormeur/joueur, UI clean sans clutter. Peu de sons : clic soft, tinkling quand chat arrive, minimalisme intentionnel = zen gardening UX. [MDA Analysis](https://mechanicsofmagic.com/2024/04/07/mda-neko-atsume/).
+
+**Rétention** : Offline progression (chats visitent seuls), completion dopamine (262 items d'une checklist : toys, food, memento, etc.), cute factor, **low friction** (5min sessions suffisent). Paradoxe : aucune « défaite », zéro stress.
+
+**Risque monotonie** : Après 20-30 chats collectés, cycle devenu répétitif (mêmes toys attirent mêmes chats). Rare cats = rétention hook final, mais fragile si toy-chat matchmaking devient trop transparent.
+
+---
+
+### **AdVenture Capitalist** — Tycoon Prestige Loops
+
+**Boucle minute 1** : Achète lemonade stand. Génère $0.01/sec passivement. Upgrade "Little Umbrellas" × 3 profit. Premier manager purchase possible. [Progression Mechanics](https://www.bananatic.com/games/adventure-capitalist-457/the-progression-system-and-upgrade-mechanics-in-adventure-capitalist-24184).
+
+**Boucle minute 10** : 3-5 businesses en exploitation (pizza, car wash, farm). Managers := automation (aucun tap requis). Income exponential, upgrade costs > 100×. Décision stratégique : « farm local income » vs « unlock new business ». [Medium: Idle Capitalism](https://medium.com/gametalk/idle-capitalism-eac089cd670).
+
+**Boucle heure 5** : Angel Investors prestige visible. Reset → lose all buildings, gain 5-10% permanent boost. Optimal prestige timing = stratégie long-term. Offline progression continue (buildings auto-generate revenue).
+
+**Endgame** : **Aucun cap** : angel investor multipliers stack infiniment. Solo business empire building. Nouveaux business planets débloqués (Venus, Mars) = content expansion, pas win state. [Five Business Lessons Pete Keen](https://www.petekeen.net/five-business-lessons-from-an-idle-game/).
+
+**Conventions visuelles** : Ticker-tape UI (stocks/numbers), manager character portraits, income bar visually filling. Moins de particles que Cookie Clicker, focus economique visuel. Chiffres grands = feel powerful.
+
+**Rétention** : Economic gratification (net worth go brrr), prestige resets = power fantasy (lose everything, gain god-mode), offline wealth accumulation. Planetary progression = 3-5 separate prestige trees.
+
+**Risque monotonie** : Sans event/narrative, devient pure spreadsheet optimization. Atténué par new planets + manager humor text.
+
+---
+
+## CONVENTIONS DU GENRE CLICKER/IDLE
+
+**Mécaniques transversales** :
+- Exponential cost scaling (chaque upgrade 1.15× précédent, buildable à calculateur) + multiplicative production (rendre chaque upgrade *sentir* puissant)
+- Prestige reset = ladder-climbing meta-progression (perte court-terme pour boost long-terme)
+- Offline progression = idle core (revenu continue sans app open)
+- Soft goals (achievements, collections, milestones) remplacent win states
+- **Aucun des trois n'a de défaite possible** : perte d'argent, obsolescence impossible
+
+**Visual feedback** : Particules explosives, chiffres flottants, couleur ramp-up (progression visible), sprite animation (taille/pulsation). Speed perceptible via visual density. [Visual Feedback Best Practices](https://www.seeles.ai/resources/blogs/scratch-clicker-game-ui).
+
+**Audio feedback** : Click satisfaisant (~50ms latency max), chime à milestone (dopamine audio), upgrade purchase chime, silence periods punish (feedback absence = perceived lag).
+
+**Rétention structurelle** :
+- **Dopamine micro-rewards** : chaque action = feedback  immédiat (clip, +10 coins, achievement unlocked)
+- **Collection/completion** : checklist visible (% complétion), rare drops maintain engagement
+- **FOMO soft** : events saisonniers, prestige cycles créent urgency sans punishment
+- **Anticipation loops** : long gaps entre sessions (off-screen progress) reward delayed gratification
+- **Narrative light** : lore minimal (Cookie Clicker's Grandmapocalypse, AdVen's capitalism pastiche) prevent monotony
+
+**Monotonie identified risks** :
+- 2-3 heures : repetitive tapping fatigue (tap clicking > clicking = passive mode save)
+- 10+ heures : prestige loop devient transparent (calcul optimal = émotion perdue)
+- Rares (Neko) : predictability kill curiosity après 15+ rare hunts
+- Plateau sans new content : growth stall = drop-off
+
+---
+
+```json
+{
+  "games": [
+    {
+      "game": "Cookie Clicker",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Cookie_Clicker",
+          "type": "wiki",
+          "timestamp": "2026-08-22"
+        },
+        {
+          "url": "https://cookieclicker.wiki.gg/wiki/Progression_Stages",
+          "type": "wiki",
+          "timestamp": "2026-08-22"
+        },
+        {
+          "url": "https://medium.com/@tommcfly2025/clicker-games-a-technical-exploration-of-incremental-system-architecture-b6d842e6963e",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        },
+        {
+          "url": "https://gamerant.com/cookie-clicker-best-upgrades/",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        },
+        {
+          "url": "https://cookieclickeronline.net/cookie-clicker-mechanics-and-progression.html",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        }
+      ],
+      "loops": {
+        "minute_1": "Click big cookie for +1 cookie feedback; first building cost (10 cookies) reached in ~10 clicks; particle effects + floating numbers establish active engagement",
+        "minute_10": "First buildings (cursor, grandma) generate autonomous production; CPS exceeds manual click rate; first multiplier upgrades acquired; transition from active to idle play begins",
+        "hour_5": "Production generates 1M+ cookies; ascension (prestige reset) becomes accessible; strategic choice between continuing or resetting for heavenly chips; wrinklers add tactical management layer",
+        "endgame": "Infinite prestige cycles with 637+ achievements as soft goals; Grandmapocalypse lore, seasonal events, sugar lumps, minigames (Farm, Bank) provide variety; no traditional win condition"
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Maximize cookie production per second through upgrades and buildings; earn heavenly chips via prestige resets to unlock permanent multipliers; collect all 637+ achievements; explore Grandmapocalypse storyline and seasonal events"
+        }
+      ],
+      "retention_answer": "Ladder-climbing effect from prestige cycles creates long-term satisfaction; exponential growth feels progressively more powerful; achievement milestones provide structure and 20%+ retention uplift from audio/visual feedback (chimes, particles, color ramps); events prevent stagnation. Monotony risk: beyond 2-3 hours, repeated tapping fatigues without new mechanics; managed via prestige gates and achievement variety. Visual conventions: explosive gold particles on milestone hits, sprite size/color escalation reflects progression, satisfying click sound (50ms latency). Audio: chime at each major unlock, upgrade purchase SFX, silence periods punish perceived lag."
+    },
+    {
+      "game": "Neko Atsume",
+      "sources": [
+        {
+          "url": "https://nekoatsume.fandom.com/wiki/Neko_Atsume",
+          "type": "wiki",
+          "timestamp": "2026-08-22"
+        },
+        {
+          "url": "https://alexiamandeville.medium.com/game-design-breakdown-the-simplicity-of-neko-atsume-a8616a937a47",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        },
+        {
+          "url": "https://www.imore.com/neko-atsume-game-guide-how-collect-all-cats",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        },
+        {
+          "url": "https://www.dailydot.com/news/neko-atsume-cat-collecting-guide/",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        },
+        {
+          "url": "https://mechanicsofmagic.com/2024/04/07/mda-neko-atsume/",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        }
+      ],
+      "loops": {
+        "minute_1": "Place food + select one toy in yard; exit game; UI communicates collection mechanic with minimal onboarding; anticipation begins",
+        "minute_10": "Return to check yard; 1-3 cats have visited; photograph each cat (memento collection); collect fish currency reward; understand feedback loop: frequency of visits correlates with setup variety",
+        "hour_5": "Long gaps between sessions generate anticipation and reward delayed gratification; rare cats (26/66) require specific toy+food combinations; trial-and-error layout optimization drives re-engagement and layout diversity",
+        "endgame": "Collect all 66 cats and their mementos; game continues indefinitely if food/toys maintained; no terminal condition; soft completion goal (all cats) provides endgame arc but not mandatory"
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Collect all 66 cats (26 rare variants) by arranging toys and food optimally; receive unique memento gift from each cat; achieve 100% completion of photo album and memento checklist"
+        }
+      ],
+      "retention_answer": "Offline progression (cats visit autonomously) rewards patience; collection dopamine from tangible memento rewards (physical gift ≠ abstract currency); cute anthropomorphic aesthetic provides emotional attachment; low friction (5-minute sessions suffice); zero failure state = zen gardening appeal. Monotony risk: after 20-30 cats, cycle becomes predictable (same toys attract same cats); rare cats provide final retention hook but fragile if cat-toy matching becomes transparent. Visual conventions: minimalist UI (no clutter), cute sprite animations (sleeping, playing with toys), subtle color palette supporting calm UX. Audio: soft click, tinkling chime when cat arrives, predominantly silence (intentional zen design). Retention measured by: session frequency (check gaps), collection completion rate, memento acquisition pacing; FOMO absent (no time limits, no penalties)."
+    },
+    {
+      "game": "AdVenture Capitalist",
+      "sources": [
+        {
+          "url": "https://medium.com/gametalk/idle-capitalism-eac089cd670",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        },
+        {
+          "url": "https://www.bananatic.com/games/adventure-capitalist-457/the-progression-system-and-upgrade-mechanics-in-adventure-capitalist-24184",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        },
+        {
+          "url": "https://www.petekeen.net/five-business-lessons-from-an-idle-game/",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        },
+        {
+          "url": "https://medium.com/@smartmoneygame/unveiling-the-allure-of-idle-games-how-they-work-and-why-theyre-so-addictive-4e6e4f015d7f",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        },
+        {
+          "url": "https://dinogame.gg/blog/what-is-an-idle-game/",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        }
+      ],
+      "loops": {
+        "minute_1": "Purchase lemonade stand; generates $0.01/sec passively; first upgrade (Little Umbrellas) multiplies profit ×3; first manager purchase available",
+        "minute_10": "Operate 3-5 businesses simultaneously (pizza, car wash, farm); hire managers to eliminate manual tapping; income scales exponentially; upgrade costs exceed revenues by 100×; strategic choice between vertical (farm local business) and horizontal (unlock new business) expansion",
+        "hour_5": "Angel Investors prestige system unlocked; reset accumulated wealth for permanent 5-10% income multiplier; optimal prestige timing becomes meta-strategic; offline progression accumulates revenue passively",
+        "endgame": "Infinite angel investor multiplier stacking; solo business empire expansion across planets (Earth, Moon, Venus, Mars); each planet resets but carries multiplier bonuses; no cap or win condition; planetary prestige trees create 3-5 distinct progression arcs"
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Build global business empire by acquiring and upgrading revenue-generating enterprises; optimize angel investor prestige-reset timing for maximum long-term multiplier; expand across planets to unlock new business types and prestige trees"
+        }
+      ],
+      "retention_answer": "Economic gratification (net worth escalation feels powerful); prestige resets create power fantasy (lose short-term progress, gain exponential long-term advantage); offline wealth accumulation rewards patience and login cadence. Monotony risk: without events/narrative, becomes pure spreadsheet optimization after 8-10 hours; planetary progression and manager character humor partially mitigate. Visual conventions: ticker-tape UI (stock prices, income bars), manager portrait gallery (character-driven), large number displays emphasize wealth. Audio: cashier register chimes at major milestones, upgrade purchase SFX, manager voicelines (personality injection). Retention measured by: prestige-reset frequency, angel investor optimization rate, planetary unlock pace; FOMO soft (events, limited-time planets drive login cadence)."
+    }
+  ],
+  "advisory": true
+}
+```
+
+---
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

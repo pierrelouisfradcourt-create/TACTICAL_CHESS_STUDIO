@@ -1,0 +1,1465 @@
+{
+ "schema_version": 2,
+ "game_id": "kitten_clicker",
+ "systems": [
+  {
+   "id": "game_state",
+   "category": "system",
+   "allowed_deps": []
+  },
+  {
+   "id": "production",
+   "category": "system",
+   "allowed_deps": [
+    "game_state"
+   ]
+  },
+  {
+   "id": "economy",
+   "category": "system",
+   "allowed_deps": [
+    "game_state"
+   ]
+  },
+  {
+   "id": "chatons",
+   "category": "system",
+   "allowed_deps": [
+    "game_state"
+   ]
+  },
+  {
+   "id": "progression",
+   "category": "system",
+   "allowed_deps": [
+    "game_state",
+    "economy",
+    "production"
+   ]
+  },
+  {
+   "id": "persistence",
+   "category": "system",
+   "allowed_deps": [
+    "game_state"
+   ]
+  },
+  {
+   "id": "content",
+   "category": "world.rules",
+   "allowed_deps": []
+  },
+  {
+   "id": "render",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "game_state"
+   ]
+  },
+  {
+   "id": "input",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "game_state"
+   ]
+  },
+  {
+   "id": "audio",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "game_state"
+   ]
+  }
+ ],
+ "lines": [
+  {
+   "id": "logic.game_state",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "game.state"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "game_state",
+   "category": "system",
+   "address": "05_SYSTEMS/game_state/",
+   "couvre": [
+    "R2"
+   ],
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_hud.gd : l'unique taux ronrons/sec agrege (somme producteurs*multiplicateurs) est expose comme etat et lu par le HUD."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/game_state/state.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "aggregate_rate",
+   "preuve": "core_hud.gd",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "logic.click",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "production.click"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "production",
+   "category": "system",
+   "address": "05_SYSTEMS/production/",
+   "couvre": [
+    "R1"
+   ],
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot clique N fois sans acheter ; le compteur augmente d'exactement N*taux_clic (assertion stricte ==)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/production/click.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "on_click",
+   "preuve": "solvability.gd/bot",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "logic.auto_production",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "production.auto"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "production",
+   "category": "system",
+   "address": "05_SYSTEMS/production/",
+   "couvre": [
+    "R4"
+   ],
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Bot achete 1 chaton puis n'interagit plus T ticks ; le compteur augmente d'exactement production_rate*T (strict)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/production/auto.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "tick_production",
+   "preuve": "solvability.gd/bot",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "logic.price_ramp",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "economy.pricing"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "economy",
+   "category": "system",
+   "address": "05_SYSTEMS/economy/",
+   "couvre": [
+    "R6"
+   ],
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "07_TESTS/oracle/core_economy.gd : cost[i] > cost[i-1] pour tout i (strict), ratio >= 1.10."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/economy/pricing.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "next_cost",
+   "preuve": "core_economy.gd",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "logic.upgrades",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "economy.upgrades"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "economy",
+   "category": "system",
+   "address": "05_SYSTEMS/economy/",
+   "couvre": [
+    "R5"
+   ],
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Bot mesure le taux avant/apres achat d'une amelioration : taux_apres > taux_avant (strict)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/economy/upgrades.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "apply_upgrade",
+   "preuve": "solvability.gd/bot",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "logic.contribution",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "economy.contribution"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "economy",
+   "category": "system",
+   "address": "05_SYSTEMS/economy/",
+   "couvre": [
+    "R22"
+   ],
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Bot achete chaque type de chaton une fois : le taux total augmente strictement, la hausse == contribution declaree (strict)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/economy/contribution.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "kitten_contribution",
+   "preuve": "solvability.gd/bot",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "logic.rarity_dist",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "chatons.rarity_dist"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "chatons",
+   "category": "system",
+   "address": "05_SYSTEMS/chatons/",
+   "couvre": [
+    "R9"
+   ],
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "07_TESTS/oracle/core_rarity_dist.gd : 200 acquisitions, freq(commun) > freq(rare) (strict), >= 2 frequences distinctes non triviales."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/chatons/rarity.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "roll_rarity",
+   "preuve": "core_rarity_dist.gd",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "logic.paliers",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "progression.tiers"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "progression",
+   "category": "system",
+   "address": "05_SYSTEMS/progression/",
+   "couvre": [
+    "R15"
+   ],
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "L'oracle lit la courbe de paliers et asserte >= 3 valeurs de seuil strictement distinctes (regle de variance, pas de trivial 1,2,3)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/progression/tiers.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "tier_thresholds",
+   "preuve": "solvability.gd/bot",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "logic.solvability",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "progression",
+   "category": "system",
+   "address": "05_SYSTEMS/progression/",
+   "couvre": [
+    "R16"
+   ],
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd : bot deterministe, palier_atteint == 3 en ticks <= BORNE finie explicite (atteinte stricte, jamais un >= tautologique)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/progression/tiers.gd",
+     "category": "system"
+    },
+    {
+     "path": "solvability.gd",
+     "category": "godot.project_root"
+    }
+   ],
+   "fonction": "is_reachable",
+   "preuve": "solvability.gd",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "logic.prestige",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "progression.prestige"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "progression",
+   "category": "system",
+   "address": "05_SYSTEMS/progression/",
+   "couvre": [
+    "R17"
+   ],
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Bot atteint le seuil, prestige (reset ronrons+chatons), puis re-mesure : production de depart post-prestige > production de depart initiale (strict), multiplicateur > 1 persistant."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/progression/prestige.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "do_prestige",
+   "preuve": "solvability.gd/bot",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "logic.save",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "persistence.save"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "persistence",
+   "category": "system",
+   "address": "05_SYSTEMS/persistence/",
+   "couvre": [
+    "R20"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "Ecrit un etat (ronrons, chatons, lieux, prestige), relance, recharge : round-trip strict champ par champ."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/persistence/save.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "save_load_roundtrip",
+   "preuve": "core_save.gd",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "content.registry",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "content.registry"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "content",
+   "category": "world.rules",
+   "address": "03_WORLD/rules/content/",
+   "couvre": [
+    "R7",
+    "R10",
+    "R11",
+    "R12",
+    "R18"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "chatons.json >= 6 {nom unique, rarete} ; lieux.json >= 2 (>= 1 condition_deblocage=prestige) ; objets.json >= 3 ids uniques ; quetes.json >= 3 {objectif_affiche, condition_completion} ; core_content_tone.gd : aucune entree ne porte de champ degats/combat/defaite."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "03_WORLD/rules/content/chatons.json",
+     "category": "world.rules"
+    },
+    {
+     "path": "03_WORLD/rules/content/lieux.json",
+     "category": "world.rules"
+    },
+    {
+     "path": "03_WORLD/rules/content/objets.json",
+     "category": "world.rules"
+    },
+    {
+     "path": "03_WORLD/rules/content/quetes.json",
+     "category": "world.rules"
+    },
+    {
+     "path": "03_WORLD/rules/content/content.gd",
+     "category": "world.rules"
+    }
+   ],
+   "fonction": "load_registries",
+   "preuve": "core_content_tone.gd",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "render.hud",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "render.hud"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "render",
+   "category": "system.adapter",
+   "address": "06_RUNTIME/adapters/render/",
+   "couvre": [
+    "R2"
+   ],
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_hud.gd (gpu_window) : label taux ronrons/sec present en permanence et mis a jour apres un achat."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/render/hud.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "draw_hud",
+   "preuve": "core_hud.gd",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "render.number_format",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "render.number_format"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "render",
+   "category": "system.adapter",
+   "address": "06_RUNTIME/adapters/render/",
+   "couvre": [
+    "R19"
+   ],
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_number_format.gd (gpu_window) : total 12345678 rendu en abrege (K/M/B), pas 8 chiffres bruts."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/render/number_format.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "abbreviate",
+   "preuve": "core_number_format.gd",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "render.kitten_view",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "render.kitten_view"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "render",
+   "category": "system.adapter",
+   "address": "06_RUNTIME/adapters/render/",
+   "couvre": [
+    "R3"
+   ],
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_visible_chaton.gd (gpu_window) : apres achat, +1 sprite-chaton visible qui persiste au frame suivant."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/render/kitten_view.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "spawn_kitten_sprite",
+   "preuve": "core_visible_chaton.gd",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "render.rarity",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "render.rarity"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "render",
+   "category": "system.adapter",
+   "address": "06_RUNTIME/adapters/render/",
+   "couvre": [
+    "R8"
+   ],
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_visual_rarity.gd (gpu_window) : un chaton par rarete, captures distinctes au-dela d'un seuil de pixels entre tiers."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/render/rarity_view.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "apply_rarity_frame",
+   "preuve": "core_visual_rarity.gd",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "render.click_feedback",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "render.click_feedback"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "render",
+   "category": "system.adapter",
+   "address": "06_RUNTIME/adapters/render/",
+   "couvre": [
+    "R13"
+   ],
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_click_feedback.gd (gpu_window) : difference de pixels dans la zone de l'objet central au frame du clic vs frame precedent."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/render/feedback.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "play_click_feedback",
+   "preuve": "core_click_feedback.gd",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "render.onboarding",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "render.onboarding"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "render",
+   "category": "system.adapter",
+   "address": "06_RUNTIME/adapters/render/",
+   "couvre": [
+    "R21"
+   ],
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_onboarding.gd (gpu_window) : au boot l'objet central porte un indicateur visuel et un clic simule change le compteur affiche."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/render/onboarding.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "highlight_central",
+   "preuve": "core_onboarding.gd",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "input.click_capture",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [
+    "input.click"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "input",
+   "category": "system.adapter",
+   "address": "06_RUNTIME/adapters/input/",
+   "couvre": [
+    "R1"
+   ],
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "L'adaptateur d'entree route un clic sur l'objet central vers production.click (une entree = un increment)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/input/input.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "capture_click",
+   "preuve": "solvability.gd/bot",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "audio.sfx",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "audio",
+   "category": "system.adapter",
+   "address": "06_RUNTIME/adapters/audio/",
+   "couvre": [
+    "R14"
+   ],
+   "reused_from": {
+    "type": "FILE_REUSE",
+    "source": "games/pacman/06_RUNTIME/adapters/audio/audio.gd"
+   },
+   "reused_from_note": "Adaptateur audio reutilise de games/pacman/06_RUNTIME/adapters/audio/audio.gd : quatre sons proceduraux distincts (clic/achat/deblocage/prestige) requalifies pour kitten_clicker.",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "07_TESTS/oracle/core_audio.gd : journal des declenchements ; provoque les 4 evenements et asserte 4 entrees de son aux ids distincts deux a deux."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/audio/audio.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "play_sfx",
+   "preuve": "core_audio.gd",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.central_cushion",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "asset.sprite",
+   "address": "04_ASSETS/sprites/",
+   "couvre": [
+    "R1"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "04_ASSETS/sprites/central_cushion.svg existe (SVG flat-cute-vector), consomme par render pour l'objet cliquable central."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/central_cushion.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "check_index/disk",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.kitten_common",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "asset.sprite",
+   "address": "04_ASSETS/sprites/",
+   "couvre": [
+    "R3",
+    "R8"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "04_ASSETS/sprites/kitten_common.svg existe, squelette partage, cadre commun ; consomme par render.kitten_view et render.rarity."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/kitten_common.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "check_index/disk",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.kitten_uncommon",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "asset.sprite",
+   "address": "04_ASSETS/sprites/",
+   "couvre": [
+    "R8"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "04_ASSETS/sprites/kitten_uncommon.svg existe, teinte + cadre distincts du commun (R8)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/kitten_uncommon.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "check_index/disk",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.kitten_rare",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "asset.sprite",
+   "address": "04_ASSETS/sprites/",
+   "couvre": [
+    "R8"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "04_ASSETS/sprites/kitten_rare.svg existe, cadre bleu marque, reconnaissable sans texte (R8)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/kitten_rare.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "check_index/disk",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.kitten_epic",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "asset.sprite",
+   "address": "04_ASSETS/sprites/",
+   "couvre": [
+    "R8"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "04_ASSETS/sprites/kitten_epic.svg existe, cadre violet ornemente (R8)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/kitten_epic.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "check_index/disk",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.kitten_legendary",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "asset.sprite",
+   "address": "04_ASSETS/sprites/",
+   "couvre": [
+    "R8"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "04_ASSETS/sprites/kitten_legendary.svg existe, cadre or rayonnant, sommet de rarete (R8)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/kitten_legendary.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "check_index/disk",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.place_shelter",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "asset.sprite",
+   "address": "04_ASSETS/sprites/",
+   "couvre": [
+    "R10"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "04_ASSETS/sprites/place_shelter.svg existe : fond refuge de depart 640x480 (R10)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/place_shelter.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "check_index/disk",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.place_second",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "asset.sprite",
+   "address": "04_ASSETS/sprites/",
+   "couvre": [
+    "R10"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "04_ASSETS/sprites/place_second.svg existe : second lieu debloque au prestige, franchement distinct du refuge (R10)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/place_second.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "check_index/disk",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.prop_scratching_post",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "asset.sprite",
+   "address": "04_ASSETS/sprites/",
+   "couvre": [
+    "R11"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "04_ASSETS/sprites/prop_scratching_post.svg existe : prop de decor identifiable (R11)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/prop_scratching_post.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "check_index/disk",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.prop_food_bowl",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "asset.sprite",
+   "address": "04_ASSETS/sprites/",
+   "couvre": [
+    "R11"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "04_ASSETS/sprites/prop_food_bowl.svg existe : prop distinct des autres (R11)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/prop_food_bowl.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "check_index/disk",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.prop_toy_mouse",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "asset.sprite",
+   "address": "04_ASSETS/sprites/",
+   "couvre": [
+    "R11"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "04_ASSETS/sprites/prop_toy_mouse.svg existe : prop distinct des autres (R11)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/prop_toy_mouse.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "check_index/disk",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.hud_counter",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "asset.sprite",
+   "address": "04_ASSETS/sprites/",
+   "couvre": [
+    "R2"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "04_ASSETS/sprites/hud_counter.svg existe : bandeau HUD (compteur + taux/sec), gabarit abrege ; consomme par render.hud (R2)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/hud_counter.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "check_index/disk",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.shop_panel",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "asset.sprite",
+   "address": "04_ASSETS/sprites/",
+   "couvre": [
+    "R5",
+    "R6"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "04_ASSETS/sprites/shop_panel.svg existe : panneau boutique (vignette, nom, prix, achat) ; consomme par render pour ameliorations et couts (R5, R6)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/shop_panel.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "check_index/disk",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.quest_panel",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "asset.sprite",
+   "address": "04_ASSETS/sprites/",
+   "couvre": [
+    "R12"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "04_ASSETS/sprites/quest_panel.svg existe : panneau quetes (>= 3 objectifs affiches) ; consomme par render (R12)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/quest_panel.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "check_index/disk",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.prestige_screen",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "asset.sprite",
+   "address": "04_ASSETS/sprites/",
+   "couvre": [
+    "R17"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "04_ASSETS/sprites/prestige_screen.svg existe : overlay prestige gratifiant (icone renaissance + multiplicateur), jamais un ecran de defaite (R17)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/prestige_screen.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "check_index/disk",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.upgrade_icons",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "asset.sprite",
+   "address": "04_ASSETS/sprites/",
+   "couvre": [
+    "R5"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "04_ASSETS/sprites/upgrade_icons.svg existe : jeu d'icones coherent (ameliorations/quetes), vignettes boutique (R5). NB taxonomie: type source 'icon' recale en asset.sprite (voir RETURN_REASON)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/upgrade_icons.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "check_index/disk",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "asset.click_effect",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "asset.sprite",
+   "address": "04_ASSETS/sprites/",
+   "couvre": [
+    "R13"
+   ],
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "04_ASSETS/sprites/click_effect.svg existe : particules (coeur/etincelle) + texte flottant, consomme par render.click_feedback (R13). NB taxonomie: type source 'vfx' recale en asset.sprite (voir RETURN_REASON)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "04_ASSETS/sprites/click_effect.svg",
+     "category": "asset.sprite"
+    }
+   ],
+   "fonction": "",
+   "preuve": "check_index/disk",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "test.main_screen_render",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "test.oracle",
+   "address": "07_TESTS/oracle/",
+   "couvre": [
+    "R2"
+   ],
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/main_screen_render.gd (gpu_window) : l'ecran principal rend le bandeau HUD (taux ronrons/sec) et l'objet central cliquable."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/main_screen_render.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "test_main_screen",
+   "preuve": "main_screen_render.gd",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "test.gallery_render",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "render",
+   "category": "test.oracle",
+   "address": "07_TESTS/oracle/",
+   "couvre": [
+    "R3",
+    "R8"
+   ],
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/gallery_render.gd (gpu_window) : la galerie rend >= 6 chatons nommes, tiers de rarete pixel-distincts."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/gallery_render.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "test_gallery",
+   "preuve": "gallery_render.gd",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "test.core_audio",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "audio",
+   "category": "test.oracle",
+   "address": "07_TESTS/oracle/",
+   "couvre": [
+    "R14"
+   ],
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "07_TESTS/oracle/core_audio.gd : provoque clic/achat/deblocage/prestige et asserte 4 ids de son distincts deux a deux (journal des declenchements)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/core_audio.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "test_audio_distinct",
+   "preuve": "core_audio.gd",
+   "statut": "IMPLEMENTED"
+  }
+ ],
+ "discarded": []
+}

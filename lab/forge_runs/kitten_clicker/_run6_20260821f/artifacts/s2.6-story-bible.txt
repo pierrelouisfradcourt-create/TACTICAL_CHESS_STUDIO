@@ -1,0 +1,149 @@
+I now have the exact oracle contract (`static_oracles.py:1290-1391`). Both sources are in my context (charter present, worldscan/s2-worldscan.txt present). I'll build the anchored Story Bible, grounding only what the two entries actually carry and declaring the rest NOT_GROUNDED with motive.
+
+---
+
+## RAPPORT FINAL — s2.6-story-bible / kitten_clicker-20260821f
+
+**Ancres réelles (mesurées dans mon contexte)**
+- `charter.yaml` — **présent**, lu. Définit le jeu (objectif, hors_scope, criteres_demo). C'est une définition de jeu, pas une lore de monde.
+- worldscan (`artifacts/s2-worldscan.txt`) — **présent**, lu. C'est une **observation d'architecture/genre** sur Cookie Clicker + Neko Atsume (`advisory: true`), pas un world-scan narratif du monde des chatons.
+- Oracle `forge.static_oracles.check_story_bible` — **NON exécuté par moi** (`run: aucun`). J'ai vérifié la conformité par **lecture de sa source** (`static_oracles.py:1290-1391`) et construit les 8 sections pour satisfaire chaque branche (8 id uniques, `inputs_recus` à deux booléens, GROUNDED⇒éléments complets `source∈{worldscan,charter}`, NOT_GROUNDED⇒`reason` non vide, zéro placeholder). Le **reçu mécanique est produit en aval par l'exécuteur** (`run_real.py`) à la matérialisation.
+
+**Sections NOT_GROUNDED et leur raison (5/8 — honnêteté assumée, cf. garde-fou)**
+- `chronology` — aucune frise narrative du monde ; les horizons du worldscan sont des progressions de **session** de jeux tiers, la boucle du charter est une progression de **système**.
+- `stakes` — le charter exclut tout enjeu de perte (`Pas de condition de defaite ni de game-over`) ; aucune menace/antagoniste dans les entrées.
+- `factions` — aucune faction/groupe organisé nommé ; une colonie collectionnée n'est pas une structure factionnelle.
+- `relations` — aucune relation inter-personnages décrite ; la rareté est un attribut de collection, pas une relation.
+- `events` — les « événements » cités sont **mécaniques** (clic/achat/déblocage/prestige) ou propres aux jeux de référence (seasonal events, Golden Cookies), jamais des événements narratifs du monde.
+
+**Sections GROUNDED (3/8, partielles)** : `context`, `characters`, `coherence_rules` — chacune ≥1 élément cité, inférences déclarées (`inferred: true`) distinctes des citations directes (`inferred: false`). **Aucun nom de chaton inventé** : le charter en exige ≥6 mais n'en nomme aucun — je ne comble pas.
+
+**Verdicts**
+- software_verdict: **OK** — au sens strict que je peux prouver par inspection : bloc JSON terminal valide, 8 `id` présents une fois, chaque section porte un `status` explicite, conforme aux branches lues de `check_story_bible`.
+- evidence_verdict: **MECHANICAL_VALIDATION_ONLY** — mais **différé** : la validation mécanique effective appartient au reçu que l'exécuteur produira ; je n'ai exécuté aucun oracle (`run: aucun`).
+- claim_verdict: **NO_CLAIM_ALLOWED**.
+- fog → HumanGate : la **pertinence narrative** des 3 sections ancrées et la **suffisance** d'une bible à 5/8 vide relèvent du jugement de Pierre, pas d'un oracle de forme.
+
+**SKIPPED_VALIDATION**
+- item: exécution de `check_story_bible` sur l'artefact · périmètre: story_bible.json de ce run · statut: **non fait** · raison: `run: aucun` dans mes permissions — l'exécuteur `run_real.py` la lance à la matérialisation ; conformité assurée par lecture de la source de l'oracle, pas par exécution.
+- item: fidélité de chaque `ref` à son passage source · périmètre: éléments GROUNDED · statut: **hors périmètre oracle** · raison: `check_story_bible` ne lit pas le worldscan (limite assumée du contrat) ; rattrapage aval GM/red-team.
+
+```json
+{
+  "game_id": "kitten_clicker",
+  "inputs_recus": {"worldscan": true, "charter": true},
+  "sections": [
+    {
+      "id": "context",
+      "status": "GROUNDED",
+      "elements": [
+        {
+          "statement": "Le monde est une colonie de chatons hebergee dans un refuge, que le joueur nourrit et fait grandir.",
+          "source": "charter",
+          "ref": "objectif: « nourrit une colonie de chatons » ; criteres_demo (b): « le refuge de depart »",
+          "inferred": false
+        },
+        {
+          "statement": "L'identite du monde est explicitement mignonne : collection de chatons attachants, tonalite cosy heritee de Neko Atsume.",
+          "source": "charter",
+          "ref": "objectif: « identite mignonne » ; reference_jeu: « Neko Atsume (collection de chatons, attractivite, identite mignonne) »",
+          "inferred": false
+        },
+        {
+          "statement": "Le cadre releve du genre clicker/idle incremental a collection, ou le joueur passe de l'action active (clic) a la production passive (idle) : ce fait de genre fonde le cadre du monde.",
+          "source": "worldscan",
+          "ref": "« le genre clicker/idle incremental repose sur trois systemes couples... Automation progressive : le joueur passe de l'action active au passif complet »",
+          "inferred": true
+        },
+        {
+          "statement": "Le monde est un espace sur et sans menace : aucune perte possible de la colonie, tonalite de detente.",
+          "source": "charter",
+          "ref": "hors_scope: « Pas de condition de defaite ni de game-over... le joueur ne perd jamais sa colonie »",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "id": "chronology",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucune des deux entrees ne porte de chronologie narrative du monde des chatons. Les horizons temporels du worldscan (minute_1, hour_5, endgame) decrivent la progression de SESSION de jeux tiers (Cookie Clicker, Neko Atsume) ; la boucle du charter (CLICK -> RONRONS -> CHATONS -> PRODUCTION -> META) est une progression de systeme, pas une frise d'evenements du monde. Ancrer une chronologie serait une invention."
+    },
+    {
+      "id": "stakes",
+      "status": "NOT_GROUNDED",
+      "reason": "Le charter exclut explicitement tout enjeu de perte (« Pas de condition de defaite ni de game-over ») et ni le worldscan ni le charter ne posent de menace, d'antagoniste ou de conflit narratif. Le seul enjeu disponible (franchir les paliers de meta-progression) est un objectif de jeu, pas un enjeu narratif. Rien a ancrer sans fabriquer."
+    },
+    {
+      "id": "factions",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucune des deux entrees ne nomme de faction, groupe organise ou pouvoir en presence. Une colonie de chatons collectionnes n'est pas une structure factionnelle, et le worldscan observe des mecaniques de genre, pas une societe. Ancrer une faction serait une invention."
+    },
+    {
+      "id": "characters",
+      "status": "GROUNDED",
+      "elements": [
+        {
+          "statement": "Le casting est constitue de chatons de collection : au moins 6 distincts, chacun portant un nom propre affiche et une identite visuelle liee a sa rarete, sur au moins 3 niveaux de rarete.",
+          "source": "charter",
+          "ref": "criteres_demo (a): « Au moins 6 chatons distincts, chacun avec un nom propre affiche a l'ecran et une identite visuelle reconnaissable liee a sa rarete, avec au moins 3 niveaux de rarete »",
+          "inferred": false
+        },
+        {
+          "statement": "Les sources n'attribuent aucun nom precis a un chaton : seules la quantite (>=6), la rarete (>=3 tiers) et le principe d'identite visuelle par rarete sont ancres ; nommer un chaton ici serait du remplissage.",
+          "source": "charter",
+          "ref": "criteres_demo (a): « identite visuelle reconnaissable liee a sa rarete » (aucun nom de chaton fourni dans le charter ni le worldscan)",
+          "inferred": false
+        },
+        {
+          "statement": "Le personnage-joueur est un gardien non represente : il pourvoit la colonie sans apparaitre comme entite, sur le modele de l'observateur invisible.",
+          "source": "worldscan",
+          "ref": "Neko Atsume: « le chat... semble ignorer le joueur (immersion observateur invisible) »",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "id": "relations",
+      "status": "NOT_GROUNDED",
+      "reason": "Ni le worldscan ni le charter ne decrivent de relation entre personnages (parente, rivalite, alliance, hierarchie). La rarete citee par le charter est un attribut de collection, pas une structure relationnelle. Aucune relation ancrable."
+    },
+    {
+      "id": "events",
+      "status": "NOT_GROUNDED",
+      "reason": "Les evenements presents dans les entrees sont mecaniques : le charter cite clic, achat, deblocage et prestige (criteres_demo (e)) comme declencheurs de jeu, et le worldscan mentionne des seasonal events / Golden Cookies propres aux jeux de reference. Aucun n'est un evenement narratif du monde des chatons. Ancrer un evenement d'histoire serait du remplissage."
+    },
+    {
+      "id": "coherence_rules",
+      "status": "GROUNDED",
+      "elements": [
+        {
+          "statement": "La colonie ne peut jamais etre perdue : le recit ne doit poser aucune menace de perte permanente ni de game-over.",
+          "source": "charter",
+          "ref": "hors_scope: « Pas de condition de defaite ni de game-over... le joueur ne perd jamais sa colonie »",
+          "inferred": false
+        },
+        {
+          "statement": "Le monde est solo et hors-ligne : aucun autre acteur humain, aucune dimension sociale ou reseau dans la fiction.",
+          "source": "charter",
+          "ref": "hors_scope: « jeu solo, hors-ligne » ; « Pas de multijoueur, de classement en ligne ni d'aucune fonctionnalite reseau »",
+          "inferred": false
+        },
+        {
+          "statement": "La tonalite mignonne doit rester coherente d'un bout a l'autre : l'identite esthetique declaree contraint tout ajout narratif futur.",
+          "source": "charter",
+          "ref": "objectif: « identite mignonne » ; reference_jeu: « identite mignonne »",
+          "inferred": true
+        },
+        {
+          "statement": "La victoire est un franchissement de paliers de meta-progression, jamais une fin narrative : le monde reste ouvert et sans cloture d'histoire.",
+          "source": "charter",
+          "ref": "hors_scope: « la victoire = franchir les paliers de meta-progression »",
+          "inferred": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Les deux seules sources amont ne portent presque aucune matiere narrative pour kitten_clicker : 5/8 sections de la Story Bible (chronology, stakes, factions, relations, events) sont structurellement non ancrables et rendues NOT_GROUNDED ; seules context, characters et coherence_rules sont ancrees, partiellement.", "root_cause": "s2-worldscan produit par conception une observation d'architecture/genre sur des jeux tiers, pas un world scan narratif, et aucune station de world-scan narratif n'alimente s2.6 : la station narrative n'a que le charter (definition de jeu, pas une lore) comme source de monde."}

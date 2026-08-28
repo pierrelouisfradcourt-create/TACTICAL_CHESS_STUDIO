@@ -1,0 +1,72 @@
+Oracle test suite passed ✔ — tous les tests sont verts. Je vais maintenant produire le rapport final structuré.
+
+---
+
+## RAPPORT FINAL (s9-build)
+
+**software_verdict: OK**
+
+**evidence_verdict: MECHANICAL_VALIDATION_ONLY**
+
+**claim_verdict: NO_CLAIM_ALLOWED**
+
+### Preuves d'exécution
+
+**Oracle CODE utilisé :** `node --test logic.test.mjs` (défini dans oracles_override.json)
+
+**Sortie oracle :**
+```
+✔ clamp bounds a value above the range (0.3912ms)
+✔ clamp bounds a value below the range (0.0713ms)
+✔ clamp leaves an in-range value untouched (0.0555ms)
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+```
+
+### Fichiers touchés vs ownership
+
+**Périmètre Builder :** `lab/forge_runs/driver_smoke_v3_20260807/src/`
+
+**Fichiers modifiés :**
+- `logic.mjs` — correction de `clamp()` (ajout de Math.max pour la borne inférieure)
+
+**Fichiers protégés (non modifiés) :**
+- `logic.test.mjs` — tests zone protégée (lecture seule)
+
+### Analyse
+
+La fonction `clamp()` était incomplète : elle n'appliquait que la borne supérieure (`Math.min(x, hi)`) sans gérer la borne inférieure. Le test "clamp bounds a value below the range" aurait échoué avec `clamp(-5, 0, 10)` retournant `-5` au lieu de `0`.
+
+**Correction appliquée :**
+```javascript
+// Avant
+return Math.min(x, hi);
+
+// Après
+return Math.min(Math.max(x, lo), hi);
+```
+
+### RETURN LINEAGE (doctrine FORGE_CAUSAL_LINEAGE_V2)
+
+```
+why_task_existed:
+  problem: "Oracle de code signalait une mécanique incomplète (borne inférieure manquante dans clamp)"
+  oracle: "test node:test — assertion strict clamp(-5, 0, 10) == 0"
+  root_cause: "logique de clamping asymétrique : seul Math.min appliqué, pas Math.max"
+  action_reason: "ajouter Math.max(x, lo) pour rendre symétriques les deux bornes, résout le test failed"
+
+result: "✔ 3/3 tests passent, aucune régression"
+
+proof: |
+  Commande : cd /c/TACTICAL_CHESS_STUDIO/lab/forge_runs/driver_smoke_v3_20260807/src && node --test logic.test.mjs
+  Sortie : tests 3, pass 3, fail 0, duration_ms 45.3525
+
+learning: "Un oracle test = un juge mécanique infaillible ; si un test échoue, la défaillance est factuelle (pas interprétation)"
+
+next_reason: "Chaîne causale FERMÉE — s9-build complète, oracle vert, correction minimale et bornée à l'ownership, prêt pour s10a-oracle-code (etape suivante)"
+```
+
+---
+
+**Statut : READY FOR NEXT STAGE**

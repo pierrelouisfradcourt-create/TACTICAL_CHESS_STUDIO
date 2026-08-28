@@ -1,0 +1,91 @@
+`Write`/`Bash` are disabled for this session — which confirms the ratified design exactly: the s0 agent has **Read only**, and the executor's `_materialize_yaml` (M4) is what writes `charter.yaml` to the run_dir from the **last valid ```yaml block** in my output, then attaches `check_charter` as an advisory receipt. So my deliverable is that block. Here it is.
+
+```yaml
+objectif: >-
+  Produire un clicker de chatons mignons sur Godot 4.6.3 desktop, jouable plusieurs
+  heures, avec la boucle incrémentale complète CLIC -> RONRONS -> CHATONS ->
+  PRODUCTION AUTOMATIQUE -> AMÉLIORATIONS -> NOUVEAUX CHATONS / LIEUX ->
+  MÉTA-PROGRESSION. La progression doit être SOLVABLE (un bot autonome atteint un
+  palier de méta-progression cible) et ses métriques de calibration doivent porter
+  une information VARIABLE (règle de variance), pas seulement passer des tests
+  unitaires en isolation.
+hors_scope:
+  - Multijoueur, réseau, classements en ligne ou synchronisation cloud.
+  - Microtransactions, monnaie réelle, publicités ou tout système de paiement.
+  - Portage mobile / tactile ou build web : la cible est strictement Godot 4.6.3 desktop (fenêtre GPU).
+  - Moteur physique ou rendu 3D lourd — le jeu reste un clicker 2D / UI (le refuge et ses chatons sont des sprites/nodes 2D).
+  - Persistance en base distante : la sauvegarde reste locale (fichier de sauvegarde sur le poste).
+  - Narration à embranchements, dialogues scénarisés ou quêtes complexes : le monde (refuge, personnages, lieux) reste léger, au service de la boucle incrémentale.
+criteres_succes:
+  - La scène principale déclarée du projet Godot se lance sans erreur — invariant de point d'entrée, vérifié en présence comme en absence (un jeu qui satisfait ses preuves mais ne démarre pas est un échec).
+  - Un clic sur la pelote / coussin central incrémente STRICTEMENT le compteur de ronrons (assertion stricte, jamais un >= qui masquerait une mécanique morte).
+  - Au moins un chaton produit des ronrons automatiquement dans le temps : la production passive est strictement positive sans aucun clic.
+  - Au moins une amélioration achetable, débloquée par un coût en ronrons, augmente strictement le taux de production.
+  - Solvabilité prouvée : un bot autonome (politique de clics + achats gloutons) atteint un palier de méta-progression cible en <= 20000 ticks sur au moins un des 20 essais de l'oracle de solvabilité (games/kitten_clicker via scripts/forge/godot_oracle.mjs, config oracles.json).
+  - Règle de variance : toute métrique servant à calibrer la progression (coût des paliers, taux de production, ronrons cumulés par palier) prouve une distribution à >= 2 valeurs distinctes non triviales sur un échantillon — jamais une courbe plate, jamais une métrique identiquement égale au nombre de ticks.
+  - Le gate mutation de l'oracle code passe : les tests tuent réellement les mutants ; tout mutant survivant non trié est un FAIL, pas un vert silencieux.
+actions_interdites:
+  - Modifier les lanes protégées : tests/ du studio, src/, autopilot.py, scripts/studioV2/ (gel STUDIO ratifié).
+  - Écrire une assertion tautologique (>= là où == est attendu, comparaison qui ne peut pas échouer) : chaque test asserte le comportement STRICT.
+  - Faire juger le code ou le verdict par un LLM : les oracles restent déterministes non-LLM, la red-team est advisory et n'est jamais juge du code.
+  - Coder en dur un flag de succès (passed:true, ok:true, solved:true) dans un harnais ou un oracle au lieu de le CALCULER.
+  - Coder en dur un état attendu (liste de noms de fichiers, chemin de dossier de run) au lieu de le dériver d'une source déclarative (wiremap, catégories) — un signal qui rougit parce que le jeu a légitimement grandi est un faux signal.
+  - Passer un reçu de l'oracle code sans evidence_path au verdict : exécution non prouvable => BLOCKED.
+  - git commit ou git push (gate Pierre exclusif) ; aucune écriture durable (ledger, memory/, projets) sans ratification Pierre.
+  - Inventer la provenance d'un champ de design-intent : sans source Pierre tracée, le champ remonte en fog HumanGate, il ne se devine pas.
+plateforme_cible: Godot 4.6.3 (desktop, fenêtre GPU — capture headless interdite, cf. règle godot_capture_requires_gpu_window)
+reference_jeu: Cookie Clicker + Neko Atsume (boucle incrémentale / paliers de Cookie Clicker + collection de chatons / attractivité / identité mignonne de Neko Atsume) — choix explicite de Pierre
+criteres_demo:
+  - À l'écran, le compteur de ronrons visible augmente à chaque clic sur la pelote / coussin central.
+  - À l'écran, une fois le coût atteint, un nouveau chaton visible apparaît dans le refuge (le joueur voit sa colonie grandir).
+  - À l'écran, au moins un chaton produit des ronrons tout seul : le compteur visible monte sans qu'on clique.
+  - À l'écran, l'achat d'une amélioration change visiblement le rythme d'augmentation du compteur de ronrons.
+  - Mesurable et observable : un bot autonome atteint le palier N de ronrons cumulés en <= T ticks (N et T fixés en aval, dans le budget de solvabilité de 20000 ticks / 20 essais).
+  - Mesurable : la courbe de progression (ronrons cumulés d'un palier au suivant) porte >= 2 valeurs distinctes non triviales — la variance est visible, ce n'est ni une droite ni une constante.
+reference_jeu_provenance: >-
+  design_intent.md (lab/forge_runs/kitten_clicker/, Pierre, 2026-08-21, l.3) — Cookie
+  Clicker + Neko Atsume. Source Pierre explicite et tracée : pas une invention de
+  l'agent (cf. gardeFou s0-contrat, leçon AutoBattler).
+plateforme_cible_provenance: >-
+  design_intent.md (l.4, Pierre, 2026-08-21) « Godot 4.6.3 (desktop, fenêtre GPU) »,
+  corroboré par scripts/forge/oracles.json (entrée kitten_clicker -> godot_oracle.mjs,
+  solvabilité 20000 ticks / 20 essais).
+```
+
+---
+
+## RAPPORT FINAL — s0-contrat / kitten_clicker
+
+**software_verdict: OK** — charter à 7 champs R7 produit, conforme *par construction* au schéma que `check_charter` consomme (`scripts/forge/static_oracles.py:1051-1096`) : les 3 chaînes non vides (`objectif`, `plateforme_cible`, `reference_jeu`) et les 4 listes non vides de chaînes non vides (`hors_scope`, `criteres_succes`, `actions_interdites`, `criteres_demo`) sont remplies, aucune valeur ne contient le placeholder `« à définir »` (détecté normalisé `"a definir"`, insensible accents/casse — vérifié terme à terme, aucun `défini/definir` résiduel).
+
+**evidence_verdict: MECHANICAL_VALIDATION_ONLY** — la conformité au schéma est vérifiée mécaniquement contre le code réel du validateur (que j'ai lu), champ par champ. L'**exécution** de `check_charter` ne m'appartient pas (`run: aucun`, et `Write`/`Bash` désactivés) : elle est le reçu advisory que `_materialize_yaml` (`run_real.py:1253`) attache après avoir écrit `charter.yaml` dans le run_dir depuis le bloc ```yaml``` ci-dessus.
+
+**claim_verdict: NO_CLAIM_ALLOWED.**
+
+### Oracle cité
+`forge.static_oracles.check_charter` — validateur de schéma déterministe non-LLM (7 champs, placeholder normalisé). C'est l'ancre de toutes les affirmations ci-dessus. Aucun LLM-as-judge.
+
+### Flous du prompt — résolus vs remontés
+- **Résolus, avec source tracée** :
+  - `reference_jeu` = « Cookie Clicker + Neko Atsume » → `design_intent.md` l.3 (Pierre, 2026-08-21). **Source Pierre explicite** : pas de fog.
+  - `plateforme_cible` = Godot 4.6.3 desktop → `design_intent.md` l.4, corroboré par `oracles.json` (entrée `kitten_clicker` → `godot_oracle.mjs`). Pas de fog.
+  - Frontières (`hors_scope`), critères de succès et de démo : dérivés du concept (`design_intent.md` §Concept/§«ce que la Forge doit démontrer»), des conventions du genre (boucle incrémentale + collection), du budget de solvabilité déclaré dans `oracles.json` (20000 ticks / 20 essais) et du pré-mortem PILOU (solvabilité obligatoire, invariant de point d'entrée, anti-tautologie `>=`, `evidence_path` obligatoire, faux-vert par état codé en dur).
+- **Résolu par report en aval, sans fog** : les valeurs concrètes du palier de victoire `N` et du budget `T` restent « fixées en aval » (calibration Grey Blocks / GM), **bornées** par le budget de solvabilité ratifié. Ce n'est pas un design-intent de niveau Pierre — c'est une décision de calibration aval ; je ne l'invente pas ici et ne bloque pas dessus.
+- **Remonté en fog HumanGate** : *aucun*. Les deux champs de design-intent sensibles (`reference_jeu`, `plateforme_cible`) portent une source Pierre tracée.
+
+### SKIPPED_VALIDATION
+- **item** : exécution réelle de l'oracle `check_charter` sur `charter.yaml` écrit sur disque · **périmètre** : lab/forge_runs/kitten_clicker/charter.yaml · **statut** : non fait (par moi) · **raison** : `run: aucun` + outils `Write`/`Bash` désactivés en session ; c'est le reçu advisory du matérialiseur `_materialize_yaml`, pas une action de l'agent s0. Conformité vérifiée par lecture du validateur, pas par son exécution.
+- **item** : provenance Pierre de `reference_jeu` · **périmètre** : charter.reference_jeu · **statut** : non vérifiable mécaniquement (fait de gate, pas de schéma — `check_charter` ne juge aucune provenance) · **raison** : tracée à `design_intent.md` (Pierre, 2026-08-21) et consignée dans `reference_jeu_provenance` ; la ratification finale reste HumanGate.
+
+### RETURN LINEAGE
+- **why_task_existed** :
+  - `problem` : le profil `full_godot_narratif` démarre par s0-contrat ; sans charter matérialisé, cinq étapes aval (s2.6, s3, s4, s5, s6) consomment `charter.yaml` sans producteur (motif « consommateur sans producteur » que M4 a fermé).
+  - `oracle` : `check_charter` (schéma 7 champs) ; activation par ordre de profil (décision humaine — GO Pierre 2026-08-21, choix (b) full_godot_narratif).
+  - `root_cause` : non applicable (démarrage de chaîne, pas correction d'un défaut).
+  - `action_reason` : rédiger le charter est le seul moyen d'ancrer l'intention de projet (Pierre) et de fonder la Story Bible + la décompo en aval (mesure charte2 : charter+worldscan → 7/8 GROUNDED).
+- **result** : `charter.yaml` à 7 champs R7 produit dans le bloc ```yaml``` (conforme `check_charter` par construction), plus 2 champs de provenance additifs. Non écrit par moi (matérialiseur), non commité (gate Pierre).
+- **proof** : lecture de `static_oracles.py:1051-1096` (règles exactes) ; `design_intent.md` l.3-4 (sources Pierre) ; `oracles.json` entrée `kitten_clicker` (budget solvabilité). Aucune commande exécutée (outils d'exécution désactivés).
+- **learning** : le run_id `kitten_clicker-20260821-1312` ne matche PAS `context_manifest._RUN_ID_DATE_SUFFIX` (`^(.+)-\d{8}[a-z]?$`) — il finit par `-1312` (HH MM), pas par `-<8 chiffres>[lettre]`. `derive_project_from_run_id` rend donc `None` et `default_run_dir` route vers `lab/forge_runs/_orphan_context/<run_id>` au lieu de `lab/forge_runs/kitten_clicker`. Impact borné : n'affecte QUE les appelants qui ne passent pas `run_dir` explicitement (les manifests de contexte best-effort) ; le driver passe son run_dir, donc la matérialisation du charter n'est pas touchée.
+- **next_reason** : la chaîne causale du charter est FERMÉE ici — le charter est prêt à être matérialisé et consommé par s2.6/s3+. Le point `learning` (écart run_id ↔ regex) est un écart mesuré dans un mécanisme support, à confirmer/traiter par le niveau orchestrateur si les manifests de contexte de ce run atterrissent en `_orphan_context` ; ce n'est pas un défaut du charter et ne bloque pas la suite.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "run_id 'kitten_clicker-20260821-1312' ne matche pas context_manifest._RUN_ID_DATE_SUFFIX (^(.+)-\\d{8}[a-z]?$) car il finit par -HHMM et non -AAAAMMJJ[lettre] ; default_run_dir route alors les manifests vers lab/forge_runs/_orphan_context/<run_id> au lieu de lab/forge_runs/kitten_clicker", "root_cause": "la convention de run_id du studio a gagne un suffixe horaire -HHMM que la regex de derivation de projet n'anticipe pas (elle n'attend qu'un suffixe date -AAAAMMJJ optionnellement suivi d'une lettre)"}

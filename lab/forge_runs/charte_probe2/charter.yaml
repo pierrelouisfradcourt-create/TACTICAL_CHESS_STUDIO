@@ -1,0 +1,54 @@
+objectif: 'Construire, en Godot 4, un roguelike de donjon SOLO où le joueur incarne
+  un archiviste enfermé dans une bibliothèque infinie qui se RÉÉCRIT à chaque mort.
+  Deux factions s''opposent sur la conservation ou la destruction des livres ; un
+  personnage récurrent, la Bibliothécaire, accueille le joueur à chaque retour de
+  run. Objectif du joueur : traverser les salles jusqu''à atteindre la Salle des Origines.
+  Le cœur à prouver est la boucle roguelike (run → mort → réécriture → retour à la
+  Bibliothécaire) et la résolution d''une salle (une porte qui s''ouvre).'
+reference_jeu: 'Hades — choix explicite de Pierre (structure roguelike : runs, mort
+  qui réinitialise le run, hub avec PNJ récurrent).'
+plateforme_cible: Godot 4 — moteur imposé par Pierre.
+hors_scope:
+- 'Multijoueur / réseau / co-op : le jeu est SOLO (posé par Pierre).'
+- 'Simulation stratégique de la guerre des deux factions : elles sont un cadre narratif
+  du monde, pas un système à modéliser dans ce run.'
+- 'Méta-progression complète façon Hades (miroir des ténèbres, armes multiples, arcs
+  de relation PNJ) : hors périmètre de cette première preuve.'
+- 'Génération procédurale à grande échelle d''une bibliothèque réellement infinie
+  : une réécriture observable entre deux runs suffit à prouver la boucle.'
+- 'Polissage artistique et audio final : placeholders acceptés tant que les critères
+  de démo observables sont tenus.'
+- 'Toute lane protégée du studio : src/, tests/, autopilot.py, scripts/studioV2/ —
+  jamais touchées.'
+criteres_succes:
+- Le projet Godot 4 déclare une scène principale et se lance sans erreur (point d'entrée
+  traité comme invariant structurel, vérifié en présence ET en absence).
+- 'Au moins une salle est jouable : l''archiviste se déplace et une condition de RÉSOLUTION
+  de salle existe et est réellement atteignable (solvabilité prouvée par un bot/agent
+  qui résout la salle — assertion STRICTE, jamais un >= tautologique).'
+- La résolution d'une salle DÉCLENCHE l'ouverture d'une porte (changement d'état visible)
+  — le moteur relie la mécanique au critère de démo.
+- La mort du joueur réinitialise le run, réécrit l'agencement et ramène le joueur
+  face à la Bibliothécaire (boucle roguelike observable, pas seulement testée en isolation).
+- 'L''objectif de run est ATTEIGNABLE : il existe une chaîne de salles résolubles
+  menant à la Salle des Origines (un objectif inatteignable est un échec, même si
+  tous les tests unitaires passent).'
+criteres_demo:
+- Une porte VISIBLE à l'écran s'OUVRE (transition d'état visuelle) au moment exact
+  où une salle est résolue — critère de démo explicite posé par Pierre.
+- 'La Bibliothécaire est visible à l''écran et accueille le joueur au démarrage /
+  au retour d''un run (élément de monde posé par Pierre : « accueille le joueur à
+  chaque retour »).'
+- 'L''archiviste incarné par le joueur est visible et se déplace dans une salle à
+  l''écran (élément posé par Pierre : « le joueur incarne un archiviste »).'
+actions_interdites:
+- 'Choisir une reference_jeu ou une plateforme_cible autres que Hades / Godot 4 :
+  ces deux choix appartiennent à Pierre, jamais à un agent.'
+- 'git commit / git push : décision réservée à Pierre (HumanGate).'
+- 'Écrire ou modifier une lane protégée : src/, tests/, autopilot.py, scripts/studioV2/.'
+- 'Asserter la solvabilité ou une mécanique par un test tautologique (>=, condition
+  toujours vraie) : l''assertion doit être STRICTE et falsifiable.'
+- Livrer un jeu dont l'objectif (Salle des Origines) est structurellement inatteignable.
+- Déclarer un critère de démo observable (la porte qui s'ouvre) satisfait sans preuve
+  de capture par un oracle produit — aucun rendu inerte présenté comme fonctionnel.
+- 'Émettre un claim auto-certifié sans oracle non-LLM à l''appui (claim_verdict: NO_CLAIM_ALLOWED).'

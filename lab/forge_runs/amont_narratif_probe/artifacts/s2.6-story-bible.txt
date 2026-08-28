@@ -1,0 +1,117 @@
+I now have everything I need. Confirmed facts:
+
+- **worldscan**: present (read in full, 322 lines — a genre observation of three *reference* games: Hades, Isaac, Slay the Spire).
+- **charter**: **absent** — `charter.yaml` does not exist in the run_dir, and `state.json` carries no charter reference (`profile: amont_narratif`, `is_game: false`). So `inputs_recus.charter = false`.
+- **oracle** `check_story_bible` (static_oracles.py:1230–1331): read in full — I've conformed the artifact to its exact rules (8 sections once each, `status` ∈ GROUNDED/NOT_GROUNDED, GROUNDED ⇒ ≥1 element with non-empty `statement`/`ref`, `source` ∈ {worldscan|charter}, `inferred` boolean; NOT_GROUNDED ⇒ non-empty `reason`; no placeholders).
+
+The dominant constraint is honest and structural: **the worldscan describes three *other* games' worlds, not this project's, and no charter defines this project's world.** Per the garde-fou, an almost-empty but honest bible beats a rich fabricated one. Only genre-convergent narrative facts (which the contract's `in_scope` explicitly permits as declared inference) can found a frame: **context** and **coherence_rules** are GROUNDED (all elements `inferred`-labeled); the six sections requiring *this world's* specifics are NOT_GROUNDED with motivated reasons.
+
+---
+
+## Rapport final — s2.6-story-bible / amont-narratif-20260814
+
+**Ancres (chaque affirmation citée) :**
+
+- **worldscan présent** — `lab/forge_runs/amont_narratif_probe/artifacts/s2-worldscan.txt` lu intégralement (322 l., `artifact_sha256: 13eb6b6b…` dans `state.json`). C'est une OBSERVATION de genre (Hades / Isaac / Slay the Spire), `advisory: true` — des mondes de *jeux de référence*, pas le monde du projet.
+- **charter absent — fait mécanique** — `Read charter.yaml` → *File does not exist* ; `state.json` ne porte aucun champ charter (`profile: "amont_narratif"`, `is_game: false`). Donc `inputs_recus: {worldscan: true, charter: false}`, sincère. Même réalité que celle déjà consignée pour le run p2a (charter absent du run_dir).
+- **oracle prouvant** — `forge.static_oracles.check_story_bible` (static_oracles.py:1230-1331) lu ; artefact conformé par construction à ses règles.
+
+**Sections NOT_GROUNDED (6) et leur raison, en une ligne :**
+- `chronology` — les chronologies citées (Zagreus, échelle de boss d'Isaac, 3 actes du Spire) appartiennent aux jeux de référence ; sans charter, aucune timeline du projet.
+- `stakes` — 3 enjeux DIVERGENTS observés, aucun enjeu de genre convergent à inférer, aucun charter pour en choisir un.
+- `factions` — seules des entités des jeux de référence sont nommées ; aucune faction de ce monde.
+- `characters` — Zagreus / Isaac / les 4 ascendants du Spire sont des personnages d'AUTRES jeux ; ce projet n'a pas de protagoniste défini.
+- `relations` — pas de personnage ancré ⇒ pas de relation ancrable (le worldscan n'observe qu'un *système* de relations d'un autre jeu).
+- `events` — échelles de boss / boucles d'évasion = événements des jeux de référence, pas de ce monde.
+
+**Sections GROUNDED (2), toutes en inférence déclarée** : `context` et `coherence_rules`, fondées uniquement sur les faits de genre **convergents** du worldscan (narration encastrée dans les mécaniques ; échec reframé en progrès), jamais sur un monde inventé.
+
+**Verdicts :**
+- `software_verdict: BLOCKED` — l'oracle prouvant (`check_story_bible`) n'est **pas exécutable par cet agent** (`run: aucun`) ; je l'ai lu et conformé l'artefact à sa forme, mais le reçu autoritatif est produit par `run_real.py` à la matérialisation. Je ne peux donc pas m'auto-certifier OK.
+- `evidence_verdict: MECHANICAL_VALIDATION_ONLY` — porte UNIQUEMENT sur les faits que j'ai vérifiés mécaniquement (charter absent via `Read`+`state.json` ; worldscan présent via lecture d'artefact). La conformité de forme est **par construction**, non par exécution.
+- `claim_verdict: NO_CLAIM_ALLOWED` — aucune qualité narrative n'est revendiquée ; `fog → HumanGate` : (1) auto-vérification de forme impossible (`run: aucun`) — le reçu vient de l'exécuteur ; (2) **décision Pierre** : un run Story Bible en profil `amont_narratif` sans charter ne peut, par construction, produire qu'un squelette de cadre-de-genre — est-ce le comportement attendu de la sonde, ou faut-il fournir un charter à cette station ?
+
+**SKIPPED_VALIDATION :**
+- item : exécution de `check_story_bible` sur l'artefact · périmètre : story_bible.json de ce run · statut : non fait · raison : `run: aucun` — l'agent ne peut lancer aucun oracle ; validation déléguée à `run_real.py`.
+- item : fidélité de chaque `ref` à son passage source · périmètre : les 4 éléments GROUNDED · statut : partiel (auto-relu, non oracle-vérifiable) · raison : aucun oracle de forme ne lit le worldscan (limite assumée de `check_story_bible`, rattrapage aval GM/red-team).
+
+Voici l'artefact matérialisable :
+
+```json
+{
+  "game_id": "amont_narratif_probe",
+  "inputs_recus": {"worldscan": true, "charter": false},
+  "sections": [
+    {
+      "id": "context",
+      "status": "GROUNDED",
+      "elements": [
+        {
+          "statement": "The observed genre (dungeon roguelike) embeds narrative directly into its mechanical loops across all three exemplars: story functions as a retention lever, not a separate layer.",
+          "source": "worldscan",
+          "ref": "Cross-Game Architectural Synthesis > Reusable Architecture Bricks: 'Narrative/Lore Embedded in Mechanics: Stories unlock via boss defeats, escape counts, relationship flags. Story is not separate from grind; it rewards the grind.'",
+          "inferred": false
+        },
+        {
+          "statement": "Absent a project charter, the only world-context defensible for a game in this lane is a genre-level frame: a self-contained dungeon or underworld space traversed across repeated attempts. This is a frame for downstream design, NOT a setting the project has chosen.",
+          "source": "worldscan",
+          "ref": "Per-game 'World & Setting' sections, three divergent settings with no convergent one: Hades 'set in the Greek Underworld'; Isaac 'procedurally generated basement dungeons'; Slay the Spire 'A mysterious Spire rises from a dark land'.",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "id": "chronology",
+      "status": "NOT_GROUNDED",
+      "reason": "No project charter is present in the run (inputs_recus.charter=false; charter.yaml absent from the run_dir, state.json carries no charter reference). The worldscan records only the chronologies of three reference games (Zagreus's repeated escape attempts, Isaac's sequential boss ladder, the Spire's three acts). Those timelines belong to those games; importing any would fabricate a chronology this project has never defined."
+    },
+    {
+      "id": "stakes",
+      "status": "NOT_GROUNDED",
+      "reason": "The worldscan gives three DIVERGENT stakes: escape the Underworld (Hades), flee the mother's wrath (Isaac), ascend the Spire and defeat the Heart (Slay the Spire). Unlike the narrative-embedding pattern, no convergent genre stake exists to infer, and with charter absent nothing selects one. Grounding a single stake would mean inventing the project's central conflict."
+    },
+    {
+      "id": "factions",
+      "status": "NOT_GROUNDED",
+      "reason": "No faction of this project's world is anchored anywhere. The worldscan names only entities of the reference games (the House of Hades NPCs; the four Slay the Spire ascendants Ironclad/Silent/Defect/Watcher), which belong to those worlds. With charter absent, no faction of amont_narratif_probe can be cited without invention."
+    },
+    {
+      "id": "characters",
+      "status": "NOT_GROUNDED",
+      "reason": "The only protagonists and NPCs in the entries (Zagreus, Isaac, Ironclad/Silent/Defect/Watcher, Nyx, Meg, Persephone) are characters of the three reference games. This project has no defined protagonist or cast and charter is absent; any character posed here would be fabricated."
+    },
+    {
+      "id": "relations",
+      "status": "NOT_GROUNDED",
+      "reason": "Character relations cannot be grounded when no character of this world is grounded (see 'characters'). The worldscan observes a reference game's relationship SYSTEM (Hades's NPC-bond / Nectar mechanic) as a reusable brick, but that is a mechanic of another game, not a relation within this project's world."
+    },
+    {
+      "id": "events",
+      "status": "NOT_GROUNDED",
+      "reason": "The worldscan's events (boss ladders, the death-and-return escape loop, act transitions) are events of the reference games. No event of this project's world is defined and charter is absent; grounding one would invent the world's history."
+    },
+    {
+      "id": "coherence_rules",
+      "status": "GROUNDED",
+      "elements": [
+        {
+          "statement": "The worldscan observes a convergent narrative rule across all three exemplars: player failure is reframed as progress. Each failed run unlocks dialogue, relationship advancement, or lore.",
+          "source": "worldscan",
+          "ref": "Hades Retention Mechanics: 'Death is reframed as progress: every failure unlocks dialogue, relationship advancement, story beats.' Shared Retention Pattern: 'narrative/mechanical rewards for repeated failure.'",
+          "inferred": false
+        },
+        {
+          "statement": "Coherence constraint inferred for any world built in this lane (pending a charter): the fiction must remain legible across repeated failure. A world whose story cannot survive the death-loop would contradict the genre's core retention lever.",
+          "source": "worldscan",
+          "ref": "Cross-Game synthesis 'narrative/mechanical rewards for repeated failure' + Hades loop: 'Upon escape, Zagreus withers on surface and is forced to return (narrative loop).'",
+          "inferred": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+**RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2)** — pourquoi cette tâche a existé : structurer la matière narrative ANCRÉE du projet en amont du GM. Ce qui a déterminé le résultat : une seule des deux sources contractuelles était présente (worldscan oui, charter non), mesuré au run_dir. Conséquence causale directe : 6/8 sections NOT_GROUNDED — non par pauvreté d'effort mais parce que les entrées ne décrivent que des mondes de jeux de référence, et qu'aucun charter ne définit le monde du projet. Preuve : le monde inventé ici deviendrait un mensonge structurel pour le GM en aval ; la bible reste donc honnêtement squelettique.
+
+**RETURN_REASON**: {"status": "DISCOVERED", "problem": "La station s2.6-story-bible est dispatchee en profil amont_narratif sans charter dans le run_dir, alors que son contrat nomme le charter comme l'une de ses deux sources d'ancrage ; resultat mesure : 6 des 8 sections NOT_GROUNDED, seuls des cadres de genre inferables etant ancrables depuis le seul worldscan.", "root_cause": "Le profil amont_narratif / le run amont_narratif_probe ne materialise aucun charter.yaml (fichier absent, state.json sans champ charter), donc la Story Bible ne recoit qu'1 de ses 2 sources declarees et ne peut, par construction, ancrer ni monde, ni faction, ni personnage propres au projet."}

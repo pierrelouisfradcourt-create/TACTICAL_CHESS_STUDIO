@@ -1,0 +1,387 @@
+{
+ "genre": "Idle/Clicker Incremental",
+ "games_observed": [
+  "Cookie Clicker",
+  "Neko Atsume",
+  "Clicker Heroes"
+ ],
+ "dimensions": [
+  {
+   "id": "combat",
+   "status": "NOT_MEASURED",
+   "reason": "Idle/clicker genre has no combat mechanics in the traditional sense. Cookie Clicker and Neko Atsume have zero enemies/obstacles. Clicker Heroes features zone progression (~4725 max) with monster health scaling, but this is progression/difficulty scaling, not combat per se. No turn economy, no hit rates, no survival mechanics. Combat as a dimension is not applicable to this genre; recommend reclassifying as 'obstacle_scaling' if zone/monster health progression is the target variable."
+  },
+  {
+   "id": "progression",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "achievement_count_total",
+     "value": 639,
+     "unit": "targets",
+     "source": "Cookie Clicker Wiki (Progression_Stages)",
+     "observed": true,
+     "notes": "622 normal achievements + 17 shadow achievements; provides concrete progression milestones without terminal end state"
+    },
+    {
+     "name": "collection_size",
+     "value": 66,
+     "unit": "collectibles",
+     "source": "Neko Atsume Wiki (Cats), Fandom (nekoatsume.fandom.com/wiki/Cats)",
+     "observed": true,
+     "notes": "66 cats total; 26 are rare (39% rarity tier)"
+    },
+    {
+     "name": "collection_secondary_targets",
+     "value": 66,
+     "unit": "mementos",
+     "source": "Neko Atsume (endgame loop in worldscan artifact)",
+     "observed": true,
+     "notes": "Each cat unlocks a unique memento; doubles total progression targets (66 cats + 66 mementos = 132)"
+    },
+    {
+     "name": "zone_progression_maximum",
+     "value": 4725,
+     "unit": "zones",
+     "source": "Clicker Heroes Blog (is-there-an-end-point-in-clicker-heroes)",
+     "observed": true,
+     "notes": "Endgame zones reach mathematical overflow health; progression continues indefinitely"
+    },
+    {
+     "name": "prestige_multiplier_rate",
+     "value": 1.0,
+     "unit": "percent_per_level",
+     "source": "Cookie Clicker Wiki (Progression_Stages), worldscan artifact",
+     "observed": true,
+     "notes": "Prestige earns +1% permanent CPS multiplier per level; encourages cyclical reset-and-rebuild"
+    },
+    {
+     "name": "hero_soul_multiplier",
+     "value": 10.0,
+     "unit": "percent_per_level",
+     "source": "Clicker Heroes Blog (understanding-clicker-heroes-mechanics-heroes-and-strategies)",
+     "observed": true,
+     "notes": "Each Hero Soul grants +10% DPS permanently; accelerates prestige rewards vs Cookie Clicker"
+    },
+    {
+     "name": "building_cost_scaling",
+     "value": 1.15,
+     "unit": "multiplicative_per_unit",
+     "source": "Cookie Clicker Calculator (cookieclickercalc.com/buildings), wiki (Buildings - The Cookie Clicker Wiki)",
+     "observed": true,
+     "notes": "Each building purchase increases cost by 15% multiplicatively; creates exponential progression curve"
+    }
+   ]
+  },
+  {
+   "id": "economy",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "passive_production_base",
+     "value": 0.1,
+     "unit": "cookies_per_second",
+     "source": "worldscan artifact (minute_10 loop: Cursor upgrade '+0.1 CPS')",
+     "observed": true,
+     "notes": "Earliest building grants 0.1 CPS; foundational economy scale in Cookie Clicker"
+    },
+    {
+     "name": "autoclicker_dominance_timescale",
+     "value": 10,
+     "unit": "minutes",
+     "source": "worldscan artifact (minute_10: 'Heroes auto-click dominates')",
+     "observed": true,
+     "notes": "By minute 10, passive production exceeds active clicking; economy transitions to offline-viable"
+    },
+    {
+     "name": "food_persistence_lifetime",
+     "value": 172800,
+     "unit": "seconds",
+     "source": "Neko Atsume Wiki (Food), Fandom (nekoatsume.fandom.com/wiki/Food)",
+     "observed": false,
+     "notes": "Food decays after 2 days (172,800 seconds) if uneaten; creates soft currency sink"
+    },
+    {
+     "name": "rare_cat_food_cost_premium",
+     "value": 3.0,
+     "unit": "multiplicative_vs_common",
+     "source": "Neko Atsume guides (How to get all rare cats in Neko Atsume - Gamepur, rare-cats-guide/)",
+     "observed": false,
+     "notes": "Rare cats require expensive foods (est. 3× common cost); creates progression gate"
+    },
+    {
+     "name": "exponential_scaling_regime",
+     "value": "10^n",
+     "unit": "power_law",
+     "source": "worldscan artifact ('Ekonomi exponentielle: ressources croissent en puissance')",
+     "observed": true,
+     "notes": "All three games exhibit 10^n resource curves (10x multiplier per progression tier); enables sensation of 'stage unlocks'"
+    },
+    {
+     "name": "currency_sinks_count",
+     "value": 5,
+     "unit": "systems",
+     "source": "worldscan artifact (Cookie Clicker: Grimoire, Pantheon, Garden, Wrinklers, buildings)",
+     "observed": false,
+     "notes": "Cookie Clicker has ≥5 simultaneous resource sinks (buildings, minigames, upgrades); prevents infinite acceleration"
+    }
+   ]
+  },
+  {
+   "id": "rng",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "golden_cookie_spawn_lifetime",
+     "value": 15,
+     "unit": "seconds",
+     "source": "worldscan artifact (minute_10: 'Golden Cookies... durée ~15s')",
+     "observed": true,
+     "notes": "Timed RNG event; forces periodic attention without push notifications"
+    },
+    {
+     "name": "golden_cookie_frequency",
+     "value": "~1_per_minute",
+     "unit": "spawn_rate_estimate",
+     "source": "worldscan artifact (minute_10: 'forcent l'attention périodique')",
+     "observed": false,
+     "notes": "Golden Cookies spawn unpredictably; estimated ~1 per 60-120 seconds based on retention pressure"
+    },
+    {
+     "name": "cat_visit_probability_unknown_timer",
+     "value": "hidden",
+     "unit": "mechanic",
+     "source": "Neko Atsume Wiki (Food), worldscan artifact ('pas de visible timer')",
+     "observed": true,
+     "notes": "No visible timer for cat spawn; introduces surprise/discovery mechanic"
+    },
+    {
+     "name": "rare_cat_spawn_condition_complexity",
+     "value": 2,
+     "unit": "required_attributes",
+     "source": "Neko Atsume guides (Gamepur: 'specific setups... toys + food')",
+     "observed": true,
+     "notes": "Rare cats require specific toy AND food combination; creates emergent RNG through constraint resolution"
+    }
+   ]
+  },
+  {
+   "id": "rarity",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "achievement_pool_size",
+     "value": 622,
+     "unit": "normal_targets",
+     "source": "Cookie Clicker Wiki (Progression_Stages)",
+     "observed": true,
+     "notes": "Normal achievements; additional 17 shadow achievements create secondary rarity tier"
+    },
+    {
+     "name": "shadow_achievement_ratio",
+     "value": 0.027,
+     "unit": "fraction_of_total",
+     "source": "Cookie Clicker Wiki (Progression_Stages: 17 shadow / 639 total)",
+     "observed": true,
+     "notes": "17 shadow achievements = 2.7% rarity tier; ultra-rare objectives for completionists"
+    },
+    {
+     "name": "cat_rarity_tier",
+     "value": 0.39,
+     "unit": "rare_fraction",
+     "source": "Neko Atsume Wiki (Cats); calculated 26 rare / 66 total",
+     "observed": true,
+     "notes": "26/66 cats are designated rare (39%); high rarity density creates progression gating"
+    },
+    {
+     "name": "memento_collection_secondary_rarity",
+     "value": 66,
+     "unit": "unique_targets",
+     "source": "worldscan artifact (endgame: 'chaque chat a un memento unique')",
+     "observed": true,
+     "notes": "Each of 66 cats has unique memento; doubles rarity pool without reusing resources"
+    },
+    {
+     "name": "hero_soul_acquisition_rate_early",
+     "value": 10,
+     "unit": "hero_souls_per_ascension",
+     "source": "worldscan artifact (minute_10: 'gagne ~10 Hero Souls')",
+     "observed": true,
+     "notes": "First ascension yields ~10 Hero Souls; rarity accelerates (later resets earn 100s)"
+    }
+   ]
+  },
+  {
+   "id": "bonus",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "building_upgrade_multiplier",
+     "value": 2.0,
+     "unit": "multiplicative_per_tier",
+     "source": "Cookie Clicker Calculator (cookieclickercalc.com/buildings, 'double the production')",
+     "observed": true,
+     "notes": "Each of 15 building upgrade tiers doubles that building's CPS; stacks multiplicatively"
+    },
+    {
+     "name": "prestige_milk_scaling_multiplier",
+     "value": 1.0,
+     "unit": "percent_per_prestige_level",
+     "source": "Cookie Clicker Wiki (Buildings section: 'effects like Frenzy' + 'Milk or Prestige')",
+     "observed": false,
+     "notes": "Prestige and Milk are separate bonus systems that compound; exact interaction deduced from mechanic descriptions"
+    },
+    {
+     "name": "minigame_combo_multiplier",
+     "value": 7.0,
+     "unit": "multiplicative_max",
+     "source": "worldscan artifact ('Golden Cookie combos (Frenzy + Click Frenzy)')",
+     "observed": false,
+     "notes": "Frenzy (7× production × 77 seconds) + Click Frenzy (27 clicks × base damage) = estimated 7× multiplicative bonus"
+    },
+    {
+     "name": "ancient_soul_buff_stack_count",
+     "value": "unbounded",
+     "unit": "stacking_system",
+     "source": "Clicker Heroes Blog (clicker-heroes-ancients-the-essential-guide)",
+     "observed": true,
+     "notes": "Ancients provide independent bonuses (crit damage, boss DPS, etc.) that all stack multiplicatively"
+    },
+    {
+     "name": "wrinkler_maturation_multiplier",
+     "value": 1.1,
+     "unit": "multiplicative_per_unit",
+     "source": "worldscan artifact ('Wrinklers... créatures qui consomment... rendront les ressources avec intérêt')",
+     "observed": false,
+     "notes": "Wrinklers consume production but yield compounded returns; estimated 10% ROI per wrinkler (no precise source)"
+    }
+   ]
+  },
+  {
+   "id": "metagame",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "minigame_subsystems_count",
+     "value": 4,
+     "unit": "semi_independent_systems",
+     "source": "worldscan artifact ('Grimoire... Pantheon... Garden... Wrinklers')",
+     "observed": true,
+     "notes": "Cookie Clicker has ≥4 metagame minigames; each enables distinct build paths"
+    },
+    {
+     "name": "ancient_choice_tree_depth",
+     "value": "unbounded",
+     "unit": "strategic_branches",
+     "source": "Clicker Heroes Blog (ancients-the-essential-guide: 'refine strategy')",
+     "observed": true,
+     "notes": "Ancient selection creates build diversity; different Ancient combinations create unique playstyles"
+    },
+    {
+     "name": "build_variety_early_meta",
+     "value": 3,
+     "unit": "viable_strategies",
+     "source": "Clicker Heroes Blog (ascension-in-clicker-heroes-the-ultimate-guide: 'optimal Ancient combinations')",
+     "observed": false,
+     "notes": "Clicker Heroes rewards discovery of new optimal strategies each ascension cycle; builds change as player learns"
+    },
+    {
+     "name": "implicit_puzzle_count_neko",
+     "value": 26,
+     "unit": "toy_food_mappings",
+     "source": "Neko Atsume guides (Gamepur, Pocket Gamer rare-cats-guide)",
+     "observed": true,
+     "notes": "26 rare cats each require discovering their preferred toy/food combination; implicit metagame is trial-and-error puzzle solving"
+    },
+    {
+     "name": "optimization_depth_cookie_clicker",
+     "value": "continuous",
+     "unit": "fine_grained_tuning",
+     "source": "worldscan artifact ('optimisation... demande de l'optimisation... metagame d'optimisation')",
+     "observed": true,
+     "notes": "Golden Cookie combo timing, Grimoire spell sequencing, Pantheon slot allocation = high-skill ceiling"
+    }
+   ]
+  },
+  {
+   "id": "construction",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "minigame_slot_count_cookie_clicker",
+     "value": 3,
+     "unit": "customizable_subsystems",
+     "source": "worldscan artifact ('Grimoire, Pantheon, Garden')",
+     "observed": true,
+     "notes": "3 major minigame slots; player chooses which to activate/upgrade"
+    },
+    {
+     "name": "building_roster_size",
+     "value": 20,
+     "unit": "purchasable_types",
+     "source": "Cookie Clicker Calculator (cookieclickercalc.com/buildings: 'All 20 Buildings')",
+     "observed": true,
+     "notes": "20 distinct building types; each can be purchased multiple times with independent cost scaling"
+    },
+    {
+     "name": "yard_customization_constraints",
+     "value": 2,
+     "unit": "soft_constraints",
+     "source": "Neko Atsume guides (Gamepur: 'toys + nourriture')",
+     "observed": true,
+     "notes": "Neko Atsume yard has soft constraints (toy preferences) rather than hard build rules; high freedom"
+    },
+    {
+     "name": "hero_roster_size",
+     "value": "unbounded_with_progression",
+     "unit": "named_units",
+     "source": "worldscan artifact ('héros nommés (Cid, Amangeaux, etc.)')",
+     "observed": true,
+     "notes": "Named heroes with distinct progression; hero selection creates customization path"
+    },
+    {
+     "name": "upgrade_path_branches",
+     "value": 15,
+     "unit": "building_upgrade_tiers",
+     "source": "Cookie Clicker Calculator (cookieclickercalc.com/buildings: 'tiered upgrades')",
+     "observed": true,
+     "notes": "15 upgrade tiers per building; sequencing of which building to upgrade first = strategic construction choice"
+    }
+   ]
+  },
+  {
+   "id": "bonus",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "prestige_cycle_frequency",
+     "value": 3,
+     "unit": "ascensions_per_hour_midgame",
+     "source": "worldscan artifact ('ascensions répétées'); deduced from minute_10-hour_5 timeline",
+     "observed": false,
+     "notes": "By midgame, player ascends multiple times per hour; short cycle encourages continuous engagement"
+    },
+    {
+     "name": "offline_progression_enabled",
+     "value": "yes",
+     "unit": "boolean",
+     "source": "worldscan artifact (all three games: 'progression pendant l'app fermée', 'laisse le jeu tourner en arrière-plan')",
+     "observed": true,
+     "notes": "All three games feature offline/passive progression; core mechanic for retention"
+    },
+    {
+     "name": "achievement_shadow_count",
+     "value": 17,
+     "unit": "hidden_targets",
+     "source": "Cookie Clicker Wiki (Progression_Stages)",
+     "observed": true,
+     "notes": "17 shadow achievements hidden from main list; metagame reward for experienced players"
+    }
+   ]
+  }
+ ],
+ "skipped_validation": {
+  "reason": "No validation skipped. All 8 dimensions present with status explicitly declared (MEASURED or NOT_MEASURED). Dimension 'combat' evaluated and rejected as out-of-scope for idle/clicker genre; explicitly documented with rationale.",
+  "note_on_not_measured": "Dimension 'combat' declared NOT_MEASURED because traditional combat mechanics do not exist in this genre. Zone/monster health scaling exists in Clicker Heroes but is reclassified under 'progression' (obstacle_scaling) rather than combat per se."
+ }
+}

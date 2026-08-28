@@ -1,0 +1,65 @@
+Confirmed — new project, no existing blueprint to diff against. I have everything needed. Here is my architecture decision.
+
+---
+
+## FINAL REPORT — s4-archi / kitten_clicker-20260821e
+
+### Ancres réelles de ce travail (lues, non supposées)
+- **`scripts/forge/static_oracles.py:75-78`** (`_module_of`) et **`:198-260`** (`check_architecture`) — le consommateur **réel** du bloc `{modules, deps_interdites}`. Un module de fichier = `rel.parts[0]` (dossier de **premier niveau**) ; une arête interdite `(src_mod, target)` ne se déclenche que si `target ∈ imports(file) ∩ modules` **et** `src_mod == parts[0]` du fichier importateur.
+- **`static_oracles.py:214-222`** — le parseur de `deps_interdites` : n'accepte QUE des paires `[str, str]` ; tout autre forme ⇒ `passed:False` (FAIL honnête). Mes 4 paires respectent cette forme.
+- **`scripts/forge/standard/repo_map.yaml`** (table FIGÉE) — `system: 05_SYSTEMS/{id}/` (logique pure) ; `system.adapter: 06_RUNTIME/adapters/{id}/` (seule couche autorisée à toucher le moteur). **Aucune** catégorie ne permet un dossier `render`/`input` de premier niveau : ils vivent obligatoirement SOUS `06_RUNTIME/adapters/`.
+- **`games/tetris/09_WIREMAP/wiremap.json`** — patron STANDARD conforme mesuré : `render`, `input`, `audio`, `boot`, `restart`, `exit` **partagent tous** `06_RUNTIME/adapters/runtime_loop/runtime_loop.gd` → `parts[0] == "06_RUNTIME"`. Confirme physiquement la collision annoncée par le pré-mortem.
+- **`featuremap` (s3-decompo)** — 22 capacités `R1..R22` ; **`charter.yaml`** critères a–h.
+
+### Décision d'architecture (découpe par responsabilité)
+Deux couches de code, dépendance **strictement unidirectionnelle** — c'est l'invariant qui rend la solvabilité prouvable (le bot pilote la logique pure sans moteur) :
+
+| Couche (module) | `parts[0]` | Responsabilité | Preuve attendue |
+|---|---|---|---|
+| `05_SYSTEMS` | `05_SYSTEMS` | Logique pure : état (ronrons/chatons/lieux/prestige), rampe de prix, production auto, améliorations, registre chatons + distribution rareté, courbe de paliers, prestige, quêtes, save, `game_loop`, `debug_state`. **Ne touche jamais** Node2D/Input/`_draw`/audio. | tests unitaires + `solvability.gd` (bot déterministe pilote CETTE couche) |
+| `06_RUNTIME` (adapters `render`/`input`/`audio`/`boot`) | `06_RUNTIME` | Seule couche « moteur ». `render` = HUD taux, sprites chatons, feedback clic, visuel rareté, notation abrégée, onboarding. `input` = clic pelote + boutons achat/upgrade/prestige. `audio` = 4 cues distincts. `boot` = composition + tick d'auto-production. Chacun **importe** `05_SYSTEMS` (autorisé), jamais l'inverse. | oracles GPU `07_TESTS/oracle/core_*.gd` |
+
+`render`/`input`/`audio` sont déclarés comme **modules-cibles** (jetons d'adaptateur) parce que — repo_map étant figé — ils ne peuvent PAS être de premier niveau, et c'est **la seule façon de rendre les séparations mandatées `logique→rendu` / `logique→input` à la fois EXPRIMABLES et DÉCLENCHABLES** sous `check_architecture` (pré-mortem `manifest-6bd3c4c6ac2b01b8`). Vérifié mécaniquement : un fichier `05_SYSTEMS/*.gd` qui ferait `preload("res://06_RUNTIME/adapters/render/hud.gd")` produit les jetons `{06_RUNTIME, render}` ; `src_mod=05_SYSTEMS` ⇒ les arêtes `[05_SYSTEMS,render]` **et** `[05_SYSTEMS,06_RUNTIME]` s'allument. Build propre ⇒ aucune ⇒ `passed:True`. **Non vacuité prouvée par lecture du consommateur, pas par exécution.**
+
+### Couverture featuremap (chaque `R*` a ≥1 module ; aucune couverture fantôme)
+- **`05_SYSTEMS`** : R1, R2 (calcul taux), R4, R5, R6, R7, R9, R10, R11, R12, R15, R16 (logique pilotée par le bot), R17, R18, R20, R22.
+- **`render`** : R2 (affichage), R3, R8, R13, R19, R21.
+- **`input`** : R1 (détection clic), achats/upgrade/prestige.
+- **`audio`** : R14.
+- **`06_RUNTIME`/boot** : `game.loop`/`game.boot` (tick auto-production alimentant R4).
+- **`solvability.gd`** (racine, `godot.project_root`) : R16/critère (h) — pilote `05_SYSTEMS`.
+Aucune feature non couverte ; aucun module sans feature.
+
+### Arêtes interdites (toutes déclenchables — source = `parts[0]` réel)
+`[05_SYSTEMS,06_RUNTIME]` (parapluie), `[05_SYSTEMS,render]`, `[05_SYSTEMS,input]`, `[05_SYSTEMS,audio]`. Aucune arête déclarée n'est par ailleurs autorisée (format simple, pas de liste d'autorisations ⇒ aucune contradiction). Aucun cycle (une seule direction : adapters → systems).
+
+### Limite assumée (fog → HumanGate)
+Les séparations **`render↔input`** (adapters entre eux) ne sont **pas déclenchables** : les deux ont `parts[0]=="06_RUNTIME"`, or `check_architecture` dérive la source d'une arête par `parts[0]`. Déclarer `[render,input]` serait une arête **vacue** (jamais tirable) — écartée. Cette granularité intra-`06_RUNTIME` relève du jugement Pierre, pas d'un oracle.
+
+### Verdicts
+- **software_verdict: OK** — au sens **forme uniquement** : `deps_interdites` = 4 paires `[str,str]` valides et **non vide**, `modules` = liste de chaînes, conformes au parseur lu (`static_oracles.py:214-222`) et à la mécanique `_module_of`/violations (arêtes déclenchables démontrées par traçage du code).
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — preuve = **lecture du consommateur** (static_oracles.py) + patron conforme (tetris wiremap) + table figée (repo_map). Aucune exécution d'oracle.
+- **claim_verdict: NO_CLAIM_ALLOWED** — « cette architecture couvre-t-elle correctement le besoin » est un jugement de couverture. L'oracle amont non-vacueux n'existe pas à s4 : `check_architecture` sur `src` vide est **vacuement vert** (dit par le contrat lui-même) ; `check_blueprint_contract.mjs` attend le format RICHE (`responsabilites`/`ownership`/`couvre`), incompatible avec le bloc simple que la TÂCHE CONCRÈTE impose. **fog** : (1) tension format simple (TÂCHE) vs riche (CONTRAT DE SORTIE / check_blueprint_contract) ; (2) étiquette « premier niveau » vs jetons d'adaptateur sous-`06_RUNTIME` nécessaires à la déclenchabilité. Deux points connus (pré-mortem), à trancher par Pierre.
+
+### SKIPPED_VALIDATION
+- **item** : `node scripts/forge/check_blueprint_contract.mjs blueprint.json --featuremap featuremap.json` · **où** : run_dir kitten_clicker · **statut** : non fait · **raison** : attend le format RICHE ; la TÂCHE CONCRÈTE impose le bloc simple `{modules, deps_interdites}` que l'exécuteur matérialise — lancer cet oracle sur mon bloc produirait un FAIL de forme non représentatif.
+- **item** : `forge.static_oracles.check_architecture` exécuté · **où** : `games/kitten_clicker` · **statut** : non fait (impossible) · **raison** : `src` inexistant à s4 ⇒ vert par vacuité, explicitement disqualifié par le contrat. Validé par **lecture** du code à la place.
+- **item** : lecture `knowledge_packet.json` (ADVISORY) · **où** : run_dir · **statut** : non fait · **raison** : absent (constaté par s3), advisory-only.
+- **item** : diff blueprint existant · **où** : `games/kitten_clicker/blueprint.yaml` · **statut** : non applicable · **raison** : projet neuf, fichier inexistant (vérifié).
+
+### RETURN LINEAGE
+- **why_task_existed** :
+  - `problem` : le projet kitten_clicker n'a pas d'architecture gelée ; sans elle, s5-wiremap et le build n'ont pas de graphe de dépendances autorisées/interdites, et les runs précédents échouaient (s5 « features non vide », s10c FAIL, s10a solvability non passé).
+  - `oracle` : `forge.static_oracles.check_architecture` (aval, s10b) — consommateur du bloc ; activation de CETTE tâche = décision de séquence Forge (humaine/pipeline).
+  - `root_cause` : sous topologie STANDARD, `render`+`input` partagent `06_RUNTIME` (repo_map figé) et `check_architecture` dérive la source d'une violation par `parts[0]` — les séparations `logique→rendu`/`logique→input` ne sont exprimables/déclenchables qu'en déclarant `render`/`input` comme jetons-cibles.
+  - `action_reason` : blueprint à 2 couches (logique pure `05_SYSTEMS` ⇐ adapters `06_RUNTIME`) avec 4 arêtes interdites déclenchables, chacune vérifiée contre la mécanique réelle de l'oracle.
+- **result** : bloc `{modules, deps_interdites}` produit, forme conforme au parseur, non-vacuité et couverture featuremap démontrées par traçage ; aucun fichier écrit (exécuteur matérialise).
+- **proof** : lecture `static_oracles.py:75-78,198-260,214-222` ; patron `games/tetris/09_WIREMAP/wiremap.json` (collision `06_RUNTIME` confirmée) ; `repo_map.yaml` (pas de `render`/`input` premier niveau). Aucune commande exécutée (Bash/Grep désactivés cette session ; oracle amont vacueux par conception).
+- **learning** : en STANDARD Godot, une séparation `logique→X` n'est déclenchable que si `X` apparaît comme **segment de chemin d'import** présent dans `modules` ; les séparations entre concerns partageant un même `parts[0]` (render↔input) sont structurellement invérifiables par `check_architecture` — à porter en fog, jamais en arête vacue.
+- **next_reason** : chaîne causale **ouverte vers s5-wiremap** — s5 doit matérialiser les adaptateurs sous `06_RUNTIME/adapters/{render,input,audio,boot}/` (jetons cohérents avec ce blueprint) et geler les preuves ; deux points de fog restent à trancher par Pierre (format simple/riche ; granularité « premier niveau »).
+
+```json
+{"modules": ["05_SYSTEMS", "06_RUNTIME", "render", "input", "audio"], "deps_interdites": [["05_SYSTEMS", "06_RUNTIME"], ["05_SYSTEMS", "render"], ["05_SYSTEMS", "input"], ["05_SYSTEMS", "audio"]]}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "sous topologie STANDARD, les separations mandatees logique->rendu et logique->input ne sont ni exprimables ni declenchables au seul niveau 'premier dossier', car render et input partagent la racine 06_RUNTIME (repo_map fige) et check_architecture derive la source d'une violation par parts[0]", "root_cause": "_module_of=rel.parts[0] dans static_oracles.check_architecture combine a system.adapter -> 06_RUNTIME/adapters/{id}/ dans repo_map.yaml : les concerns d'adaptateur ne peuvent etre distingues qu'en les declarant comme jetons-cibles sous 06_RUNTIME"}

@@ -1,0 +1,44 @@
+Both artifacts written, oracle receipt persisted. Delivery is on `verdict === 'OK'` as required.
+
+---
+
+## RAPPORT FINAL — s2.5-artbible / kitten_clicker-20260821d
+
+**Livrables** (run_dir `lab/forge_runs/kitten_clicker/`) :
+- `art_bible.md` — frontmatter `styles:[flat-cute-svg, cozy-pastel-2d]` + `mood_keywords` non vides ; 3 sections (IDENTITE VISUELLE, RATIONALE, BESOINS VISUELS) ; identité « mignon, chaleureux, lisible à 640x480 » ; clé de rareté à 3 axes cumulatifs (taille/couleur/fioriture).
+- `asset_requests.json` — 23 `asset_request` V0.1, **une par entité `required:true`** (jamais de requête générique), `no_assets_needed:false`, format cible SVG (constraints `2D`/`godot`).
+- `check_artbible_receipt.json` — reçu oracle (evidence_path).
+
+**Ancrage / oracle (non-LLM).** `node scripts/forge/check_artbible.mjs art_bible.md asset_requests.json` →
+
+```
+verdict: OK   pass: true   exit 0
+coverage.checked=true  missing=[]  satisfied=23/23
+resolution_stats: 0 OK / 23 BLOCKED / 23 total  (ADVISORY)
+```
+
+Chaque affirmation ci-dessous est adossée à ce reçu : forme conforme (frontmatter + 3 sections non triviales + bloc JSON `visual_requirements` valide + chaque request passe `validateRequestShape` + `style ∈ frontmatter.styles`), et **couverture besoin↔requête complète** (23 besoins `required:true`, chacun avec ≥1 request de même `entity_role` sur 6 rôles : `item, collectible, environment, icon, ui, effect`).
+
+**software_verdict: OK** (reçu `check_artbible.mjs` verdict OK). · **evidence_verdict: MECHANICAL_VALIDATION_ONLY**. · **claim_verdict: NO_CLAIM_ALLOWED**.
+
+**Entités → règles observables couvertes.** pelote centrale (R1/R12) · 4 objets item dont ≥3 distincts R8 · 7 chatons nommés sur 5 raretés R3/R6/(a) · 2 lieux distincts R7/(b) · HUD compteur+taux R1/R4 · journal 3 quêtes R8/(d) · bandeau paliers ≥3 seuils R9/(g) · prestige jalon-victoire R13, aucun game-over R14 · particule ronron R12/(f) · fanfare prestige R13.
+
+**Résolution catalogue (advisory, jamais pass/fail).** 23/23 `BLOCKED` : le catalogue ne contient **aucun** asset `godot`+`2D` (0 sur 19 entrées). Ce `BLOCKED`-là est **légitime et rapporté tel quel** (catalogue incomplet, pas un gaming d'oracle) — le format SVG est écrit par le builder ; aucune ingestion réseau (gate Pierre). Distinct de `coverage.missing` (vide, OK).
+
+**fog HumanGate (jamais un claim).**
+- Conformité **esthétique** des SVG (« est-ce joli / dans le bon style ») : non évaluable mécaniquement — `style_tag_match` compare des tags, pas des pixels (cf. ASSET_CONTRACT_V0 « ce que ce contrat ne fait jamais »). Jugement Pierre.
+- Adéquation viewpoint/style d'un tag : vecteur d'**adéquation** (v0.1 ferme la complétude, pas l'adéquation) — fog assumé.
+- Nommage/casting des 7 chatons et clé de rareté : **décision de cette station** (non hérité — story_bible ne fournit que le nombre ≥6 et le principe de différenciation), à ratifier par Pierre.
+
+**SKIPPED_VALIDATION :**
+- item: identité **audio** (R11, 4 sons distincts) · périmètre: `asset_requests.json` · statut: non fait (délibéré) · raison: l'audio n'est pas une entité **visuelle** et le charter le déclare **procédural, généré par le builder** (`core_audio.gd`) — hors périmètre de l'Art Bible ; non inscrit en BESOINS VISUELS, donc non requis par `checkCoverage`.
+- item: **jugement esthétique** des 23 SVG · périmètre: les deux livrables · statut: non fait (hors périmètre) · raison: garde-fou du contrat — résolution mécanique uniquement, jamais LLM-as-judge sur l'esthétique (remonté en fog).
+
+**RETURN LINEAGE.**
+- why_task_existed: {problem: "le charter exige que chaque chaton/lieu/objet/quête promis soit reconnaissable à l'exécution, pas seulement en prose ; sans identité visuelle structurée, l'aval (build) n'a ni cible d'asset ni clé de rareté" · oracle: "check_artbible.mjs (coverage besoin↔requête v0.1)" · root_cause: "story_bible ne fournit que le nombre (≥6) et le principe de différenciation des chatons, pas les identités individuelles — l'identité visuelle restait à produire" · action_reason: "l'Art Director fixe la clé de rareté (taille/couleur/fioriture) et émet une request par entité required, rendant la couverture mécaniquement vérifiable"}
+- result: "art_bible.md (3 sections + frontmatter non vide + 23 visual_requirements) + asset_requests.json (23 requests V0.1, 1 par entité required) + reçu check_artbible = OK"
+- proof: "node scripts/forge/check_artbible.mjs … --json → verdict:OK, pass:true, coverage.missing=[], satisfied 23/23, resolution 0/23 BLOCKED (advisory) ; exit 0"
+- learning: "le catalogue n'a aucun asset godot+2D (0/19) → toute request SVG résout BLOCKED en advisory ; c'est un fait de catalogue légitime, à ne jamais convertir en erreur de contrat ni à masquer en assouplissant les constraints (distinction resolution_stats.blocked vs coverage.missing tenue)"
+- next_reason: "chaîne fermée pour cette station : couverture OK, aucune cause non résolue côté art_bible. Reste en aval l'authoring effectif des 23 SVG par le builder (s9) et la ratification esthétique HumanGate — hors périmètre s2.5."
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

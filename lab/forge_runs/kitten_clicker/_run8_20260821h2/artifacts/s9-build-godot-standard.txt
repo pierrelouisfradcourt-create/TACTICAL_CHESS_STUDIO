@@ -1,0 +1,68 @@
+Verification complete. Here is the final report.
+
+---
+
+# FINAL REPORT — s9-build-godot-standard · kitten_clicker-20260821h2 (dispatch :2)
+
+## Nature de cette passe
+Le jeu a été **bâti par la passe :1** (working tree complet sous `games/kitten_clicker/`, wiremap déjà remplie). Sur ce re-dispatch `:2` je n'ai **écrit aucun fichier** : mon travail a été de **confronter le build au réel** (relancer les preuves, ne pas croire les champs `preuve` de la wiremap sur parole) et de statuer sur les deux lignes restées BLOCKED (audio).
+
+## Contrainte de session dominante — exécution Godot refusée
+Le binaire Godot est résolu correctement (`godot_bin.mjs` → `Godot_v4.6.3-stable_win64_console.exe`, preuve : sortie du node ci-dessus). **Mais toute exécution du binaire est refusée par la porte d'approbation de cette session** (5 formes essayées, dont `--version` seul → « This command requires approval »). Je ne peux donc PAS produire de reçu d'exécution frais pour les oracles. Conformément à la règle « preuve d'exécution ≠ preuve d'existence » et à la leçon `a_verification_can_be_green_without_happening`, **je ne recopie pas les nombres mesurés par la passe :1 comme s'ils étaient les miens**. Les critères qui exigent une exécution sont donc **BLOCKED (non mesurés cette session)**, pas OK.
+
+## Ce que j'ai RÉELLEMENT vérifié (oracles/ancres non-LLM, tous exécutés avec des outils autorisés — node/grep/sha256)
+
+| Item | Ancre | Constat |
+|---|---|---|
+| loop.json sha256 == run_dir (critère 9) | `sha256sum` | **OK** — `2f1fb59e8e7e…7930f0` identique des deux côtés |
+| `09_WIREMAP/wiremap.json` déposé (critère 11) | `ls` | **OK** — 39 761 o |
+| `game_contract.yaml` `proof:` complet (critère 11) | `Read` | **OK** — descripteur mutation (`categories_mutables:[system]` + exclusions) **et** solvability présents |
+| CODE_COPIE audio.gd fidèle (garde-fou g) | `sha256sum` | **OK** — copie locale `646e6e9a…6bfe7` **==** source pacman, exactement `copy_sha256` |
+| EXPECTED_ASSERTS cohérent (partie statique de 1) | `grep -c` | **OK** — `EXPECTED_ASSERTS:=51` **==** 51 appels `ok(`. Garde anti-faux-vert présente. *(Que les 51 PASSENT reste non prouvé sans exécution.)* |
+| Volets chargent `res://main.tscn` (critère 6) | `grep` | **OK** — 6/6 volets `load("res://main.tscn")`, aucun n'assemble sa propre scène |
+| Aucun appel interdit dans volets/bots (critère 10) | `grep` | **OK** — 0 occurrence de `Economy`/`api_*`/`05_SYSTEMS`/`runtime.gd` sous `07_TESTS/` |
+| Déterminisme logique pure (garde-fou b) | `grep` | **OK** — 0 `randi/randf/randomize/Time.*/OS.*` dans `05_SYSTEMS/` |
+| Séparation (garde-fou c) | `grep` | **OK** — `05_SYSTEMS/` ne connaît ni Node/Input/Control/Sprite/Texture/Label/Button ; seuls preloads = intra-`economy` (`cost_curve.gd`) |
+| Preuve→fichier .gd (critère 7) | `ls` | **OK** — les 7 `.gd` nommés existent ; `core_audio.gd` absent (cohérent BLOCKED) |
+| Assemblage (garde-fou h) | `grep main.gd` | **OK statiquement** — `_ready`→`_load_registries` (kittens/locations…), groupes `hud`/`affordance`/`cost_ladder`/`quests`/`gallery`, `_process` de production |
+| Closure preload cassée non chargée | `grep main.gd/tscn` | **OK** — `main.gd`/`main.tscn` ne référencent jamais `audio.gd` → le build jouable ne casse pas |
+| États de ligne (critère 2) | `Read wiremap` | **OK** — aucune ligne `REQUIRED` ; tout `IMPLEMENTED` sauf 2 lignes audio `BLOCKED` motivées |
+
+## Lignes BLOCKED — confirmées, non improvisées (garde-fou a)
+- **`render.audio_trigger`** et **`test.core_audio`** : la réutilisation CODE_COPIE de `games/pacman/06_RUNTIME/adapters/audio/audio.gd` porte une **clôture transitive de `preload` hors-carte** — `audio.gd` → `preload sound_bank.gd` (`06_RUNTIME/adapters/sound_bank/`) **+** `preload settings.gd` (`05_SYSTEMS/settings/`). Ces deux systèmes **n'existent pas** dans la passe-1 gelée de la wiremap (`systems`: economy, input_adapters, presentation, content, media, proof). Vérifié : les câbler exigerait soit **rouvrir la liste des systèmes gelée** (gel dur, interdit au forgeron), soit **éditer la copie** (casse `copy_sha256`, garde-fou g), soit **déposer 2 fichiers à adresses non déclarées** (fichiers orphelins → oracle standard FAIL). Les trois sont interdits. **Le blocage tient : c'est un défaut AMONT**, remonté, pas contourné.
+- Conséquence assumée : critère de démo (e) « son par événement » **non satisfait** ; `play_sfx` non appelé dans `main.gd`. Cohérent avec le BLOCK.
+
+## Fichiers touchés cette session
+**Aucun.** (Écriture nulle ; passe de vérification seule.) Ownership carte : non applicable — rien déposé.
+
+## Score de mutation BRUT
+**Non mesuré par le forgeron** — par conception : `run_real._STEP_TOOLS` n'accorde pas Python à cette étape, le gate mutation est **exécuté par le driver** (permissions, divergence exécuteur connue P6). Ce n'est pas un skip de ma part, c'est une délégation contractuelle.
+
+## Verdicts
+**software_verdict: BLOCKED** — la structure, le déterminisme, la séparation, l'assemblage statique, les invariants de dépôt (loop.json sha, wiremap, `proof:`, CODE_COPIE) sont **vérifiés OK** ; mais les oracles d'EXÉCUTION (headless run_tests exit-code/comptage réel — critère 1 ; runtime_alive — 5 ; player_loop→ADVANTAGE — 8 ; volets FORGE_ORACLE) **n'ont pas pu être exécutés** (porte d'approbation Godot refusée). Sans reçu d'exécution frais, je ne peux pas prononcer OK.
+**evidence_verdict: MECHANICAL_VALIDATION_ONLY** (pour les items réellement mesurés ci-dessus).
+**claim_verdict: NO_CLAIM_ALLOWED.**
+
+**fog → HumanGate (Pierre) :** (1) débloquer l'exécution du binaire Godot pour que le driver/forgeron relance les oracles d'exécution ; (2) trancher le défaut AMONT audio — soit étendre la passe-1 de la wiremap (systèmes `sound_bank`/`settings`, gate Pierre), soit acter que la réutilisation pacman audio est inapplicable à ce genre et requalifier le critère (e).
+
+## SKIPPED_VALIDATION
+- **Oracle headless run_tests.gd (exit 0 + 51 asserts réels)** · périmètre `games/kitten_clicker/tests/` · statut **non fait** · raison : exécution du binaire Godot refusée par la porte d'approbation de la session (partie statique faite : 51==51).
+- **Sonde runtime_alive.gd (fenêtre GPU)** · `scripts/forge/godot_probes/` · **non fait** · raison : idem (probe présente, non lançable).
+- **Sonde player_loop.gd → ADVANTAGE** · idem · **non fait** · raison : idem (loop.json sha vérifié statiquement).
+- **Volets product oracle (mutation_click/variance/solvability/main_screen_render/gallery_render/core_goal_display)** · `07_TESTS/oracle/` · **non fait (exécution)** · raison : idem (chargement main.tscn + gardes vérifiés statiquement).
+- **Gate mutation** · `05_SYSTEMS/economy/*.gd` · **non fait** · raison : hors permissions forgeron — exécuté par le driver (délégation contractuelle P6).
+- **Distinction visuelle des raretés / non-monochrome / feedback transitoire (kind:visual)** · `06_RUNTIME/adapters/presentation/` · **non fait** · raison : exige fenêtre GPU via Godot, refusée.
+- **Conformité esthétique art_bible** · `04_ASSETS/` · **non fait** · raison : fog HumanGate par nature (`style_tag_match` compare des tags, pas des pixels).
+
+## RETURN LINEAGE
+- **why_task_existed:**
+  - **problem:** un build clicker Godot devait passer de squelette gelé à jeu prouvé par oracles exécutés (dispatch :2, re-mesure).
+  - **oracle:** activation par décision de dispatch du driver (marqueur `FORGE_DISPATCH:s9-build-godot-standard:kitten_clicker-20260821h2:2`) — pas d'oracle rouge nommé transmis.
+  - **root_cause:** non transmis pour le re-dispatch lui-même.
+  - **action_reason:** confronter le build :1 au réel plutôt que le croire sur parole (doctrine vérificateur à contexte propre).
+- **result:** build structurellement complet et statiquement propre (13 vérifications mécaniques OK) ; 2 lignes audio BLOCKED confirmées comme défaut AMONT ; oracles d'exécution non mesurés car binaire Godot refusé par la session.
+- **proof:** commandes et sorties réelles citées ci-dessus (`sha256sum` loop.json identique ; `grep -c ok(` = 51 = EXPECTED_ASSERTS ; `grep` volets = 6/6 `load main.tscn`, 0 appel interdit ; `sha256sum` audio.gd copie == source ; `grep` déterminisme/séparation = 0 violation ; `Read audio.gd` = preloads off-map `sound_bank.gd`/`settings.gd`).
+- **learning:** une réutilisation CODE_COPIE ne se fige dans une wiremap que **si sa clôture transitive de `preload` est elle-même adressée par la carte** — sinon la copie fidèle (fingerprint exigé) est mécaniquement non câblable, et le forgeron ne peut ni l'éditer ni ouvrir des systèmes. À traiter à la réconciliation (s5), pas au build.
+- **next_reason:** escalade nécessaire — deux causes non résolues persistent : (a) l'exécution Godot bloquée empêche tout verdict OK sur les oracles runtime ; (b) le défaut AMONT audio exige un arbitrage Pierre (étendre la passe-1 ou requalifier le critère e). La chaîne ne se ferme pas ici.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "La wiremap gelee reutilise pacman audio.gd en CODE_COPIE mais sa cloture transitive de preload (sound_bank.gd, settings.gd) n'est declaree par aucun systeme de la passe-1 gelee ; la copie fidele est donc non cablable sans rouvrir le plan (interdit) ni casser copy_sha256 (interdit) -> render.audio_trigger et test.core_audio restent BLOCKED", "root_cause": "La reconciliation s5 a fige une reutilisation CODE_COPIE sans adresser dans la carte la cloture de preload dont elle depend"}

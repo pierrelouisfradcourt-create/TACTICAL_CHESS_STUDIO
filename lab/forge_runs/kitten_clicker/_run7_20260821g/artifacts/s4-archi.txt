@@ -1,0 +1,148 @@
+I now have everything I need: both oracles' exact logic, the 17 feature ids (`featureIds` returns `systemes[].features[].id`), the proven `system`/`system.adapter` topology from `breakout_v2`, and the repo_map fixed table. The pre-mortem's load-bearing lesson is confirmed in code: `check_architecture._module_of` derives a violation's source from `rel.parts[0]`, so `render` and `input` (both physically under `06_RUNTIME/adapters/`) can only be separated as distinct **target tokens** — never as distinct first-folder sources.
+
+I cannot execute the oracle (`run: aucun`, Bash disabled) — the executor runs `check_blueprint_contract` on the block it materializes. So I trace conformance to every branch of `checkBlueprintDoc` instead.
+
+## Architecture — kitten_clicker (blueprint s4)
+
+**Principe directeur : pureté de la couche logique.** La logique (`05_SYSTEMS`) ne connaît ni rendu, ni entrée, ni son — elle détient l'état et émet des signaux ; les adaptateurs lisent l'état et écoutent les signaux. Sens unique du graphe : `adaptateurs → logique`, jamais l'inverse. C'est la règle `.claude/rules/godot-scripts` (« signaux préférés aux appels directs », « pas de logique jeu dans l'UI ») rendue *enforçable* par oracle.
+
+**7 modules** (chacun porte ≥1 feature de la featuremap, aucun god-object) :
+
+| Module | Responsabilité (single-writer) | Couvre | Dépend de |
+|---|---|---|---|
+| `05_SYSTEMS` | Règles pures : ronrons, production passive, économie boutique, courbe de paliers, prestige, collection, quêtes, invariant no-defeat | 10 features (effets/logique) | `03_WORLD` |
+| `03_WORLD` | Registres de contenu (kittens/locations/objects/quests) | F_registries | — |
+| `04_ASSETS` | Sprites distincts par rareté + sons d'événement | F_rarity_read | — |
+| `02_ENTITIES` | Chaton nommé (idle anim, sprite selon rareté) + pelote (rebond au clic) | F_kitten_life, F_rarity_read, F_click_visual | `03_WORLD`, `04_ASSETS` |
+| `render` | HUD (objectif, collection, prod/s, jauge palier), refuge (instancie chatons), panneau quêtes | F_kitten_spawn, F_objective_hud, F_collection_counter, F_quest_display, F_click_response | `05_SYSTEMS`, `02_ENTITIES`, `03_WORLD` |
+| `input` | Route clics/boutons (pelote, achat chaton, amélioration, prestige) vers la logique | F_click_input, F_buy_kitten, F_buy_upgrade, F_prestige | `05_SYSTEMS` |
+| `audio` | Un son distinct par événement, piloté par signaux logique | F_audio | `05_SYSTEMS`, `04_ASSETS` |
+
+**deps_interdites** (les 3 arêtes qui protègent la couche logique) : `05_SYSTEMS→render`, `05_SYSTEMS→input`, `05_SYSTEMS→audio`. Cibles = **jetons d'adaptateur distincts** (pas `06_RUNTIME`) — sinon les séparations rendu et input collapseraient sur une seule arête (leçon `manifest-b6ff0aa35317d19b`). Graphe acyclique vérifié ; aucune dépendance déclarée n'est elle-même interdite.
+
+---
+
+### final_report
+
+**software_verdict: OK** — pour la conformité *structurelle* du bloc, chaque affirmation ancrée sur une branche de `checkBlueprintDoc` (`scripts/forge/check_blueprint_contract.mjs`, lue) :
+- `modules` = 7 chaînes non vides, sans doublon → l.120-124 ✓
+- `deps_interdites` non vide (3 paires), source+cible ∈ modules → l.128-141 ✓
+- `responsabilites[]` non vide, 1 entrée/module, chaque `module` ∈ moduleSet, `responsabilite` non vide, `couvre[]` non vide → l.146-176 ✓
+- 17/17 features de `featuremap.json` couvertes (`featureIds`, `upstream_schema.mjs:344` = `systemes[].features[].id`) → aucune `features_non_couvertes` l.212-216 ✓
+- `couvre[]` ne cite que des ids réels (F_*) → aucune `couverture_fantome` l.183 ✓
+- `dependances` présent partout (vide pour feuilles `03_WORLD`/`04_ASSETS`) → l.190-202 ✓
+- aucune contradiction dep-déclarée/interdite → l.222-228 ✓
+- graphe acyclique (`detecterCycles` l.52) → l.230-233 ✓
+
+**evidence_verdict: MECHANICAL_VALIDATION_ONLY** — ancre = le code des deux oracles (`check_blueprint_contract.mjs`, `static_oracles.check_architecture`), tracé branche par branche. Compatibilité aval vérifiée : `check_architecture` fait `set(blueprint["modules"])` (l.205) + lit `deps_interdites` — champs additifs (`ownership`, `responsabilites`) ignorés.
+
+**claim_verdict: NO_CLAIM_ALLOWED** — je n'ai pas *exécuté* `check_blueprint_contract` (permission `run: aucun`, Bash désactivé). La conformité est **construite et tracée**, pas mesurée par moi ; l'exécution liante est l'étape de l'exécuteur qui matérialise `blueprint.json`.
+
+**Features non couvertes** : aucune (17/17). **Couvertures fantômes** : aucune.
+
+**fog → HumanGate** (tensions amont réelles, hors de mon périmètre s4 — placement de fichiers = s5 WireMap ; tables figées = gate Pierre) :
+1. `repo_map.yaml` n'offre **aucune catégorie** pour un registre JSON directement sous `03_WORLD/` (seuls `world.rules: 03_WORLD/rules/{id}/` et `level: 03_WORLD/levels/{id}/`). Or la featuremap place `03_WORLD/kittens.json` en racine de `03_WORLD/`. À trancher par s5/extension repo_map (gate Pierre), pas inventé ici. (Déjà mesuré : `manifest-dd19321279544151`.)
+2. `capabilities.yaml`/`factory_capabilities.yaml` ne portent aucun identifiant de domaine clicker (production passive, prestige, palier, collection) — extension = proposition mesurée ratifiée Pierre, jamais invention d'agent.
+
+**SKIPPED_VALIDATION** :
+- item : exécution de `check_blueprint_contract.mjs blueprint.json --featuremap featuremap.json` · périmètre : validation avant-build de ce blueprint · statut : non fait (par moi) · raison : permission `run: aucun` + Bash désactivé ; l'exécuteur matérialise `blueprint.json` et déclenche l'oracle. Conformité tracée à chaque branche ci-dessus en substitut.
+- item : `forge.static_oracles.check_architecture` · périmètre : conformité code↔archi · statut : non applicable ici · raison : oracle d'APRÈS-build (s10b) ; sur `src` vide il serait vacuement vert — ce n'est pas mon oracle (contrat, section ORACLES).
+
+**RETURN LINEAGE** —
+`why_task_existed:` { `problem:` produire l'architecture gelée de kitten_clicker couvrant la featuremap sans dépendance cyclique/interdite ; `oracle:` `check_blueprint_contract.mjs` (avant-build) ; `root_cause:` non transmis (activation = étape de chaîne s3→s4, décision de pipeline) ; `action_reason:` un blueprint typé modules/deps/responsabilités est le seul artefact qui rend la couverture et la pureté logique vérifiables mécaniquement avant build } · `result:` bloc blueprint à 7 modules, 3 arêtes interdites (logique→rendu/input/audio via jetons distincts), 17/17 features couvertes, graphe acyclique, conformité tracée à chaque branche de l'oracle · `proof:` lecture de `check_blueprint_contract.mjs` + `upstream_schema.mjs` (featureIds l.344, validateExpectedProof l.167) + `static_oracles.check_architecture` (l.75-78 `_module_of=rel.parts[0]`, l.237-248) ; exécution déférée à l'exécuteur (pas de perm run) · `learning:` sous topologie STANDARD figée, seule une **cible-jeton d'adaptateur** (`render`/`input`/`audio`) rend distinctes les séparations logique→rendu et logique→input, car la source d'une violation est toujours `rel.parts[0]` (=`06_RUNTIME` partagé) — confirmé dans le code de l'oracle · `next_reason:` la chaîne continue en s5-wiremap (câblage fichiers/fonctions) ; deux fogs amont (catégorie registre `03_WORLD/`, registre de capacités clicker) restent à trancher par HumanGate/s5, non résolubles à s4.
+
+SKIPPED_VALIDATION: voir section ci-dessus (2 items déclarés).
+
+```json
+{
+  "modules": ["05_SYSTEMS", "03_WORLD", "04_ASSETS", "02_ENTITIES", "render", "input", "audio"],
+  "deps_interdites": [
+    ["05_SYSTEMS", "render"],
+    ["05_SYSTEMS", "input"],
+    ["05_SYSTEMS", "audio"]
+  ],
+  "ownership": {
+    "05_SYSTEMS": "Etat de jeu et regles pures (ronrons, production passive, economie boutique, courbe de paliers, prestige, collection, progression des quetes, invariant no-defeat). Detient, n'agit pas sur l'ecran ; emet des signaux.",
+    "03_WORLD": "Registres de contenu declaratifs (chatons, lieux, objets, quetes). Donnees seules, aucun comportement.",
+    "04_ASSETS": "Assets visuels et sonores distincts (sprites par rarete, sons d'evenement). Aucun code de jeu.",
+    "02_ENTITIES": "Entites de scene : chaton nomme (animation d'idle, sprite selon rarete) et pelote centrale (rebond au clic). Auto-contenues, ne pilotent aucune regle.",
+    "render": "Adaptateur de rendu/UI : HUD (objectif, collection, production/s, jauge de palier), vue du refuge (instancie les chatons a l'achat), panneau de quetes, reponse visuelle au clic. LIT l'etat, ne decide d'aucune regle.",
+    "input": "Adaptateur d'entree : traduit les InputEvent moteur (clic pelote, achat chaton, achat amelioration, prestige) en appels de la logique pure. Ne connait aucune regle de jeu.",
+    "audio": "Adaptateur audio : un son distinct par evenement (clic, achat, deblocage, prestige), declenche par les signaux de la logique. Ne detient aucun etat de jeu."
+  },
+  "responsabilites": [
+    {
+      "module": "05_SYSTEMS",
+      "responsabilite": "Coeur logique pur du clicker : increment strict des ronrons au clic, production passive strictement croissante des qu'un chaton producteur est possede, effet economique strict des achats (chaton/amelioration augmentent la production/s), courbe de paliers a >=3 seuils distincts croissants, cycle de prestige (bonus permanent + reset des ronrons courants), suivi de collection, progression des quetes, et invariant d'absence totale d'etat de defaite. Emet des signaux, n'importe jamais un adaptateur.",
+      "couvre": ["F_click_input", "F_click_response", "F_passive_income", "F_buy_kitten", "F_buy_upgrade", "F_paliers", "F_prestige", "F_collection_counter", "F_quest_display", "F_no_defeat"],
+      "dependances": ["03_WORLD"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "07_TESTS/oracle/solvability.gd (bot pilotant main.tscn) : n clics => ronrons == valeur_initiale + n*gain_par_clic (egalite stricte, jamais >=) ; apres achat d'un chaton, N ticks sans clic => ronrons strictement superieurs ; production_par_seconde strictement superieure apres chaque achat chaton/amelioration ; le bot atteint palier_courant == 3 en ticks < BORNE_FINIE ; multiplicateur post-prestige > pre-prestige avec ronrons remis a la base. Complete par 07_TESTS/oracle/core_paliers.gd (>=3 seuils distincts croissants) et core_no_defeat.gd (aucun etat 'defeat'/'game_over' atteignable)."
+      }
+    },
+    {
+      "module": "03_WORLD",
+      "responsabilite": "Registres de contenu du jeu : au moins 6 chatons nommes uniques avec rarete, 2 lieux dont un debloque_par='prestige', 3 objets, 3 quetes avec objectif et cible de progression. Source unique de verite du contenu, lue par la logique et les entites.",
+      "couvre": ["F_registries"],
+      "dependances": [],
+      "preuve_attendue": {
+        "kind": "file_write",
+        "statement": "Presence et lecture de 03_WORLD/kittens.json (>=6 entrees {nom unique, rarete}), 03_WORLD/locations.json (>=2 entrees {id, debloque_par} dont une 'prestige'), 03_WORLD/objects.json (>=3 entrees {id, type}), 03_WORLD/quests.json (>=3 entrees {id, objectif, cible_progression}). FOG amont : repo_map.yaml n'a pas de categorie pour un registre directement sous 03_WORLD/ — placement a trancher en s5/HumanGate."
+      }
+    },
+    {
+      "module": "04_ASSETS",
+      "responsabilite": "Fournir les assets distincts par rarete (sprites) et par evenement (sons). Chaque niveau de rarete a un sprite/palette reconnaissable, garantissant que deux chatons de raretes differentes ne partagent pas le meme rendu de pixels.",
+      "couvre": ["F_rarity_read"],
+      "dependances": [],
+      "preuve_attendue": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_rarity_visual.gd en gpu_window : capture d'au moins 2 chatons de raretes differentes ; les regions de sprite different (hash de pixels non identiques) — la distinction de rarete est portee par des assets reellement distincts."
+      }
+    },
+    {
+      "module": "02_ENTITIES",
+      "responsabilite": "Entites de scene auto-contenues : le chaton (joue une animation d'idle en boucle tant qu'il est a l'ecran et choisit son sprite selon sa rarete) et la pelote centrale (produit un rebond/particule visible dans la meme frame que le clic). Aucune regle de jeu, aucun import d'adaptateur.",
+      "couvre": ["F_kitten_life", "F_rarity_read", "F_click_visual"],
+      "dependances": ["03_WORLD", "04_ASSETS"],
+      "preuve_attendue": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_refuge.gd en gpu_window : deux captures espacees de quelques frames d'un meme chaton au repos different au niveau des pixels (idle animee) ; 07_TESTS/oracle/core_click_feedback.gd en gpu_window : deux captures avant/apres clic different sur la region de la pelote (animation detectee)."
+      }
+    },
+    {
+      "module": "render",
+      "responsabilite": "Adaptateur de rendu/UI : affiche en permanence l'objectif courant (mis a jour au franchissement de palier vers un seuil superieur), le compteur de collection 'possedes/total', la production/s et la jauge de palier ; instancie un chaton visible dans le refuge apres un achat ; affiche le panneau d'au moins 3 quetes avec objectif et progression ; declenche la reponse visuelle au clic. LIT l'etat de la logique et instancie les entites ; ne decide d'aucune regle.",
+      "couvre": ["F_kitten_spawn", "F_objective_hud", "F_collection_counter", "F_quest_display", "F_click_response"],
+      "dependances": ["05_SYSTEMS", "02_ENTITIES", "03_WORLD"],
+      "preuve_attendue": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_hud.gd en gpu_window : Label 'objectif' non vide a l'ouverture, texte change vers un seuil superieur au franchissement, Label 'collection' non vide et croissant apres acquisition d'un type nouveau ; core_refuge.gd : avant achat 0 sprite de chaton, apres achat >=1 sprite nomme present ; core_quetes.gd : panneau affichant >=3 quetes avec libelle non vide et indicateur de progression."
+      }
+    },
+    {
+      "module": "input",
+      "responsabilite": "Adaptateur d'entree : capte les InputEvent moteur (clic sur la pelote, boutons acheter_chaton / acheter_amelioration / prestige) et les traduit en appels de la logique pure. Les affordances joueur (EX02/EX05/EX18/EX07) entrent dans le systeme UNIQUEMENT par ici ; la logique ne connait ni Input ni InputEvent.",
+      "couvre": ["F_click_input", "F_buy_kitten", "F_buy_upgrade", "F_prestige"],
+      "dependances": ["05_SYSTEMS"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "07_TESTS/oracle/solvability.gd charge main.tscn : le bot declenche les cibles 'pelote', 'acheter_chaton', 'acheter_amelioration' et 'prestige' instanciees dans main.tscn ; chaque input est recu par la scene et route vers la logique (l'action d'entree existe et produit son effet logique en aval)."
+      }
+    },
+    {
+      "module": "audio",
+      "responsabilite": "Adaptateur audio : joue un son propre et distinct pour chacun des 4 evenements (clic, achat, deblocage, prestige), declenche par le signal emis par la logique correspondante. Ne detient aucun etat de jeu ; aucun son purement decoratif.",
+      "couvre": ["F_audio"],
+      "dependances": ["05_SYSTEMS", "04_ASSETS"],
+      "preuve_attendue": {
+        "kind": "oracle",
+        "statement": "07_TESTS/oracle/core_audio.gd tient un journal des declenchements : apres avoir provoque les 4 evenements (clic, achat, deblocage, prestige), le journal contient 4 identifiants de son distincts, un par evenement, chacun declenche par son evenement propre."
+      }
+    }
+  ]
+}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "repo_map.yaml n'offre aucune categorie pour un registre JSON directement sous 03_WORLD/ (seuls 03_WORLD/rules/{id}/ et 03_WORLD/levels/{id}/ existent), alors que la featuremap place 03_WORLD/kittens.json en racine de 03_WORLD/", "root_cause": "les tables figees du standard (repo_map) sont centrees sur les jeux passes et non etendues au genre incremental/clicker ; l'extension du mapping est un gate Pierre, jamais une invention d'agent"}

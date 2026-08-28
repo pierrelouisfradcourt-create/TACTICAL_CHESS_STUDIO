@@ -1,0 +1,80 @@
+objectif: 'Produire un clicker de chatons mignons jouable plusieurs heures sur Godot
+  4.6.3 desktop, dans l''esprit Cookie Clicker (boucle incrementale, production passive,
+  paliers) croise Neko Atsume (collection de chatons, attractivite, identite mignonne).
+  Boucle principale : CLICK -> RONRONS -> CHATONS -> PRODUCTION AUTOMATIQUE -> AMELIORATIONS
+  -> NOUVEAUX CHATONS / LIEUX -> META-PROGRESSION (prestige) coherente. Le jeu doit
+  VIVRE a l''ecran (chatons nommes, lieux, objets, quetes, sons evenementiels, feedback
+  au clic) et etre SOLVABLE (un bot atteint le 3e palier en un nombre de ticks fini).'
+plateforme_cible: Godot 4.6.3 desktop (fenetre GPU, rendu reel — jamais headless)
+reference_jeu: Cookie Clicker (boucle incrementale / progression / paliers) + Neko
+  Atsume (collection de chatons / attractivite / identite mignonne) — modele choisi
+  par Pierre, source lab/forge_runs/kitten_clicker/design_intent.md (2026-08-21) et
+  tache de dispatch (2026-08-22)
+hors_scope:
+- Pas de multijoueur ni de composante en ligne (jeu solo hors-ligne)
+- Pas de monetisation, microtransactions ni publicite
+- Pas de portage web ni mobile pour ce run (cible desktop uniquement)
+- 'Pas de 3D : le jeu est en 2D'
+- Pas de mode histoire / campagne narrative au-dela des petites quetes du refuge
+- Pas de sauvegarde cloud ni de synchronisation de comptes
+- Pas de generation procedurale de contenu infinie au-dela du contenu specifie
+- Aucune modification de src/, tests/, autopilot.py ni de la lane STUDIO gelee
+criteres_succes:
+- Le compteur de ronrons augmente strictement (+N) a chaque clic — assertion stricte,
+  jamais un >= tautologique
+- Au moins un chaton achete devient visible dans le refuge
+- La production automatique fait strictement monter les ronrons sans aucun clic
+- Au moins une amelioration augmente strictement le taux de production par seconde
+- La meta-progression (prestige) debloque au moins un second lieu
+- Le jeu contient au moins 6 chatons nommes, 2 lieux, 3 objets et 3 quetes
+- La courbe de paliers porte au moins 3 valeurs de seuil distinctes (regle de variance
+  des metriques)
+- Un bot joueur atteint le 3e palier en un nombre de ticks fini (solvabilite prouvee,
+  non tautologique)
+- Chaque evenement (clic, achat, deblocage, prestige) declenche un son distinct, journalise
+  par 07_TESTS/oracle/core_audio.gd
+- L'oracle de code (mutation + solvabilite) et les six oracles du standard passent
+  au vert sans faux-vert
+actions_interdites:
+- Ne jamais toucher src/, tests/, autopilot.py, scripts/studioV2/ ni la lane STUDIO
+  gelee
+- 'Aucun git commit ni push : la decision de merge/reject/freeze appartient a HumanGate
+  (Pierre)'
+- 'Aucune courbe de paliers a variance nulle : les seuils doivent porter au moins
+  3 valeurs distinctes'
+- 'Aucun test a assertion tautologique (>=) : asserter le comportement strict (le
+  compteur tue vraiment, coins == n+1)'
+- Aucun champ « a definir », vide ou evasif dans les artefacts produits
+- Pas de logique de jeu dans les scripts d'UI (regle .claude/rules/godot-scripts)
+- 'Aucun son purement decoratif : chaque son doit etre declenche par son evenement
+  propre'
+- Aucune fonction GDScript de plus de 50 lignes sans decoupage (regle godot-scripts)
+- 'Aucun chemin absolu ni chemin de poste : chemins relatifs au repo root uniquement,
+  open() en encoding utf-8'
+- Aucun appel a une API Anthropic externe ; aucun fichier temporaire laisse en place
+criteres_demo:
+- Le compteur de ronrons affiche a l'ecran augmente visiblement a chaque clic sur
+  la pelote centrale
+- Apres un achat, un nouveau chaton apparait visiblement dans le refuge a l'ecran
+- Le compteur de ronrons continue de monter a l'ecran sans aucun clic (production
+  automatique visible)
+- Apres l'achat d'une amelioration, le taux de production par seconde affiche a l'ecran
+  augmente visiblement
+- Un bot joueur fait avancer visiblement l'indicateur de palier a l'ecran (jauge de
+  progression qui monte)
+- Au moins 6 chatons NOMMES, chacun avec une identite visuelle distincte selon sa
+  rarete (sprite/couleur reconnaissable a l'ecran)
+- 'Au moins 2 lieux visitables : le refuge de depart plus au moins 1 lieu debloque
+  par la meta-progression'
+- Au moins 3 objets distincts visibles a l'ecran (jouets, accessoires ou meubles du
+  refuge)
+- Au moins 3 petites quetes dont l'objectif et la progression sont affiches a l'ecran
+- Un son DISTINCT pour chacun des evenements clic, achat, deblocage et prestige, declenche
+  par l'evenement lui-meme (audio procedural accepte ; preuve = 07_TESTS/oracle/core_audio.gd
+  avec journal des declenchements)
+- Un feedback visuel immediat au clic (animation, particule ou rebond de la pelote
+  visible a l'ecran)
+- 'Une courbe de paliers portant au moins 3 valeurs distinctes (regle de variance
+  : les seuils de palier ne sont pas identiques)'
+- Un bot atteint le 3e palier en un nombre de ticks fini (solvabilite prouvee, non
+  tautologique)

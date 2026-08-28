@@ -1,0 +1,85 @@
+Both `Write` and `Bash` are disabled in this session, so I cannot create `rapport_redteam_code.md` on disk. Per the subagent doctrine (final text = return value) and the output contract (the deterministic parser `forge.run_real.extract_redteam_findings` reads the ```json block from my response), I emit the full report as my response, ending with the findings block and `RETURN_REASON`.
+
+---
+
+# Rapport Red-Team CODE — kitten_clicker-20260821f (s11-redteam-code)
+
+**Posture** : auditeur AVEUGLÉ. Je n'ai lu que le code produit à s9 (le diff) + les artefacts amont (wiremap, registres, asset_requests), JAMAIS les justifications du builder. Chaque faille est ancrée en `fichier:ligne` avec une reproduction exécutable par un oracle non-LLM en aval. Le red-team CRITIQUE (advisory) ; il ne juge pas le software_verdict.
+
+Motif dominant : ce n'est pas de la casse, c'est de l'**INERTIE** (contenu déclaré non joué) et des **oracles verts par construction** (la preuve est garantie, pas mesurée).
+
+---
+
+## FINDING 1 — [COHÉRENCE] Le registre de quêtes est chargé mais JAMAIS joué (0 consommateur) · HIGH
+
+`quests.json:4-6` déclare 3 quêtes (`mesure`/`cible`/`progression`/`accompli`). Le runtime les charge (`runtime.gd:67`), puis **aucune ligne ne relit `_reg["quests"]`** : aucun module `quests` dans `05_SYSTEMS/`, aucun champ de quête dans `game_state.gd:12-25`, `progression`/`accompli` jamais mutés (à vie 0/false). `cap_quests_registry` n'est « réalisée » que par un test de comptage. Système déclaré, inerte.
+
+**Reproduction** : `grep -rn "quests\|quest_\|accompli\|progression" games/kitten_clicker --include=*.gd` → seule occurrence fonctionnelle `runtime.gd:67` (chargement) ; 0 lecture/mutation. Oracle de câblage sur `_reg["quests"]` → `consumers=0`.
+
+## FINDING 2 — [COHÉRENCE] Les `effet` d'objets déclarés « observables en jeu » ne sont jamais appliqués · HIGH
+
+`objects.json:2-6` déclare pour 3 objets un `effet` non vide promettant un effet gameplay (`clic_x2`, `prod_plus_10`, `cout_moins_5`). Aucun n'est câblé : clic `economy.gd:29-36` sans facteur objet, taux `economy.gd:22-24` sans `prod_plus_10`, coût `economy.gd:16-17` sans `cout_moins_5`. Aucune notion d'objet possédé (`game_state.gd:12-25`), aucun `api_buy_object`. Les objets sont des icônes décoratives (`render.gd:83-92`) ; leur `effet` est du texte mort (violation règle de variance : promesse trop forte).
+
+**Reproduction** : `grep -rn "clic_x2\|prod_plus_10\|cout_moins_5\|effet_desc" games/kitten_clicker --include=*.gd` → 0 en `.gd`. Oracle de mutation `clic_x2`→`clic_x99` dans `objects.json` → état de jeu identique.
+
+## FINDING 3 — [COHÉRENCE] Registre de lieux = donnée fantôme, décor piloté en dur · MEDIUM
+
+`places.json:4-5` (2 lieux, `palier_requis`+`decor`) est chargé (`runtime.gd:67`) mais jamais relu : décor via booléen `s.place_unlocked` + textures codées en dur (`render.gd:144-146`, `runtime.gd:89-90`) ; seuil de déblocage = littéral `1` (`end_conditions.gd:30-31`), pas `palier_requis`. Éditer `places.json` ne change rien.
+
+**Reproduction** : `grep -rn "_reg\[.places.\]\|places" games/kitten_clicker --include=*.gd` → seule occurrence fonctionnelle `runtime.gd:67`. Oracle de mutation `palier_requis:99` → jardin toujours au palier 1.
+
+## FINDING 4 — [AUDIO] Le journal est écrit indépendamment de toute émission · MEDIUM
+
+L'oracle prouve « 4 cues distincts » via `Audio.journal` (`core_audio.gd:56-71`), mais `jouer()` journalise inconditionnellement un cue connu même quand `pousses==0` (`audio.gd:107`, atteint que `pb==null`/`frames_available==0` ou non). L'oracle ne teste jamais `frames`. « Chaque événement déclenche son son » ⇒ « écrit son nom au journal », garanti par construction ; une régression à émission nulle resterait verte (*journal is not emission*).
+
+**Reproduction** : ancre `audio.gd:107` (append hors test sur `pousses`) + `core_audio.gd:56-71` (assertions sur `cues`, jamais `frames`). Oracle durci `assert sum(e["frames"])>0` : le code passe même à somme nulle.
+
+## FINDING 5 — [ASSETS] L'oracle « sprites distincts » ne peut pas échouer (placeholder hash-distinct) · MEDIUM
+
+`gallery_render.gd:103-111` prouve la distinction par pixels, mais `charger_texture` retombe sur `_placeholder(chemin)` (`render.gd:48`), couleur = hash du chemin (`render.gd:51-56`), donc distinct par chemin. La distinction 2-à-2 et par rareté passe **même si TOUS les SVG échouent à charger**. L'oracle prouve « chemins distincts », pas « SVG rendus » — le commentaire `render.gd:34-36` l'avoue. (Les SVG existent bien — `wool_ball.svg` valide — la faille est l'insensibilité de l'oracle, qui masquerait un `load_svg_from_string` indisponible en headless.)
+
+**Reproduction** : ancre `render.gd:48` + `render.gd:51-56` + `gallery_render.gd:103-111`. Oracle qui corrompt/renomme tous les `*.svg` puis relance `gallery_render.gd` → toujours `ok:true`.
+
+## FINDING 6 — [ASSETS] 2 des 16 sprites demandés ne sont ni chargés ni rendus · MEDIUM
+
+`asset_requests.json` déclare 16 sprites dont `rarity_frame_set` (l.74-82) et `upgrade_icon_set` (l.134-142). Le chargeur `runtime.gd:86-97` énumère 14 entrées et n'inclut ni l'un ni l'autre : cadres de rareté = `ColorRect` unis (`gallery.gd:35-37`, `render.gd:59-66`), aucune icône d'amélioration rendue. 2 assets présents mais non rendus.
+
+**Reproduction** : ancre `runtime.gd:86-97` (aucune ligne `rarity_frame_set`/`upgrade_icon_set`) ; `grep -rn "rarity_frame_set\|upgrade_icon_set" games/kitten_clicker --include=*.gd` → 0. Oracle de couverture (demandés ∖ chargés) → `{rarity_frame_set, upgrade_icon_set}`.
+
+## FINDING 7 — [LONGUEUR] Contenu plafonné à 5000 ronrons cumulés — « plusieurs heures » infondé · MEDIUM
+
+`PALIERS=[50,250,1000,5000]` (`params.gd:39`) est toute la méta-progression (`end_conditions.gd:26-33`, `total_earned` monotone) ; aucun contenu au-delà de 5000 cumulés. Solvabilité amont : palier 3 (1000) en 116 ticks ≈ 11,6 s ; 5000 du même ordre (minutes). Le prestige rejoue le même contenu plus vite sans en ajouter. « Plusieurs heures » n'est porté par aucune constante. **Vérifiés OK** : variance des paliers (4 valeurs distinctes, ≥3) et prestige→production passive (`economy.gd:22-23` via `s.prestige_mult()`, `game_state.gd:37-38`).
+
+**Reproduction** : ancre `params.gd:39` (plafond=5000, aucun palier au-delà) + preuve solvabilité (palier 3=1000 en 116 ticks). Aucun oracle de « durée en heures » → fog/HumanGate.
+
+---
+
+## SÉPARATION DES VERDICTS
+
+- **software_verdict: OK** — appuyé par les oracles amont (rapportés) ; aucune faille n'invalide l'exécution. Red-team ADVISORY.
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — chaque faille cite `fichier:ligne` + repro déterministe (grep / mutation / corruption-asset), non-LLM.
+- **claim_verdict: NO_CLAIM_ALLOWED** — F1–F7 portent des questions de jugement produit → **fog → HumanGate (Pierre)**.
+
+**fog (jugement Pierre)** : (a) quêtes/lieux/effets d'objets déclarés sans consommateur — débit accepté ou incohérence à corriger ? (F1-F3) ; (b) durcir les oracles audio (`frames>0`) et galerie (invalider le placeholder) pour qu'ils puissent échouer ? (F4-F5) ; (c) requalifier « plusieurs heures » ou étendre le contenu ? (F7).
+
+## SKIPPED_VALIDATION
+
+- **item** : exécution des oracles (run_tests, godot_oracle.mjs, volets GPU) — **où** : tout le run — **statut** : non fait — **raison** : contrat `run: aucun` + Bash désactivé ; audit STATIQUE. Verts amont cités comme rapportés, non rejoués.
+- **item** : rastérisation réelle des 16 SVG en headless — **où** : `04_ASSETS/sprites/` — **statut** : partiel — **raison** : présence+validité d'un SVG (`wool_ball.svg`) confirmée, pas le rendu des 16 ; F5 porte sur l'insensibilité de l'oracle, pas un échec prouvé.
+- **item** : lecture des tests unitaires `07_TESTS/unit/*.test.gd` un à un — **statut** : partiel — **raison** : findings sur code de production + oracles de sortie, pas sur les tests unitaires.
+- **item** : mutation testing réel — **où** : F2/F3 — **raison** : proposé comme repro aval, non exécuté (run: aucun).
+- **item** : écriture du fichier `rapport_redteam_code.md` — **statut** : non fait — **raison** : outil `Write` désactivé dans cette session ; rapport émis comme réponse (captée par le harness), findings dans le bloc JSON ci-dessous.
+
+## RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2 §3)
+
+- **why_task_existed** — `problem`: vérifier que kitten_clicker tient ses promesses de LONGUEUR / COHÉRENCE monde↔mécanique / assets rendus / audio déclenché, au-delà des oracles verts · `oracle`: activation par décision humaine (dispatch s11) ; « aucun » oracle unique · `root_cause`: non établie a priori (question de la tâche) · `action_reason`: audit adverse à contexte vierge du diff s9, chaque faille prouvée par ancre statique reproductible.
+- **result** : 7 failles ancrées `fichier:ligne` + repro déterministe. 3 cohérence (quêtes / effets d'objets / registre de lieux inertes), 2 proof-gap (audio, galerie), 1 asset non rendu, 1 longueur infondée. 2 sous-points LONGUEUR vérifiés OK.
+- **proof** : lecture de `runtime/game_state/economy/upgrades/prestige/end_conditions/render/gallery/audio/events/input/solvability_bot/params/collection.gd`, `core_audio.gd`, `gallery_render.gd`, les 4 registres et `asset_requests.json`. Aucune commande exécutée (run: aucun) ; reproductions pour exécution par oracle non-LLM aval.
+- **learning** : du contenu déclaré (quêtes, effets, lieux) et des assets (2 sprites) traversent la chaîne, sont validés par des oracles de **présence/comptage**, et n'atteignent jamais le jeu joué ; deux oracles observables sont verts par **construction** (journal ≠ émission ; placeholder hash-distinct ≠ SVG rendu). Le vert d'un oracle de comptage ne prouve pas la consommation.
+- **next_reason** : chaîne NON fermée — F1–F7 advisory, décision Pierre requise (fog). Le niveau supérieur (verdict signé → HumanGate) doit statuer : requalifier honnêtement (contenu = incrément futur assumé ; oracles à durcir ; longueur à réécrire) ou renvoyer en correction. Le red-team ne corrige pas, ne juge pas le software_verdict.
+
+```json
+{"findings": [{"angle": "cohérence monde↔mécanique", "faille": "Le registre de quêtes (quests.json, 3 quêtes avec mesure/cible/progression/accompli) est chargé au boot (runtime.gd:67) mais n'a AUCUN consommateur runtime : aucun module quests dans 05_SYSTEMS, aucun champ de quête dans game_state.gd:12-25, progression/accompli jamais mutés. cap_quests_registry n'est réalisée que par un test de comptage. Système déclaré, inerte, jamais joué.", "severite": "HIGH", "reproduction": "grep -rn \"quests\\|quest_\\|accompli\\|progression\" games/kitten_clicker --include=*.gd -> seule occurrence fonctionnelle runtime.gd:67 (chargement) ; 0 lecture/mutation. Oracle de câblage sur _reg[\"quests\"] -> consumers=0."}, {"angle": "cohérence monde↔mécanique", "faille": "objects.json déclare pour 3 objets un champ effet 'observable en jeu' (clic_x2, prod_plus_10, cout_moins_5) jamais appliqué : gain au clic economy.gd:29-36 sans facteur objet, taux economy.gd:22-24 sans prod_plus_10, coût economy.gd:16-17 sans cout_moins_5 ; aucune notion d'objet possédé dans game_state.gd, aucun api_buy_object. Les objets sont des icônes décoratives (render.gd:83-92), leurs effets sont du texte mort.", "severite": "HIGH", "reproduction": "grep -rn \"clic_x2\\|prod_plus_10\\|cout_moins_5\\|effet_desc\" games/kitten_clicker --include=*.gd -> 0 occurrence en .gd. Oracle de mutation remplaçant clic_x2 par clic_x99 dans objects.json -> état de jeu identique (solvabilité et gains inchangés)."}, {"angle": "cohérence monde↔mécanique", "faille": "places.json (2 lieux, champs palier_requis + decor) est chargé (runtime.gd:67) mais jamais relu : le décor bascule via le booléen s.place_unlocked (render.gd:144-146) avec des textures codées en dur (runtime.gd:89-90), et le seuil de déblocage est le littéral 1 (end_conditions.gd:30-31), pas palier_requis. Éditer places.json ne change rien : registre fantôme/redondant.", "severite": "MEDIUM", "reproduction": "grep -rn \"_reg\\[.places.\\]\\|places\" games/kitten_clicker --include=*.gd -> seule occurrence fonctionnelle runtime.gd:67 ; champs decor/palier_requis jamais lus. Oracle de mutation palier_requis:99 dans places.json -> jardin apparaît toujours au palier 1."}, {"angle": "audio", "faille": "L'oracle audio prouve 4 cues distincts en relisant Audio.journal (core_audio.gd:56-71) mais jouer() journalise inconditionnellement un cue connu même quand pousses==0 (audio.gd:107, atteint que pb soit null / frames_available==0 ou non) ; l'oracle ne teste jamais frames. 'chaque événement déclenche son son' se réduit à 'écrit son nom au journal', garanti par construction ; une régression à émission nulle resterait verte (journal is not emission).", "severite": "MEDIUM", "reproduction": "Ancre statique audio.gd:107 (append hors test sur pousses) + core_audio.gd:56-71 (assertions sur cues, jamais sur frames). Oracle durci assert sum(e[\"frames\"])>0 : le code passe même à somme nulle."}, {"angle": "assets", "faille": "gallery_render.gd:103-111 prouve la distinction des sprites par comparaison de pixels, mais charger_texture retombe sur _placeholder(chemin) (render.gd:48) dont la couleur est un hash du chemin (render.gd:51-56), donc toujours distinct par chemin. La distinction deux-à-deux et par rareté passe même si TOUS les SVG échouent à se charger : l'oracle ne prouve pas 'SVG rendus' mais 'chemins distincts'. Le commentaire render.gd:34-36 l'avoue.", "severite": "MEDIUM", "reproduction": "Ancre statique render.gd:48 + render.gd:51-56 + gallery_render.gd:103-111. Oracle qui corrompt/renomme tous les *.svg puis relance gallery_render.gd -> toujours ok:true (6 slots distincts en placeholders)."}, {"angle": "assets", "faille": "asset_requests.json déclare 16 sprites dont rarity_frame_set (l.74-82) et upgrade_icon_set (l.134-142). Le chargeur runtime.gd:86-97 énumère 14 entrées et n'inclut ni l'un ni l'autre : les cadres de rareté sont des ColorRect unis (gallery.gd:35-37, render.gd:59-66), aucune icône d'amélioration n'est rendue. 2 assets présents mais non rendus.", "severite": "MEDIUM", "reproduction": "Ancre statique runtime.gd:86-97 (aucune ligne rarity_frame_set/upgrade_icon_set) ; grep -rn \"rarity_frame_set\\|upgrade_icon_set\" games/kitten_clicker --include=*.gd -> 0. Oracle de couverture (demandés ∖ chargés) -> {rarity_frame_set, upgrade_icon_set}."}, {"angle": "longueur", "faille": "PALIERS=[50,250,1000,5000] (params.gd:39) est toute la méta-progression (end_conditions.gd:26-33, total_earned monotone) ; aucun contenu au-delà de 5000 ronrons cumulés. Solvabilité amont : palier 3 (1000) en 116 ticks ≈ 11,6s ; 5000 du même ordre (quelques minutes). Le prestige rejoue le même contenu plus vite sans en ajouter. La promesse charter 'plusieurs heures' n'est portée par aucune constante ni aucun contenu. (Variance des paliers et prestige→production, eux, sont OK.)", "severite": "MEDIUM", "reproduction": "Ancre statique params.gd:39 (plafond contenu=5000, aucun palier au-delà) + preuve solvabilité amont (palier 3=1000 en 116 ticks). Aucun oracle de durée en heures n'existe -> écart charter↔contenu = fog/HumanGate."}]}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Contenu déclaré non joué (quêtes, effets d'objets, registre de lieux sans consommateur runtime) et oracles observables verts par construction (journal audio découplé de l'émission, distinction galerie garantie par placeholder hash-distinct) ; plus 2 sprites demandés non rendus et une promesse de longueur 'plusieurs heures' plafonnée à ~minutes de contenu.", "root_cause": "Les oracles de sortie valident la PRÉSENCE/le COMPTAGE (registre non vide, cue journalisé, régions de pixels distinctes) et non la CONSOMMATION par le jeu joué ; le vert de comptage ne prouve pas le câblage."}

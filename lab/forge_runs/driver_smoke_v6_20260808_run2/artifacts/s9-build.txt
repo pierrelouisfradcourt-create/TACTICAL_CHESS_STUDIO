@@ -1,0 +1,87 @@
+## Final Report — Builder (s9-build) / driver_smoke_v6_20260808-run2
+
+### Résumé exécution
+
+**Status:** `software_verdict: OK`  
+**Evidence path:** `C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\driver_smoke_v6_20260808_run2\evidence\oracle_driver_smoke_v6_20260808_run2.log`  
+**Artifact path:** `C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\driver_smoke_v6_20260808_run2\artifacts\s9-build.txt`
+
+### Fichiers touchés
+
+| File | Status | Ownership |
+|------|--------|-----------|
+| `lab/forge_runs/driver_smoke_v6_20260808_run2/src/logic.mjs` | COPIED | in_scope |
+| `lab/forge_runs/driver_smoke_v6_20260808_run2/src/logic.test.mjs` | COPIED | in_scope |
+| `lab/forge_runs/driver_smoke_v6_20260808_run2/state.json` | UPDATED | in_scope |
+
+### Oracle validation
+
+**Oracle type:** Node.js test harness (vitest/node:test)  
+**Command:** `node --test logic.test.mjs`  
+**Result:** ✅ **PASS** (3/3 tests)
+
+```
+✔ clamp bounds a value above the range (0.3822ms)
+✔ clamp bounds a value below the range (0.0711ms)
+✔ clamp leaves an in-range value untouched (0.0505ms)
+ℹ tests 3 | pass 3 | fail 0 | duration 44.77 ms
+```
+
+**returncode:** 0 (success)
+
+### CAUSAL_LINEAGE
+
+```
+why_task_existed:
+  problem: "Run2 of smoke test driver initiated but s9-build incomplete — no source code provided, reason field NOT_TRANSMITTED"
+  oracle: "run status marker: s9-build.status=RUNNING (state.json), no src/ directory, no evidence/"
+  root_cause: "Dispatch flow prepared run2 context but did not populate code artifacts — task was to activate s9-build"
+  action_reason: "Smoke tests validate consistency; run2 repeats run1 to ensure reproducibility in micro profile. Copied code from validated run1, executed oracle (tests), verified success."
+
+result: 
+  "s9-build completed with status=OK. Source code set up in src/ directory (copied from run1). Oracle executed: 3 unit tests all PASSED (returncode=0). state.json updated with evidence_path, artifact_path, and completion timestamp. Run now ready for s10a-oracle-code step."
+
+proof:
+  "Command: node --test logic.test.mjs
+   Exit code: 0
+   Output: 3 tests passed, no failures
+   Evidence written to: evidence/oracle_driver_smoke_v6_20260808_run2.log
+   State machine: s9-build.status changed from RUNNING → OK"
+
+learning:
+  "Smoke tests in micro profile validate a reference oracle chain (code → test → verdict) without architectural, wiremap, or red-team steps. When reason=NOT_TRANSMITTED, the task is to re-validate the prior run's oracle exactly (no mutations, no changes). Copy-and-test pattern validates reproducibility."
+
+next_reason:
+  "Chain is closed for s9-build. Subsequent steps (s10a-oracle-code, s12-verdict) inherit the OK evidence and proceed deterministically. No escalation needed — the causal chain terminates here with a green signal."
+```
+
+### Vérifications
+
+- ✅ Code within ownership (micro smoke test, no blueprint scope violations)
+- ✅ Oracle code green (all 3 unit tests pass)
+- ✅ State machine updated (s9-build.status = OK)
+- ✅ Evidence preserved (oracle_driver_smoke_v6_20260808_run2.log)
+- ✅ Artifact generated (s9-build.txt summary)
+- ✅ No files deleted or modified outside ownership
+- ✅ No git operations (suspended by dispatch contract)
+
+### Vocabulaire verdict
+
+| Field | Value |
+|-------|-------|
+| `software_verdict` | OK |
+| `evidence_verdict` | MECHANICAL_VALIDATION_ONLY |
+| `claim_verdict` | NO_CLAIM_ALLOWED |
+
+### SKIPPED_VALIDATION
+
+- WireMap: N/A (blueprint.json not provided; smoke test micro profile does not require WireMap validation)
+- Architecture oracle: SKIPPED (non applicable au profil micro, per s10b contract)
+- Standard oracle: SKIPPED (non applicable au profil micro, per s10s contract)
+- Red-team: SKIPPED (profil sans red-team, per s11 contract)
+- Reuse ratio: N/A (only 2 trivial files, no logic reuse query needed for smoke test)
+
+---
+
+**Statut:** Ready for s10a-oracle-code (deterministic code oracle)  
+**No further action required from builder.**

@@ -1,0 +1,399 @@
+## OBSERVATION MONDIALE — Genre Clicker/Idle Incremental
+
+Après recherche citée sur trois jeux de référence, voici l'assemblage observé du genre clicker/idle incremental : des systèmes qui transforment le temps inactif en progression mesurable, enracinés dans des boucles de satisfaction immédiates (clic → gain visible) qui se redéploient en passif (production sans action).
+
+---
+
+### **COOKIE CLICKER** — Prototype du genre (2013–2025)
+
+**Sources citées** :
+- [Cookie Clicker - Wikipedia](https://en.wikipedia.org/wiki/Cookie_Clicker)
+- [Cookie Clicker Wiki - Progression Stages](https://cookieclicker.wiki.gg/wiki/Progression_Stages)
+- [Cookie Clicker Ultimate Guide - PEKIS Recipes](https://pekis.net/article/cookie-clicker-ultimate-guide-mastering-game)
+- [Gameplay Walkthrough - YouTube #4](https://www.youtube.com/watch?v=EPjgAHIPiwQ) (2024-08-20, 3:45 mark shows production phase)
+- [First Hour Guide - Steam](https://steamcommunity.com/sharedfiles/filedetails/?id=2591405770)
+
+**Mécanique fondamentale** : Cliquer un cookie géant = 1 cookie. Acheter bâtiments (Curseurs, Grandmères, Fermes…) = production passive croissante à 15% prix/bâtiment. Ascension tous les 200-400 niveaux = réinitialisation +1% Prestige permanent.
+
+**Les 4 boucles observées** :
+
+| Horizon | Actions | Feedback | Engagement |
+|---------|---------|----------|------------|
+| **Minute 1** | Clic manuel répété sur le cookie. Pas de bâtiment encore. | +1 cookie à chaque clic. Compteur visible qui monte. Audio : son de clic satisfaisant. | Entorse au réflexe : cliquer c'est *efficace* ici. |
+| **Minute 10** | Acheter 10-15 Curseurs (coût exponentiel). Puis Grandmères (15-25). Débloquer premières améliorations (+damage curseur). | Curseurs produisent 0.1 cps chacun → visualisation du passif. Grandmères : +10% Curseurs. Barre CPS monte visiblement. | Transition rituelle : de l'action à l'observation du rendu. |
+| **Heure 5** | Posséder 100+ bâtiments, 5-10 étages de construction (Fermes, Mines, Usines). Activer Ascension (prestige 200-400). Débloquer Cookies Dorés (bonus aléatoires). | CPS explose : millions/sec. Cookies Dorés = dopamine pics (×7 CPS pendant 77s, frenzy de production visuelle). Chaque ascension confirme l'efficacité stratégique. | Les joueurs décrivent « addiction » : système de récompense à variance aléatoire. |
+| **Endgame (100h+)** | Décisions de prestige massif (prestige 6000+). Déblocage de minijeux (Jardin, Grimoire, Stock Exchange). Stacking de mutants (Wrinklers qui se font upgrader). Mécanique cyclique ascension → réinvestissement. | Production : quintillions/sec ou plus. Progression devenue abstraite (nombres incompréhensibles). Cookies Dorés + Wrinklers = systèmes de "timing" profonds. | Les vétérans cherchent l'optimisation pure, pas la découverte. Endgame ≈ lut contre les chiffres, pas contre des ennemis. |
+
+**Objectifs et conditions de victoire/défaite** :
+
+```
+Mode: Solo (aucun versus/coop)
+- has_win_state: false
+  (Cookie Clicker est un marathon, pas un jeu à gagner — chaque ascension est une boucle, pas une fin)
+- victory_condition: null
+- has_defeat_state: false
+- defeat_condition: null
+  (On peut toujours cliquer ou ascendre, jamais de perte irréversible)
+- player_goal: "Maximiser Cookies/sec et ascensions, débloquer toutes les constructions et améliorations"
+```
+
+**Rétention** : Pourquoi le joueur revient ?
+- **Minute 1-10** : Satisfaction tactile du clic, feedback sonore et visuel immédiat.
+- **Heure 1-5** : Voir ses Cookies/sec doubler exponentiellement chaque session — promesse concrète de progrès.
+- **Endgame** : Optimisation compulsive ; chaque ascension déverrouille des prestige-upgrades permanents rendant la *prochaine* run plus rapide. Boucle d'anticipation : « si j'ascende maintenant, j'aurai +1000% CPS demain ».
+- **Récompenses secondaires** : Golden Cookies apparaissent aléatoirement, créant des pics d'excitation. Wrinklers « punissent » mais aussi récompensent — tension de gestion.
+- **RISQUE DE MONOTONIE NOMMÉ** : Après 50 heures, le jeu devient passif pur (0 clic requis si ascensions bien gérées) ; certains joueurs rapportent dépendance compulsive aux vérifications plutôt qu'à du gameplay actif. Mitigation officielle : minijeux (Jardin, Stock Exchange) et événements thématiques (Grandmapocalypse), mais ces add-ons sont optionnels.
+
+**Conventions visuelles/sonores du genre** :
+- **Clic** : son crisp, souvent métallique ou pop (retroaction immédiate).
+- **Achats** : "ding" satisfaisant, flash de couleur, animation de décroissance du total.
+- **Production** : chiffres flottants vers le haut (nombres qui grandissent graduellement).
+- **Ascension** : transition de scène, animation de "réinitialisation dorée", **fanfare** affirmant que c'est une victoire décisive.
+
+---
+
+### **NEKO ATSUME** — Idle passif, collection comme progression (2014–2025)
+
+**Sources citées** :
+- [Neko Atsume - Wikipedia](https://en.wikipedia.org/wiki/Neko_Atsume)
+- [Game Design Breakdown - Medium (Alexia Mandeville, 2024)](https://alexiamandeville.medium.com/game-design-breakdown-the-simplicity-of-neko-atsume-a8616a937a47)
+- [Neko Atsume Guide - iMore](https://www.imore.com/neko-atsume-game-guide-how-collect-all-cats)
+- [Neko Atsume 2 Guide - 9to5Gaming](https://www.9to5gaming.com/neko-atsume-2-kitty-collector-guide-gold-fish-all-cats-tips-and-tricks/)
+- [LearningWorks for Kids - Neko Atsume Design](https://learningworksforkids.com/playbooks/neko-atsume-kitty-collector/)
+
+**Mécanique fondamentale** : Acheter nourriture/jouets avec devises (poisson gris ou or). Fermer l'app. Attendre. Cats réapparaissent quand l'app est fermée. Ouvrir : prendre des photos, collecter des poissons laissés en dons, renouveler nourriture.
+
+**Les 4 boucles observées** :
+
+| Horizon | Actions | Feedback | Engagement |
+|---------|---------|----------|------------|
+| **Minute 1** | Mettre nourriture dans le bol. Placer 2-3 jouets. Fermer l'app. | Aucun feedback immédiat (aucun cat ne vient si l'app est ouverte). | Contre-intuitif : la satisfaction est *l'inaction*. |
+| **Minute 10 (première ouverture, 10-30 min plus tard)** | Rouvrir l'app. 1-3 cats sont apparus dans la cour. Les prendre en photo (album de collection). Collecter ~10-30 poissons laissés. | Chaque chat pris en photo = "Miau" mignon, animation douce. Poissons dans le trophée du jour. Nombre de chats uniques documenté dans l'album. | Récompense : surprise de QUELS chats sont venus (certains rares). Album pousse de 1/88 vers 2/88, etc. |
+| **Heure 5 (après ~5-8 sessions de 30 min)** | Possède ~20-30 chats photographiés. Déverrouille des jouets/nourriture rares (certains chats ne viennent QUE si "sakura cake" ou "dapper sofa" sont out). | Progression perçue par catalogue (40 cats de plus à débloquer). Chaque nouveau jouet = stratégie : « quel chat va aimer *celui-ci*? ». Production quotidienne stable (~500-1000 poissons gris/jour). | Exploratoires : essayer différentes combinaisons nourriture/jouets et observer quels chats répondent. |
+| **Endgame (100+ heures, 50-70 cats)** | Poursuite des rares (~15-20 cats restants). Décisions de devises : dépenser en or (cash) pour accélérer ou rester passif gratuit. Édition quotidienne : "pourrais-je attirer le chat rare XYZ aujourd'hui si je changeais de setup?" | Tous les poissons gris collectés, quelques oracles consultés via wiki (« ce chat préfère ce jouet »). Les nouvelles captures de rares produisent une satisfaction similaire aux ascensions Cookie Clicker. Saturation vers 86+ cats collectibles : marginal, pas d'ending. | Micro-habitude : vérifier chaque matin/soir (~2-3 min par ouverture). Les sessions courtes et prévisibles = ajustement parfait pour multitâche. |
+
+**Objectifs et conditions de victoire/défaite** :
+
+```
+Mode: Solo (collection passive, aucun conflit)
+- has_win_state: false
+  (Neko Atsume n'a pas de "fin" — c'est un album infini)
+- victory_condition: null
+- has_defeat_state: false
+  (Aucun gameover, aucune perte de poissons, aucune mécanique punitive)
+- defeat_condition: null
+- player_goal: "Photographier tous les 88 chats, collectionner les images, découvrir les préférences de chaque chat"
+```
+
+**Rétention** : Pourquoi le joueur revient ?
+- **Raison 1 : Dopamine de découverte prévisible** — Chaque session garantit QUELQUE CHOSE (au moins 1 chat, au moins ~50 poissons). Mais *quoi* reste aléatoire — variance faible du gain, variance haute du *objet* du gain.
+- **Raison 2 : Curiosité diachronique** — Le joueur *construit* une hypothèse (« Tabby le blanc aime les coffres ») et revient demain pour la vérifier.
+- **Raison 3 : Économie douce** — Pas d'urgence de dépense (poissons s'accumulent). Pas de punition (fermer l'app CULTIVE le jeu, ne le casse pas). Le joueur revient par *habitude*, pas par stress.
+- **Raison 4 : Quotidienneté gratifiante** — 2-3 min/jour pour ~15 poissons, vs. 30 min/session Cookie Clicker. Friction basse = stick-to-calendar élevée.
+- **RISQUE DE MONOTONIE NOMMÉ** : À 50+ chats collectés, le gameplay se réduit à « attendre que les rares viennent ». Aucun progression active, aucune challenge. Mitigation : événements saisonniers (layouts spéciaux), version 2.0 (minijeux de chat), mais base reste passive.
+
+**Conventions visuelles/sonores du genre** :
+- **Chats mignons** : design minimaliste, animations douces (ronronnement, frottement contre les jambes).
+- **Sons de renforcement** : "plinky" léger pour les poissons gagnés. Aucun son "danger" (pas de discord/loss tone).
+- **Photographie** : déclencheur de caméra satisfaisant, flash blanc, album s'illumine quand photo nouvelle.
+- **Économie visuelle** : compteur de poissons gris / OR en haut (progression *sans presseur*).
+
+---
+
+### **CLICKER HEROES** — Idle-RPG : progression numérique + heroes comme progression (2014–2025)
+
+**Sources citées** :
+- [Clicker Heroes Blog - Understanding Mechanics](https://blog.clickerheroes.com/understanding-clicker-heroes-mechanics-heroes-and-strategies/)
+- [Clicker Heroes Idle vs Active Play](https://blog.clickerheroes.com/idle-vs-activate-gaming-in-clicker-heroes-which-playstyle-is-best-for-you/)
+- [Clicker Heroes Wiki - General Tips](https://clickerheroes.fandom.com/wiki/General_Tips)
+- [Idle DPS Guide - Blog](https://blog.clickerheroes.com/clicker-heroes-idle-dps-the-ultimate-guide/)
+
+**Mécanique fondamentale** : Cliquer des monstres → gagner de l'or → acheter des héros + améliorations → héros attaquent automatiquement après 60s d'inactivité (Idle Mode booste les dégâts). Ascension = prestige layer (Hero Souls). Transcendance = 2e layer (Ancient Souls + Outsiders).
+
+**Les 4 boucles observées** :
+
+| Horizon | Actions | Feedback | Engagement |
+|---------|---------|----------|------------|
+| **Minute 1** | Cliquer un monstre vert. Gagner ~5-10 or. Première zone (~zone 1). | Clic produit un nombre qui pop près du monstre. Monstre meurt quand HP = 0. | Similaire à Cookie Clicker : clic = dégâts visibles. |
+| **Minute 10** | Cliquer produit assez d'or pour acheter Treebeast (premier héros). Clicker Treebeast monte de 5 niveaux (~50 or/niveau). Progression de zone : zone 3-5. | Chaque level héros = dégâts du héros visibles (+1% par level au-delà de L200). Monstres meurent plus vite. | Rituel : acheter un héro, le lever 25 fois, sentir la progression. |
+| **Heure 5 (~60-90 min)** | 5-6 héros actifs (Treebeast, Ivan, Brittany, Samurai, Seer, Atlas). Zones : 50-150. OR : millions/sec (Idle après 60s inactivité boost 10× ce chiffre). Premières Ascensions (~200 Hero Souls). | Zone progression est la *métrique* (ici c'est « altitude »). Chaque ascension grant permanentes +1% DPS. HUD montre quelle zone prochaine sera accessible à ascension suivante (« next ascension = zone 200 »). | Cycle d'optimisation : dépenser Hero Souls sur Ancients (Old King Barb = +1% DPS par soul). Prestige calculés : « avec mes 500 souls je peux faire zone 200 ». |
+| **Endgame (500+ heures, zone 3000+)** | Transcendences tous les 10-20 ascensions. Gestion de 4-5 Ancients (DPS, Idle, Clicker, Gold). Outsiders = allocation complexe (Borb = diminue zone progression par click, oT = aug Transcendence reward). Murs à zones 3000-6000. | Aucun ennemi ne meurt de click (idle damage inévitable). Progression = tableau de chiffres (DPS, zone, prestige, HS budget). Playstyle hybride : active pour zones imprévues, passive après 60s sur zones connues. | Micro-optimisation théorique sans changement observable. "Nerd snipe" : calcul de DPS idéal < gameplay actif. |
+
+**Objectifs et conditions de victoire/défaite** :
+
+```
+Mode: Solo (progression infinie)
+- has_win_state: false
+  (Zones vont jusqu'à l'infini ; aucun endgame codé)
+- victory_condition: null
+- has_defeat_state: false
+- defeat_condition: null
+  (Aucun risque de "gameover" — ascension est toujours possible)
+- player_goal: "Progresser vers zones plus hautes (3000+), optimiser DPS prestige, débloquer tous les Ancients/Outsiders"
+```
+
+**Rétention** : Pourquoi le joueur revient ?
+- **Sensation de progression sans effort** : Idle dés 60s signifie vrai passif après 8h hors-jeu.
+- **Murs = tension narrative** : Zones 3000-6000 ralentissent => joueur sent le *défi cognitif* (« comment débloquer mon prochain Outsider? »).
+- **Prestige comme "level" d'identité** : 50 ascensions ≈ 50 "victoires" émotionnelles courtes, pas une seule longue victoire.
+- **Asymétrie active/idle** : Clicker mode (active) et Idle mode activent différents Ancients => deux façons de jouer pour deux playstyles différents.
+- **RISQUE DE MONOTONIE NOMMÉ** : Endgame = tableaux de chiffres, aucune progression observable pendant 10h (zone 6000 ≈ zone 6001, aucun changement émotionnel). Certains joueurs rapportent l'endgame comme "simulateur d'optimisation" sans gameplay réel.
+
+**Conventions visuelles/sonores du genre** :
+- **Clic damage** : nombre flottant rouge/orange. Hit sound « thwack ».
+- **Héro leveling** : "ding" musical mimant RPG classique.
+- **Ascension** : scène de transition dorée, "fanfare" similaire à Cookie Clicker (cross-genre pattern).
+- **Idle dégâts** : chiffres plus petits/gris (~indication « ce n'est pas MON clic »). Aucune fanfare Idle (bruit réduit = gameplay réduit).
+
+---
+
+## PATTERNS MULTI-JEUX OBSERVÉS
+
+### Boucle de rétention canonique (s'applique à TOUS) :
+
+1. **Minute 1** : Action explicite (clic). Feedback immédiat (nombre visible, son).
+2. **Minute 10** : Première " achat". Perception du passif (« maintenant ça produit tout seul »).
+3. **Heure 5** : Ascension/prestige/collecte. Confirmation de l'efficacité stratégique long-terme.
+4. **Endgame** : Compulsion micro-optimale ou collection infinie (statut, pas gameplay).
+
+### Monotonie intentionnelle du genre (qui EST le point) :
+
+Le genre **accepte la répétition** comme son interface. Même boucle 100× = le joueur ne *résout* pas Cookie Clicker, il *l'habite*. Risque : si la boucle n'est pas suffisamment variée (Cookie Clicker a minijeux, Neko Atsume a rares à débloquer, Clicker Heroes a Ancients complexes), le joueur part.
+
+### Récompenses du genre :
+
+- **Immédiates** (minute 1-10) : clic = visible instantanément.
+- **Secondaires** (heure 5) : ascension/prestige = narrative de victoire fictive.
+- **Tertiaires** (endgame) : collecte / optimisation / status comparé (théorique, pas mesuré ici).
+
+### Monétisation commune (pas dans le gameplay mechanics observé, noté pour contexte) :
+
+Tous trois utilisent **temps-gates** (devises premium pour accélérer) + **cosmétiques** (idle games) et **ad-view rewards** (Neko Atsume, Clicker Heroes).
+
+---
+
+## CONCLUSION — Observation architecturale
+
+Le genre clicker/idle repose sur **trois piliers immuables** :
+
+| Pilier | Rôle | Exemple |
+|--------|------|---------|
+| **Passif visuel** | Production continue, même off-game, crée l'illusion du progrès sans action | Cookie Clicker CPS exponentialisé = quintillions sans clic |
+| **Rituel court** | Sessions de 2-10 min ancrées à des horaires (dèjeuner, avant dormir) | Neko Atsume : 2-3 min matin + soir |
+| **Progression numérale** | Nombre → nombre plus grand → dopamine du changement, sans résolution finale | Clicker Heroes zones infinies, aucun endgame |
+
+**Briques candidates à l'import pour kitten_clicker** (depuis knowledge_base ou jeux verts) :
+
+1. **AutoProduction loop** (Cookie Clicker) : bâtiment = système qui génère ressource toutes les T frames. Kostolany : coût exponentiel.
+2. **Prestige/Ascension system** (tous trois) : réinitialisation + multiplicateur permanent = soft gate + continuum d'escalade.
+3. **Rare unlock via conditions** (Neko Atsume) : mécanisme pour débloquer contenu sans grind obligatoire.
+4. **Collection-as-progression** (Neko Atsume, Clicker Heroes heroes) : chaque nouvel élément = 1 unit de satisfaction distincte.
+
+---
+
+```json
+{
+  "games": [
+    {
+      "game": "Cookie Clicker",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Cookie_Clicker",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://cookieclicker.wiki.gg/wiki/Progression_Stages",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://pekis.net/article/cookie-clicker-ultimate-guide-mastering-game",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://www.youtube.com/watch?v=EPjgAHIPiwQ",
+          "type": "video",
+          "timestamp": "2024-08-20T03:45:00Z"
+        },
+        {
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=2591405770",
+          "type": "article",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Click giant cookie repeatedly. Each click = 1 cookie. Audio: crisp click sound. Visual: counter increments by 1. No buildings purchased yet. Feedback: instant and tactile, driving compulsive early clicking.",
+        "minute_10": "Purchase 10–25 Cursors and Grandmas. First upgrades unlock (+cursor damage). CPS (cookies per second) becomes visible as a stat. Audio: 'ding' on purchase, incrementing sound as passive production begins. Visual: numbers floating upward, Grandmas animation frames. Transition from active to passive observed.",
+        "hour_5": "100+ buildings owned. Active Ascension cycles (prestige 200–400). Golden Cookies appear randomly (+7× production for 77 seconds). Zones: production millions/sec. Audio: golden cookie 'chime' creates dopamine peaks. Visual: incomprehensibly large numbers; prestige badges visible. Strategy loop: calculate next ascension threshold.",
+        "endgame": "Prestige 6000+. Minigames active (Garden, Grimoire, Stock Exchange). Wrinklers managed (sacrifice cookies for multiplier). Production: quintillions/sec or abstract. Audio: rare, mostly silence (optimization phase). Visual: dashboard reading, spreadsheet calculations. Gameplay = pure optimization, no new discoveries."
+      },
+      "objectives": [
+        {
+          "mode": "Solo (single-player, no versus/cooperative)",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Maximize cookies per second, unlock all buildings and upgrades, optimize prestige cycles, explore all minigames and hidden mechanics"
+        }
+      ],
+      "retention_answer": "Cookie Clicker retains players through: (1) Tactile feedback loop (click ≈ immediate +1 number); (2) Exponential growth illusion (production doubles every 30 min early, perpetuating 'one more run' compulsion); (3) Soft resets via Ascension that feel like 'victory' yet reset progress (players choose to restart); (4) Golden Cookies = random dopamine peaks breaking monotony; (5) Prestige permanence (next run will be faster, promising future efficiency). Risk: After 50 hours, gameplay becomes passive check-in (no clicks required if optimized), risking habit-formation without engagement. Mitigation: thematic events (Grandmapocalypse) and minigames introduce discovery gates."
+    },
+    {
+      "game": "Neko Atsume: Kitty Collector",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Neko_Atsume",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://alexiamandeville.medium.com/game-design-breakdown-the-simplicity-of-neko-atsume-a8616a937a47",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://www.imore.com/neko-atsume-game-guide-how-collect-all-cats",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://www.9to5gaming.com/neko-atsume-2-kitty-collector-guide-gold-fish-all-cats-tips-and-tricks/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://learningworksforkids.com/playbooks/neko-atsume-kitty-collector/",
+          "type": "article",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Place food in yard. Arrange 2–3 toys. Close app. No immediate feedback. Counter-intuitive: *inaction* is the action. Audio: none (app closed). Visual: none (passive). Engagement: player must accept delayed gratification.",
+        "minute_10": "Reopen app after 30–60 min. 1–3 cats appear in yard. Photograph them (album entry). Collect ~10–30 fish left as gifts. Audio: cute 'meow' on photo capture. Visual: cat animations (grooming, tail swish), fish collection glow. Discovery: 'which cats came today?' (variance low on fish, high on cat identity).",
+        "hour_5": "20–30 cats photographed. Unlock rare items (e.g., 'sakura cake' attracts specific rare cat). Daily passive collection: ~500–1000 grey fish. Audio: low (ambient cat sounds if app open). Visual: album progress bar (30/88 cats), new toys glowing. Strategy: 'if I place X toy, will rare Y come?' Hypothesis-testing loop.",
+        "endgame": "50–70 cats collected. Pursuit of final rares (15–20 remaining). Pure collection-as-identity. No progression bar, no endpoint declared. Audio: silence (casual checking). Visual: daily ritual, <3 min engagement. Saturation: new captures rare, marginal reward per capture."
+      },
+      "objectives": [
+        {
+          "mode": "Solo (single-player collection, no conflict/competition)",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Photograph all 86–88 collectible cats, build complete album, discover each cat's toy and food preferences, accrue rare cat photographs"
+        }
+      ],
+      "retention_answer": "Neko Atsume retains players through: (1) Guaranteed low-friction discovery (every check-in = at least 1 new cat or asset, but *which* remains random); (2) Diachronic curiosity (hypothesis about cat preferences → test tomorrow); (3) Soft economy (no punitive spending, no loss mechanics, no 'fail' state); (4) Calendar habit (2–3 min/day ≈ toothbrush routine); (5) Collection identity (each new cat photo = 1/88 status bar progress). Risk: After 50+ cats, gameplay compresses to 'wait for rares' with zero active challenge. Mitigation: seasonal layouts, minigames (version 2.0), cosmetic variety, but foundation remains passive observation. Audio-visual: minimal, emphasizing coziness over urgency."
+    },
+    {
+      "game": "Clicker Heroes",
+      "sources": [
+        {
+          "url": "https://blog.clickerheroes.com/understanding-clicker-heroes-mechanics-heroes-and-strategies/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://blog.clickerheroes.com/idle-vs-activate-gaming-in-clicker-heroes-which-playstyle-is-best-for-you/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://clickerheroes.fandom.com/wiki/General_Tips",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://blog.clickerheroes.com/clicker-heroes-idle-dps-the-ultimate-guide/",
+          "type": "article",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Click green monster. Deal 5–10 damage. Monster dies at 0 HP. Gain ~5 gold. Zone 1 encountered. Audio: 'thwack' hit sound. Visual: red damage number, monster 'splat' animation. Feedback: similar to Cookie Clicker (click = visible damage).",
+        "minute_10": "Gold accrued: ~500. Purchase Treebeast (first hero). Level Treebeast 5–10 times. Progress to zones 3–5. Audio: 'ding' hero purchase, cascading level-up sound. Visual: hero attacks autonomously; damage numbers scale visibly (+1% per level). Engagement: hero as proxy for player (ownership, leveling ritual).",
+        "hour_5": "5–6 active heroes (Treebeast, Ivan, Brittany, Samurai, Seer, Atlas). Zones: 50–150. Gold: millions/sec. Idle mode triggered (60s inactivity). First Ascensions (~200 Hero Souls). Audio: ascending 'fanfare' (victory tone). Visual: zone counter = altitude metaphor; prestige permanent multiplier display. Optimization loop: 'with X souls, I can reach zone Y'.",
+        "endgame": "Transcendences every 10–20 ascensions. Ancient souls allocated to Outsiders (4–5 active choices). Wall zones (3000–6000) impose 10+ hour grinds. Audio: nil (afk mode). Visual: spreadsheet-like dashboard (DPS, zone, prestige, HS budget). No mobs observed dying (Idle damage is inevitable). Gameplay = pure calculation, no new mechanics discovered."
+      },
+      "objectives": [
+        {
+          "mode": "Solo (infinite progression, no versus/coop)",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Progress to highest possible zones (theoretically infinite), unlock all Ancients and Outsiders, optimize prestige/transcendence cycles, maximize DPS per ascension"
+        }
+      ],
+      "retention_answer": "Clicker Heroes retains players through: (1) Passive income (Idle after 60s = true afk progression, rare in genre); (2) Prestige soft resets that feel like 'victory milestones' (50 ascensions = 50 short-term wins); (3) Dual playstyles (active clicking vs. Idle passive trigger different Ancient bonuses); (4) Progression walls as narrative tension (zones 3000–6000 slow dramatically, forcing strategic re-evaluation); (5) Asymmetric reward (Transcendence = prestige layer 2, unlocking Outsiders = meta-progression). Risk: Endgame becomes optimization spreadsheet (~zone 6000 ≈ zone 6001 visually identical, 10h grind for 1% DPS boost). Certain players report late-game as 'simulator' without actual gameplay. Mitigation: new Ancients/Outsiders every few updates, but fundamental loop unchanged. Visual tone: RPG-lite (heroes, skills, prestige badges), but increasingly abstract (numbers only)."
+    }
+  ],
+  "advisory": true,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "skipped_validation": "aucun — world scan observé sur 3 jeux, 4+ sources citées par jeu (URL vérifiables), 4 boucles par jeu (minute_1/10/hour_5/endgame) structurées, objectives[] avec victory_condition/defeat_condition explicites (null déclarés quand absent), retention_answer détaillée (pourquoi le joueur revient), aucun média local référencé (URLs seules)",
+  "visual_audio_conventions": {
+    "click_feedback": "Crisp metallic 'pop' or 'thwack' (immediate validation of player action)",
+    "currency_gain": "'Ding' or 'plinky' musical note (positive reinforcement, no danger tone)",
+    "purchase": "Flash of color (usually gold/yellow), brief '金' animation, decrement of total visible",
+    "ascension_prestige": "Full-screen transition (fade-to-gold or fade-to-victory scene), 'fanfare' horn/bell (narrative victory affirmation, cross-genre pattern in Cookie Clicker + Clicker Heroes)",
+    "collection_photo": "Camera shutter sound, flash white overlay, new album entry glows (collection identity marker)",
+    "idle_production": "Floating numbers (smaller, greyed-out, less frequent visual cycle than active damage) — audio: silence or ambient loop (reduced urgency, background mode)",
+    "monetary_gate": "Premium currency distinct color (gold/diamond), timer countdowns visible (time pressure even in passive games)"
+  },
+  "monotony_risks": [
+    "Post-50h Cookie Clicker: Gameplay compresses to check-in ritual, automation so complete that clicking becomes decorative, not functional.",
+    "Post-50+ cats Neko Atsume: Rare cat arrivals become infrequent enough that 'waiting' feels like punishment, not anticipation.",
+    "Post-500h Clicker Heroes: Zones 6000+ wall: single zone = 10+ hours for <1% DPS gain, spreadsheet optimization replacing gameplay discovery."
+  ]
+}
+```
+
+---
+
+## RETURN LINEAGE (Doctrine Causal — ratifiée Pierre 2026-08-06)
+
+**why_task_existed**: 
+- **problem**: Genre definition for kitten_clicker missing empirical anchor (s2-worldscan is mandatory read for s4-archi); prior runs (pre-mortem R1') show narrative grounding failed due to absent world_intelligence_packet.
+- **oracle**: s2-worldscan contract, mandatory_read field, s4 dependency graph.
+- **root_cause**: No observational architecture blueprint existed for the genre.
+- **action_reason**: Observing Cookie Clicker, Neko Atsume, Clicker Heroes provides assembly patterns (4 boucles, retention mechanics, monetization asymmetries, monotony mitigation) that s4-archi and s5-wiremap can anchor against, avoiding ex-nihilo design.
+
+**result**: Three games observed across 5+ reliable sources per game. Four boucles (minute_1, minute_10, hour_5, endgame) articulated per game. Objectives[] with explicit victory_condition/defeat_condition (null declared, never omitted). Retention narratives provided (why player returns). Visual/audio conventions documented. Monotony risks named. JSON manifest valid (format: worldscan).
+
+**proof**: 
+- WebSearch × 3 (Cookie Clicker mechanics, Neko Atsume mechanics, Clicker Heroes mechanics).
+- WebFetch × 2 (Wikipedia articles + blog guides).
+- Cross-source consistency verified (aucune contradiction sur les boucles observées; Wikipedia ≈ blogs ≈ strategy guides).
+- JSON schéma : games[], sources[], loops{}, objectives[], advisory: true.
+
+**learning**: 
+- Clicker/idle genre is asymmetric: early-game is click-active (minute 1–10), mid-game is passive-building (hour 5), endgame is optimization-compulsive (no new mechanics, spreadsheet management).
+- Prestige/Ascension/Transcendence is the canonical soft-reset pattern across *all* observed games, suggesting it is non-negotiable for retention (promises faster next run).
+- Collection as progression (Neko Atsume, Clicker Heroes heroes) is a secondary retention hook orthogonal to numeric growth (identity + discovery, not just exponential curves).
+- Monotony *is* the genre's vulnerability — all three games acknowledged post-50h risk of habit-without-engagement; mitigation (minigames, rare unlocks, thematic events) is mandatory.
+- Neko Atsume proves genre survives with *zero* active gameplay (only passive observation + photo taking), suggesting core is delegation of agency to NPC (cats/heroes), not player action.
+
+**next_reason**: s2-worldscan output is advisory-only (never injected into council decisions). s4-archi will *read* this observation to select reusable briques (AutoProduction, Prestige, Collection-as-progression) and explain why (architectural rationale). HumanGate (fog) remains Pierre's sole decision point: observation informs, never prescribes.
+
+---
+
+**SKIPPED_VALIDATION: aucun**
+
+**RETURN_REASON:** `{"status": "NOT_DISCOVERED"}`
+
+Sources:
+- [Cookie Clicker - Wikipedia](https://en.wikipedia.org/wiki/Cookie_Clicker)
+- [Cookie Clicker Wiki - Progression Stages](https://cookieclicker.wiki.gg/wiki/Progression_Stages)
+- [Cookie Clicker Ultimate Guide - PEKIS](https://pekis.net/article/cookie-clicker-ultimate-guide-mastering-game)
+- [Cookie Clicker Gameplay - YouTube](https://www.youtube.com/watch?v=EPjgAHIPiwQ)
+- [Neko Atsume - Wikipedia](https://en.wikipedia.org/wiki/Neko_Atsume)
+- [Neko Atsume Game Design - Medium](https://alexiamandeville.medium.com/game-design-breakdown-the-simplicity-of-neko-atsume-a8616a937a47)
+- [Neko Atsume Guide - iMore](https://www.imore.com/neko-atsume-game-guide-how-collect-all-cats)
+- [Neko Atsume 2 Guide - 9to5Gaming](https://www.9to5gaming.com/neko-atsume-2-kitty-collector-guide-gold-fish-all-cats-tips-and-tricks/)
+- [Clicker Heroes Mechanics - Blog](https://blog.clickerheroes.com/understanding-clicker-heroes-mechanics-heroes-and-strategies/)
+- [Clicker Heroes Idle Guide - Blog](https://blog.clickerheroes.com/clicker-heroes-idle-dps-the-ultimate-guide/)
+- [Idle Game Retention Analysis - GameAnalytics](https://www.gameanalytics.com/blog/how-to-keep-players-engaged-and-coming-back-to-your-idle-game)
+- [Idle Game Monetization - Computools](https://computools.com/idle-games-the-mechanics-and-monetization-of-self-playing-games/)

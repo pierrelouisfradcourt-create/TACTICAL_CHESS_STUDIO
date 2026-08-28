@@ -1,0 +1,160 @@
+{
+ "game_id": "kitten_clicker",
+ "systemes": [
+  {
+   "id": "core_caresse",
+   "features": [
+    {
+     "id": "feat_geste_caresse",
+     "capacites": [
+      {
+       "id": "cap_caresse_incremente",
+       "capacite": "Caresser le chaton central via un clic incremente le compteur de caresses d'une valeur strictement positive, affichee immediatement.",
+       "source_ref": "R1",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot caresse le chaton N fois sans autre action ; le compteur passe de v0 a v1 avec v1 - v0 == N x gain_par_clic et gain_par_clic > 0."
+       }
+      },
+      {
+       "id": "cap_jouable_premier_ecran",
+       "capacite": "Des la fin du chargement de la scene principale, le chaton central est cliquable et le premier clic produit un gain, sans ecran de configuration bloquant prealable.",
+       "source_ref": "R10",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Au lancement, un bot clique immediatement sur le chaton sans franchir de menu ; le compteur s'incremente des le premier clic."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_ecran_principal",
+     "capacites": [
+      {
+       "id": "cap_ecran_compteur_focal",
+       "capacite": "L'ecran principal affiche en permanence un compteur de caresses lisible et un chaton central cliquable en zone focale ; chaque clic produit un feedback visuel immediat.",
+       "source_ref": "R9",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Capture de l'ecran de jeu montrant compteur numerique visible + chaton central en zone focale ; captures avant/apres un clic montrant le compteur incremente et un feedback visuel (nombre flottant ou animation)."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "economie_production",
+   "features": [
+    {
+     "id": "feat_producteurs_auto",
+     "capacites": [
+      {
+       "id": "cap_production_passive",
+       "capacite": "Apres achat d'au moins un producteur automatique, le compteur de caresses augmente au fil du temps sans aucun clic du joueur.",
+       "source_ref": "R2",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot achete un producteur puis n'emet aucun clic pendant T secondes ; le compteur croit strictement, v(T) > v(0)."
+       }
+      },
+      {
+       "id": "cap_cout_croissant",
+       "capacite": "Le cout d'un producteur donne augmente strictement a chaque achat de ce producteur : cout_apres > cout_avant.",
+       "source_ref": "R7",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot achete le meme producteur 3 fois de suite ; la suite des couts affiches est strictement croissante, c1 < c2 < c3."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "collection_chatons",
+   "features": [
+    {
+     "id": "feat_galerie",
+     "capacites": [
+      {
+       "id": "cap_galerie_etats_rarete",
+       "capacite": "La galerie affiche chaque chaton avec un etat (verrouille/debloque) et un palier de rarete visible ; debloquer un chaton fait passer son etat a debloque de facon permanente.",
+       "source_ref": "R5",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Capture de l'ecran collection : au moins un chaton verrouille (silhouette/lock) et un debloque avec badge de rarete ; apres condition de deblocage, l'entree change d'etat vers debloque."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_persistance_monotone",
+     "capacites": [
+      {
+       "id": "cap_collection_monotone_sans_defaite",
+       "capacite": "Aucun evenement subi (temps, absence, action) ne retire un chaton deja debloque ni ne declenche d'ecran de defaite : la collection est monotone non decroissante.",
+       "source_ref": "R3",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Un oracle rejoue une session (clics, achats, temps ecoule, fermeture/reouverture) et verifie qu'aucune transition ne diminue la taille de la collection et qu'aucune scene game_over n'est atteignable."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "progression_prestige",
+   "features": [
+    {
+     "id": "feat_prestige",
+     "capacites": [
+      {
+       "id": "cap_prestige_multiplicateur_permanent",
+       "capacite": "Declencher le prestige remet a zero la production courante mais applique un multiplicateur permanent (>1) qui persiste apres le reset et augmente le gain de base.",
+       "source_ref": "R6",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot atteint le seuil de prestige et declenche le reset ; apres reset, mult_permanent > 1 et gain_par_clic post-reset > gain_par_clic initial pre-prestige."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "retention_temporelle",
+   "features": [
+    {
+     "id": "feat_gains_hors_ligne",
+     "capacites": [
+      {
+       "id": "cap_gains_hors_ligne",
+       "capacite": "A la reouverture apres une fermeture de duree D, le jeu calcule et affiche des gains hors-ligne strictement positifs, ajoutes au total.",
+       "source_ref": "R4",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Fermer puis relancer avec une horloge avancee de D ; a la reouverture un panneau affiche gains_hors_ligne > 0 coherents avec production_passive x D (eventuellement capee)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_objet_bonus",
+     "capacites": [
+      {
+       "id": "cap_objet_bonus_ephemere",
+       "capacite": "Un objet-bonus ephemere apparait par intermittence, reste cliquable pendant une duree bornee puis disparait ; le cliquer dans la fenetre octroie un bonus temporaire mesurable, ne pas le cliquer n'entraine aucune penalite.",
+       "source_ref": "R8",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot attend l'apparition de l'objet-bonus, le clique dans sa fenetre de vie : un bonus temporaire s'applique (gain multiplie pendant une duree). Dans un second essai il ne clique pas : l'objet disparait, aucun bonus, aucun decrement du total."
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

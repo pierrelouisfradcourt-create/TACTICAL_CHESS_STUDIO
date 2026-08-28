@@ -1,0 +1,86 @@
+{
+ "catalog_brick_ids_snapshot": [
+  "pat-damage-floor",
+  "pat-forge-architecture_check_before_human_escalation",
+  "pat-forge-broken_loop_repair_not_report",
+  "pat-forge-diagnosis_is_not_workflow_end",
+  "pat-forge-entrypoint_is_undeclared_invariant",
+  "pat-forge-escalation_costs_avoid_default_route",
+  "pat-forge-forge_oracle_convention_undocumented",
+  "pat-forge-hardcoded_expected_state_breaks_on_growth",
+  "pat-forge-instrument_assumes_instead_of_reads",
+  "pat-forge-kb_humangate_to_controlled_autonomy",
+  "pat-forge-mutation_survivor_equivalence_requires_mechanical_proof",
+  "pat-forge-new_proof_needs_declared_executor",
+  "pat-forge-oracle_fail_vs_not_measured_marker",
+  "pat-forge-preflight_oracle_registration",
+  "pat-forge-reuse_tracking_oracle_dead_since_inception",
+  "pat-forge-run_status_not_liveness_proof",
+  "pat-forge-test_green_via_wrong_causal_path",
+  "pat-forge-timeout_greenfield_by_profile",
+  "pat-forge-wiremap_concept_reuse_requalification",
+  "pat-full-reachability",
+  "pat-zone-of-control",
+  "sys-damage-floor",
+  "sys-evader-basic",
+  "sys-grid-nav-m01",
+  "sys-guardian-zoc",
+  "sys-pursuer-continuous",
+  "sys-pursuer-mobile",
+  "sys-reachability"
+ ],
+ "created_ts": 1786267885.7187345,
+ "escalations": 0,
+ "is_game": false,
+ "model_override": null,
+ "profile": "micro",
+ "project": "driver_smoke_v6_20260808",
+ "run_id": "driver_smoke_v6_20260808-run2",
+ "run_status": "DONE",
+ "steps": {
+  "s10a-oracle-code": {
+   "attempts": 1,
+   "detail": {
+    "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\driver_smoke_v6_20260808_run2\\evidence\\oracle_driver_smoke_v6_20260808.log",
+    "returncode": 0
+   },
+   "status": "OK",
+   "ts": 1786268120.5809734
+  },
+  "s12-verdict": {
+   "attempts": 1,
+   "detail": {
+    "decision": "HUMANGATE_READY",
+    "software_verdict": "OK",
+    "verdict_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\driver_smoke_v6_20260808_run2\\verdict.json",
+    "verify_run": "AUTHENTIQUE"
+   },
+   "status": "OK",
+   "ts": 1786268120.7098045
+  },
+  "s9-build": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\driver_smoke_v6_20260808_run2\\artifacts\\s9-build.txt",
+    "artifact_sha256": "e396d9d0bfb209d9480402b81ccefb9a412d3d8f3bc3dece749389c886129431",
+    "cache_creation_tokens": 52780,
+    "cache_read_tokens": 1285050,
+    "cost_usd": 0.281415,
+    "duration_s": 234.5519678592682,
+    "model": "claude-haiku-4-5-20251001",
+    "model_override": null,
+    "output_excerpt": "ompletion timestamp. Run now ready for s10a-oracle-code step.\"\n\nproof:\n  \"Command: node --test logic.test.mjs\n   Exit code: 0\n   Output: 3 tests passed, no failures\n   Evidence written to: evidence/oracle_driver_smoke_v6_20260808_run2.log\n   State machine: s9-build.status changed from RUNNING → OK\"\n\nlearning:\n  \"Smoke tests in micro profile validate a reference oracle chain (code → test → verdict) without architectural, wiremap, or red-team steps. When reason=NOT_TRANSMITTED, the task is to re-validate the prior run's oracle exactly (no mutations, no changes). Copy-and-test pattern validates reproducibility.\"\n\nnext_reason:\n  \"Chain is closed for s9-build. Subsequent steps (s10a-oracle-code, s12-verdict) inherit the OK evidence and proceed deterministically. No escalation needed — the causal chain terminates here with a green signal.\"\n```\n\n### Vérifications\n\n- ✅ Code within ownership (micro smoke test, no blueprint scope violations)\n- ✅ Oracle code green (all 3 unit tests pass)\n- ✅ State machine updated (s9-build.status = OK)\n- ✅ Evidence preserved (oracle_driver_smoke_v6_20260808_run2.log)\n- ✅ Artifact generated (s9-build.txt summary)\n- ✅ No files deleted or modified outside ownership\n- ✅ No git operations (suspended by dispatch contract)\n\n### Vocabulaire verdict\n\n| Field | Value |\n|-------|-------|\n| `software_verdict` | OK |\n| `evidence_verdict` | MECHANICAL_VALIDATION_ONLY |\n| `claim_verdict` | NO_CLAIM_ALLOWED |\n\n### SKIPPED_VALIDATION\n\n- WireMap: N/A (blueprint.json not provided; smoke test micro profile does not require WireMap validation)\n- Architecture oracle: SKIPPED (non applicable au profil micro, per s10b contract)\n- Standard oracle: SKIPPED (non applicable au profil micro, per s10s contract)\n- Red-team: SKIPPED (profil sans red-team, per s11 contract)\n- Reuse ratio: N/A (only 2 trivial files, no logic reuse query needed for smoke test)\n\n---\n\n**Statut:** Ready for s10a-oracle-code (deterministic code oracle)  \n**No further action required from builder.**",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-haiku-4-5-20251001",
+    "runner": "claude",
+    "tokens": 9606
+   },
+   "status": "OK",
+   "ts": 1786268120.4196327
+  }
+ },
+ "transition": "OK",
+ "updated_ts": 1786268131.734308
+}

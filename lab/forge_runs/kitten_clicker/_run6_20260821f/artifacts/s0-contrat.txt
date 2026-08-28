@@ -1,0 +1,111 @@
+I now have everything I need: the exact `check_charter` validator (`scripts/forge/static_oracles.py:1111`), the run directory (`lab/forge_runs/kitten_clicker/`), Pierre's design-intent, and the mandatory demo criteria. One critical trap I've accounted for: `check_charter` rejects any value whose accent/case-normalized form contains `"a definir"` — so I must never write the literal placeholder phrase inside any charter value.
+
+I have no `Write` tool and `s0-contrat` is not in the JSON artifact table, so my deliverable is the terminal charter block below, which the orchestrator persists to `lab/forge_runs/kitten_clicker/charter.yaml` and validates with `check_charter` before s1.
+
+---
+
+## Rapport — s0-contrat / kitten_clicker-20260821f
+
+**Rôle tenu** : Rédacteur du Contrat. Point de vue : chef de projet qui refuse tout flou.
+
+**Sources lues (mandatory_read)** :
+- `scripts/forge/contracts/SCHEMA.md` (schéma 17 champs, 3 états d'un champ, règle de restitution).
+- Le prompt utilisateur = la tâche de dispatch (7 champs R7 + criteres_demo a→h).
+- Pré-mortem PILOU (inline) : solvabilité obligatoire (bot doit GAGNER), pas de `>=` tautologique, `evidence_path` obligatoire, conformité WireMap↔tables du standard, taxonomie d'assets 2D-sprite figée.
+- `lab/forge_runs/kitten_clicker/design_intent.md` (design-intent Pierre, 2026-08-21).
+- Project Bible : **absente** (`lab/forge_runs/kitten_clicker/PROJECT_BIBLE.md` n'existe pas) — projet sans bible ratifiée, ce n'est pas une erreur (studio_link.project_bible → "").
+- Oracle de sortie confirmé : `forge.static_oracles.check_charter` (7 champs, listes non vides, rejet du marqueur de champ non résolu).
+
+**Provenance design-intent (tracée Pierre — pas de fog)** :
+- `reference_jeu` = « Cookie Clicker + Neko Atsume » → source Pierre : `design_intent.md:3` + tâche de dispatch. ✓ traçable.
+- `plateforme_cible` = « Godot 4.6.3 (desktop, fenêtre GPU) » → source Pierre : `design_intent.md:4` + tâche. ✓ traçable.
+- Aucun champ de design-intent inventé par l'agent ⇒ **aucun fog HumanGate à remonter sur ce point**.
+
+**Flous du prompt résolus** :
+- *Condition de victoire d'un clicker* (le genre est endless) → opérationnalisée par la tâche : « atteindre le 3e palier de méta-progression en un nombre fini de ticks » ⇒ inscrite en `criteres_succes` et `criteres_demo(h)`.
+- *Condition de défaite* → le genre incrémental n'en a pas ; résolu comme convention de genre (pas un choix réservé à Pierre) et déclaré explicitement en `hors_scope`, plutôt que laissé en blanc.
+- *Rareté / assets 2D* → cadré 2D-sprite pour rester compatible avec la taxonomie figée du standard (leçon pré-mortem manifest-75bb : pas de type `icon`/`vfx` natif).
+
+**Flous NON résolus remontés (fog)** : aucun. Les deux champs sensibles (reference_jeu, plateforme_cible) sont tracés à Pierre.
+
+**Verdicts** :
+- `software_verdict: OK` — charter produit, 7 champs R7 remplis, 4 listes non vides, aucun marqueur de champ non résolu, construit contre le schéma exact de `check_charter`.
+- `evidence_verdict: MECHANICAL_VALIDATION_ONLY` — appuyé sur l'ancre non-LLM `check_charter` (schéma déterministe cité).
+- `claim_verdict: NO_CLAIM_ALLOWED`.
+
+**Oracle cité** : `forge.static_oracles.check_charter` (`scripts/forge/static_oracles.py:1111`).
+
+**SKIPPED_VALIDATION** :
+- item : *exécution de `check_charter` sur le charter produit* · périmètre : `lab/forge_runs/kitten_clicker/charter.yaml` · statut : **non fait par moi** · raison : contrat s0 `run: aucun` — je n'ai pas la permission d'exécuter l'oracle. L'orchestrateur DOIT lancer `check_charter(charter_dict)` avant s1 (skill.md §« Oracle charter »), re-spawn s0 si `passed` est faux. Le charter est écrit pour passer par construction, mais la validation mécanique liante reste cet appel.
+
+**RETURN LINEAGE** :
+- `why_task_existed`:
+  - `problem`: run kitten_clicker COMPLET par composition demandé par Pierre (2026-08-22) ; les 5 attempts précédents ont échoué en aval (s10s/s9/s10a), l'étape 0 doit poser un charter complet et conforme au schéma pour que l'amont soit consommable.
+  - `oracle`: activation par **décision humaine** (Pierre) ; l'ancre de sortie de cette étape est `check_charter`.
+  - `root_cause`: non établie pour les échecs aval (hors périmètre s0) ; côté cadrage, cause connue des charters passés = YAML illisible (scalaires nus avec `:`) — traitée par la règle de forme (tout en guillemets doubles / `>-`).
+  - `action_reason`: un charter aux 7 champs remplis, conforme à `check_charter` et portant des `criteres_demo` observables (5 mécaniques + a→h) est la précondition dure de toute la chaîne aval.
+- `result`: `charter.yaml` produit (bloc terminal), 7 champs remplis, design-intent tracé à Pierre, aucun placeholder.
+- `proof`: pas de commande exécutée (`run: aucun`) ; conformité établie par lecture du schéma `check_charter` (`_CHARTER_STRING_FIELDS` = objectif/plateforme_cible/reference_jeu ; `_CHARTER_LIST_FIELDS` = hors_scope/criteres_succes/actions_interdites/criteres_demo, listes non vides) — validation mécanique déléguée à l'orchestrateur (voir SKIPPED_VALIDATION).
+- `learning`: `check_charter` normalise accents+casse et rejette la sous-chaîne « a definir » dans TOUTE valeur — donc un `criteres_succes` qui écrirait « aucun champ à définir » se ferait rejeter lui-même ; formulé « marqueur de champ non résolu » à la place.
+- `next_reason`: l'orchestrateur doit exécuter `check_charter` puis enchaîner s2-worldscan/s1-prisme ; la lignée s0 est fermée proprement (aucune cause non résolue, aucune preuve manquante côté cadrage).
+
+Le charter destiné à `lab/forge_runs/kitten_clicker/charter.yaml` suit (bloc terminal, toutes les valeurs de liste en guillemets doubles) :
+
+```yaml
+objectif: >-
+  Produire un clicker de chatons mignons jouable plusieurs heures, sur le modele
+  Cookie Clicker (boucle incrementale, progression, paliers) + Neko Atsume
+  (collection de chatons, attractivite, identite mignonne), pour Godot 4.6.3
+  desktop en fenetre GPU. Le joueur nourrit une colonie de chatons en cliquant
+  sur une pelote centrale (CLICK -> RONRONS -> CHATONS -> PRODUCTION AUTOMATIQUE
+  -> AMELIORATIONS -> NOUVEAUX CHATONS / LIEUX -> META-PROGRESSION). La boucle de
+  progression et la meta-progression doivent etre coherentes, et les donnees de
+  cadrage amont (victoire, objectifs joueur, progression, boucles de recompense,
+  narratif) doivent reellement atteindre les etapes aval (Grey Blocks, WireMap,
+  Builder, oracles), pas rester sur le papier.
+plateforme_cible: "Godot 4.6.3 (desktop, fenetre GPU) — source Pierre, design_intent.md"
+reference_jeu: "Cookie Clicker + Neko Atsume — choisi par Pierre (design_intent.md ligne 3 + tache de dispatch), jamais invente par l'agent"
+hors_scope:
+  - "Pas de multijoueur, de classement en ligne ni d'aucune fonctionnalite reseau : jeu solo, hors-ligne"
+  - "Pas de monetisation, de microtransactions ni de publicite"
+  - "Pas de portage web, mobile ni console : cible unique Godot 4.6.3 desktop (fenetre GPU)"
+  - "Pas de condition de defaite ni de game-over : convention du genre incremental, le joueur ne perd jamais sa colonie ; la victoire = franchir les paliers de meta-progression"
+  - "Pas de rendu 3D : jeu 2D sprite-centre, aligne sur la taxonomie d'assets figee du standard (repo_map : asset.sprite/audio/font/mesh)"
+  - "Pas de generation de contenu par IA a l'execution ni d'appel a une API externe"
+  - "Pas de sauvegarde cloud ni de compte joueur"
+  - "Ne pas etendre le perimetre au-dela de la boucle CLICK -> RONRONS -> CHATONS -> PRODUCTION -> AMELIORATIONS -> LIEUX -> META-PROGRESSION decrite par Pierre"
+criteres_succes:
+  - "charter.yaml passe l'oracle deterministe forge.static_oracles.check_charter : 7 champs requis remplis, 4 listes non vides, aucune valeur laissee en marqueur de champ non resolu"
+  - "Les donnees de cadrage amont (conditions de victoire, objectifs joueur, progression, boucles de recompense, contraintes narratives) sont reellement CONSOMMEES en aval par les Grey Blocks, la WireMap et le Builder — mesure par la sonde advisory check_amont_traversal.mjs — pas seulement presentes dans les documents"
+  - "Le jeu construit demarre sur la vraie scene Godot et reste vivant (sonde runtime_alive verte sur la scene produite)"
+  - "L'oracle de solvabilite fait GAGNER un bot deterministe : atteinte du 3e palier de meta-progression en un nombre fini de ticks, sans test de mecanique en isolation ni comparateur >= tautologique"
+  - "La WireMap est structurellement conforme aux tables figees du standard (core_requirements, capabilities, repo_map) : aucune ligne CORE omise, aucun identifiant provides absent du registre"
+  - "Le gate de mutation est vert (survivants nuls, ou tries et justifies) sur les fichiers logiques declares par la WireMap"
+  - "La courbe de paliers porte au moins 3 valeurs de seuil distinctes et non triviales (regle de variance des metriques Forge)"
+  - "Verdict final signe HMAC verifie par forge.verify_run, decision HUMANGATE_READY, remis a Pierre — jamais un merge automatique"
+actions_interdites:
+  - "Ne jamais git commit ni push sans go explicite de Pierre (HumanGate)"
+  - "Ne pas modifier les zones protegees : tests/ du studio, src/, autopilot.py, scripts/studioV2/ (lanes gelees)"
+  - "Ne pas inventer ni changer reference_jeu ni plateforme_cible : design-intent de Pierre ; toute divergence remonte en fog HumanGate, jamais une invention d'agent"
+  - "Ne jamais emettre un claim_verdict autre que NO_CLAIM_ALLOWED ; toujours separer software_verdict / evidence_verdict / claim_verdict"
+  - "Ne pas ecrire un oracle de jeu qui teste seulement les mecaniques en isolation : l'oracle DOIT prouver la solvabilite par un bot qui gagne (lecon s10a-oracle-code)"
+  - "Ne pas utiliser de comparateur >= tautologique dans un test d'oracle : asserter le comportement strict (compteur == n+1, palier reellement franchi)"
+  - "Ne pas passer au verdict un recu de code sans evidence_path (execution non prouvable => BLOCKED)"
+  - "Ne pas utiliser d'API Anthropic externe ni aucun service reseau externe pour generer le jeu"
+  - "Ne pas declarer dans la WireMap un provides absent de capabilities.yaml ni omettre une ligne CORE de core_requirements.yaml"
+criteres_demo:
+  - "Mecanique 1 — compteur au clic : cliquer sur la pelote centrale incremente le compteur de ronrons affiche d'une valeur strictement positive a chaque clic"
+  - "Mecanique 2 — chaton visible apres achat : acheter un chaton fait apparaitre un sprite de chaton distinct et persistant dans le refuge"
+  - "Mecanique 3 — production sans clic : au moins un chaton achete fait monter le compteur de ronrons sans aucune interaction du joueur, a un taux visible"
+  - "Mecanique 4 — amelioration qui monte le taux : acheter une amelioration augmente de facon observable le taux de production affiche (ronrons par seconde)"
+  - "Mecanique 5 — bot au palier : un bot deterministe joue seul et fait franchir au jeu un palier de progression observable"
+  - "(a) Au moins 6 chatons distincts, chacun avec un nom propre affiche a l'ecran et une identite visuelle reconnaissable liee a sa rarete, avec au moins 3 niveaux de rarete representes"
+  - "(b) Au moins 2 lieux visitables : le refuge de depart plus au moins 1 lieu debloque par la meta-progression, chacun avec un decor distinct visible a l'ecran"
+  - "(c) Au moins 3 objets distincts, chacun avec une icone et un effet observable en jeu"
+  - "(d) Au moins 3 petites quetes dont l'objectif et la progression sont affiches a l'ecran (barre ou compteur), avec un etat d'accomplissement visible"
+  - "(e) Un son distinct pour chacun des 4 evenements clic, achat, deblocage et prestige, declenche par l'evenement lui-meme (audio procedural accepte ; preuve = volet 07_TESTS/oracle/core_audio.gd journalisant les 4 declenchements)"
+  - "(f) Un feedback visuel immediat au clic (animation de la pelote, particules ou pop de ronrons) visible a chaque clic"
+  - "(g) Une courbe de paliers portant au moins 3 valeurs de seuil distinctes et non triviales (regle de variance : la metrique de palier prouve au moins 2 valeurs distinctes)"
+  - "(h) Un bot deterministe atteint le 3e palier de meta-progression en un nombre fini de ticks : solvabilite prouvee, le bot GAGNE, pas seulement les mecaniques en isolation"
+```
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

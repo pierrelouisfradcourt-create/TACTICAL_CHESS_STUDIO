@@ -1,0 +1,442 @@
+{
+ "game_id": "kitten_clicker",
+ "etape": "s4-archi",
+ "run_id": "kitten_clicker-20260821c",
+ "plateforme": "Godot / GDScript (cible games/kitten_clicker ; premiere campagne Godot du sous-genre clicker)",
+ "modules": [
+  "purr_action",
+  "economy",
+  "prestige",
+  "collection",
+  "offline_gains",
+  "bonus_event",
+  "game_state",
+  "input_adapter",
+  "main_screen",
+  "gallery_view",
+  "persistence",
+  "debug_probe",
+  "runtime_loop",
+  "solvability_bot"
+ ],
+ "deps_interdites": [
+  [
+   "purr_action",
+   "main_screen"
+  ],
+  [
+   "purr_action",
+   "gallery_view"
+  ],
+  [
+   "purr_action",
+   "input_adapter"
+  ],
+  [
+   "purr_action",
+   "runtime_loop"
+  ],
+  [
+   "purr_action",
+   "persistence"
+  ],
+  [
+   "purr_action",
+   "debug_probe"
+  ],
+  [
+   "purr_action",
+   "solvability_bot"
+  ],
+  [
+   "economy",
+   "main_screen"
+  ],
+  [
+   "economy",
+   "gallery_view"
+  ],
+  [
+   "economy",
+   "input_adapter"
+  ],
+  [
+   "economy",
+   "runtime_loop"
+  ],
+  [
+   "economy",
+   "persistence"
+  ],
+  [
+   "economy",
+   "debug_probe"
+  ],
+  [
+   "economy",
+   "solvability_bot"
+  ],
+  [
+   "prestige",
+   "main_screen"
+  ],
+  [
+   "prestige",
+   "gallery_view"
+  ],
+  [
+   "prestige",
+   "input_adapter"
+  ],
+  [
+   "prestige",
+   "runtime_loop"
+  ],
+  [
+   "prestige",
+   "persistence"
+  ],
+  [
+   "prestige",
+   "debug_probe"
+  ],
+  [
+   "prestige",
+   "solvability_bot"
+  ],
+  [
+   "collection",
+   "main_screen"
+  ],
+  [
+   "collection",
+   "gallery_view"
+  ],
+  [
+   "collection",
+   "input_adapter"
+  ],
+  [
+   "collection",
+   "runtime_loop"
+  ],
+  [
+   "collection",
+   "persistence"
+  ],
+  [
+   "collection",
+   "debug_probe"
+  ],
+  [
+   "collection",
+   "solvability_bot"
+  ],
+  [
+   "offline_gains",
+   "main_screen"
+  ],
+  [
+   "offline_gains",
+   "gallery_view"
+  ],
+  [
+   "offline_gains",
+   "input_adapter"
+  ],
+  [
+   "offline_gains",
+   "runtime_loop"
+  ],
+  [
+   "offline_gains",
+   "persistence"
+  ],
+  [
+   "offline_gains",
+   "debug_probe"
+  ],
+  [
+   "offline_gains",
+   "solvability_bot"
+  ],
+  [
+   "bonus_event",
+   "main_screen"
+  ],
+  [
+   "bonus_event",
+   "gallery_view"
+  ],
+  [
+   "bonus_event",
+   "input_adapter"
+  ],
+  [
+   "bonus_event",
+   "runtime_loop"
+  ],
+  [
+   "bonus_event",
+   "persistence"
+  ],
+  [
+   "bonus_event",
+   "debug_probe"
+  ],
+  [
+   "bonus_event",
+   "solvability_bot"
+  ],
+  [
+   "game_state",
+   "main_screen"
+  ],
+  [
+   "game_state",
+   "gallery_view"
+  ],
+  [
+   "game_state",
+   "input_adapter"
+  ],
+  [
+   "game_state",
+   "runtime_loop"
+  ],
+  [
+   "game_state",
+   "persistence"
+  ],
+  [
+   "game_state",
+   "debug_probe"
+  ],
+  [
+   "game_state",
+   "solvability_bot"
+  ]
+ ],
+ "ownership": {
+  "purr_action": "05_SYSTEMS/purr_action/",
+  "economy": "05_SYSTEMS/economy/",
+  "prestige": "05_SYSTEMS/prestige/",
+  "collection": "05_SYSTEMS/collection/",
+  "offline_gains": "05_SYSTEMS/offline_gains/",
+  "bonus_event": "05_SYSTEMS/bonus_event/",
+  "game_state": "05_SYSTEMS/game_state/",
+  "input_adapter": "06_RUNTIME/adapters/input_adapter/",
+  "main_screen": "06_RUNTIME/adapters/main_screen/",
+  "gallery_view": "06_RUNTIME/adapters/gallery_view/",
+  "persistence": "06_RUNTIME/adapters/persistence/",
+  "debug_probe": "06_RUNTIME/adapters/debug_probe/",
+  "runtime_loop": "06_RUNTIME/adapters/runtime_loop/",
+  "solvability_bot": "06_RUNTIME/adapters/solvability_bot/"
+ },
+ "responsabilites": [
+  {
+   "module": "purr_action",
+   "responsabilite": "Appliquer UNE caresse a l'etat de jeu recu en argument : incrementer le compteur de caresses de gain_par_clic (strictement positif, derive de la base et du multiplicateur de prestige portes par l'etat), et rendre un nouvel etat. Fonction PURE : ne lit aucun peripherique, ne dessine rien, n'a aucune horloge. Point de mutation UNIQUE du compteur par clic.",
+   "couvre": [
+    "feat_geste_caresse"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot applique N caresses sur un etat initial sans autre action ; le compteur passe de v0 a v1 avec v1 - v0 == N * gain_par_clic ET gain_par_clic > 0 (egalite stricte, jamais >=)."
+   }
+  },
+  {
+   "module": "economy",
+   "responsabilite": "Detenir les producteurs automatiques : achat d'un producteur (debit du cout courant), COURBE DE COUT strictement croissante par rachat d'un meme producteur, et TAUX de production passive par unite de temps. Fonctions pures : la production est PRODUITE ici (taux), son application dans le temps est composee par game_state. Aucune constante de rendu, aucun acces horloge de plateforme.",
+   "couvre": [
+    "feat_producteurs_auto"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot achete le meme producteur 3 fois : la suite des couts affiches est strictement croissante, c1 < c2 < c3 (jamais >=) ; et le taux de production passive expose est strictement positif apres le premier achat."
+   }
+  },
+  {
+   "module": "prestige",
+   "responsabilite": "Tenir l'action de prestige : au franchissement du seuil, remettre a zero la production courante (compteur et producteurs) et appliquer un multiplicateur permanent > 1 qui persiste apres le reset et augmente le gain de base des caresses futures. Fonction pure ; lit la production courante pour calculer le gain de multiplicateur.",
+   "couvre": [
+    "feat_prestige"
+   ],
+   "dependances": [
+    "economy"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot atteint le seuil et declenche le prestige : apres reset, mult_permanent > 1 (strict) ET gain_par_clic post-reset > gain_par_clic initial pre-prestige (strict) ; la production courante est bien remise a 0."
+   }
+  },
+  {
+   "module": "collection",
+   "responsabilite": "Detenir le MODELE DE DONNEES de la galerie : chaque chaton avec un etat (verrouille/debloque) et un palier de rarete ; le deblocage est PERMANENT ; aucune transition subie (temps, absence, action) ne retire un chaton deja debloque et aucun etat game_over n'est representable. Invariant de monotonie non decroissante encode structurellement (R3, destination s4-archi). Fonctions pures.",
+   "couvre": [
+    "feat_persistance_monotone",
+    "feat_galerie"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "Un oracle rejoue une session (caresses, achats, temps ecoule, fermeture/reouverture, bonus ignore) et verifie qu'aucune transition ne diminue la taille de la collection et qu'aucun etat game_over n'est atteignable ; un chaton debloque reste debloque a tous les ticks ulterieurs."
+   }
+  },
+  {
+   "module": "offline_gains",
+   "responsabilite": "Calculer les gains hors-ligne pour une duree D RECUE EN ARGUMENT : production_passive * D, eventuellement capee a un plafond declare, valeur strictement positive tant que D>0 et qu'au moins un producteur est possede. Fonction pure : ne lit AUCUNE horloge de plateforme (D lui est remise par persistence).",
+   "couvre": [
+    "feat_gains_hors_ligne"
+   ],
+   "dependances": [
+    "economy"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Avec au moins un producteur et D>0, gains_hors_ligne == min(production_passive * D, plafond) ET gains_hors_ligne > 0 (strict) ; avec zero producteur, gains_hors_ligne == 0."
+   }
+  },
+  {
+   "module": "bonus_event",
+   "responsabilite": "Tenir l'objet-bonus ephemere comme MODELE PUR : apparition par intermittence (planning deterministe seede), fenetre de vie bornee, effet temporaire (gain multiplie pendant une duree) au clic dans la fenetre, disparition en fin de fenetre. Ignorer l'objet n'entraine AUCUNE penalite et AUCUN decrement du total. Fonctions pures ; aucun rendu.",
+   "couvre": [
+    "feat_objet_bonus"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot clique l'objet dans sa fenetre : un bonus temporaire s'applique (facteur de gain > 1 pendant une duree bornee, puis retour a 1). Second essai sans clic : l'objet disparait en fin de fenetre, aucun bonus applique, et le total est INCHANGE (aucun decrement)."
+   }
+  },
+  {
+   "module": "game_state",
+   "responsabilite": "Etre l'ORIGINE UNIQUE d'un etat de jeu et composer le tick pur dans un ordre fige : appliquer la production passive dans le temps, faire progresser le planning du bonus, projeter l'etat en releve observable. Ne mute jamais son entree : produit un nouvel etat. Ne connait ni rendu, ni input, ni horloge de plateforme (le pas de temps lui est remis).",
+   "couvre": [
+    "feat_producteurs_auto"
+   ],
+   "dependances": [
+    "purr_action",
+    "economy",
+    "prestige",
+    "collection",
+    "offline_gains",
+    "bonus_event"
+   ],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "Un bot achete un producteur puis n'emet aucune caresse pendant T pas de temps : le compteur croit strictement, v(T) > v(0) ; deux executions de meme graine et memes pas de temps produisent des releves observables identiques champ par champ (determinisme)."
+   }
+  },
+  {
+   "module": "input_adapter",
+   "responsabilite": "Traduire les evenements de peripherique (clic souris, tap tactile) en INTENTIONS du vocabulaire ferme (caresser, acheter un producteur, declencher le prestige, cliquer le bonus) ou en 'aucune'. CANAL D'ENTREE PUBLIC UNIQUE : le bot de solvabilite emet ses intentions par ce meme canal, jamais par une ecriture directe dans l'etat. Ne dessine rien, ne calcule aucune valeur de jeu.",
+   "couvre": [
+    "feat_geste_caresse"
+   ],
+   "dependances": [
+    "game_state",
+    "purr_action",
+    "economy",
+    "prestige"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "A l'etat qui suit un clic sur la zone du chaton, l'intention emise est exactement 'caresser' et le compteur a augmente d'exactement gain_par_clic ; un clic hors zone active n'emet aucune intention et laisse l'etat inchange."
+   }
+  },
+  {
+   "module": "main_screen",
+   "responsabilite": "Rendre l'ecran principal a partir du SEUL releve observable : compteur de caresses lisible en permanence, chaton central cliquable en zone focale, feedback visuel immediat a chaque clic (nombre flottant ou animation). Lit l'etat, ne le modifie jamais, ne consulte aucun systeme de regles ; ne fait remonter aucune couleur dans la logique.",
+   "couvre": [
+    "feat_ecran_principal"
+   ],
+   "dependances": [
+    "game_state"
+   ],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "Capture de l'ecran de jeu : compteur numerique visible ET chaton central en zone focale ; captures avant/apres un clic montrant le compteur incremente et un feedback visuel (nombre flottant ou animation) present apres et absent avant."
+   }
+  },
+  {
+   "module": "gallery_view",
+   "responsabilite": "Rendre l'ecran collection a partir du releve observable du modele de collection : chaque chaton avec son etat verrouille (silhouette/cadenas) ou debloque, et son badge de rarete. Lit l'etat, ne le modifie jamais ; aucune donnee de collection n'est detenue ici (elle vit dans le module collection).",
+   "couvre": [
+    "feat_galerie"
+   ],
+   "dependances": [
+    "game_state"
+   ],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "Capture de l'ecran collection montrant au moins un chaton verrouille (silhouette/cadenas) et un debloque avec badge de rarete ; apres la condition de deblocage, l'entree correspondante passe de verrouille a debloque a l'ecran."
+   }
+  },
+  {
+   "module": "persistence",
+   "responsabilite": "Serialiser/deserialiser l'etat sur disque et LIRE l'horloge de plateforme pour calculer la duree D entre fermeture et reouverture, remise en argument a offline_gains. SEUL module a lire l'horloge reelle et le systeme de fichiers ; ne calcule aucune valeur de jeu (delegue le calcul des gains a offline_gains).",
+   "couvre": [
+    "feat_gains_hors_ligne"
+   ],
+   "dependances": [
+    "game_state",
+    "offline_gains"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Fermer puis relancer avec l'horloge avancee de D : a la reouverture un panneau affiche gains_hors_ligne > 0 (strict) egal a la valeur rendue par offline_gains pour ce D et ce taux, et ce montant est ajoute au total charge."
+   }
+  },
+  {
+   "module": "debug_probe",
+   "responsabilite": "Exposer a un lecteur EXTERIEUR au runtime, tick par tick, le releve observable de l'etat (compteur, producteurs, multiplicateur, taille et etats de la collection). Sans ce point de sortie, l'exigence R3 (monotonie de la collection, aucun game_over) n'a aucun observateur et n'est pas verifiable. Ne calcule rien : recopie la projection pure.",
+   "couvre": [
+    "feat_persistance_monotone"
+   ],
+   "dependances": [
+    "game_state"
+   ],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "A chaque tick d'une session rejouee, la taille de collection lue par un lecteur exterieur est egale a celle de l'etat au meme tick et ne decroit jamais d'un tick au suivant ; aucun releve ne porte d'etat game_over."
+   }
+  },
+  {
+   "module": "runtime_loop",
+   "responsabilite": "Amorcer l'application SUR LA SCENE PRINCIPALE, sans ecran de configuration bloquant : le chaton central est cliquable des la fin du chargement. Convertir le temps du moteur en pas de temps remis au tick pur. SEUL endroit ou l'horloge du moteur pilote le tick. Point d'entree runtime explicite du jeu.",
+   "couvre": [
+    "feat_geste_caresse"
+   ],
+   "dependances": [
+    "game_state",
+    "input_adapter",
+    "main_screen",
+    "gallery_view",
+    "persistence",
+    "bonus_event"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Au lancement, un bot clique immediatement sur le chaton sans franchir aucun menu : le compteur s'incremente des le premier clic (v passe de 0 a gain_par_clic)."
+   }
+  },
+  {
+   "module": "solvability_bot",
+   "responsabilite": "Prouver la PROGRESSION du jeu : planifier et emettre, par le canal d'intentions PUBLIC (input_adapter), une suite d'actions (caresser, acheter des producteurs, laisser accumuler, declencher le prestige) qui atteint le seuil de prestige dans un budget de ticks DECLARE. Ne calcule aucune mutation lui-meme : il demande, le jeu decide.",
+   "couvre": [
+    "feat_prestige"
+   ],
+   "dependances": [
+    "game_state",
+    "input_adapter"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Execution sur graine de reference : dans le budget de ticks declare, le bot atteint le seuil de prestige et le declenche avec succes (mult_permanent passe strictement > 1), code de retour 0 ; un budget volontairement insuffisant ne franchit PAS le seuil (controle negatif)."
+   }
+  }
+ ]
+}

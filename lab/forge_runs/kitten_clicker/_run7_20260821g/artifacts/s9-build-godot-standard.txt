@@ -1,0 +1,91 @@
+Build complete and verified. Final report follows.
+
+---
+
+# RAPPORT FINAL — s9-build-godot-standard : kitten_clicker-20260821g
+
+`FORGE_DISPATCH:s9-build-godot-standard:kitten_clicker-20260821g:1`
+
+## software_verdict: OK (build + oracles exécutables) · BLOCKED (conformité s10s `check_index`, cause amont gelée)
+## evidence_verdict: MECHANICAL_VALIDATION_ONLY
+## claim_verdict: NO_CLAIM_ALLOWED
+
+Chaque affirmation cite la commande réellement exécutée et sa sortie.
+
+### Preuves d'exécution (oracles non-LLM que j'ai exécutés)
+
+| Critère | Commande | Sortie réelle |
+|---|---|---|
+| (1) Oracle mécanique headless | `godot --headless --path games/kitten_clicker --script res://tests/run_tests.gd` | `=== RESULT: 112 passed, 0 failed ===`, exit 0. `EXPECTED_ASSERTS=112` == total. |
+| (4) Solvabilité R9 | `node scripts/forge/godot_oracle.mjs games/kitten_clicker` | `won: 20, verdict: "OK"` ; `ALL CHECKS PASSED`. Bot pilote `main.tscn` par `push_input` sur l'affordance `pelote`, atteint `palier == 3` (assertion stricte). `FORGE_TRIAL {"succeeded":true,"ticks":51}` en essai isolé. |
+| (5) Sonde runtime_alive (GPU) | `godot <GPU_WINDOW_FLAGS> --path … --script godot_probes/runtime_alive.gd` | `FORGE_ORACLE runtime_alive {"ok":true, … "changed_after_click":true,"nonmonochrome":true,"scripted_nodes":8,"system_scripts":7}` |
+| Volet `core_paliers` (headless) | `--script res://07_TESTS/oracle/core_paliers.gd` | `ok:true, seuils_observes:[5.0,15.0,30.0]` (distincts, strictement croissants — regle de variance) |
+| Volet `core_no_defeat` (headless) | idem | `ok:true, etats_possibles:["jeu"]` (aucun `defeat`/`game_over`) |
+| Volet `core_audio` (headless) | idem | `ok:true, sons_distincts:["clic","achat","deblocage","prestige"]` (4 sons, un par évènement) |
+| Volet `main_screen_render` (GPU) | `--script res://07_TESTS/oracle/main_screen_render.gd` (GPU flags) | `ok:true` : objectif `"Atteins 5…"` → `"Atteins 30… (palier 3)"`, collection `0→1`, pelote et refuge changent au pixel |
+| Volet `gallery_render` (GPU) | idem | `ok:true, diff_rarete:1916, diff_idle:753` (rareté distincte au pixel + idle animée) |
+| (6) Garde d'assemblage | tous les volets exécutés (aucun rejet `static_guard`) | chaque volet charge `res://main.tscn` ; les 2 GPU tournés en fenêtre GPU réelle |
+| (9) `loop.json` copie exacte | `sha256sum lab/forge_runs/…/loop.json games/…/03_WORLD/loop.json` | `807b1f66…3226` == `807b1f66…3226` |
+| (10) Anti-contournement V4 | `grep -rE 'Economy\|api_*\|preload."res://05_SYSTEMS\|runtime.gd' 07_TESTS/oracle/ solvability.gd` | aucun token de contournement |
+| Constat wiremap (réplique node de `check_wiremap`) | `node verify_wiremap.mjs` | `WIREMAP_CONSTAT_OK (48 lignes)` — chaque ligne : fichiers présents, `fonction` définie, `preuve` non vide sans `.gd` fantôme, `state=IMPLEMENTED` |
+
+### Fichiers touchés vs ownership de la carte
+
+Écrits UNIQUEMENT sous `games/kitten_clicker/**` aux adresses de la carte + racine projet (`godot.project_root`/`godot.project_tests`) + registres/loop/wiremap :
+- 8 logiques pures `05_SYSTEMS/core/` · 1 `input.gd` · 6 adaptateurs `06_RUNTIME/adapters/render/` · 1 `audio.gd` · 2 entités + 2 `.tscn` · 4 registres JSON `03_WORLD/rules/content/` · `03_WORLD/loop.json` (copie) · 16 SVG `04_ASSETS/sprites/` · 5 volets `07_TESTS/oracle/` · `solvability.gd`, `main.tscn`, `project.godot` (racine) · `tests/run_tests.gd` · 8 tests unitaires `07_TESTS/unit/*.test.gd` (fichiers de test, hors carte par nature) · `09_WIREMAP/wiremap.json`.
+- Champs de constat remplis dans `lab/forge_runs/kitten_clicker/wiremap.json` (permission explicite).
+- Vérifié : `orphelins=[]`, `dossiers_hors_structure=[]`, `fichiers_manquants=[]` (réplique node de `check_index`).
+
+### Score de mutation BRUT
+**NON MESURÉ PAR MOI** — le gate mutation Python est exécuté par le driver (permissions : Python non accordé à cette étape ; sandbox l'a confirmé en refusant `python.exe`). J'ai écrit des tests unitaires stricts couvrant chaque constante/branche/borne de la logique pure (bornes `<` vs `<=` testées explicitement : `test_shop` refus à 9.99/accept à 10.0 ; `test_paliers` 4.99→0 / 5.0→1 ; `test_prestige` 29.99→false / 30.0→true) pour maximiser la létalité. Reçu à produire par le driver.
+
+### Lignes BLOCKED
+Aucune ligne marquée BLOCKED : les 48 lignes REQUIRED sont IMPLEMENTED (fichiers déposés et prouvés). **Mais** un défaut d'amont gelé bloque la conformité `s10s` — voir SKIPPED_VALIDATION.
+
+### Empreintes CODE_COPIE
+`reused_from: games/pacman/06_RUNTIME/adapters/audio/audio.gd` — **copie octet-identique IMPOSSIBLE sur la carte gelée** (décision assumée, non maquillée) : l'original précharge `sound_bank.gd` + `settings.gd` → `params.gd`, qu'AUCUNE ligne de la wiremap ne déclare (les déposer = orphelins refusés par `check_index`), et son vocabulaire de sons (6 moments pacman) ne porte pas les 4 évènements d'un clicker.
+- source pacman : `sha256=646e6e9ac752fed1125d74b284f5b98982911316d62e956864e77b314d76bfe7` (13 511 o)
+- déposé (dérivé, self-contained) : `sha256=2b038ca16a7982d27093c2c745c90cdfb5bbb87693e165000aec57f13485ae67` (5 110 o)
+- Le fichier déposé RÉUTILISE la technique de synthèse (onde/enveloppe/echantillons/journal, `AudioStreamGenerator`, ZÉRO fichier audio) mais est indépendant. **Aucune concordance `copy_sha256` — déclaré honnêtement comme DÉRIVÉ, jamais présenté comme identique.**
+
+### Ce qui n'a PAS été mesuré
+- 6 oracles standard (`check_line_states`/`placement`/`index`/`collisions`/`contract_completeness`/`budget`) et le gate mutation : **exécutés par le driver, pas par moi** (Python hors de mes run-tools). J'ai répliqué en node `check_wiremap` (OK) et `check_index` (défaut trouvé, ci-dessous).
+- (8) Sonde `player_loop` (ADVISORY ce run) : **atteint GAME_RESPONSE puis ÉCHOUE à EX04**.
+
+---
+
+## SKIPPED_VALIDATION
+
+| Item | Périmètre | Statut | Raison |
+|---|---|---|---|
+| Gate mutation (100 % tués ou survivants triés) | `05_SYSTEMS/core/*.gd` | non fait par moi | Python non accordé à cette étape (mesuré : sandbox refuse `python.exe`) ; le driver l'exécute. Tests stricts écrits pour le préparer. |
+| 6 oracles standard `s10s` | wiremap + arbre | partiel | Non exécutables par moi (Python). Répliqués en node : `check_wiremap` OK ; `check_index` **FAIL confirmé** (voir DISCOVERED). `check_collisions` (identifiants `affordance:*` / provides de domaine) : FOG déjà déclaré par s5, non vérifiable par moi. |
+| (8) `player_loop` jusqu'à META_LOOP | `loop.json` | échoue à EX04 | `loop.json` (projection Prisme gelée, sha imposé) porte un step `REWARD` (EX04) SANS bloc `observe` ; `player_loop.gd` (`_do_before`) appelle `_find_hud("")` → null → échec. Les 4 affordances réelles marchent (EX01/02/18/03 pass). ADVISORY ce run. |
+| Preuve VISUELLE esthétique (beauté) | assets/rendu | hors périmètre | Fog HumanGate par nature (`style_tag_match` compare des tags, pas des pixels). |
+| Export templates / colis distribuable | build | sans objet | La chaîne n'appelle jamais `--export` (fait de poste mesuré). |
+
+---
+
+## DISCOVERED — défaut d'amont gelé (cause d'un échec `s10s` prévisible)
+
+**La wiremap gelée s5 place 20 lignes d'artefact-nommé (`godot.project_root`, `asset.sprite`, `test.oracle`) avec un `address` = CHEMIN DE FICHIER** (ex. `runtime.godot_project:"solvability.gd"`, `asset.wool_ball:"04_ASSETS/sprites/wool_ball.svg"`, `oracle.main_screen_render:"07_TESTS/oracle/main_screen_render.gd"`). `check_index` (built=True) teste CHAQUE `address` avec `is_dir()` → les 20 tombent en `dossiers_manquants`.
+
+- **Preuve** : réplique node de `check_index` → 20 lignes flaguées (liste complète mesurée). `check_placement` les accepte (le chemin fichier commence par le préfixe de catégorie), d'où l'incohérence interne.
+- **Cause racine** : la réconciliation s5 a mis `address` = le fichier ; la convention du parc (mesurée sur `games/snake` et `games/breakout_v2` : `grep '"address": *"…\.(gd|svg)"'` → aucune) veut `address` = le DOSSIER de catégorie, le fichier vivant dans `fichiers[]`. Défaut LATENT : au gel `check_index` tourne built=False et SAUTE le `is_dir()` ; il n'apparaît qu'après build (built=True).
+- **Hors de mon périmètre** : `address` n'est PAS un champ de constat (`fichiers`/`fonction`/`preuve`/`statut` seulement). Le corriger serait improviser sur la carte gelée. **Remonté HumanGate** — décision : corriger la réconciliation s5 (address→dossier de catégorie) OU assouplir `check_index` pour les gabarits d'artefact nommé.
+
+---
+
+## RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2 §3)
+
+- **why_task_existed :**
+  - `problem :` construire kitten_clicker jouable+solvable selon la wiremap gelée ; tentatives antérieures BLOCKED (racine `res://solvability.gd` omise `manifest-d4fe9bfbe1c8e420` ; `09_WIREMAP/wiremap.json` absente).
+  - `oracle :` `godot_oracle.mjs` (R9) + `product_oracle_godot` (volets) + les 6 oracles standard.
+  - `root_cause :` sous-modélisation des points d'entrée moteur et registre gelé non étendu au genre incrémental (FOGs s5).
+  - `action_reason :` déposer chaque ligne à son adresse, assembler `main.tscn` jouable, prouver la boucle par les seules entrées d'un joueur, remplir le constat.
+- **result :** build complet et jouable ; run_tests 112/112 ; solvabilité 20/20 OK ; 5 volets produits + runtime_alive verts ; anti-contournement propre ; loop.json sha égal ; 48 lignes IMPLEMENTED, constat vérifié. Défaut d'amont gelé trouvé (`check_index` sur 20 file-addresses) ; `player_loop` bute sur EX04 (loop.json sans `observe`).
+- **proof :** commandes et sorties du tableau ci-dessus (reproductibles).
+- **learning :** en Godot **headless**, `Input.parse_input_event` NE route PAS un clic vers un `Button.pressed` (mesuré : count=0), mais `Control.gui_input` + `get_root().push_input(ev,true)` OUI (count=5) — c'est le canal « entrée joueur » viable pour `solvability.gd`/volets headless, tandis que les sondes GPU gelées gardent `parse_input_event`. Les SVG chargent comme textures via `load()` UNIQUEMENT après `godot --import`. La convention du parc : `address` de ligne = DOSSIER, jamais fichier.
+- **next_reason :** le niveau supérieur doit agir : (a) trancher le défaut `check_index`↔file-addresses (correction s5 ou oracle) — sinon `s10s` échouera sur un build par ailleurs complet ; (b) décider de l'extension du registre (`affordance:*`, provides de domaine) et de la tension genre CORE (end_condition/exit sur un jeu sans défaite) — FOGs s5 non résolus ; (c) HumanGate merge/reject/freeze. La chaîne causale reste OUVERTE sur ces arbitrages amont, fermée côté build.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "la wiremap gelee s5 met 20 lignes d'artefact-nomme (godot.project_root/asset.sprite/test.oracle) avec un address = chemin de FICHIER ; check_index(built=True) teste chaque address avec is_dir() et les flague en dossiers_manquants, alors que la convention du parc (snake/breakout) veut address = dossier de categorie et le fichier dans fichiers[]", "root_cause": "la reconciliation s5 a fixe address au fichier au lieu du dossier de categorie ; latent car check_index au gel tourne built=False et saute le is_dir()"}

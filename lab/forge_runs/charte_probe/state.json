@@ -1,0 +1,80 @@
+{
+ "catalog_brick_ids_snapshot": [
+  "pat-damage-floor",
+  "pat-forge-architecture_check_before_human_escalation",
+  "pat-forge-broken_loop_repair_not_report",
+  "pat-forge-diagnosis_is_not_workflow_end",
+  "pat-forge-entrypoint_is_undeclared_invariant",
+  "pat-forge-escalation_costs_avoid_default_route",
+  "pat-forge-forge_oracle_convention_undocumented",
+  "pat-forge-hardcoded_expected_state_breaks_on_growth",
+  "pat-forge-instrument_assumes_instead_of_reads",
+  "pat-forge-kb_humangate_to_controlled_autonomy",
+  "pat-forge-mutation_survivor_equivalence_requires_mechanical_proof",
+  "pat-forge-new_proof_needs_declared_executor",
+  "pat-forge-oracle_fail_vs_not_measured_marker",
+  "pat-forge-preflight_oracle_registration",
+  "pat-forge-reuse_tracking_oracle_dead_since_inception",
+  "pat-forge-run_status_not_liveness_proof",
+  "pat-forge-test_green_via_wrong_causal_path",
+  "pat-forge-timeout_greenfield_by_profile",
+  "pat-forge-wiremap_concept_reuse_requalification",
+  "pat-full-reachability",
+  "pat-zone-of-control",
+  "sys-damage-floor",
+  "sys-evader-basic",
+  "sys-grid-nav-m01",
+  "sys-guardian-zoc",
+  "sys-pursuer-continuous",
+  "sys-pursuer-mobile",
+  "sys-reachability"
+ ],
+ "created_ts": 1786747784.0324142,
+ "escalations": 0,
+ "is_game": false,
+ "model_override": null,
+ "profile": "amont_narratif_charte",
+ "project": "charte_probe",
+ "reason": "exécuteur LLM en échec à s2-worldscan: s2-worldscan: artefact worldscan.json invalide — 'games' doit être une liste NON VIDE (un manifeste sans jeu rend check_worldscan.mjs trivialement invalide) (aucun fichier écrit)",
+ "run_id": "charte-20260814",
+ "run_status": "HALTED",
+ "steps": {
+  "s0-contrat": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\charte_probe\\artifacts\\s0-contrat.txt",
+    "artifact_sha256": "1d5c9ee8840cf017cc28d7d0f73b067010e2148c00054349a9283db5fcb74509",
+    "cache_creation_tokens": 135378,
+    "cache_read_tokens": 1245478,
+    "cost_usd": 2.482589,
+    "duration_s": 366.7392408847809,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "next_reason": "le niveau supérieur (HumanGate/orchestrateur) doit trancher les 3 fogs (enrichissement criteres_demo, game_id/emplacement, portée « réécriture ») ET décider si un validateur CHARTER déterministe doit être câblé — deux décisions humaines réelles, la chaîne causale ne se ferme donc pas ici.",
+    "output_excerpt": "rifiée par inspection seulement → fog HumanGate.\n\n### RETURN LINEAGE\n- **why_task_existed:**\n  - **problem:** un projet de jeu ne peut pas démarrer la boucle Forge sans charter borné (objectif, frontières, critères) ; sans lui les étapes aval (Prisme, World Scan, archi) sont structurellement aveugles.\n  - **oracle:** aucun — activation par décision humaine (intention de projet fournie par Pierre, marqueur `FORGE_DISPATCH:s0-contrat:charte-20260814`).\n  - **root_cause:** non établie (pas un défaut : point d'entrée nominal de la chaîne).\n  - **action_reason:** rédiger charter.yaml aux 7 champs remplis est précisément le livrable de la station s0.\n- **result:** charter aux 7 champs remplis, sans « à définir », design-intent tracé à Pierre ; émis en bloc terminal (Write désactivé) ; 3 fogs remontés.\n- **proof:** inspection croisée `s0-contrat.yaml` (output_contract l.98-105), `standard/repo_map.yaml` (root charter), `standard_oracles.py` (absence de validateur charter), `oracles_probe.json` (charte_probe = stub exit 1). Aucun oracle exécuté (aucun disponible).\n- **learning:** la famille de runs « amont »/sonde n'a pas d'oracle produit — un `software_verdict` vert y est structurellement impossible ; s0 doit sortir BLOCKED + fog tant que le validateur CHARTER n'est pas câblé, jamais un OK auto-certifié.\n- **next_reason:** le niveau supérieur (HumanGate/orchestrateur) doit trancher les 3 fogs (enrichissement criteres_demo, game_id/emplacement, portée « réécriture ») ET décider si un validateur CHARTER déterministe doit être câblé — deux décisions humaines réelles, la chaîne causale ne se ferme donc pas ici.\n\nRETURN_REASON: {\"status\": \"DISCOVERED\", \"problem\": \"aucun validateur CHARTER deterministe non-LLM n'existe pour la station s0 : standard_oracles.py n'en porte aucun et l'oracle configure charte_probe est un stub qui exit 1\", \"root_cause\": \"le champ charter est produit (M4 materialiseur) mais sa validation de schema n'est pas cablee comme oracle non-LLM dans la chaine\"}",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 20262
+   },
+   "next_reason": "le niveau supérieur (HumanGate/orchestrateur) doit trancher les 3 fogs (enrichissement criteres_demo, game_id/emplacement, portée « réécriture ») ET décider si un validateur CHARTER déterministe doit être câblé — deux décisions humaines réelles, la chaîne causale ne se ferme donc pas ici.",
+   "status": "OK",
+   "ts": 1786748150.9728274
+  },
+  "s2-worldscan": {
+   "attempts": 1,
+   "detail": {
+    "reason": "exécuteur LLM en échec à s2-worldscan: s2-worldscan: artefact worldscan.json invalide — 'games' doit être une liste NON VIDE (un manifeste sans jeu rend check_worldscan.mjs trivialement invalide) (aucun fichier écrit)"
+   },
+   "status": "BLOCKED",
+   "ts": 1786748333.071899
+  },
+  "s2.6-story-bible": {
+   "attempts": 0,
+   "status": "PENDING"
+  }
+ },
+ "updated_ts": 1786748333.071899
+}

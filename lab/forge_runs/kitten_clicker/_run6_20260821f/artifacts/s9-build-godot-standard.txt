@@ -1,0 +1,71 @@
+Every gate is green. Full verification complete. Here is the final report.
+
+---
+
+# RAPPORT FINAL — s9-build-godot-standard · kitten_clicker-20260821f (tentative 2)
+
+**software_verdict: OK** · **evidence_verdict: MECHANICAL_VALIDATION_ONLY** · **claim_verdict: NO_CLAIM_ALLOWED**
+
+Vocabulaire : OK / FAIL / BLOCKED uniquement. HumanGate (Pierre) décide merge/reject/freeze — la Forge ne conclut pas.
+
+## Contexte
+La tentative 1 avait déposé les 62 fichiers du jeu mais échouait à la solvabilité. Diagnostic (pas réécriture) : **le point d'entrée R9 exigé par le moteur — la racine `solvability.gd` — était absent**, et le `game_contract.yaml` manquait. J'ai réparé, pas reconstruit.
+
+## Preuve d'exécution (commande → sortie réelle, jamais preuve d'existence)
+
+| Critère | Oracle non-LLM exécuté | Résultat mesuré |
+|---|---|---|
+| (1) Oracle headless | `node scripts/forge/godot_oracle.mjs games/kitten_clicker` → `run_tests.gd` | `RESULT: 213 passed, 0 failed`, exit 0 ; garde `EXPECTED_ASSERTS=213` satisfaite |
+| (2) WireMap conforme | `check_line_states(frozen=built)`, `check_collisions`, `check_placement`, `check_index`, `check_contract_completeness`, `check_budget` | **tous passed=True** ; 42 lignes IMPLEMENTED, 0 REQUIRED, 10 CORE présentes, 0 identifiant inconnu |
+| (3) Gate mutation | `run_mutation_from_descriptor` + `check_mutation_gate` (le juge réel 100%‑ou‑triage) | **53/55 tués, 2 triés équivalents → passed=True**, `triage_perimes=[]` |
+| (4) Solvabilité (bot GAGNE) | `solvability_godot.mjs` (20 essais) | **won=20 / lost=0, verdict OK** ; seed=1 : palier 3 en 116 ticks, seuils franchis [50, 250, 1000] |
+| (5) Runtime vivant | `product_oracle_godot.run_runtime_alive` (fenêtre GPU) | `status=OK` : scène `res://main.tscn` chargée, 6 nœuds scriptés (5 sous 05_SYSTEMS/06_RUNTIME), image non monochrome qui **change après le clic injecté au centre** |
+| (6) Volets → vraie scène | `run_godot_product_oracle` | `core_audio`=OK (headless), `main_screen_render`=OK (gpu_window), `gallery_render`=OK (gpu_window) ; les 3 chargent `res://main.tscn` (garde statique passée) ; `observable_coverage passed=True, verdict OK` |
+| (7) Preuves nomment des fichiers réels | remplissage wiremap | 42 `preuve` non vides, chaque `.gd` cité existe |
+| Variance métrique | `thresholds_variance.test.gd` | `PALIERS = [50, 250, 1000, 5000]` — 4 valeurs de seuil distinctes non triviales (≥2 requis) |
+
+**Audio (core.audio) :** `core_audio.gd` FORGE_ORACLE ok:true — 4 déclenchements distincts `[click, buy, unlock, prestige]` tracés sur une partie réellement jouée (63 déclenchements, journal audio).
+
+## Score de mutation BRUT (survivants compris)
+`mutants_generes=55, killed=53, survived=2`. Fichiers purs mutés (catégorie `system`) : economy 10/10, upgrades 4/4, end_conditions 8/8, error_guard 10/10, restart 14/14, prestige 5/5, collection 1/1, game_state **1/3**. `events.gd` et `params.gd` : 0 mutant (déclaratif, `fichiers_sans_mutant`).
+**2 survivants, triés ÉQUIVALENT** (`games/kitten_clicker/mutation_triage.json`, verdict re‑ancré, `triage_perimes=[]`) : `game_state.gd:52-53` `duplicate(true)→duplicate(false)` dans `clone()`. `kittens`/`unlocked` sont des `Array[String]` (éléments non‑conteneurs immuables) : copie profonde et superficielle sont observablement identiques, aucun test ne peut les distinguer sans une donnée imbriquée mutable que le produit ne détient jamais. **Vérifié mécaniquement** : la mutation appliquée laisse `run_tests.gd` à 213 passed / 0 failed.
+
+## Corrections apportées (fichiers touchés vs ownership de la carte)
+- **CRÉÉ** `games/kitten_clicker/solvability.gd` (`godot.project_root`) — point d'entrée R9 réellement lancé par `godot_oracle.mjs` (`res://solvability.gd`). *Cause exacte de l'échec tentative 1.*
+- **CRÉÉ** `games/kitten_clicker/00_CHARTER/game_contract.yaml` — `assets.plan: generated`, `budget.adds: []` (≤1), descripteur `proof` complet (mutation + solvability). *Absent en tentative 1.*
+- **CRÉÉ** `games/kitten_clicker/mutation_triage.json` — triage des 2 équivalents.
+- **ÉDITÉ** `06_RUNTIME/adapters/runtime/runtime.gd` — un commentaire contenait littéralement « HTTPRequest », faux positif du scan hors‑ligne (le scan lit le texte brut).
+- **ÉDITÉ** `07_TESTS/oracle/gallery_render.gd` — récupère l'adaptateur galerie dans `_process` (après SETTLE), pas dans `_initialize` : dans un `SceneTree`, le `_ready` d'un nœud ajouté est différé au 1er idle frame → `get_gallery()` rendait `null` (0 slots).
+- **ÉDITÉ** `07_TESTS/unit/error_guard.test.gd` (+6 assertions) et `07_TESTS/unit/passive_production.test.gd` (+3) — tuent 6 survivants (branches `is_nan/is_inf`, compteurs négatifs, `unlocked_new` sur refus, `total_earned` au tick).
+- **ÉDITÉ** `tests/run_tests.gd` — `EXPECTED_ASSERTS` 204 → 213.
+- **ÉDITÉ (constat)** `lab/forge_runs/kitten_clicker/wiremap.json` — 42 lignes REQUIRED→IMPLEMENTED, `preuve`/`statut` remplis avec l'oracle réellement exécuté ; ajout de `solvability.gd` (`godot.project_root`) au constat `fichiers` de la ligne `solvability.bot`.
+
+Tous les chemins écrits sont sous `games/kitten_clicker/**` aux adresses de la carte (+ scaffolding `godot.project_root`/charter que les oracles exigent, in_scope) et les champs de constat du wiremap du run. **Aucun fichier hors carte, aucune ligne/système ajoutés.** `games/pong/**` et `archive/godot-adapter-b0` : non touchés.
+
+## CODE_COPIE — empreintes
+**Aucune brique CODE_COPIE déposée.** La tâche de dispatch demandait une copie attestée de `games/pacman/.../audio.gd` (`reused_from.type CODE_COPIE + copy_sha256`), mais **la WireMap gelée déclare `core.audio.reused_from.type = "CONCEPT"`** (pas CODE_COPIE, aucun `copy_sha256`). J'ai suivi la carte (garde‑fou (a) LA CARTE FAIT LOI) — voir divergence remontée ci‑dessous. Aucune empreinte à comparer.
+
+## Lignes BLOCKED
+Aucune.
+
+## SKIPPED_VALIDATION
+- **e2e click‑through navigateur réel** — périmètre : jeu Godot desktop — statut : sans objet (décision assumée du contrat) — raison : aucun navigateur ; remplacé par l'oracle headless (1) + solvabilité (4) + runtime_alive (5), tous exécutés.
+- **Export templates / colis distribuable** — statut : non fait — raison : la chaîne n'appelle jamais `--export` ; non requis (fait de poste mesuré 2026‑07‑28).
+- **Preuve visuelle « beauté » / lisibilité esthétique** — statut : non mesurée — raison : relève du jugement humain (fog HumanGate), jamais d'un oracle. Les volets GPU prouvent la distinction pixel (6 sprites distincts, rareté distincte, changement après clic), pas la qualité artistique.
+- **Divergence dispatch↔carte sur le type de réutilisation audio** — voir DISCOVERED ci‑dessous (fog HumanGate).
+
+## Divergence remontée (fog → HumanGate)
+La **WireMap gelée (s5) a omis les lignes `godot.project_root` que le standard exige** (le patron bomberman_3d déclare `godot.solvability`→`solvability.gd`, `godot.main_scene`→`main.tscn`, `godot.project`→`project.godot`, `godot.harness`→`tests/run_tests.gd`). L'absence de la racine `solvability.gd` est **la cause exacte de l'échec de la tentative 1** (`godot_oracle.mjs` FAIL « solvability.gd absent et le projet déclare run/main_scene »). Ne pouvant ajouter de lignes à une carte gelée, j'ai déposé l'artefact moteur requis et l'ai enregistré dans le constat `fichiers` de la ligne existante `solvability.bot`. **Décision Pierre attendue** : ratifier a posteriori l'ajout des lignes `godot.*` en s5, ou entériner ce contournement par constat. Idem : la tâche demande `CODE_COPIE + copy_sha256` pour l'audio quand la carte gelée dit `CONCEPT` — arbitrage humain.
+
+## RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2 §3)
+- **why_task_existed** :
+  - **problem** : tentative 1 de s9‑build échouait — `returncode=0; solvability non passé` (manifest‑ae1261617fdf2cc9).
+  - **oracle** : `scripts/forge/godot_oracle.mjs` (gate R9) + `check_solvability_wired`.
+  - **root_cause** : la racine `res://solvability.gd` — point d'entrée R9 réellement lancé par le wrapper — était absente (la WireMap s5 avait placé le harnais solvabilité sous `07_TESTS/oracle/solvability.gd` et omis les lignes `godot.project_root` du standard) ; `game_contract.yaml` manquait aussi.
+  - **action_reason** : déposer la racine `solvability.gd` (FORGE_TRIAL) + le `game_contract.yaml` (descripteur mutation+solvability), fermer les faux‑verts/faux‑rouges découverts (commentaire HTTPRequest, timing `_ready` du volet galerie), durcir les tests pour 100 % de mutants tués.
+- **result** : OK — 213/213 mécanique, solvabilité 20/20, mutation 53 tués + 2 triés équivalents (gate vert), runtime_alive vert, 6 oracles standard verts, observable_coverage OK.
+- **proof** : `node scripts/forge/godot_oracle.mjs games/kitten_clicker` → `ALL CHECKS PASSED` ; `check_mutation_gate passed=True` ; `check_observable_coverage verdict=OK`.
+- **learning** : (a) sous topologie STANDARD Godot, la racine `solvability.gd` + les lignes `godot.project_root` sont exigées par le moteur mais peuvent manquer d'une WireMap s5 — vérifier `oracles.json`+`godot_oracle.mjs` avant de conclure ; (b) dans un `SceneTree`, le `_ready` d'un nœud ajouté en `_initialize` est différé — récupérer les adaptateurs après SETTLE ; (c) le scan hors‑ligne lit le texte brut : ne jamais nommer une API interdite, même en commentaire.
+- **next_reason** : chaîne causale FERMÉE côté build — tous les oracles verts. Reste **une décision HumanGate** (fog ci‑dessus : lignes `godot.*` omises en s5 + type de réutilisation audio CONCEPT vs CODE_COPIE) et le verdict signé HMAC / la ratification, qui n'appartiennent pas au forgeron.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "La WireMap gelee (s5) omet les lignes godot.project_root du standard (racine solvability.gd, main.tscn, project.godot, tests/run_tests.gd) ; l'absence de la racine solvability.gd exigee par godot_oracle.mjs etait la cause exacte de l'echec de solvabilite de la tentative 1", "root_cause": "s5-wiremap sous-modelise les points d'entree moteur : le harnais R9 fut place sous 07_TESTS/oracle/solvability.gd alors que le gate lance res://solvability.gd (racine)"}

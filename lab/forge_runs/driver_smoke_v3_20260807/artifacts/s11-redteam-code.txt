@@ -1,0 +1,19 @@
+Red-team CODE terminé (`driver_smoke_v3_20260807-run1` / s11-redteam-code). Rapport écrit : `lab/forge_runs/driver_smoke_v3_20260807/rapport_redteam_code.md`.
+
+## Ce que j'ai audité (aveuglé)
+Cible : `src/logic.mjs` (`clamp = Math.min(Math.max(x,lo),hi)`) + `src/logic.test.mjs` (3 tests). Contexte : `is_game: false`, profil `patch` → smoke test du driver, pas un jeu.
+
+**Points sains confirmés** : implémentation correcte pour `lo<=hi`/x numérique ; assertions en égalité **stricte** (pas de `>=` tautologique) ; oracle recorded **authentique** (`pass 3/fail 0`, `returncode=0`) — **aucune preuve factice** côté oracle.
+
+## 3 failles (advisory, chacune reproductible par oracle non-LLM)
+
+1. **MEDIUM — zone morte de test** : les 3 tests utilisent tous `lo=0,hi=10`. Un mutant qui **hard-code les bornes et ignore `lo`/`hi`** (`Math.min(Math.max(x,0),10)`) passe **3/3**. L'oracle ne prouve donc pas que `clamp` lit ses paramètres — exactement le mode de panne du pré-mortem (mécanique morte qui passe tous les tests unitaires). Test discriminant fourni : `clamp(5,20,30)` doit valoir `20` (le mutant renverrait `10`).
+2. **LOW — cas limites** : bornes exactes jamais assertées (`clamp(0,0,10)`, `clamp(10,0,10)`).
+3. **LOW — robustesse** : bornes inversées (`lo>hi`→`hi` silencieux) et NaN propagé, sans validation. Non tranchable sans spec → **fog HumanGate**.
+
+## Verdicts
+- `software_verdict: OK` (oracle vert, ligne heureuse validée — les failles bornent sa portée, ne le contredisent pas)
+- `evidence_verdict: MECHANICAL_VALIDATION_ONLY`
+- `claim_verdict: NO_CLAIM_ALLOWED` (faille 3 = jugement Pierre : durcir `clamp` ou l'accepter tel quel ?)
+
+Le bloc JSON en fin de rapport alimente `redteam_advisory` du verdict signé (parseur déterministe, jamais `software_verdict`). Je n'ai rien exécuté (`run: aucun`) — les reproductions sont fournies pour un oracle en aval. Section `SKIPPED_VALIDATION` explicite dans le rapport.

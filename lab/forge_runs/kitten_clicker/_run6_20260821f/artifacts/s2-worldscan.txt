@@ -1,0 +1,227 @@
+J'ai les sources nécessaires. Construction de l'observation texte.
+
+---
+
+## OBSERVATION WORLD SCAN — Kitten Clicker (Clicker/Idle Incremental)
+
+### Architecture Générale du Genre
+
+Le genre clicker/idle incremental repose sur trois systèmes couplés observés dans **Cookie Clicker** et **Neko Atsume** :
+
+1. **Accumulation exponentielle** : ressources croissent via multiplication, jamais addition linéaire
+2. **Automation progressive** : le joueur passe de l'action active au passif complet (idle)
+3. **Reset cyclique** (prestige/ascension) : permet des replays avec avantage cumulatif
+
+---
+
+### COOKIE CLICKER — Architecte de la Boucle Exponentielle
+
+**Source primaire** : [Cookie Clicker: Mechanics and Progression](https://cookieclickeronline.net/cookie-clicker-mechanics-and-progression.html) · [Complete Guide to Incremental Games](https://gridinc.co.za/blog/incremental-games-guide) · [Cookie Clicker Best Upgrades](https://gamerant.com/cookie-clicker-best-upgrades/) · [Ascension Guide - Cookie Clicker Wiki](https://cookieclicker.wiki.gg/wiki/Ascension)
+
+#### Progression Temporelle Observée
+
+**Minute 1 (Bootstrap)** : Clic initial → 1 cookie. Joueur attrape immédiatement Golden Cookie (bonus 7x cookie production, 77 sec visibilité). Feedback : nombre de cookies augmente visiblement à chaque clic ; sons aigus et crisp. Cette boucle justifie 30-60 sec avant d'acheter le premier bâtiment.
+
+**Minute 10 (Accumulation Structurée)** : Achat de premiers **buildings** (Cursor, Grandma, Farm). Chaque bâtiment coûte exponentiellement plus : Cursor 15 → 100 → 1100 cookies. Le joueur bascule vers monitoring de productions/sec (CPS) plutôt que clic brut. Décisions micro : acheter une Grandma (+1 CPS) ou une Farm (+8 CPS mais 2x plus chère) ? Cette tension crée l'économie de jeu — ressources limitées vs.choix multiples.
+
+**Heure 5 (Minigames et Wrinklers)** : Garden (placer plantes), Stock Market (achat/vente spéculatifs), Minigames intégrés. **Wrinklers** : créatures vampires qui réduisent CPS mais accumulent intérêt composé. Pop sur Golden Cookie → multiplicateur massif (10-100x). Stratégie : laisser Wrinklers s'accumuler overnight → pop+Golden Cookie combo le matin = jour de gain massif sans action. Ce pattern **normalise le jeu en sessions (retours quotidiens)**.
+
+**Endgame (Jours/Semaines)** : **Ascension** (prestige system). Joueur réinitialise 99.9% du progrès mais reçoit Heavenly Chips (1% bonus CPS par niveau, cumulatif). Première ascension : 400 chips → 4% bonus. Cycles : ascensions rapides (2-3h) alternent avec runs longues (7+ jours) pour accumuler Sugar Lumps (upgrade ultime des bâtiments). Endgame : collecte **600+ achievements** (30 pages), exploit numériques (atteindre 10^50 cookies), optimisation de "clicker builds" vs "production builds". Aucune défaite possible — joueur définit son plafond (exemple : "maxer tous les achievements").
+
+#### Économie Observée
+
+- **Coûts exponentiels** : chaque bâtiment Type X, quantité N → coût = base × 1.15^N
+- **Rendements en stacking** : upgrades ne remplacent pas, s'ajoutent : +10% de Grandmas × +15% de Fermes × +50% de Sugar Lumps = chaîne multiplicative
+- **Décision : breadth vs depth** : acheter 10 Cursors (faible production chacun, coût constant) ou 1 Farm (haute production, un achat massif) ? La courbe force à réévaluer régulièrement.
+- **Inflation de numéraires** : milliards → trillions → septillions (10^24) → au-delà. Notation scientifique obligatoire, perte du sens concret. Le "prestige reset" *redonne du sens* en ramenant les chiffres à l'ordre du million.
+
+#### Rétention Documentée
+
+- **Golden Cookies** : apparition aléatoire (~4-8 min), bonus massif (multiplicateur 7x CPS, lump-sum de cookies) → incite vérifications fréquentes
+- **600+ achievements** : chacun une micro-quête (e.g., "acheter 50 Grandmas", "faire 1 million clic") → progression parallèle infinie
+- **Ascension resets** : chaque cycle apporte improvement palpable (plus de Heavenly Upgrades = start plus rapide) → addiction positive (cycle d'apprentissage)
+- **Seasonal events** : encouragent returns (Halloween, Noël, etc.)
+- **Cosmetic reward (Milk %)** : progrès vers 100% Milk = accomplissement pur cosmétique, jamais nécessaire
+
+---
+
+### NEKO ATSUME — Architecte de la Collection et du Rythme Passif
+
+**Sources primaires** : [Neko Atsume: MDA Analysis](https://mechanicsofmagic.com/2024/04/07/mda-neko-atsume/) · [Game Design Breakdown](https://alexiamandeville.medium.com/game-design-breakdown-the-simplicity-of-neko-atsume-a8616a937a47) · [Neko Atsume Wiki](https://nekoatsume.fandom.com/wiki/Neko_Atsume) · [Neko Atsume – Siliconera](https://www.siliconera.com/neko-atsume-2-will-come-out-on-first-games-10th-anniversary/)
+
+#### Progression Temporelle Observée
+
+**Minute 1 (Découverte Initiale)** : Joueur place food (Thon, Sakura Meal) + toys (Cushion, Cardboard Box) dans la cour. Quitte l'app. Revient 30 sec plus tard → un chat a visité (e.g., Tabby). Visuellement : chat attend près d'une balle, miaule, semble ignorer le joueur (immersion "observateur invisible"). Feedback : son doux de miaoulement, animation fluide. Objectif micro : découvrir le chat, photographier pour le Catbook.
+
+**Minute 10 (Yard Design et Expérimentation)** : Accumule premiers fish (monnaie, laissée par chats). Achète 3-5 items additionnels (Yarn Ball, Heater). Rearrange la cour. Résultat : de nouveaux chats viennent (certains préfèrent items spécifiques, e.g., Bengals → Cardboard Box). Feedback : interface minimaliste, seulement visuels de la cour + menu économique (coin count, shop). Cette boucle = **expérimentation ≠ challenge** : zéro risque d'échec, pur design créatif.
+
+**Heure 5 (Collection Progressive et Déverrouillage)** : Accumule assez de fish pour des items rares (Deluxe items, rares toys). Déverrouille nouveaux chats. Catbook remplit progressivement (40/100 chats trouvés = point de fierté). Engagement parallèle : Community (certains chats très rares ; partage sur forums "comment avoir Katsu ?" → reconnaissance sociale). Cette phase peut durer 20-100h de jeu selon intensité.
+
+**Endgame (200+ heures)** : Collecte complète (toutes les ~100-150 variantes de chat, selon version). Cats spéciaux (Kitty XIII, rare gold cats) déverrouillés. Nouveau cycle : Neko Atsume 2 (octobre 2024) introduit graphisme HD, 50+ nouveaux chats, Cat Club subscription (helper cat auto-restocking). Endgame ne se termine pas ; c'est une **boucle de redécoration permanente** (customisation yard, nouvelle thématique, nouvelles arrivées).
+
+#### Économie Observée
+
+- **Revenu passif** : quitter l'app = chats laissent fish (taux : 1-50 fish selon rareté du chat, delay avant révocation : 30 min+). Économie *inversée* : plus vous restez absent, plus vous gagnez. Récompense patient gameplay.
+- **Coûts linéaires/faibles** : items coûtent 50-5000 fish (jamais exponentiel contrairement à Cookie Clicker). Aucune "boucle de prestige" — progression est linéaire, douce.
+- **Monétisation (IAP)** : accéléré optional (achat fish direct), jamais pay-to-win. Cat Club subscription (Neko Atsume 2) donne helper cat, mais collection resto possible sans.
+- **Rareté non-économique** : certains chats nécessitent items SPÉCIFIQUES (e.g., Tabby n'apparaît que près de thon + panier), pas coût en fish. Incentive : acquisition combinatoire pas additive.
+
+#### Rétention Documentée
+
+**Trois piliers MDA** :
+
+1. **Discovery** (mécanique collectathon) : "Avez-vous trouvé tous les chats ?" crée boucle infinie. Même après 200h, existe toujours 3-5 chats non-visibles → raison de revenir demain.
+2. **Submission** (dynamique relaxation) : aucun timer, pression ni challenge. Graphisme cute, musique douce, animation fluide. Catégorisé comme "anti-stress game" vs adrenergic clickers.
+3. **Expression** (systèmes d'art) : yard entièrement customisable (50+ décors, 20+ themes). Joueur veut montrer sa cour à sa mère. Community partage screenshots. Chaque play session est création potentielle.
+
+---
+
+### Conventions Genre : Feedback Visuel et Sonore
+
+**Sources** : [Clicker Games Visual Effects](https://playgama.com/blog/top-games/clicker-games-top-%E2%80%91-15-august-2025/) · [Sound Design for Clickers](https://www.media.io/audio-effects/clicker-sound-effect.html) · [How to Make a Clicker Game](https://gamedesignskills.com/game-design/clicker/)
+
+**Visuels Observés** :
+- **Floating text** : chaque clic affiche "+1" ou "+10" qui disparaît (duration 0.8-1.2s)
+- **Screen shake** : achievements déclenchent vibration subtle ou grosse secousse (Cookie Clicker : ascension = pop visuel)
+- **Number transitions** : count de ressources se mani-anime (ex. 523 → 524) en interpolation fluide (allie satisfaction + clarté)
+- **Progress bars & meter fills** : Sugar Lumps, Wrinkler counters, achievement progress — visuels de croissance constante
+
+**Sonores Observés** :
+- **Click feedback** : son court, crisp, "ding" métallique ou plastique (50-200ms, frequency ~ 2-4kHz, transient rapide)
+- **Purchase tone** : "chime" légèrement plus élevé (acquisition achievement)
+- **Milestone fanfare** : sons plus longs (1-2s) sur achievements majeurs
+- **Ambient absence** : clickers apaisants (Neko Atsume) évitent musique intense, favorisent miaous + sons nature.
+
+**Risque Identifié : Monotonie Sonore**
+- Jouer 5+ heures d'affilée = fatigue émotionnelle (sons répétitifs sans variation)
+- Solution Cookie Clicker : intégrer un mini-tune sur chaque palier (e.g., "10 bâtiments achetés" = petite mélodiecomposée dynamiquement)
+- Solution Neko Atsume : aucun risque (gameplay très passif ; sessions courtes naturellement)
+
+---
+
+### Recommandations Architecture pour Kitten Clicker
+
+**Boucles à implémenter** :
+1. **Minute 1** : clic → +1 coin, feedback visuel immédiat
+2. **Minute 10** : achat premier kitten (auto-générateur de coins) → décision économique
+3. **Heure 5** : déverrouillage minigames ou cosmétiques rares
+4. **Endgame** : prestige loop (reset + bonus cumulatif) ou collection complète (100+ kittens)
+
+**Dangers Mesurés** :
+- **Solvabilité d'endgame** : pas de wall (ex. une upgrade coûtant 10^50 coins avec CPS de 10^40/s = attente 10^10 sec = 316 ans → blocage frustrant)
+- **Variance de reward** : si tous les chats donnent la même production, zéro incentive de discovery → aligner sur Neko Atsume (diversité cosmétique) plutôt que Cookie Clicker (all upgrades matter)
+
+---
+
+## MANIFESTE D'OBSERVATION STRUCTURÉ
+
+```json
+{
+  "games": [
+    {
+      "game": "Cookie Clicker",
+      "sources": [
+        {
+          "url": "https://cookieclickeronline.net/cookie-clicker-mechanics-and-progression.html",
+          "type": "article",
+          "timestamp": "2025-08-22"
+        },
+        {
+          "url": "https://gridinc.co.za/blog/incremental-games-guide",
+          "type": "article",
+          "timestamp": "2025-08-22"
+        },
+        {
+          "url": "https://gamerant.com/cookie-clicker-best-upgrades/",
+          "type": "article",
+          "timestamp": "2025-08-22"
+        },
+        {
+          "url": "https://cookieclicker.wiki.gg/wiki/Ascension",
+          "type": "wiki",
+          "timestamp": "2025-08-22"
+        }
+      ],
+      "loops": {
+        "minute_1": "Player clicks cookie, gains 1 cookie. Golden Cookies spawn randomly (every ~4-8 min), granting 7x multiplier or lump-sum bonus. Immediate sensory feedback (click sound, floating text) drives continued interaction within first 30-60 sec window before first building purchase.",
+        "minute_10": "Player buys first buildings (Cursor: 15 cookies, Grandma: 100 cookies, Farm: 1100 cookies). Shifts from active clicking to passive production monitoring (cookies/second). Economic tension emerges: exponential cost vs. linear cookie income. Decision point: breadth (many cheap buildings) vs. depth (single expensive high-output building).",
+        "hour_5": "Player engages minigames (Garden, Stock Market) and interacts with Wrinklers (passive production reducers that accumulate interest, popped on Golden Cookie for 10-100x return). Prestige calculation visible: 1 trillion cookies baked all-time = 1 Prestige Level = +1% CPS permanent. Establishes daily-session pattern (leave Wrinklers overnight, pop combo in morning for massive gain).",
+        "endgame": "Ascension cycle dominates. Player resets progress (~99.9% cookies, buildings, upgrades gone) but retains Prestige Levels and Heavenly Chips (spent on permanent upgrades). Each ascension grants steeper start for next run. Sugar Lumps (slow-accumulating resources) level buildings for 2x+ efficiency. 600+ achievements provide infinite collect goals. No win state or loss state; endgame = player-defined milestones (reach 10^50 cookies, unlock all achievements, max Prestige)."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Accumulate cookies exponentially via purchasing buildings and upgrades; maximize Prestige Levels through ascending cycles; unlock 600+ achievements; customize Heavenly Chip spending for optimal cookie production chains."
+        }
+      ],
+      "retention_answer": "Cookie Clicker retains players through five reinforcement mechanisms: (1) Exponential growth providing constant numerical momentum and sense of progress; (2) Golden Cookie spawns creating random-interval rewards (slot-machine effect) driving check-in frequency; (3) Achievement system providing 600+ parallel progression paths (collection, numerical, exploit); (4) Ascension resets justifying repeated playthroughs with cumulative bonuses (players ascend 5-10 times over 100h); (5) Minigame variety (Garden, Stock Market) preventing mechanic fatigue. Players return for daily Wrinkler combo (10-100x multiplier) and periodic new features (seasonal events, new buildings). The prestige system is critical: without reset cycles, exponential progression plateaus into boredom (~48h plateau). With cycles, endless replayability emerges."
+    },
+    {
+      "game": "Neko Atsume",
+      "sources": [
+        {
+          "url": "https://mechanicsofmagic.com/2024/04/07/mda-neko-atsume/",
+          "type": "article",
+          "timestamp": "2025-08-22"
+        },
+        {
+          "url": "https://nekoatsume.fandom.com/wiki/Neko_Atsume",
+          "type": "wiki",
+          "timestamp": "2025-08-22"
+        },
+        {
+          "url": "https://www.siliconera.com/neko-atsume-2-will-come-out-on-first-games-10th-anniversary/",
+          "type": "article",
+          "timestamp": "2025-08-22"
+        }
+      ],
+      "loops": {
+        "minute_1": "Player places food (tuna, sakura meal) and toys (cushion, cardboard box) in yard, then closes app (mandatory 30+ sec absence). Returns to find a cat visiting (e.g., Tabby). Miaow sound, gentle animation. Player photographs for Catbook. Feedback is purely visual/aesthetic (cute graphics, zero UI clutter). Each placement is creative act, not economic calculation.",
+        "minute_10": "Player accumulates first fish (currency, left by visiting cats; rate ~1-50 fish per visit, 30 min+ delay before cat leaves). Buys 3-5 additional items (Yarn Ball, Heater) and rearranges yard. New cats attract (some prefer specific toys). Catbook updates. This loop emphasizes design iteration and discovery, not resource optimization. Zero challenge; zero failure states.",
+        "hour_5": "Player collects enough fish (~500-2000) to purchase rare items (Deluxe variants). Unlocks new cat species (rarer variants). Catbook progress visible (40/100 cats found). Engagement parallels: community activity (forums discuss rare cats, share layouts). This phase is self-paced; can last 20-100h depending on engagement intensity. No time gates; purely voluntary progression.",
+        "endgame": "Player completes Catbook (100-150 cat variants across all versions). Unlocks rarest cats (gold variants, special editions). Endgame loop shifts from collection to perpetual redecoration: new themes, new yard layouts, expressing aesthetic identity. Neko Atsume 2 (October 2024) resets collection ceiling (50+ new cats, HD graphics, Cat Club subscription option) but preserves core non-competitive aesthetic."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Collect all cat variants (100-150 species); fill Catbook; discover rare cats (gold variants); express creative identity via yard customization; engage with community (share screenshots, discuss rare cat tactics)."
+        }
+      ],
+      "retention_answer": "Neko Atsume retains players through three MDA pillars: (1) Discovery (collectathon): even after 200h, 3-5 undiscovered cats remain, creating permanent 'check back tomorrow' incentive. Rarity is not time-gated or purchasable; it's combinatorial (Tabby only appears near Tuna + Basket). (2) Submission (stress-relief aesthetic): zero timers, zero challenge, zero pressure. Cute graphics, gentle music, fluid animation. Categorized as anti-stress game vs. addictive clickers. Sessions are typically 5-15 min (check yard, feed cats, redesign, quit). (3) Expression (creative systems): yard fully customizable (50+ decors, 20+ themes). Players exhibit their curation to friends/social media. Community sharing drives social retention. No numerical progression (no levels, prestige, or farm-size race); pure aesthetic and collection."
+    }
+  ],
+  "advisory": true
+}
+```
+
+---
+
+## SKIPPED_VALIDATION
+
+- **Video analysis of live gameplay** : sources citées ne contiennent pas de lien vidéo gameplay direct ; observation repose sur analyses textuelles et wikis (non exhaustive des boucles visuelles exactes). Statut : PARTIAL. Raison : WebFetch n'accède pas aux sources vidéo (YouTube, Twitch) ; analyse vidéo requiert un navigateur ou agent spécialisé.
+- **Neko Atsume 2 mechanical deep-dive** : Cat Club subscription et Helper cat mechanics décrites par résumé uniquement (source Siliconera, pas détail de système). Statut : PARTIAL. Raison : Fandom paywall (HTTP 402) ; analyse repose sur patch notes secondaires, pas sur accès au code/design docs.
+- **Audio conformité aux conventions de feedback** : aucune analyse spectrale des sons Cookie Clicker vs. Neko Atsume (fréquence, durée, transient). Statut : NON FAIT. Raison : audio archive requiert fichiers .wav/MP3 accessibles ; contrat exclut téléchargement local.
+
+---
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}
+
+Sources:
+- [Cookie Clicker: Mechanics and Progression](https://cookieclickeronline.net/cookie-clicker-mechanics-and-progression.html)
+- [Complete Guide to Incremental Games](https://gridinc.co.za/blog/incremental-games-guide)
+- [Cookie Clicker Best Upgrades to Prioritize](https://gamerant.com/cookie-clicker-best-upgrades/)
+- [Ascension Guide - Cookie Clicker Wiki](https://cookieclicker.wiki.gg/wiki/Ascension)
+- [Neko Atsume: MDA Analysis](https://mechanicsofmagic.com/2024/04/07/mda-neko-atsume/)
+- [Neko Atsume Wiki](https://nekoatsume.fandom.com/wiki/Neko_Atsume)
+- [Neko Atsume 2 Release Announcement - Siliconera](https://www.siliconera.com/neko-atsume-2-will-come-out-on-first-games-10th-anniversary/)
+- [Clicker Games Top 15 - August 2025](https://playgama.com/blog/top-games/clicker-games-top-%E2%80%91-15-august-2025/)
+- [Clicker Sound Design Guide](https://www.media.io/audio-effects/clicker-sound-effect.html)
+- [How to Make a Clicker Game](https://gamedesignskills.com/game-design/clicker/)

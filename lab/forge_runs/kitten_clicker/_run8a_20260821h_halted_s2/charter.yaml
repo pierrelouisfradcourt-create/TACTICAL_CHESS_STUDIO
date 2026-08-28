@@ -1,0 +1,89 @@
+projet: kitten_clicker
+reference_jeu: 'Cookie Clicker (boucle incrementale, progression, paliers de production)
+  + Neko Atsume (collection de chatons, attractivite, identite mignonne) — source
+  Pierre: lab/forge_runs/kitten_clicker/design_intent.md ligne 3, jamais invente par
+  l''agent'
+plateforme_cible: 'Godot 4.6.3 desktop, fenetre GPU obligatoire (pas de --headless
+  pour la capture: driver dummy = texture nulle) — source Pierre: lab/forge_runs/kitten_clicker/design_intent.md
+  ligne 4'
+objectif: 'Produire un petit clicker de chatons mignons jouable plusieurs heures,
+  avec une boucle de progression et une meta-progression coherentes: CLICK sur la
+  pelote centrale produit des ronrons, les ronrons achetent des chatons, les chatons
+  produisent automatiquement, les ameliorations montent le taux, de nouveaux chatons
+  et lieux se debloquent, et une meta-progression (prestige) relance la boucle. Le
+  jeu doit VIVRE a l''ecran (chatons visibles, feedback, sons), pas seulement passer
+  des tests mecaniques en isolation.'
+hors_scope:
+- Multijoueur, PvP, classements en ligne ou toute fonctionnalite reseau
+- Monetisation reelle, microtransactions, achats in-app, publicites
+- 'Portage mobile, web/HTML ou console: la cible est Godot 4.6.3 desktop uniquement'
+- Sauvegarde cloud, comptes utilisateurs, backend serveur
+- Narration cinematique, cinematiques scriptees, dialogues ramifies (les quetes restent
+  de petites taches a objectif visible)
+- 'Rendu 3D, physique complexe: le jeu est en 2D'
+- Modification des lanes protegees (src/, tests/) ou de la lane STUDIO (autopilot.py,
+  scripts/studioV2/)
+- 'Choix ou substitution de reference_jeu ou de plateforme_cible par un agent: ces
+  champs sont un design-intent Pierre'
+criteres_succes:
+- La boucle CLICK to RONRONS to CHATONS to PRODUCTION AUTOMATIQUE to AMELIORATIONS
+  to DEBLOCAGES est complete et executable de bout en bout
+- L'achat d'un chaton active une production automatique non nulle mesurable (ronrons
+  par tick strictement > 0 apres achat)
+- Une amelioration achetee augmente STRICTEMENT le taux de production (assertion stricte,
+  jamais un >= tautologique)
+- 'La courbe de paliers porte au moins 3 valeurs distinctes non triviales (regle de
+  variance des metriques: la metrique de palier prouve qu''elle porte une information
+  variable)'
+- Une meta-progression (prestige) existe et relance la boucle avec un gain persistant
+  mesurable
+- Un bot-joueur deterministe atteint le 3e palier en un nombre de ticks FINI (solvabilite
+  prouvee, pas seulement mecaniques en isolation)
+- Le contenu narratif amont (chatons nommes, lieux, objets, quetes) atteint reellement
+  la WireMap, le Builder et la scene Godot, pas seulement les documents amont
+- Le builder reutilise les composants Forge existants la ou ils sont compatibles,
+  sans reinvention
+actions_interdites:
+- Aucun git commit ni git push (gate Pierre explicite requis)
+- Ne jamais toucher src/, tests/, autopilot.py, scripts/studioV2/, ni la lane STUDIO
+  gelee
+- Aucun appel a une API LLM externe (Anthropic ou autre) depuis le jeu ou l'outillage
+- 'Aucun oracle LLM-as-judge: les oracles sont deterministes non-LLM'
+- 'Aucune assertion >= tautologique dans un test d''oracle: asserter le comportement
+  STRICT (kill tue vraiment, compteur == n+1) sous peine de masquer une mecanique
+  morte'
+- 'Aucune capture Godot en --headless: la fenetre GPU est obligatoire (le driver dummy
+  rend une texture nulle)'
+- Aucune logique de jeu dans les scripts d'UI Godot; fonctions au-dela de 50 lignes
+  decoupees; signaux preferes aux appels directs
+- 'Ne jamais choisir, inventer ou substituer reference_jeu ni plateforme_cible: design-intent
+  Pierre uniquement'
+- Aucun recu d'oracle code sans evidence_path (execution non prouvable = BLOCKED)
+- 'Aucun claim de conformite auto-certifie sans oracle non-LLM: sans oracle, remonter
+  un fog HumanGate'
+criteres_demo:
+- MECANIQUE 1 — Le compteur de ronrons augmente VISIBLEMENT a chaque clic sur la pelote
+  centrale
+- MECANIQUE 2 — Un chaton VISIBLE apparait a l'ecran apres un achat
+- MECANIQUE 3 — La production continue (les ronrons montent) SANS clic, une fois au
+  moins un chaton achete
+- MECANIQUE 4 — Une amelioration achetee fait monter VISIBLEMENT le taux de production
+  affiche
+- MECANIQUE 5 — Un bot-joueur joue a l'ecran et atteint un palier de progression en
+  un nombre de ticks fini
+- CONTENU a — Au moins 6 chatons NOMMES, chacun avec une identite visuelle distincte
+  selon sa rarete, visibles a l'ecran
+- 'CONTENU b — Au moins 2 lieux jouables: le refuge de depart plus au moins 1 lieu
+  debloque par la meta-progression'
+- CONTENU c — Au moins 3 objets distincts presents et identifiables dans le jeu
+- CONTENU d — Au moins 3 petites quetes dont l'objectif est VISIBLE a l'ecran (texte
+  ou jauge de progression)
+- CONTENU e — Un son DISTINCT pour chacun des evenements clic, achat, deblocage et
+  prestige, declenche par l'evenement lui-meme; audio procedural accepte; preuve =
+  volet 07_TESTS/oracle/core_audio.gd avec journal des declenchements
+- CONTENU f — Un feedback VISUEL au clic (animation, particule ou reaction de la pelote/du
+  chaton)
+- 'CONTENU g — Une courbe de paliers portant au moins 3 valeurs DISTINCTES (regle
+  de variance: la metrique de palier n''est pas a variance nulle)'
+- CONTENU h — Un bot atteint le 3e palier en un nombre de ticks FINI (solvabilite
+  du 3e palier prouvee)

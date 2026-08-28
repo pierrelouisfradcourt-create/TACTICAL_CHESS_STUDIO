@@ -1,0 +1,194 @@
+I have what I need. Two findings shape my output honestly before I produce it:
+
+1. **The charter (étape 0) is absent** from the run dir — I checked `charter.yaml`, `artifacts/s0-charter.yaml`. My mandatory-read anchor doesn't exist. The only real upstream is `worldscan.json` (present) + `s2-worldscan.txt`. I proceed from the genre concept the World Scan establishes (Tower Defense), and surface the missing charter as a fog/SKIPPED item rather than inventing one.
+2. **My permissions are `run: aucun`** — I cannot execute `check_prisme_manifest.mjs`. I built the terminal artifact directly against the oracle's source (`upstream_schema.mjs`), but the *verdict* belongs to the executor who runs it. So I claim construction, not passage.
+
+Per the concrete task ("artefact narratif, aucun fichier écrit"), I present `product_snapshot.md` inline; the executor materializes `prisme.json` from my terminal ```json``` block.
+
+---
+
+# product_snapshot.md — `p1_3b_m1` (Tower Defense)
+
+*Réalisateur — le produit FINI tel que le joueur le vit. Ancre : `worldscan.json` (Bloons TD 6 · Plants vs. Zombies · Kingdom Rush). Charter étape-0 : ABSENT (fog, voir rapport).*
+
+## 1. Ce que le joueur voit
+Un plateau de jeu avec un **chemin tracé** que les ennemis parcourent de l'entrée vers une **sortie**, et des **cellules constructibles** de part et d'autre. En haut, un **HUD** montre trois chiffres qui bougent : une **monnaie** (crédit courant), une **jauge de vie** (entière, décroissante), et le **numéro de vague** (N sur total). Un **sélecteur de tours** propose les tours disponibles avec leur coût affiché. Entre deux vagues, un **panneau de prévisualisation** montre la composition de la vague à venir (types et quantités d'ennemis). Pendant la vague, les tours **tirent visiblement** sur les ennemis à portée ; les ennemis touchés perdent des points de vie ; un ennemi détruit disparaît en créditant la monnaie. À la fin : un **écran de victoire** (toutes vagues détruites, vie > 0) ou un **écran de défaite** (jauge de vie à 0).
+
+## 2. Ce que le joueur fait
+Il **compose sa défense avant l'assaut** (phase de préparation à composition connue), puis **pose des tours** sur des cellules constructibles en dépensant sa monnaie. Il choisit **où** poser (la position détermine ce que la tour touche : c'est une décision spatiale, pas décorative). Il **tue des ennemis pour financer** la tour suivante — l'offense alimente la croissance. Il **réagit à l'escalade** vague après vague (plus d'ennemis / plus résistants) en densifiant ou repositionnant. En terminant un niveau pour la première fois, il **débloque une nouvelle tour** disponible au niveau suivant.
+
+## 3. Ce que le joueur ressent
+Une **lisibilité de cause à effet** (leçon PvZ) : quand il perd de la vie ou un niveau, il sait *pourquoi* — la menace était annoncée, sa défense était trop mince à tel endroit. La **tension d'investissement** (leçon Kingdom Rush / Bloons) : chaque kill est une brique de monnaie, chaque pose est un pari. Une **montée maîtrisée** : l'escalade se sent parce qu'elle se mesure (la vague N+1 est réellement plus dure que N, jamais identique). Une **raison de revenir** : le déblocage attaché à chaque niveau donne un objectif fini et tangible, indépendant du seul défi.
+
+## 4. Règles observables (testables)
+- **R1** Détruire un ennemi crédite immédiatement la monnaie du montant `bounty` affiché ; cette monnaie est la seule ressource dépensée pour poser une tour.
+- **R2** Poser une tour de coût C décrémente la monnaie d'exactement C ; monnaie < C ⇒ pose refusée (aucune tour, aucun débit, jamais de valeur négative).
+- **R3** Une tour n'engage que les ennemis dans son rayon de portée ; déplacer la tour change l'ensemble des cibles atteintes.
+- **R4** Un ennemi atteignant la sortie décrémente la jauge de vie d'exactement 1 ; jauge = 0 ⇒ écran de défaite.
+- **R5** Toutes les vagues détruites avec vie > 0 ⇒ écran de victoire (niveau prouvé solvable).
+- **R6** La vague N+1 est strictement supérieure à N sur ≥1 axe observable (nombre d'ennemis OU PV total), jamais égale.
+- **R7** Avant le spawn d'une vague, sa composition est affichée et une phase de préparation est disponible.
+- **R8** La première victoire d'un niveau débloque une tour listée au sélecteur du niveau suivant (état de progression persistant).
+
+---
+
+## RAPPORT FINAL
+
+**Ancres.** Charter étape-0 : **ABSENT** du run_dir (`charter.yaml`, `artifacts/s0-charter.yaml` introuvables) → fog HumanGate. Upstream réel : `worldscan.json` (présent, 3 jeux, `advisory:true`). Oracle de sortie `check_prisme_manifest.mjs` : **non exécuté** (permission `run: aucun`) — l'artefact ci-dessous est **construit contre** le schéma de `upstream_schema.mjs` (chaîne observation≠claim≠énoncé, provenance EXPECTED/ADDITIONS, `expected_proof.kind ∈ {bot_action,oracle,mutation,visual,file_write}`, `destination ∈ {s3-decompo,s4-archi,s5-wiremap,s9-build}`), mais **le reçu de verdict appartient à l'exécuteur**.
+
+**Exigences classées.** 8 exigences, toutes actionnables par construction (preuve attendue exploitable + destination valide). 7 EXPECTED (référence = nom de jeu ancré comme sous-chaîne dans les tokens du World Scan) + 1 ADDITIONS (EX8, `reference: null`, geste-qui-casse-en-premier : pose sans fonds). Références non ancrées attendues : **0** (chaque référence EXPECTED contient un nom de jeu du World Scan).
+
+**Verdict (côté producteur).**
+- `software_verdict: BLOCKED` — je n'ai pas exécuté l'oracle (`run: aucun`) ; je ne peux pas prouver le PASS moi-même.
+- `evidence_verdict: MECHANICAL_VALIDATION_ONLY` — sur le seul fait vérifié par lecture : conformité de forme au schéma partagé.
+- `claim_verdict: NO_CLAIM_ALLOWED` — « l'artefact passe l'oracle » est un claim non prouvable sans exécution → **HumanGate/exécuteur**.
+
+**Commande à exécuter par l'exécuteur (porte de sortie) :**
+`node scripts/forge/check_prisme_manifest.mjs lab/forge_runs/p1_3b_m1/prisme.json --worldscan lab/forge_runs/p1_3b_m1/worldscan.json`
+
+**fog → Pierre :** (1) charter étape-0 manquant — le concept a été dérivé du genre du World Scan seul, sans cadrage produit ratifié ; (2) le choix produit « état de victoire fini par niveau » (EX3) écarte volontairement le marathon infini de Bloons pour rendre la solvabilité testable — décision de conception, pas fait mesuré.
+
+```json
+{
+  "game_id": "p1_3b_m1",
+  "exigences": [
+    {
+      "id": "ex-econ-kill-funded",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "Kingdom Rush + Bloons Tower Defense 6 (World Scan: economie financee par les kills / pop = cash)",
+      "observation": "Dans Kingdom Rush et Bloons TD 6, chaque ennemi detruit credite le joueur (kills fund next tower placement ; pop bloon = cash) : l'economie est alimentee par la destruction, pas par un revenu passif.",
+      "claim": "Une economie financee par les kills fait de chaque tir une decision d'investissement : le joueur doit tuer pour pouvoir construire, ce qui couple offense et croissance au lieu de les separer.",
+      "enonce": "Detruire un ennemi credite immediatement la monnaie du joueur d'un montant (bounty) affiche, et cette monnaie est la seule ressource depensee pour poser une tour.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Un bot pose une tour de cout C, tue N ennemis de bounty b : assert monnaie_apres == monnaie_avant - C + N*b EXACTEMENT (egalite stricte, pas de >= tautologique)."
+      },
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex-defeat-leak-lifebar",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "Plants vs. Zombies + Kingdom Rush + Bloons Tower Defense 6 (World Scan: leak = defaite)",
+      "observation": "Les trois jeux scannes definissent la defaite par une fuite d'ennemi : PvZ (zombie franchit le bord gauche), Kingdom Rush (-20 HP par leak, 0 HP = defaite), Bloons (1 leak au-dela de la fin de la track).",
+      "claim": "Rendre la defaite lisible impose que chaque fuite produise un decrement visible d'une jauge de vie unique, sinon le joueur perd sans comprendre : la penalite doit etre une consequence observee, pas un game-over opaque.",
+      "enonce": "Chaque ennemi qui atteint la sortie decremente d'exactement une unite une jauge de vie affichee au HUD ; quand la jauge atteint 0, l'ecran de defaite s'affiche.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot laisse fuir V ennemis (V = vie initiale) : assert que la jauge affichee decroit de 1 par fuite et que l'etat DEFAITE est declenche exactement a la V-ieme fuite, pas avant."
+      },
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "ex-win-state-per-level",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "Plants vs. Zombies + Kingdom Rush (World Scan: has_win_state true, toutes vagues detruites = victoire)",
+      "observation": "PvZ (Adventure) et Kingdom Rush (Campaign) declarent has_win_state:true (toutes les vagues detruites = victoire), tandis que Bloons standard declare has_win_state:false (marathon infini, survive=win).",
+      "claim": "Pour un premier produit, un etat de victoire atteignable par niveau donne un objectif fini ET une cible de solvabilite testable que le mode marathon n'offre pas : sans etat de victoire on ne peut pas prouver qu'un niveau est gagnable.",
+      "enonce": "Chaque niveau se termine par un ecran de victoire des que toutes les vagues sont detruites alors que la vie du joueur est strictement superieure a 0.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot solveur joue le niveau, survit a toutes les vagues : assert etat final == VICTOIRE avec vie > 0 (preuve de solvabilite : le niveau est reellement gagnable par un agent)."
+      },
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex-wave-escalation-variance",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "Bloons Tower Defense 6 + Kingdom Rush (World Scan: escalade par round / par vague, +2% HP/DMG)",
+      "observation": "Bloons structure l'escalade par round (type-addition, R40 crunch MOAB) et Kingdom Rush par vague (+2% HP/DMG par vague en Endless) : la difficulte monte de vague en vague.",
+      "claim": "Une escalade reelle doit porter une information mesurablement croissante, sinon 'vague 5' et 'vague 1' sont indistinguables et le mot escalade ne mesure rien (regle de variance des metriques du studio).",
+      "enonce": "La vague N+1 presente un defi strictement superieur a la vague N sur au moins un axe observable (nombre d'ennemis OU points de vie totaux), jamais egal.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Sur les vagues d'un niveau : assert que (nb_ennemis OU pv_total) est STRICTEMENT croissant vague a vague, avec >=2 valeurs distinctes non triviales sur l'echantillon (preuve de variance, pas de >= tautologique)."
+      },
+      "destination": "s3-decompo"
+    },
+    {
+      "id": "ex-next-wave-preview",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "Plants vs. Zombies (World Scan: wave suivante visible, ennemis affiches, feedback transparent)",
+      "observation": "Le scan designe PvZ comme reference de clarte : la vague suivante est affichee, les ennemis sont visibles, le feedback d'erreur est transparent, par opposition au spike non-annonce du R40 MOAB de Bloons.",
+      "claim": "Anticiper visuellement la prochaine menace transforme la defense d'une reaction en une preparation : l'echec devient attribuable a un choix du joueur et non a une surprise du systeme.",
+      "enonce": "Avant qu'une vague ne demarre, sa composition (types et nombre d'ennemis) est affichee au joueur, et une phase de preparation lui permet de poser ou ajuster ses tours.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "Capture de la phase inter-vague : un panneau de previsualisation affiche types/quantites de la vague a venir, present a l'ecran AVANT le spawn du premier ennemi de cette vague."
+      },
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "ex-spatial-placement-range",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "Bloons Tower Defense 6 (World Scan: placement spatial, couvrir un maximum de track, espacement = couverture)",
+      "observation": "Bloons fait raisonner le joueur en placement spatial : positionner une tour pour couvrir un maximum de track, l'espacement des tours etant une optimisation de couverture.",
+      "claim": "Si la position d'une tour ne change pas ce qu'elle touche, le placement devient decoratif ; la portee doit dependre de la geometrie pour que 'ou je pose' soit une vraie decision.",
+      "enonce": "Une tour n'engage que les ennemis situes dans un rayon de portee autour de sa cellule ; poser la meme tour sur une autre cellule change l'ensemble des ennemis atteints.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Assert : une tour en cellule A touche un ennemi a distance <= portee et NE touche PAS un ennemi a distance > portee ; la meme tour en cellule B produit un ensemble de cibles atteintes different de A."
+      },
+      "destination": "s4-archi"
+    },
+    {
+      "id": "ex-unlock-per-level",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "Plants vs. Zombies + Kingdom Rush (World Scan: 1 unlock/niveau, plante ou tour debloquee par progression)",
+      "observation": "PvZ debloque environ 1 plante par niveau et Kingdom Rush debloque une tour a mesure des niveaux : chaque jeu scanne attache un deblocage a la progression ('1 unlock/niveau pour dopamine continue').",
+      "claim": "Un deblocage attache a chaque niveau donne une raison de rejouer independante de la difficulte : le joueur revient pour l'outil suivant autant que pour le defi suivant, ce qui soutient la retention sans profondeur mecanique supplementaire.",
+      "enonce": "Terminer un niveau pour la premiere fois debloque une nouvelle tour (ou capacite), rendue disponible et affichee dans le selecteur du niveau suivant.",
+      "expected_proof": {
+        "kind": "file_write",
+        "statement": "Apres la premiere victoire d'un niveau, un etat de progression persistant est ecrit (unlock += 1 entree) ; assert que le selecteur du niveau suivant liste la tour nouvellement debloquee, absente auparavant."
+      },
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex-placement-refused-insufficient-funds",
+      "source": "ADDITIONS",
+      "source_role": "s1-prisme",
+      "reference": null,
+      "observation": "Les trois economies scannees depensent la monnaie pour poser des tours, mais aucune source du World Scan ne decrit le comportement attendu quand la monnaie est insuffisante au moment du placement.",
+      "claim": "Le premier geste qui casse est un joueur qui tente de poser une tour sans avoir les fonds ; le produit doit refuser proprement plutot que creer une tour gratuite, une dette, ou une monnaie negative.",
+      "enonce": "Tenter de poser une tour de cout C avec une monnaie strictement inferieure a C est refuse : aucune tour n'apparait et la monnaie reste inchangee.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Assert : avec monnaie < C, l'appel de placement retourne un refus, le nombre de tours posees est inchange, et la monnaie est inchangee et jamais negative."
+      },
+      "destination": "s9-build"
+    }
+  ]
+}
+```
+
+---
+
+### RETURN_LINEAGE (doctrine FORGE_CAUSAL_LINEAGE_V2 §3)
+
+| Champ | Valeur |
+|---|---|
+| **why_task_existed** | **problem:** le pipeline Forge a besoin, entre le World Scan et l'architecture, d'un Prisme qui transforme l'observation de comparables en exigences produit falsifiables et routables pour `p1_3b_m1`. **oracle:** aucun — activation par dispatch Forge / décision humaine (`FORGE_DISPATCH:s1-prisme:p1-3b-m1-20260813`). **root_cause:** sans étape Prisme, la connaissance du World Scan reste inerte (offre non convertie en demande vérifiable). **action_reason:** produire `product_snapshot.md` (4 facettes) + le manifeste `prisme.json` chaîné observation→claim→énoncé→preuve→destination, chaque ligne EXPECTED ancrée dans le World Scan. |
+| **result** | product_snapshot.md (4 sections, aucune « à définir ») + bloc JSON de 8 exigences, 7 EXPECTED ancrées (noms de jeux) + 1 ADDITIONS (`reference:null`), toutes actionnables par construction. Charter étape-0 constaté ABSENT ; oracle de sortie NON exécuté (permission `run: aucun`). |
+| **proof** | Lecture de `upstream_schema.mjs` (validateChaine / validateProvenance / validateExpectedProof / DESTINATIONS) et `check_prisme_manifest.mjs` (worldscanTokens / referenceAncree) → artefact construit contre ces prédicats. Commande de vérification remise à l'exécuteur : `node scripts/forge/check_prisme_manifest.mjs lab/forge_runs/p1_3b_m1/prisme.json --worldscan lab/forge_runs/p1_3b_m1/worldscan.json`. Je n'ai PAS exécuté cette commande. |
+| **learning** | Une exigence produit falsifiable tient si `observation` (ce que la source montre), `claim` (ma déduction, faillible seule) et `enonce` (ce que le jeu garantit) sont trois phrases distinctes : recopier l'une dans l'autre passe le schéma sans rien déduire. Ancrer une `reference` EXPECTED revient à y inclure un nom de jeu du World Scan (appariement de sous-chaîne, pas sémantique). Le geste-qui-casse-en-premier (pose sans fonds) n'est couvert par aucune source → c'est une ADDITIONS légitime, `reference:null` explicite. |
+| **next_reason** | La chaîne reste OUVERTE sur un point de décision : l'exécuteur doit (1) matérialiser `prisme.json` depuis ce bloc et lancer l'oracle, et (2) le charter étape-0 manquant est un fog HumanGate (le concept a été dérivé du seul genre du World Scan). Escalade justifiée par preuve manquante (oracle non lancé de mon côté) + décision de conception (win-state fini vs marathon Bloons) — pas par une incapacité à appliquer une correction connue. |
+
+---
+
+### SKIPPED_VALIDATION
+
+| Item | Périmètre | Statut | Raison |
+|---|---|---|---|
+| Exécution de `check_prisme_manifest.mjs` | prisme.json produit | Non fait | Permission `run: aucun` — l'oracle est la porte de sortie de l'exécuteur ; verdict PASS/FAIL non auto-certifiable de mon côté. |
+| Lecture du charter étape-0 (mandatory_read) | Cadrage produit `p1_3b_m1` | Non fait (fichier absent) | `charter.yaml` et `artifacts/s0-charter.yaml` introuvables dans le run_dir ; concept dérivé du genre du World Scan seul → fog HumanGate. |
+| Écriture du fichier `product_snapshot.md` sur disque | Livrable facette | Non fait (assumé) | Tâche concrète : « artefact narratif, aucun fichier écrit » — contenu présenté inline ; `prisme.json` matérialisé par l'exécuteur depuis le bloc terminal. |
+| Conformité markdown du panel (`scripts/forge/prisme/check_prisme.mjs`) | product_snapshot.md | Non fait | Hors périmètre de mon oracle assigné (manifeste), et `run: aucun`. |
+
+**software_verdict: BLOCKED** (oracle non exécuté, `run: aucun`) · **evidence_verdict: MECHANICAL_VALIDATION_ONLY** (conformité de forme au schéma partagé, vérifiée par lecture) · **claim_verdict: NO_CLAIM_ALLOWED**.

@@ -1,0 +1,152 @@
+I have everything I need. Two things are now established by direct observation:
+
+1. **The charter content** — fully determined by my contract's 7-field spec (R7) plus Pierre's `design_intent.md` (2026-08-21), which sources `reference_jeu` and `plateforme_cible` explicitly.
+2. **A tooling blocker** — this `s0-contrat` dispatch exposes **only `Read`** plus orchestration tools. There is **no `Write`/`Edit`/`Bash` and no `run`** capability. I cannot persist `charter.yaml` to disk myself, nor execute the CHARTER oracle. This re-confirms pré-mortem `manifest-9f9e5cc0c822da5f`. Delivery therefore goes through my output block (the driver extracts the last validator-passing artifact block — commit `4f8c245`), and oracle execution must be done by the driver after persistence.
+
+I'm not fabricating an oracle-green I didn't run.
+
+---
+
+## RAPPORT FINAL — s0-contrat / kitten_clicker-20260821c
+
+**Oracle CHARTER cité** : validateur de schéma déterministe non-LLM (parse `charter.yaml`, échoue si un champ requis est vide/absent/contient « à définir »). **Je ne l'ai PAS exécuté** : ce dispatch ne m'expose ni outil d'écriture ni outil d'exécution. Il doit être lancé par le driver après persistance de l'artefact ci-dessous.
+
+- **software_verdict: BLOCKED** — l'artefact est *rédigé et complet* (7 champs R7, aucun blanc, aucun « à définir »), mais je ne peux ni l'écrire sur disque ni faire tourner l'oracle CHARTER depuis ce dispatch. Preuve d'exécution indisponible ⇒ pas de OK (CLAUDE.md : « preuve d'exécution, pas preuve d'existence »).
+- **evidence_verdict** : aucune validation mécanique exécutée de mon côté (0 oracle lancé). L'artefact est fourni pour persistance + validation par le driver.
+- **claim_verdict: NO_CLAIM_ALLOWED**
+
+### Flous du prompt RÉSOLUS (traçables à une source)
+- `reference_jeu` = « Cookie Clicker + Neko Atsume » — source Pierre : `lab/forge_runs/kitten_clicker/design_intent.md:3`. Non inventé.
+- `plateforme_cible` = Godot 4.6.3 desktop, fenêtre GPU — source Pierre : `design_intent.md:4`. Non inventé.
+- `criteres_demo[]` — ancrés sur la demande de dispatch (Pierre), le concept de `design_intent.md` (boucle CLICK→RONRONS→CHATONS→prod. auto→nouveaux chatons) et la règle de variance ratifiée Pierre.
+- Routage `run_id` : `kitten_clicker-20260821c` matche `^(.+)-\d{8}[a-z]?$` (base=`kitten_clicker`, date=`20260821`, lettre=`c`) ⇒ route vers `lab/forge_runs/kitten_clicker`, **pas** `_orphan_context`. Le défaut `-HHMM` du pré-mortem `manifest-3871637c…` ne s'applique pas à ce run.
+
+### Flous REMONTÉS en fog HumanGate
+- **fog-1 (bloquant, WORKFLOW)** : le dispatch `s0-contrat` ne provisionne aucun outil `write`/`create`/`run`, alors que ses permissions déclarent `write: charter.yaml` et son oracle exige une exécution. Défaut de provisioning du dispatch, pas du charter. À corriger côté `dispatch.py`/factory.
+- **fog-2 (design aval)** : la valeur numérique du palier de progression (N ronrons) et le budget de ticks (T) des critères de solvabilité/démo ne sont **pas** fixés au charter — ils relèvent des `objectifs_joueur`/`conditions_victoire` produits par le World Scan (s2) puis consommés en aval. Je ne les invente pas ; ils sont exprimés en forme (« palier défini par le World Scan atteint en un nombre fini de ticks »).
+- **fog-3 (design aval)** : nombre/liste exacts des chatons, lieux et profondeur de méta-progression — hors périmètre s0, produits par World Scan + Grey Blocks.
+
+### SKIPPED_VALIDATION
+- **item** : exécution de l'oracle CHARTER · **où** : `charter.yaml` (kitten_clicker) · **statut** : non fait · **raison** : ce dispatch n'expose aucun outil `run`/`Bash` — impossible de lancer le validateur. À exécuter par le driver après persistance.
+- **item** : écriture/persistance de `charter.yaml` sur disque · **où** : `lab/forge_runs/kitten_clicker/charter.yaml` · **statut** : non fait · **raison** : aucun outil `Write`/`Edit`/`create` exposé. Artefact livré via le bloc de sortie ci-dessous, à persister par le driver.
+
+---
+
+### Artefact livré — `charter.yaml` (à persister par le driver, puis valider par l'oracle CHARTER)
+
+```yaml
+# charter.yaml — kitten_clicker
+# Etape 0 (s0-contrat) · run kitten_clicker-20260821c · 2026-08-21
+# reference_jeu + plateforme_cible = design-intent de Pierre
+#   (source: lab/forge_runs/kitten_clicker/design_intent.md, 2026-08-21) — NON inventes.
+objectif: >-
+  Produire un clicker de chatons mignons pour Godot 4.6.3 desktop, jouable
+  plusieurs heures, articule autour d'une boucle de progression incrementale
+  (CLICK -> RONRONS -> CHATONS -> PRODUCTION AUTOMATIQUE -> AMELIORATIONS ->
+  NOUVEAUX CHATONS/LIEUX) et d'une meta-progression coherente. La boucle
+  principale, ses conditions de progression/victoire/defaite, ses objectifs
+  joueur et ses boucles de recompense sont produits en amont (World Scan) et
+  doivent etre REELLEMENT consommes jusqu'au build Godot et aux oracles, pas
+  seulement presents dans les documents.
+reference_jeu: >-
+  Cookie Clicker (boucle incrementale: clic -> ressource, production automatique,
+  paliers/upgrades, meta-progression) + Neko Atsume (collection de chatons,
+  attractivite, refuge, identite visuelle mignonne). Modele CHOISI PAR PIERRE —
+  source: lab/forge_runs/kitten_clicker/design_intent.md (2026-08-21). Ni choisi
+  ni invente par l'agent.
+plateforme_cible: >-
+  Godot 4.6.3, cible desktop, rendu dans une fenetre GPU reelle (jamais
+  --headless: le driver dummy rend une texture nulle, aucune capture — leçon
+  studio). Source Pierre: lab/forge_runs/kitten_clicker/design_intent.md
+  (2026-08-21).
+hors_scope:
+  - Multijoueur, reseau, synchronisation en ligne, classements distants.
+  - Monetisation, microtransactions, publicite, achats integres.
+  - Portage mobile / web / console — cible desktop Godot 4.6.3 uniquement.
+  - Narration a embranchements complexes / dialogues ramifies; les quetes restent
+    de petites unites au service de la boucle incrementale.
+  - IA/ML d'apprentissage embarquee; le "bot" de solvabilite est un script
+    deterministe de test, pas un systeme de jeu.
+  - Toute modification des lanes protegees/gelees: src/, tests/, autopilot.py,
+    scripts/studioV2/. Le jeu vit sous games/kitten_clicker/.
+criteres_succes:
+  - >-
+    Le World Scan produit EXPLICITEMENT conditions_victoire, conditions_defaite,
+    objectifs_joueur, progression et boucles_recompense, et ces champs sont
+    CONSOMMES en aval (Grey Blocks, WireMap, Builder) — verifiable par la sonde
+    check_amont_traversal.mjs (advisory), pas seulement presents dans le document.
+  - >-
+    Le build Godot 4.6.3 a un point d'entree explicite et lançable (scene
+    principale declaree): l'entrypoint est un invariant structurel du contrat,
+    verifie en presence comme en absence, jamais suppose.
+  - >-
+    La boucle CLICK -> RONRONS -> CHATONS -> PRODUCTION AUTO -> AMELIORATIONS est
+    jouable de bout en bout dans le build; au moins les mecaniques click,
+    production automatique, upgrades, deblocage de nouveaux chatons et
+    meta-progression sont RECONNAISSABLES a l'execution, pas seulement declarees.
+  - >-
+    Solvabilite prouvee (obligatoire s9-build): un bot scripte atteint le palier
+    de progression defini par le World Scan (objectifs_joueur / conditions_victoire)
+    en un nombre FINI de ticks. Les assertions du test sont STRICTES (jamais un
+    >= tautologique qui masquerait une mecanique morte).
+  - >-
+    Variance mesuree (regle ratifiee Pierre): la courbe de progression (ronrons
+    cumules / production par tick) porte au moins 2 valeurs distinctes non
+    triviales sur un echantillon — la progression n'est ni plate ni identiquement
+    egale au nombre de clics.
+  - >-
+    La WireMap reconcilie intention visuelle <-> architecture technique <->
+    donnees <-> runtime Godot; le Builder reutilise les composants existants
+    compatibles de la Forge quand c'est possible.
+actions_interdites:
+  - Aucun git commit / push: merge/reject/freeze = HumanGate (Pierre) seul.
+  - Ne pas toucher aux lanes protegees/gelees: src/, tests/, autopilot.py,
+    scripts/studioV2/.
+  - Ne pas inventer ni modifier reference_jeu et plateforme_cible (design-intent
+    Pierre): tout ecart remonte en fog HumanGate.
+  - Aucune assertion >= tautologique dans les tests/oracles: asserter le
+    comportement STRICT (un clic ajoute vraiment des ronrons, un achat retire
+    vraiment le cout, un palier est vraiment franchi).
+  - Ne pas coder en dur l'etat attendu (noms de fichiers, liste de dossiers,
+    flags de succes) dans un test/oracle: le deriver d'une source declarative et
+    comparer snapshot a snapshot, jamais a une cible mouvante.
+  - Aucun claim sans oracle non-LLM: claim_verdict NO_CLAIM_ALLOWED; sans preuve
+    mecanique, remonter un fog HumanGate.
+  - Aucun LLM-as-judge comme oracle; aucune API Anthropic externe.
+  - Ne pas capturer/prouver le rendu en --headless (texture nulle): la preuve
+    visuelle exige une fenetre GPU reelle.
+criteres_demo:
+  - >-
+    En cliquant sur la pelote/patee/coussin central, le compteur de ronrons
+    affiche a l'ecran augmente a CHAQUE clic (delta visible strictement positif).
+  - >-
+    Apres l'achat d'un premier chaton, la production automatique est VISIBLE: le
+    compteur de ronrons monte seul, sans clic, entre deux clics.
+  - >-
+    Un chaton nouvellement debloque APPARAIT a l'ecran dans le refuge (nouvelle
+    entite/sprite visible, absente avant le deblocage).
+  - >-
+    Un bot scripte (clic + achat de la production disponible la moins chere)
+    atteint le palier de progression defini par le World Scan en un nombre FINI
+    de ticks, observable via le compteur de ronrons a l'ecran / le log de run.
+  - >-
+    Sur une session, la courbe de ronrons cumules (par tick) affichee/loggee
+    porte au moins 2 valeurs distinctes non triviales (regle de variance): la
+    progression observable n'est pas plate.
+```
+
+---
+
+**RETURN LINEAGE** (doctrine FORGE_CAUSAL_LINEAGE_V2 §3)
+
+- **why_task_existed**:
+  - **problem**: le run kitten_clicker (Godot 4.6.3) a besoin de son contrat d'étape 0 — un charter borné, sans champ « à définir », ancrant le design-intent Pierre pour cadrer toute la boucle Forge en aval.
+  - **oracle**: aucun — activation par décision humaine (dispatch Pierre, marqueur `FORGE_DISPATCH:s0-contrat:kitten_clicker-20260821c:1`).
+  - **root_cause**: non applicable (démarrage de boucle, pas une correction).
+  - **action_reason**: rédiger le charter à partir de `design_intent.md` + pré-mortem + contrat s0 remplit exactement le livrable attendu de l'étape 0.
+- **result**: charter complet rédigé (7 champs R7, aucun blanc, `reference_jeu`/`plateforme_cible` tracés à Pierre) et émis comme artefact ci-dessus. Persistance disque + exécution de l'oracle CHARTER **non réalisées** : ce dispatch n'expose aucun outil `write`/`run`.
+- **proof**: aucune commande exécutée — aucun outil d'exécution disponible dans ce dispatch. Inputs lus : `SCHEMA.md`, `design_intent.md`, `s0-contrat.yaml`, `static_oracles.py`, `oracle.py`. Vérifié : ni `Write`/`Edit`/`Bash` ni `run` dans le toolset exposé.
+- **learning**: le charter est intégralement dérivable des inputs pour ce run ; le point de panne réel n'est pas le cadrage mais le provisioning d'outils du dispatch `s0-contrat` (déjà flaggé `manifest-9f9e5cc0c822da5f`, re-confirmé par observation directe cette session).
+- **next_reason**: escalade requise — deux causes non résolues persistent : (1) fog-1, dispatch `s0` sans outil d'écriture/exécution ⇒ le driver doit persister l'artefact émis puis lancer l'oracle CHARTER lui-même, et la factory de dispatch doit provisionner `write`/`run` pour cohérence avec les permissions déclarées ; (2) fog-2/fog-3, valeurs de design aval (palier N, budget T, roster chatons/lieux) à produire par le World Scan. La lignée ne se ferme pas ici.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "le dispatch s0-contrat n'expose aucun outil d'ecriture (Write/Edit/Bash) ni d'execution (run), alors que ses permissions declarent write/create: charter.yaml et son oracle CHARTER exige une execution — l'agent ne peut ni persister ni valider son livrable lui-meme", "root_cause": "provisioning d'outils du dispatch s0-contrat incoherent avec les permissions et l'oracle declares dans le contrat"}

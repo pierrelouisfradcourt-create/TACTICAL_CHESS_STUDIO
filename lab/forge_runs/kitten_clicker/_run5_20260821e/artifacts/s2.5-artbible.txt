@@ -1,0 +1,45 @@
+Receipt persisted. Both artifacts are written and the oracle passes `OK`. Final report below.
+
+---
+
+## RAPPORT FINAL — s2.5-artbible / kitten_clicker-20260821e (Art Director)
+
+**Livrables écrits (périmètre respecté, uniquement ces 2 + le reçu) :**
+- `lab/forge_runs/kitten_clicker/art_bible.md` — frontmatter `{styles, mood_keywords}` non vides + 3 sections (IDENTITÉ VISUELLE / RATIONALE / BESOINS VISUELS avec bloc `json` de 17 `visual_requirements`).
+- `lab/forge_runs/kitten_clicker/asset_requests.json` — 17 `asset_requests` V0.1, `no_assets_needed:false`.
+- `lab/forge_runs/kitten_clicker/artifacts/s2.5-check_artbible.receipt.json` — reçu d'oracle (evidence_path).
+
+**software_verdict: OK** — appuyé par l'oracle `scripts/forge/check_artbible.mjs` : `verdict:"OK"`, `findings:[]`, `coverage.checked:true`, `coverage.missing:[]`, 17/17 besoins `required:true` couverts par une requête de même `entity_role`.
+**evidence_verdict: MECHANICAL_VALIDATION_ONLY** — evidence_path : `artifacts/s2.5-check_artbible.receipt.json`.
+
+**Traçabilité produit → besoins.** Chaque entité dérive d'une Règle observable Rn du `product_snapshot.md` : coussin central (R1/R13/R21), 5 tiers de rareté de chatons (R7/R8/R9), 2 lieux (R10), 3 props (R11), HUD compteur+taux abrégé (R2/R19), boutique (R5/R6), quêtes (R12), écran prestige (R17/R18), set d'icônes (R5/R12), effet de clic (R13/R21). Format cible **SVG** (formes simples) porté dans chaque `description` — le builder écrit les SVG.
+
+**asset_requests produits + statut de resolution (ADVISORY, jamais pass/fail) :**
+- Couverture : **17/17 OK** (satisfied listés dans le reçu).
+- Resolution contre catalogue : **0 OK / 17 BLOCKED** — légitime (`resolution_stats.blocked`, catalogue incomplet : aucun asset chaton `flat-cute-vector` 2D/godot n'existe encore ; le studio n'a pas de générateur d'images, le builder produira les SVG en aval). **Rapporté tel quel, sans assouplir aucune contrainte** (garde-fou anti-gaming respecté). À ne PAS confondre avec `MISSING_ASSET_COVERAGE` (aucun manque de couverture ici).
+
+**Décisions assumées (3 états) :** audio R14 exclu du périmètre visuel (procédural, charter (e)) ; écrans victoire/défaite non listés (le jeu n'a ni état de défaite R18 ni de victoire idle — absence par conception, pas entité omise).
+
+**fog → HumanGate (jamais un claim) :**
+1. **Conformité esthétique** : `check_artbible.mjs` compare des tags/structure, jamais des pixels — « est-ce que c'est joli/dans le bon style » reste un jugement de Pierre.
+2. **Noms concrets des chatons** : la Story Bible établit que les noms ne sont fournis par aucune source (`characters` GROUNDED mais noms non établis). J'ai spécifié l'identité visuelle **par tier de rareté** (5 templates distincts, ≥6 chatons nommables), sans inventer de noms propres (respect de `charter.actions_interdites` « inventer un élément de design-intent »). L'attribution des noms est une décision aval/Pierre.
+3. **Adéquation viewpoint** : limite connue v0.1 — `style_tag_match` n'a pas de sémantique de point de vue ; l'adéquation visuelle réelle reste hors mécanique.
+
+**claim_verdict: NO_CLAIM_ALLOWED.**
+
+**SKIPPED_VALIDATION :**
+- item : jugement esthétique des SVG · périmètre : les 17 entités · statut : non fait (structurellement impossible) · raison : aucun oracle esthétique n'existe ni ne doit exister — remonté en fog.
+- item : `check_amont_traversal` (ancrage cross-artefact) · périmètre : art_bible · statut : non fait · raison : hors périmètre du contrat s2.5 ; l'oracle de cette station est `check_artbible.mjs`, exécuté et OK.
+
+**RETURN LINEAGE**
+- **why_task_existed :**
+  - problem : la chaîne `full_godot_content` exige une identité visuelle actionnable + des `asset_requests` structurés couvrant chaque entité, sans quoi le builder (s9) reçoit des besoins visuels non tracés (défaut historique « couverture affirmée en prose sans requête », fermé par v0.1).
+  - oracle : `scripts/forge/check_artbible.mjs` (forme + couverture besoin↔requête).
+  - root_cause : non transmis (activation par l'ordre de profil, `predecesseur s1-prisme OK` ; pas un défaut mesuré).
+  - action_reason : énumérer chaque entité de R1–R22 en `visual_requirements` puis produire une requête V0.1 par entité `required:true`, jusqu'à `verdict:OK`.
+- **result :** 17 `visual_requirements` (toutes `required:true`) + 17 `asset_requests` V0.1 ; `verdict:OK`, couverture 17/17, resolution 0/17 (advisory, catalogue incomplet).
+- **proof :** `node scripts/forge/check_artbible.mjs lab/forge_runs/kitten_clicker/art_bible.md lab/forge_runs/kitten_clicker/asset_requests.json --json` → `{"pass":true,"verdict":"OK","coverage":{"missing":[]},"resolution_stats":{"ok":0,"blocked":17}}` (reçu : `artifacts/s2.5-check_artbible.receipt.json`).
+- **learning :** pour un jeu au format SVG dessiné-par-le-builder, la resolution catalogue est structurellement 100 % BLOCKED (aucun asset préexistant) — c'est un `resolution_stats.blocked` légitime, jamais un `MISSING_ASSET_COVERAGE` ; la couverture (présence de requête) et la resolution (satisfaction catalogue) sont deux axes disjoints, et seul le premier gate le verdict.
+- **next_reason :** chaîne causale FERMÉE pour l'oracle (artefact conforme et couvert). Escalade limitée aux 3 fogs ci-dessus (esthétique, noms de chatons, adéquation viewpoint) — jugements de conception que l'Art Director ne tranche pas.
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

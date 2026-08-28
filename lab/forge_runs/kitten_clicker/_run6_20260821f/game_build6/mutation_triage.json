@@ -1,0 +1,18 @@
+[
+  {
+    "name": "true->false",
+    "line": 52,
+    "fichier": "05_SYSTEMS/game_state/game_state.gd",
+    "expression": "c.kittens = kittens.duplicate(true)",
+    "justification": "`kittens` est un Array dont les elements sont des String (identifiants de chatons), jamais des conteneurs. Array.duplicate(true) (copie PROFONDE) et duplicate(false) (copie SUPERFICIELLE) produisent un resultat OBSERVABLEMENT IDENTIQUE pour un tableau d'elements non-conteneurs : les deux creent un nouveau tableau de premier niveau portant les memes String ; il n'existe aucun conteneur imbrique a copier en profondeur, et les String sont immuables. RECENSEMENT EXHAUSTIF des lectures de clone() (grep sur 05_SYSTEMS/, 06_RUNTIME/, 07_TESTS/) : clone() sert a prendre un INSTANTANE d'etat pour un oracle/rejeu ; aucun chemin ne mute le CONTENU d'un element imbrique de `kittens`. Aucun test ne peut distinguer profond de superficiel ici sans introduire une donnee imbriquee mutable que le produit ne detient jamais. Mutant equivalent par indistinguabilite structurelle du type de donnee. VERIFIE MECANIQUEMENT : forge.mutation applique la mutation duplicate(true)->duplicate(false) et relance res://tests/run_tests.gd -> 213 passed / 0 failed, exit 0, strictement la ligne de base.",
+    "verdict": "EQUIVALENT"
+  },
+  {
+    "name": "true->false",
+    "line": 53,
+    "fichier": "05_SYSTEMS/game_state/game_state.gd",
+    "expression": "c.unlocked = unlocked.duplicate(true)",
+    "justification": "`unlocked` est un Array de String (identifiants distincts debloques), jamais des conteneurs. Meme argument que pour `kittens` ci-dessus : duplicate(true) et duplicate(false) sont observablement identiques pour un tableau d'elements non-conteneurs immuables ; il n'y a aucun niveau imbrique a copier en profondeur. RECENSEMENT EXHAUSTIF des lectures de clone() : instantane d'etat, aucun chemin ne mute le contenu d'un element de `unlocked`. Aucun test ne peut distinguer profond de superficiel sans une donnee imbriquee mutable absente du produit. Mutant equivalent. VERIFIE MECANIQUEMENT : forge.mutation applique duplicate(true)->duplicate(false) et relance res://tests/run_tests.gd -> 213 passed / 0 failed, exit 0, identique a la ligne de base.",
+    "verdict": "EQUIVALENT"
+  }
+]

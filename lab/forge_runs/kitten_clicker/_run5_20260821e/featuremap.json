@@ -1,0 +1,348 @@
+{
+ "game_id": "kitten_clicker",
+ "systemes": [
+  {
+   "id": "SYS_PRODUCTION_CORE",
+   "features": [
+    {
+     "id": "FEAT_clic_manuel",
+     "capacites": [
+      {
+       "id": "R1",
+       "capacite": "Cliquer sur la pelote/coussin central incremente le compteur de ronrons affiche d'une valeur strictement positive a chaque clic.",
+       "source_ref": "G1",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot clique N fois sans rien acheter ; l'oracle asserte que le compteur de ronrons affiche a augmente d'exactement N*taux_clic (assertion stricte ==, jamais >=)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT_production_auto",
+     "capacites": [
+      {
+       "id": "R4",
+       "capacite": "Avec au moins 1 chaton possede et aucun clic pendant T ticks, le compteur de ronrons augmente du taux de production possede.",
+       "source_ref": "G3",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot achete 1 chaton puis n'interagit plus pendant T ticks ; l'oracle asserte que le compteur augmente d'exactement production_rate*T (assertion stricte)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT_taux_agrege_hud",
+     "capacites": [
+      {
+       "id": "R2",
+       "capacite": "Un unique taux ronrons/sec, sommant tous les producteurs et multiplicateurs, est affiche a l'ecran en permanence et mis a jour en direct.",
+       "source_ref": "G7",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_hud.gd en gpu_window : asserte la presence d'un label de taux ronrons/sec a l'ecran et sa mise a jour apres un achat."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS_ECONOMIE",
+   "features": [
+    {
+     "id": "FEAT_rampe_prix",
+     "capacites": [
+      {
+       "id": "R6",
+       "capacite": "Le cout du N-ieme chaton d'un type est strictement superieur au (N-1)-ieme, suivant une escalade fixe d'au moins +10% par achat.",
+       "source_ref": "G5",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "07_TESTS/oracle/core_economy.gd : achete 5 chatons du meme type et asserte cost[i] > cost[i-1] pour tout i (strict), avec ratio >= 1.10."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT_ameliorations",
+     "capacites": [
+      {
+       "id": "R5",
+       "capacite": "Acheter une amelioration augmente strictement le taux de production affiche (ronrons/sec) a l'ecran.",
+       "source_ref": "G4",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot mesure le taux avant/apres achat d'une amelioration et asserte taux_apres > taux_avant par assertion stricte."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT_contribution_chaton",
+     "capacites": [
+      {
+       "id": "R22",
+       "capacite": "Posseder un chaton augmente strictement le taux total de ronrons/sec de la contribution declaree de ce chaton.",
+       "source_ref": "G9",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot achete chaque type de chaton une fois et asserte que le taux total augmente strictement a chaque achat, la hausse == contribution declaree (strict)."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS_CHATONS",
+   "features": [
+    {
+     "id": "FEAT_achat_chaton_visible",
+     "capacites": [
+      {
+       "id": "R3",
+       "capacite": "Apres l'achat d'un chaton, un nouveau sprite de chaton nomme apparait et reste visible a l'ecran pour le reste de la session.",
+       "source_ref": "G2",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_visible_chaton.gd en gpu_window : capture avant/apres achat, asserte que le nombre de sprites-chatons visibles augmente d'exactement 1 et que le nouveau sprite persiste au frame suivant."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT_registre_chatons_nommes",
+     "capacites": [
+      {
+       "id": "R7",
+       "capacite": "Le jeu embarque un registre d'au moins 6 chatons, chacun avec un nom affiche unique et un palier de rarete, tous chargeables et affiches a l'ecran.",
+       "source_ref": "C1",
+       "expected_proof": {
+        "kind": "file_write",
+        "statement": "03_WORLD/chatons.json contient >=6 entrees {nom, rarete} aux noms uniques ; un test charge le registre et compte >=6 noms distincts."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT_distribution_rarete",
+     "capacites": [
+      {
+       "id": "R9",
+       "capacite": "L'acquisition de chatons suit une distribution de rarete ou les tiers rares sont strictement moins frequents que les tiers communs (au moins 2 frequences distinctes).",
+       "source_ref": "G8",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "07_TESTS/oracle/core_rarity_dist.gd : simule 200 acquisitions et asserte freq(commun) > freq(rare) strictement et au moins 2 frequences distinctes non triviales."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT_rendu_visuel_rarete",
+     "capacites": [
+      {
+       "id": "R8",
+       "capacite": "Chaque palier de rarete rend une apparence de chaton visuellement distincte, distinguable a l'ecran sans lire de texte.",
+       "source_ref": "V1",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_visual_rarity.gd en gpu_window : rend un chaton par rarete et asserte que les captures different au-dela d'un seuil de pixels entre tiers."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS_PROGRESSION",
+   "features": [
+    {
+     "id": "FEAT_courbe_paliers",
+     "capacites": [
+      {
+       "id": "R15",
+       "capacite": "Le jeu definit une courbe de paliers d'au moins 3 valeurs de seuil strictement distinctes (regle de variance : >=2 distinctes, ici >=3).",
+       "source_ref": "L1",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot joue jusqu'au palier 3 ; l'oracle lit la courbe de paliers et asserte >=3 valeurs strictement distinctes (aucune egalite, pas de trivial 1,2,3)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT_solvabilite",
+     "capacites": [
+      {
+       "id": "R16",
+       "capacite": "Un bot deterministe atteint le 3e palier de progression en un nombre de ticks FINI et asserte (assertion stricte d'atteinte, jamais un >= tautologique).",
+       "source_ref": "L2",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "07_TESTS/oracle/solvability.gd : bot deterministe, asserte palier_atteint == 3 en ticks <= BORNE finie explicite (atteinte stricte)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT_prestige",
+     "capacites": [
+      {
+       "id": "R17",
+       "capacite": "Effectuer un prestige remet ronrons et chatons a zero et octroie un multiplicateur de production permanent strictement superieur a 1 qui persiste apres le reset.",
+       "source_ref": "G6",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot atteint le seuil de prestige, prestige, puis re-mesure : la production de depart post-prestige > la production de depart initiale par assertion stricte."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS_MONDE",
+   "features": [
+    {
+     "id": "FEAT_lieux",
+     "capacites": [
+      {
+       "id": "R10",
+       "capacite": "Le jeu definit au moins 2 lieux : le refuge disponible au depart et au moins 1 lieu debloque uniquement apres un seuil de prestige/meta-progression.",
+       "source_ref": "C2",
+       "expected_proof": {
+        "kind": "file_write",
+        "statement": "03_WORLD/lieux.json contient >=2 lieux dont au moins un porte condition_deblocage=prestige ; un test asserte 2 lieux et 1 gate de prestige."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT_objets",
+     "capacites": [
+      {
+       "id": "R11",
+       "capacite": "Le jeu contient au moins 3 objets distincts, chacun une entree nommee presente dans le monde et identifiable en jeu.",
+       "source_ref": "C3",
+       "expected_proof": {
+        "kind": "file_write",
+        "statement": "03_WORLD/objets.json contient >=3 objets distincts ; un test asserte >=3 ids uniques presents dans le monde."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT_quetes",
+     "capacites": [
+      {
+       "id": "R12",
+       "capacite": "Le jeu definit au moins 3 quetes, chacune avec un objectif affiche a l'ecran et une condition de completion que le joueur peut atteindre.",
+       "source_ref": "C4",
+       "expected_proof": {
+        "kind": "file_write",
+        "statement": "03_WORLD/quetes.json contient >=3 quetes {objectif_affiche, condition_completion} ; un test asserte >=3 quetes et la presence des deux champs sur chacune."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT_coherence_ton",
+     "capacites": [
+      {
+       "id": "R18",
+       "capacite": "Aucun contenu du jeu ne represente combat, degats, defaite ou PvP ; tous les chatons/objets/evenements se lisent comme doux et mignons.",
+       "source_ref": "C5",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "07_TESTS/oracle/core_content_tone.gd : lint de contenu qui asserte qu'aucune entree de 03_WORLD/*.json ne porte de champ de degats, combat ou defaite."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS_FEEDBACK",
+   "features": [
+    {
+     "id": "FEAT_feedback_clic",
+     "capacites": [
+      {
+       "id": "R13",
+       "capacite": "Chaque clic sur l'objet central declenche une reaction visible a l'ecran dans la meme frame que l'entree.",
+       "source_ref": "V2",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_click_feedback.gd en gpu_window : capture au frame du clic vs frame precedent et asserte une difference de pixels dans la zone de l'objet central."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT_audio_distinct",
+     "capacites": [
+      {
+       "id": "R14",
+       "capacite": "Le jeu joue un son DISTINCT pour chacun des quatre evenements clic/achat/deblocage/prestige, declenche par l'evenement correspondant.",
+       "source_ref": "A1",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "07_TESTS/oracle/core_audio.gd tient un journal des declenchements : provoque les 4 evenements et asserte 4 entrees de son aux ids distincts deux a deux (audio procedural accepte)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT_onboarding",
+     "capacites": [
+      {
+       "id": "R21",
+       "capacite": "Au premier lancement, l'objet central cliquable est visuellement mis en avant et un clic produit un changement visible du compteur dans les 3 premieres secondes d'entree.",
+       "source_ref": "D1",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_onboarding.gd en gpu_window : au boot, asserte que l'objet central porte un indicateur visuel et qu'un clic simule change le compteur affiche."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT_notation_abregee",
+     "capacites": [
+      {
+       "id": "R19",
+       "capacite": "Les totaux de ronrons >= 10000 sont affiches en notation abregee (ex. 12.3K, 4.5M) a l'ecran.",
+       "source_ref": "D3",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_number_format.gd en gpu_window : rend un total de 12345678 et asserte que l'affichage contient une abreviation (K/M/B), pas 8 chiffres bruts."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS_PERSISTENCE",
+   "features": [
+    {
+     "id": "FEAT_sauvegarde_locale",
+     "capacites": [
+      {
+       "id": "R20",
+       "capacite": "Le jeu persiste ronrons, chatons possedes, lieux debloques et etat de prestige sur le disque local et les restaure au relancement.",
+       "source_ref": "D2",
+       "expected_proof": {
+        "kind": "file_write",
+        "statement": "Un test ecrit un etat, relance, et asserte que 06_RUNTIME/save recharge exactement l'etat ecrit (round-trip strict champ par champ)."
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

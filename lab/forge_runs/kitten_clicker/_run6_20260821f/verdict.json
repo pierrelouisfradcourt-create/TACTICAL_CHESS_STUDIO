@@ -1,0 +1,482 @@
+{
+ "claim_verdict": "NO_CLAIM_ALLOWED",
+ "decision": "BLOCKED",
+ "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
+ "git_head": "6aa64bfd4c077cef7ed272a1bd6f0547f75735f7",
+ "hmac": "bb21dd816d118ee4433d03aa30e93f402a784c5048d5348882ebecae7a8625eb",
+ "humangate_flags": [
+  "wiremap rouge: ['core.boot: preuve cite runtime_alive.gd, absent du dépôt', 'core.main_loop: preuve cite runtime_alive.gd, absent du dépôt', 'core.main_loop: preuve cite //tests/run_tests.gd, absent du dépôt', 'core.input: preuve cite runtime_alive.gd, absent du dépôt', 'core.game_state: preuve cite //tests/run_tests.gd, absent du dépôt', 'core.end_condition: preuve cite //tests/run_tests.gd, absent du dépôt', 'core.restart: preuve cite //tests/run_tests.gd, absent du dépôt', 'core.exit: preuve cite //tests/run_tests.gd, absent du dépôt', 'core.error_handling: preuve cite //tests/run_tests.gd, absent du dépôt', 'economy.passive_production: preuve cite //tests/run_tests.gd, absent du dépôt', 'economy.upgrade_rate: preuve cite //tests/run_tests.gd, absent du dépôt', 'meta.thresholds_params: preuve cite //tests/run_tests.gd, absent du dépôt', 'meta.prestige: preuve cite //tests/run_tests.gd, absent du dépôt', 'events.game_events: preuve cite //tests/run_tests.gd, absent du dépôt', 'collection.tracker: preuve cite //tests/run_tests.gd, absent du dépôt', 'content.kittens_registry: preuve cite //tests/run_tests.gd, absent du dépôt', 'content.places_registry: preuve cite //tests/run_tests.gd, absent du dépôt', 'content.objects_registry: preuve cite //tests/run_tests.gd, absent du dépôt', 'content.quests_registry: preuve cite //tests/run_tests.gd, absent du dépôt', 'entity.kitten: preuve cite //tests/run_tests.gd, absent du dépôt', 'entity.wool_ball: preuve cite //tests/run_tests.gd, absent du dépôt', 'entity.wool_ball: preuve cite runtime_alive.gd, absent du dépôt', 'runtime.offline: preuve cite //tests/run_tests.gd, absent du dépôt']",
+  "standard rouge: violation",
+  "red-team dégradé: reviewer indépendant n'a pas tourné (fallback)"
+ ],
+ "is_game": true,
+ "nonce": "1d42b8a4140d5784839c7b429f164a00",
+ "oracles": {
+  "archi": {
+   "detail": {
+    "debordements_ownership": {
+     "checked": false,
+     "items": []
+    },
+    "deps_interdites_violées": [],
+    "modules_sans_test": [
+     "06_RUNTIME"
+    ],
+    "passed": true
+   },
+   "evidence_path": "",
+   "evidence_sha256": "",
+   "oracle_id": "archi",
+   "run_id": "kitten_clicker-20260821f",
+   "status": "OK",
+   "ts": 1787391501.768594
+  },
+  "code": {
+   "detail": {
+    "e2e": {
+     "passed": true,
+     "raisons": []
+    },
+    "evidence_seal": {
+     "evidence_path": "lab/forge_runs/kitten_clicker/evidence/oracle_kitten_clicker.log",
+     "reason": "FLUX_D_EXPLOITATION_IGNORE_PAR_GIT",
+     "sealed": false
+    },
+    "harness_no_hardcoded_flags": {
+     "passed": true,
+     "raisons": []
+    },
+    "oracle_measures": {
+     "mecanique": true,
+     "solvabilite": {
+      "failed_seeds": [],
+      "lost": 0,
+      "project": "games/kitten_clicker",
+      "trials": 20,
+      "verdict": "OK",
+      "won": 20
+     }
+    },
+    "product_oracle_godot": {
+     "core_audio": {
+      "checked": true,
+      "fails": [],
+      "fichier": "C:\\TACTICAL_CHESS_STUDIO\\games\\kitten_clicker\\07_TESTS\\oracle\\core_audio.gd",
+      "mode_execution": "headless",
+      "passed": true,
+      "payload": {
+       "achat_ok": true,
+       "cues_distincts": [
+        "click",
+        "buy",
+        "unlock",
+        "prestige"
+       ],
+       "declenchements": 63,
+       "fails": [],
+       "ok": true,
+       "prestige_ok": true
+      },
+      "status": "OK"
+     },
+     "gallery_render": {
+      "checked": true,
+      "fails": [],
+      "fichier": "C:\\TACTICAL_CHESS_STUDIO\\games\\kitten_clicker\\07_TESTS\\oracle\\gallery_render.gd",
+      "mode_execution": "gpu_window",
+      "passed": true,
+      "payload": {
+       "fails": [],
+       "ok": true,
+       "slots": 6
+      },
+      "status": "OK"
+     },
+     "main_screen_render": {
+      "checked": true,
+      "fails": [],
+      "fichier": "C:\\TACTICAL_CHESS_STUDIO\\games\\kitten_clicker\\07_TESTS\\oracle\\main_screen_render.gd",
+      "mode_execution": "gpu_window",
+      "passed": true,
+      "payload": {
+       "fails": [],
+       "ok": true,
+       "viewport": [
+        640,
+        480
+       ]
+      },
+      "status": "OK"
+     }
+    },
+    "product_oracle_godot_activation": {
+     "active": true,
+     "godot_capacity_present": true,
+     "proof_descriptor_present": true,
+     "reason": "contrat de preuve `proof:` présent ET oracles FORGE_ORACLE trouvés sur disque — fournisseur Godot activé"
+    },
+    "reason": "C:\\TACTICAL_CHESS_STUDIO\\games\\kitten_clicker\\09_WIREMAP\\wiremap.json absente/illisible -- une wiremap est requise pour évaluer un descripteur proof (contrat V1 §5, catégories) ; cas explicitement cité comme ambigu par la mission -- BLOCKED, jamais une convention -- décision Pierre requise",
+    "regime_preuve": "descripteur",
+    "returncode": 0,
+    "reuse_ratio_wired": {
+     "passed": false,
+     "raisons": [
+      "run-oracle.mjs absent"
+     ]
+    },
+    "runtime_alive": {
+     "checked": true,
+     "fails": [],
+     "fichier": "C:\\TACTICAL_CHESS_STUDIO\\scripts\\forge\\godot_probes\\runtime_alive.gd",
+     "mode_execution": "gpu_window",
+     "passed": true,
+     "payload": {
+      "data": {
+       "changed_after_click": true,
+       "frames": 120,
+       "loaded": true,
+       "nodes_total": 30,
+       "nonmonochrome": true,
+       "root_children": 1,
+       "scene": "res://main.tscn",
+       "scripted_nodes": 6,
+       "system_scripts": 5
+      },
+      "fails": [],
+      "ok": true
+     },
+     "status": "OK"
+    },
+    "search_consulted": {
+     "count": 2,
+     "passed": true,
+     "raisons": []
+    },
+    "solvability": {
+     "checked": true,
+     "passed": false,
+     "raisons": [
+      "aucun script wrapper localisable dans runner_argv=[] — câblage non prouvé"
+     ],
+     "topology": "descripteur"
+    },
+    "solvability_mesure": {
+     "mesure": "cablage_du_harnais",
+     "ne_mesure_pas": "la solvabilite du jeu (won/trials) — un `passed: true` ne prouve AUCUNE partie gagnee",
+     "resultat_reel": "non remonte au recu : voir evidence/oracle_<jeu>.log, NON versionne (.gitignore:81)"
+    }
+   },
+   "evidence_path": "lab/forge_runs/kitten_clicker/evidence/oracle_kitten_clicker.log",
+   "evidence_sha256": "",
+   "oracle_id": "code",
+   "run_id": "kitten_clicker-20260821f",
+   "status": "BLOCKED",
+   "ts": 1787391501.6619422
+  },
+  "standard": {
+   "detail": {
+    "missing": [
+     "C:\\TACTICAL_CHESS_STUDIO\\games\\kitten_clicker/09_WIREMAP/wiremap.json absent ou illisible"
+    ],
+    "reason": "entrée(s) requise(s) absente(s)/illisible(s) pour l'oracle standard — hypothèse inconnue = BLOCKED"
+   },
+   "evidence_path": "",
+   "evidence_sha256": "",
+   "oracle_id": "standard",
+   "run_id": "kitten_clicker-20260821f",
+   "status": "BLOCKED",
+   "ts": 1787391504.7935467
+  },
+  "wiremap": {
+   "detail": {
+    "amont_traversal": {
+     "claim_verdict": "NO_CLAIM_ALLOWED",
+     "facts": {
+      "boucles_recompense": {
+       "addresses": [
+        "worldscan:games[0].loops.minute_1",
+        "worldscan:games[0].loops.minute_10",
+        "worldscan:games[0].loops.hour_5",
+        "worldscan:games[0].loops.endgame",
+        "worldscan:games[1].loops.minute_1",
+        "worldscan:games[1].loops.minute_10",
+        "worldscan:games[1].loops.hour_5",
+        "worldscan:games[1].loops.endgame",
+        "gm_worldscan:dimensions[2]",
+        "gm_worldscan:dimensions[4]",
+        "gm_worldscan:dimensions[5]"
+       ],
+       "exigences": [
+        "GP1",
+        "GP2",
+        "GP3",
+        "GP4",
+        "GP5",
+        "CT4",
+        "VS1",
+        "VS2",
+        "VS5",
+        "AU1",
+        "AU2",
+        "AU3",
+        "AU4"
+       ],
+       "files_present": true,
+       "leaves": [
+        "cap_clic_gain",
+        "cap_clic_feedback",
+        "cap_clic_son",
+        "cap_prod_passive",
+        "cap_upgrade_taux",
+        "cap_achat_spawn",
+        "cap_achat_son",
+        "cap_rarete_visuelle",
+        "cap_prestige_reset_bonus",
+        "cap_prestige_son",
+        "cap_unlock_son",
+        "cap_objects_registry",
+        "cap_objet_icone_effet"
+       ],
+       "lines": [
+        "core.main_loop",
+        "core.input",
+        "core.restart",
+        "core.render",
+        "core.audio",
+        "economy.passive_production",
+        "economy.upgrade_rate",
+        "meta.prestige",
+        "events.game_events",
+        "content.objects_registry",
+        "entity.kitten",
+        "entity.wool_ball",
+        "render.main_screen",
+        "render.gallery",
+        "asset.wool_ball",
+        "asset.kitten_tuxedo_rare",
+        "asset.kitten_siamese_rare",
+        "asset.kitten_golden_legendary",
+        "asset.rarity_frame_set",
+        "asset.object_scratching_post",
+        "asset.object_food_bowl",
+        "asset.object_yarn_basket",
+        "asset.upgrade_icon_set",
+        "asset.click_feedback_pop"
+       ],
+       "produced": true,
+       "reached": "BUILD"
+      },
+      "conditions_defaite": {
+       "addresses": [],
+       "exigences": [],
+       "files_present": null,
+       "leaves": [],
+       "lines": [],
+       "produced": false,
+       "reached": "NOT_PRODUCED"
+      },
+      "conditions_victoire": {
+       "addresses": [],
+       "exigences": [],
+       "files_present": null,
+       "leaves": [],
+       "lines": [],
+       "produced": false,
+       "reached": "NOT_PRODUCED"
+      },
+      "contraintes_narratives": {
+       "addresses": [
+        "story_bible:sections[0]",
+        "story_bible:sections[4]",
+        "story_bible:sections[7]"
+       ],
+       "exigences": [
+        "CT1",
+        "CT2",
+        "CT3",
+        "VS3",
+        "VS4",
+        "MT1",
+        "MT2"
+       ],
+       "files_present": true,
+       "leaves": [
+        "cap_kittens_registry",
+        "cap_kittens_rarete",
+        "cap_sprite_distinct",
+        "cap_places_registry",
+        "cap_decor_distinct",
+        "cap_no_gameover",
+        "cap_no_network"
+       ],
+       "lines": [
+        "core.game_state",
+        "core.exit",
+        "core.error_handling",
+        "content.kittens_registry",
+        "content.places_registry",
+        "render.main_screen",
+        "render.gallery",
+        "runtime.offline",
+        "asset.kitten_tabby_common",
+        "asset.kitten_gray_common",
+        "asset.kitten_calico_common",
+        "asset.kitten_tuxedo_rare",
+        "asset.kitten_siamese_rare",
+        "asset.kitten_golden_legendary",
+        "asset.refuge_start",
+        "asset.place_garden_unlocked"
+       ],
+       "produced": true,
+       "reached": "BUILD"
+      },
+      "objectifs_joueur": {
+       "addresses": [
+        "worldscan:games[0].objectives[0].player_goal",
+        "worldscan:games[1].objectives[0].player_goal"
+       ],
+       "exigences": [
+        "CT6"
+       ],
+       "files_present": true,
+       "leaves": [
+        "cap_collection_compteur"
+       ],
+       "lines": [
+        "collection.tracker",
+        "render.gallery"
+       ],
+       "produced": true,
+       "reached": "BUILD"
+      },
+      "progression": {
+       "addresses": [
+        "gm_worldscan:dimensions[1]"
+       ],
+       "exigences": [
+        "LN1",
+        "LN2"
+       ],
+       "files_present": true,
+       "leaves": [
+        "cap_paliers_variance",
+        "cap_solvabilite_bot"
+       ],
+       "lines": [
+        "core.end_condition",
+        "meta.thresholds_params",
+        "solvability.bot"
+       ],
+       "produced": true,
+       "reached": "BUILD"
+      }
+     },
+     "references": {
+      "adressables": 24,
+      "expected": 24,
+      "non_resolues": [],
+      "resolues": 24
+     },
+     "stages": [
+      "NOT_PRODUCED",
+      "PRODUCED",
+      "PRISME",
+      "GREY_BLOCKS",
+      "WIREMAP",
+      "BUILD"
+     ],
+     "verdict": "ADVISORY"
+    },
+    "features_manquantes": [],
+    "fonctions_renommées": [
+     "core.boot:Racine de composition : amorce la scene Godot sur le refuge, instancie l'etat et cable les adaptateurs. Atteint un etat initial observable.",
+     "core.main_loop:Boucle de tick deterministe : convertit le temps moteur en avancee d'etat (production passive), sans alea non seede.",
+     "core.input:Adaptateur d'entree : capture le clic sur la pelote et les achats, les traduit en appels a l'API de la logique. Direction input -> logique uniquement.",
+     "core.game_state:Etat de partie pur : detient ronrons, taux, colonie, paliers, statut dans un vocabulaire ferme. Detient, n'agit pas.",
+     "core.end_condition:Definit la condition de fin par les regles : franchissement de palier (pas de game-over). Expose le palier atteint.",
+     "core.restart:Relance dans un etat initial propre (le prestige EST le restart du genre) : reset de la production, conservation du bonus permanent.",
+     "core.exit:Termine le processus proprement sur demande (exit 0), sans ressource residuelle. CORE sans capacite featuremap dediee (voir divergences).",
+     "core.render:Adaptateur de sortie visuelle : lit l'etat et l'affiche, ne le mute jamais. Proprietaire de render.frame ; les volets d'ecran (main_screen/gallery) le realisent.",
+     "core.audio:Adaptateur audio procedural (reuse Pacman) : joue un son distinct par evenement (click, buy, unlock, prestige) sur reception du signal. Proprietaire de audio.cue.",
+     "core.error_handling:Absorbe les entrees invalides sans invalider l'etat de partie (achat impossible ignore, bornes respectees).",
+     "economy.passive_production:Production passive : au moins un chaton achete fait monter les ronrons a un taux strictement positif par seconde, sans interaction. provides: [] (aucun id de domaine dans le registre gele).",
+     "economy.upgrade_rate:Ameliorations : acheter une amelioration augmente de facon observable et stricte le taux de ronrons par seconde. provides: [] (registre gele).",
+     "meta.thresholds_params:Bloc unique des constantes equilibrables (seuils de paliers, gain au clic, couts, taux). Porte la courbe de paliers a variance prouvee. Proprietaire de game.params.",
+     "meta.prestige:Meta-progression : logique de prestige (reset base + bonus permanent persistant). provides: [] (registre gele).",
+     "events.game_events:Nomme et derive les 4 evenements sonores des transitions d'etat (dont le deblocage/unlock). La logique signale ; elle n'entend rien. Proprietaire de game.events.",
+     "collection.tracker:Suivi de collection : compte les chatons distincts debloques sur le total. provides: [] (registre gele).",
+     "content.kittens_registry:Registre declaratif des chatons (>=6 distincts, >=3 raretes). Donnee pure, aucune logique. Place sous 03_WORLD/rules/ (repo_map n'offre pas 03_WORLD nu ; voir divergences).",
+     "content.places_registry:Registre declaratif des lieux (refuge initial + >=1 debloque). Donnee pure.",
+     "content.objects_registry:Registre declaratif des objets (>=3, icone + effet declares). Donnee pure.",
+     "content.quests_registry:Registre declaratif des quetes (>=3, objectif chiffre + progression + accomplissement). Donnee pure.",
+     "entity.kitten:Chaton instanciable et persistant apres achat (sprite distinct par rarete). Scene/script autonome pilote par le runtime, sans regle d'economie.",
+     "entity.wool_ball:Pelote centrale : cible cliquable, objet d'amorcage de la boucle. Sans regle d'economie.",
+     "render.main_screen:Rendu de l'ecran principal (refuge) : HUD, feedback de clic, spawn de chaton, decor, icones d'objets. Lit l'etat, ne le mute pas.",
+     "render.gallery:Rendu de la galerie de collection : sprites de chatons distincts, identite visuelle par rarete, compteur de collection. Lit l'etat, ne le mute pas.",
+     "runtime.offline:Invariant hors-ligne : aucun appel reseau au runtime. Verifie par scan statique des scripts 06_RUNTIME.",
+     "solvability.bot:Bot de solvabilite : pilote une partie de bout en bout par le canal public du joueur et prouve l'atteinte du 3e palier en un nombre fini de ticks. Proprietaire de bot.solvability (registre usine).",
+     "asset.wool_ball:Sprite de la pelote de laine centrale (flat-cute-svg).",
+     "asset.kitten_tabby_common:Sprite du chaton commun roux tigre.",
+     "asset.kitten_gray_common:Sprite du chaton commun gris.",
+     "asset.kitten_calico_common:Sprite du chaton commun calico tricolore.",
+     "asset.kitten_tuxedo_rare:Sprite du chaton rare smoking (cadre bleu).",
+     "asset.kitten_siamese_rare:Sprite du chaton rare siamois (cadre bleu).",
+     "asset.kitten_golden_legendary:Sprite du chaton legendaire dore (cadre or + halo).",
+     "asset.rarity_frame_set:Jeu de cadres/badges de rarete (common gris-menthe / rare bleu+etoiles / legendary or+halo).",
+     "asset.refuge_start:Decor du refuge de depart (interieur cosy).",
+     "asset.place_garden_unlocked:Decor du second lieu debloque par palier (jardin cosy).",
+     "asset.object_scratching_post:Sprite de l'objet griffoir/arbre a chat.",
+     "asset.object_food_bowl:Sprite de l'objet gamelle de croquettes.",
+     "asset.object_yarn_basket:Sprite de l'objet panier de pelotes.",
+     "asset.upgrade_icon_set:Pastilles d'ameliorations pour la boutique (patte / fleche montante / etoile).",
+     "asset.click_feedback_pop:Sprite du feedback de clic (pop de ronrons + particules + texte +N).",
+     "asset.ui_panel_frame:Chrome d'interface (cadre de panneau + barre total/taux + barre de progression)."
+    ],
+    "obsoletes": [],
+    "passed": false,
+    "preuves_absentes": [
+     "core.boot: preuve cite runtime_alive.gd, absent du dépôt",
+     "core.main_loop: preuve cite runtime_alive.gd, absent du dépôt",
+     "core.main_loop: preuve cite //tests/run_tests.gd, absent du dépôt",
+     "core.input: preuve cite runtime_alive.gd, absent du dépôt",
+     "core.game_state: preuve cite //tests/run_tests.gd, absent du dépôt",
+     "core.end_condition: preuve cite //tests/run_tests.gd, absent du dépôt",
+     "core.restart: preuve cite //tests/run_tests.gd, absent du dépôt",
+     "core.exit: preuve cite //tests/run_tests.gd, absent du dépôt",
+     "core.error_handling: preuve cite //tests/run_tests.gd, absent du dépôt",
+     "economy.passive_production: preuve cite //tests/run_tests.gd, absent du dépôt",
+     "economy.upgrade_rate: preuve cite //tests/run_tests.gd, absent du dépôt",
+     "meta.thresholds_params: preuve cite //tests/run_tests.gd, absent du dépôt",
+     "meta.prestige: preuve cite //tests/run_tests.gd, absent du dépôt",
+     "events.game_events: preuve cite //tests/run_tests.gd, absent du dépôt",
+     "collection.tracker: preuve cite //tests/run_tests.gd, absent du dépôt",
+     "content.kittens_registry: preuve cite //tests/run_tests.gd, absent du dépôt",
+     "content.places_registry: preuve cite //tests/run_tests.gd, absent du dépôt",
+     "content.objects_registry: preuve cite //tests/run_tests.gd, absent du dépôt",
+     "content.quests_registry: preuve cite //tests/run_tests.gd, absent du dépôt",
+     "entity.kitten: preuve cite //tests/run_tests.gd, absent du dépôt",
+     "entity.wool_ball: preuve cite //tests/run_tests.gd, absent du dépôt",
+     "entity.wool_ball: preuve cite runtime_alive.gd, absent du dépôt",
+     "runtime.offline: preuve cite //tests/run_tests.gd, absent du dépôt"
+    ]
+   },
+   "evidence_path": "",
+   "evidence_sha256": "",
+   "oracle_id": "wiremap",
+   "run_id": "kitten_clicker-20260821f",
+   "status": "FAIL",
+   "ts": 1787391504.68283
+  }
+ },
+ "project": "kitten_clicker",
+ "provenance_ok": true,
+ "redteam_advisory": [
+  "note d'extraction: aucune section de findings structurée : aucun bloc ```json``` valide (1 bloc(s) fenced inspectés) et la sortie entière n'est pas du JSON"
+ ],
+ "redteam_ran": false,
+ "redteam_reviewer": "claude-opus-4-8",
+ "run_id": "kitten_clicker-20260821f",
+ "scope": "FULL",
+ "software_verdict": "BLOCKED",
+ "ts": 1787392083.5930662
+}

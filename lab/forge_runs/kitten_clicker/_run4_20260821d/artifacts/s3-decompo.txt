@@ -1,0 +1,420 @@
+The three oracle files establish the exact contract my artifact must satisfy:
+
+- **`validateFeaturemap`**: top-level `{game_id, systemes[]}`; each système `{id, features[]}` (non-empty); each feature `{id, capacites[]}` (non-empty); each leaf `{id, capacite, source_ref, expected_proof{kind∈bot_action|oracle|mutation|visual|file_write, statement}}`. Feature ids unique across the doc; leaf ids unique across the doc.
+- **`checkDecompoDoc`**: COUVERTURE (every prisme exigence id cited by ≥1 leaf), NON-INVENTION (every `source_ref` resolves to a real exigence id), COMPLÉTUDE. Granularité reported, never gated.
+
+I traced the Prisme's 26 exigences (G1–G6, L1–L3, C1–C4, V1–V4, A1–A4, X1–X3, N1–N2) and built the tree so each is carried exactly once, each leaf's `expected_proof` inherited verbatim from its exigence. Here is my restitution.
+
+---
+
+## Rapport final — s3-decompo / kitten_clicker-20260821d
+
+**Ancres non-LLM.** Trois fichiers lus branche par branche : `scripts/forge/check_decompo.mjs` (oracle de couverture/non-invention/complétude), `scripts/forge/upstream_schema.mjs` (`validateFeaturemap`/`collectLeaves`/`validateLeaf`), `scripts/forge/contracts/SCHEMA.md`. Le Prisme injecté (`artifacts/s1-prisme.txt`) porte **26 exigences** avec `id` + `expected_proof{kind,statement}`.
+
+**Décomposition.** Arbre Système→Feature→capacité : **9 systèmes / 17 features / 26 feuilles**. Chaque feuille est une règle observable R1..R26 dont le `source_ref` cite l'`id` EXACT d'une exigence, et dont l'`expected_proof` est **hérité** (kind+statement copiés de l'exigence, jamais inventés).
+
+**Couverture (vérifiée par construction contre `checkDecompoDoc`) — 26/26 exigences portées, 0 feuille non sourcée :**
+
+| Système | Feature | Feuilles → exigence |
+|---|---|---|
+| S1 Boucle de clic | F1 Production au clic / F2 Feedback | R1→G1, R2→X2 / R3→V1, R4→A1 |
+| S2 Production passive | F3 Génération auto / F4 Affichage | R5→G2, R6→X3 / R7→V4 |
+| S3 Économie & achats | F5 Achat chatons / F6 Améliorations | R8→G3, R9→G5, R10→A2 / R11→G4 |
+| S4 Progression & paliers | F7 Courbe / F8 Solvabilité | R12→L1 / R13→L2 |
+| S5 Méta-progression | F9 Prestige | R14→L3, R15→A4 |
+| S6 Collection & contenu | F10 Chatons / F11 Lieux / F12 Objets / F13 Album | R16→C1, R17→V2 / R18→C2, R19→V3, R20→A3 / R21→C3 / R22→N1 |
+| S7 Quêtes | F14 Journal | R23→C4 |
+| S8 Événements & ambiance | F15 Bonus / F16 Ambiance | R24→X1 / R25→N2 |
+| S9 Contrat cosy | F17 Absence de défaite | R26→G6 |
+
+**Verdict.** `software_verdict: BLOCKED` — l'oracle `check_decompo.mjs` existe et est disponible mais **non exécutable par cette station** (`permissions.run: aucun` ; le reçu signé est produit par l'exécuteur à la matérialisation de `featuremap.json`, même patron que s2/s2.6/s2.7). La conformité structurelle (couverture 26/26, non-invention, complétude) est établie **par lecture des branches réelles de l'oracle**, pas par un reçu exécuté. `evidence_verdict: MECHANICAL_VALIDATION_ONLY` s'applique au run `check_decompo` de l'exécuteur. `claim_verdict: NO_CLAIM_ALLOWED`. **Fog HumanGate** : aucun — la station n'a aucun jugement subjectif à remonter ; la granularité (min 1, max 3 feuilles/feature) est REPORTÉE, jamais gatée (règle de variance 2026-07-21).
+
+**Exigences non couvertes :** aucune (26/26). **Feuilles non sourcées :** aucune (chaque `source_ref` ∈ {G1..G6, L1..L3, C1..C4, V1..V4, A1..A4, X1..X3, N1, N2}). Note honnête : le champ `destination` du Prisme route X2→s5-wiremap, X3→s4-archi, X1/N1/N2→s3-decompo, les 21 autres→s9-build ; le contrat s3 et l'oracle `check_decompo` exigent néanmoins que **toutes** les exigences soient portées par la featuremap (la featuremap est l'arbre fonctionnel complet, `destination` n'est pas un filtre de couverture) — c'est le design de la chaîne, pas un écart.
+
+**SKIPPED_VALIDATION :**
+- item: exécution de `check_decompo.mjs <featuremap.json> --prisme <prisme.json>` · périmètre: featuremap.json de ce run · statut: non fait · raison: `permissions.run: aucun` — validation déléguée à `run_real.py` à la matérialisation.
+- item: résolution effective des `source_ref` contre `prisme.json` matérialisé · périmètre: les 26 feuilles · statut: partiel · raison: j'ai cité les `id` du Prisme injecté (`s1-prisme.txt`) ; si `prisme.json` matérialisé diffère en `id`, l'oracle de l'exécuteur le détectera — je ne peux pas anticiper une divergence de matérialisation.
+
+```json
+{
+  "game_id": "kitten_clicker",
+  "systemes": [
+    {
+      "id": "S1_boucle_de_clic",
+      "features": [
+        {
+          "id": "F1_production_au_clic",
+          "capacites": [
+            {
+              "id": "R1",
+              "capacite": "R1 Clic productif : cliquer la pelote centrale incremente le compteur de ronrons affiche d'exactement +1 par clic (assertion stricte compteur == n+1).",
+              "source_ref": "G1",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot lit le compteur, clique une fois, et asserte compteur_apres == compteur_avant + 1 (strict), sur plusieurs clics."
+              }
+            },
+            {
+              "id": "R2",
+              "capacite": "R2 Cible de clic unique : l'ecran presente exactement une pelote centrale cliquable comme interaction primaire.",
+              "source_ref": "X2",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "07_TESTS/oracle/core_layout_visual.gd en fenetre GPU asserte la presence d'une unique zone cliquable primaire au centre de l'ecran."
+              }
+            }
+          ]
+        },
+        {
+          "id": "F2_feedback_de_clic",
+          "capacites": [
+            {
+              "id": "R3",
+              "capacite": "R3 Feedback visuel de clic : chaque clic deforme/pulse la pelote ou fait s'envoler une particule ronron, visible a l'ecran.",
+              "source_ref": "V1",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "07_TESTS/oracle/core_click_visual.gd en fenetre GPU capture la trame au moment du clic et asserte un delta pixel non nul dans la zone de la pelote."
+              }
+            },
+            {
+              "id": "R4",
+              "capacite": "R4 Son de clic : chaque clic declenche un evenement sonore 'click' distinct, journalise par evenement.",
+              "source_ref": "A1",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "07_TESTS/oracle/core_audio.gd journalise un declenchement 'click' a chaque clic et l'oracle asserte sa presence dans le journal."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S2_production_passive",
+      "features": [
+        {
+          "id": "F3_generation_automatique",
+          "capacites": [
+            {
+              "id": "R5",
+              "capacite": "R5 Production passive : des qu'au moins un chaton est possede, le compteur de ronrons augmente a chaque tick sans interaction du joueur.",
+              "source_ref": "G2",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot achete 1 chaton, attend N ticks sans cliquer, et asserte que le compteur a strictement augmente."
+              }
+            },
+            {
+              "id": "R6",
+              "capacite": "R6 Tick deterministe : la production s'accumule sur un tick de jeu fixe, independant des evenements d'entree du joueur.",
+              "source_ref": "X3",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Un oracle avance le tick sans injecter d'entree et asserte que le compteur progresse uniquement en fonction du tick."
+              }
+            }
+          ]
+        },
+        {
+          "id": "F4_affichage_production",
+          "capacites": [
+            {
+              "id": "R7",
+              "capacite": "R7 Compteur affiche : le total de ronrons est rendu a l'ecran et se met a jour visiblement lorsqu'il change.",
+              "source_ref": "V4",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "07_TESTS/oracle/core_counter_visual.gd en fenetre GPU capture la zone du compteur avant et apres des clics et asserte que la valeur affichee a change."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S3_economie_achats",
+      "features": [
+        {
+          "id": "F5_achat_chatons",
+          "capacites": [
+            {
+              "id": "R8",
+              "capacite": "R8 Apparition d'un chaton achete : acheter un chaton fait apparaitre a l'ecran un sprite chaton absent avant l'achat.",
+              "source_ref": "G3",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "07_TESTS/oracle/core_buy_visual.gd en fenetre GPU capture l'ecran avant et apres l'achat et asserte l'apparition d'un nouveau sprite chaton (delta pixel dans la zone collection)."
+              }
+            },
+            {
+              "id": "R9",
+              "capacite": "R9 Cout croissant : chaque chaton successif d'un meme type coute strictement plus que le precedent (courbe monotone croissante).",
+              "source_ref": "G5",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot achete 3 chatons d'un meme type et asserte cout_2 > cout_1 et cout_3 > cout_2 (strict a chaque pas)."
+              }
+            },
+            {
+              "id": "R10",
+              "capacite": "R10 Son d'achat : chaque achat de chaton ou d'amelioration declenche un evenement sonore 'achat' distinct du son de clic.",
+              "source_ref": "A2",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "07_TESTS/oracle/core_audio.gd journalise un declenchement 'achat' a chaque achat et l'oracle asserte qu'il differe de l'etiquette 'click'."
+              }
+            }
+          ]
+        },
+        {
+          "id": "F6_ameliorations",
+          "capacites": [
+            {
+              "id": "R11",
+              "capacite": "R11 Amelioration efficace : acheter une amelioration fait passer le taux de production par tick a une valeur strictement superieure, visible a l'ecran.",
+              "source_ref": "G4",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot enregistre le taux/tick, achete une amelioration, et asserte nouveau_taux > ancien_taux (strict)."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S4_progression_paliers",
+      "features": [
+        {
+          "id": "F7_courbe_de_paliers",
+          "capacites": [
+            {
+              "id": "R12",
+              "capacite": "R12 Courbe de paliers variable : la courbe de paliers contient au moins 3 valeurs de seuil deux-a-deux distinctes (regle de variance).",
+              "source_ref": "L1",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot enumere les seuils de palier et asserte qu'il existe au moins 3 valeurs distinctes non triviales (cardinal de l'ensemble des seuils >= 3)."
+              }
+            }
+          ]
+        },
+        {
+          "id": "F8_solvabilite",
+          "capacites": [
+            {
+              "id": "R13",
+              "capacite": "R13 Solvabilite du 3e palier : un bot automatise atteint le 3e palier de progression en un nombre de ticks fini et borne explicitement (assertion stricte).",
+              "source_ref": "L2",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot joue au plus T ticks (T fini explicite) et asserte que l'index de palier atteint est egal a 3 avant expiration de la borne."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S5_meta_progression",
+      "features": [
+        {
+          "id": "F9_prestige",
+          "capacites": [
+            {
+              "id": "R14",
+              "capacite": "R14 Prestige : declencher le prestige reinitialise les compteurs de run mais confere un multiplicateur permanent qui persiste dans la run suivante.",
+              "source_ref": "L3",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot prestige, asserte que les compteurs de run reviennent a zero ET que le multiplicateur permanent a strictement augmente et est encore actif au debut de la run suivante."
+              }
+            },
+            {
+              "id": "R15",
+              "capacite": "R15 Fanfare de prestige : declencher le prestige joue un son 'prestige' distinct, portant a 4 le total d'etiquettes d'evenement distinctes (click, achat, deblocage, prestige).",
+              "source_ref": "A4",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "07_TESTS/oracle/core_audio.gd journalise un declenchement 'prestige' et l'oracle asserte 4 etiquettes d'evenement DISTINCTES au total (click, achat, deblocage, prestige)."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S6_collection_contenu",
+      "features": [
+        {
+          "id": "F10_registre_chatons",
+          "capacites": [
+            {
+              "id": "R16",
+              "capacite": "R16 Registre de chatons : au moins 6 chatons nommes sont declares, chacun etiquete d'un palier de rarete.",
+              "source_ref": "C1",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "03_WORLD/chatons.json liste au moins 6 entrees {name, rarity} ; un oracle asserte count >= 6 et au moins 2 raretes distinctes."
+              }
+            },
+            {
+              "id": "R17",
+              "capacite": "R17 Rarete lisible : chaque palier de rarete se rend avec une apparence de chaton visuellement distincte (forme, couleur ou taille) a l'ecran.",
+              "source_ref": "V2",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "07_TESTS/oracle/core_rarity_visual.gd en fenetre GPU rend un chaton par rarete et asserte que les sprites sont deux-a-deux distincts au pixel."
+              }
+            }
+          ]
+        },
+        {
+          "id": "F11_lieux",
+          "capacites": [
+            {
+              "id": "R18",
+              "capacite": "R18 Registre de lieux : au moins 2 lieux sont declares (refuge de depart plus au moins 1 debloque), chacun avec une identite visuelle propre.",
+              "source_ref": "C2",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "03_WORLD/lieux.json liste au moins 2 lieux avec descripteurs visuels distincts ; un oracle asserte count >= 2 et descripteurs non identiques."
+              }
+            },
+            {
+              "id": "R19",
+              "capacite": "R19 Lieux distincts a l'ecran : le refuge et chaque lieu debloque se rendent comme des scenes deux-a-deux visuellement distinctes.",
+              "source_ref": "V3",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "07_TESTS/oracle/core_lieu_visual.gd en fenetre GPU rend chaque lieu et asserte des captures deux-a-deux distinctes au pixel."
+              }
+            },
+            {
+              "id": "R20",
+              "capacite": "R20 Son de deblocage : chaque deblocage (nouveau chaton ou nouveau lieu) declenche un evenement sonore 'deblocage' distinct.",
+              "source_ref": "A3",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "07_TESTS/oracle/core_audio.gd journalise un declenchement 'deblocage' a chaque deblocage et l'oracle asserte sa presence et sa distinction."
+              }
+            }
+          ]
+        },
+        {
+          "id": "F12_objets",
+          "capacites": [
+            {
+              "id": "R21",
+              "capacite": "R21 Registre d'objets : au moins 3 objets distincts sont declares, chacun visible et identifiable a l'ecran.",
+              "source_ref": "C3",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "03_WORLD/objets.json liste au moins 3 objets avec identite visuelle distincte ; un oracle asserte count >= 3 et ids/descripteurs uniques."
+              }
+            }
+          ]
+        },
+        {
+          "id": "F13_album_collection",
+          "capacites": [
+            {
+              "id": "R22",
+              "capacite": "R22 Album de collection : un ecran de collection affiche les chatons possedes et les emplacements restants sous forme d'indicateur X sur N.",
+              "source_ref": "N1",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "07_TESTS/oracle/core_album_visual.gd en fenetre GPU asserte la presence d'un ecran de collection portant un indicateur X sur N mis a jour apres une acquisition."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S7_quetes",
+      "features": [
+        {
+          "id": "F14_journal_quetes",
+          "capacites": [
+            {
+              "id": "R23",
+              "capacite": "R23 Quetes affichees : au moins 3 petites quetes existent, chacune affichant son texte d'objectif et son etat d'avancement a l'ecran.",
+              "source_ref": "C4",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "07_TESTS/oracle/core_quests_visual.gd en fenetre GPU capture l'ecran et asserte la presence de 3 zones de quete portant chacune un texte d'objectif et un indicateur d'avancement."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S8_evenements_ambiance",
+      "features": [
+        {
+          "id": "F15_bonus_temporaire",
+          "capacites": [
+            {
+              "id": "R24",
+              "capacite": "R24 Bonus temporaire : un bonus a declenchement aleatoire multiplie la production pour une duree bornee, puis expire et revient a la ligne de base.",
+              "source_ref": "X1",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot detecte la fenetre de bonus active, asserte que la production est multipliee pendant la fenetre puis revient strictement a la valeur de base apres expiration."
+              }
+            }
+          ]
+        },
+        {
+          "id": "F16_ambiance_audio",
+          "capacites": [
+            {
+              "id": "R25",
+              "capacite": "R25 Ambiance idle : pendant l'inactivite, une boucle d'ambiance a faible volume joue sans signal d'urgence.",
+              "source_ref": "N2",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "07_TESTS/oracle/core_audio.gd journalise une boucle 'ambient' active durant l'idle et l'oracle asserte son etiquette distincte des 4 evenements."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S9_contrat_cosy",
+      "features": [
+        {
+          "id": "F17_absence_de_defaite",
+          "capacites": [
+            {
+              "id": "R26",
+              "capacite": "R26 Aucune defaite : le jeu n'expose aucune condition de defaite ni ecran de game-over atteignable a aucun moment.",
+              "source_ref": "G6",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Un oracle enumere les etats runtime atteignables et asserte qu'aucun etat etiquete defeat / game_over n'existe."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+**why_task_existed:**
+- **problem:** la chaîne Forge exige un arbre fonctionnel Système→Feature→capacité entre le Prisme (26 exigences) et l'archi/wiremap/build ; sans lui, les exigences amont ne sont ni décomposées ni tracées vers une preuve, et une omission passe silencieusement en aval (mode de panne récurrent : `[[green_tests_are_not_a_completion_criterion]]`, `[[proof_must_cross_the_boundary]]`).
+- **oracle:** `scripts/forge/check_decompo.mjs` (couverture + non-invention + complétude), adossé à `scripts/forge/upstream_schema.mjs::validateFeaturemap`.
+- **root_cause:** non applicable — activation par séquence de production Forge (dispatch `s3-decompo:kitten_clicker-20260821d:1`), pas par un défaut mesuré.
+- **action_reason:** produire la featuremap qui porte chacune des 26 exigences par ≥1 feuille, `expected_proof` hérité, aucun `source_ref` orphelin — répond directement au garde-fou « pas de feuille orpheline, jamais de preuve inventée ».
+- **result:** arbre 9 systèmes / 17 features / 26 feuilles ; couverture 26/26 ; 0 feuille non sourcée ; conformité structurelle établie par lecture des branches de l'oracle (reçu signé délégué à l'exécuteur, `run: aucun`).
+- **proof:** Read de `check_decompo.mjs`, `upstream_schema.mjs`, `SCHEMA.md` ; couverture croisée manuelle exigences↔feuilles (table ci-dessus) ; exécution de l'oracle non faite (permission `run: aucun`) — reportée en SKIPPED_VALIDATION.
+- **learning:** le champ `destination` du Prisme (X2→s5-wiremap, X3→s4-archi, X1/N1/N2→s3-decompo, reste→s9-build) n'est PAS un filtre de couverture pour `check_decompo` : la featuremap doit porter TOUTES les exigences, `destination` ne route que le consommateur final de la preuve. Un futur s3 ne doit pas se restreindre aux exigences `destination==s3-decompo`.
+- **next_reason:** chaîne causale FERMÉE pour cette étape — l'artefact est complet et conforme par construction ; le niveau supérieur (exécuteur) doit seulement matérialiser `featuremap.json` et exécuter `check_decompo.mjs --prisme prisme.json` pour sceller le reçu. Aucune cause non résolue ne persiste.
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

@@ -1,0 +1,118 @@
+The `Write` tool isn't available in this dispatch — as a blinded subagent, my response text *is* the report (`rapport_redteam_code.md`), and the deterministic parser reads the trailing ```json``` block from it. Here it is.
+
+---
+
+# Rapport red-team CODE — kitten_clicker-20260821c (s11-redteam-code)
+
+> Auditeur AVEUGLÉ : je n'ai pas lu les justifications du builder. Je consomme uniquement le diff de l'étape 9 (le code déposé sous `games/kitten_clicker/`) + la wiremap + le game_contract. Chaque faille cite une ancre statique déterministe (fichier:ligne) ou une reproduction exécutable par un oracle non-LLM en aval. Le red-team CRITIQUE ; il ne PROUVE pas et ne remplace aucun oracle. Advisory → `redteam_advisory`.
+
+Cible du charter attaquée : **« jouable plusieurs heures, méta-progression »** + ce que la **wiremap PROMET sans le prouver**.
+
+---
+
+## F1 — HIGH — « Jouable plusieurs heures » n'est prouvé par AUCUN oracle ; la seule preuve de progression s'arrête au PREMIER prestige
+
+**Angle** : promesse de charter non couverte (longévité / méta-progression).
+
+**Faille** : le charter promet « jouable plusieurs heures ». Le seul oracle qui touche la progression est la solvabilité (`solvability.gd`). Or le bot **s'arrête au tout premier franchissement de prestige** :
+- `solvability.gd:43-45` : `if s.prestige_mult > mult_avant: gagne = true; break`. La boucle casse dès le premier prestige (seuil 100 purrs) ; le budget `max_ticks=20000` n'est jamais consommé. « won » = « a atteint UN prestige », pas « joue des heures ».
+- `solvability_bot.gd:19,26` : `SEUIL_CIBLE = 100.0`.
+
+Aucun test (`tests/run_tests.gd`, 18 tests) ni oracle ne mesure une session longue ou une courbe sur la durée. Le contenu est structurellement borné et atteint en quelques minutes :
+- Collection (galerie R5, le « reason to keep playing ») = **5 chatons**, seuil max `UNLOCK_THRESHOLD[4]=400.0`, add-only permanent (`collection.gd:15,43-48`) → dès `purrs>=400` une fois, tout est débloqué à jamais (le prestige ne re-verrouille pas).
+- Économie = **3 producteurs** (`economy.gd:14`).
+
+La longévité repose entièrement sur répéter une boucle prestige (creuse, cf. F2) et **n'a aucun point de mesure**. Définition même de « la wiremap promet sans prouver ».
+
+**Reproduction** : ancre `solvability.gd:43-45` + `solvability_bot.gd:26` + `collection.gd:15`. Exécutable : `solvability.gd --seed=1 --max_ticks=20000` → `FORGE_TRIAL.ticks` correspond au 1er prestige (≪ budget) ; aucun trial ne mesure au-delà.
+
+---
+
+## F2 — MEDIUM — La méta-progression (prestige) est DÉCOUPLÉE du revenu passif : le multiplicateur permanent ne touche jamais l'idle
+
+**Angle** : cohérence de la méta-progression vs mécanique idle.
+
+**Faille** : `do_prestige` remet les producteurs à 0 et accorde `×1.5` permanent, mais ce multiplicateur **ne s'applique qu'au clic**, jamais au passif (l'axe dominant d'un idle) :
+- `prestige.gd:28-30` : `prestige_mult *= 1.5 ; purrs = 0 ; producer_counts = initial` (producteurs wipés).
+- `economy.gd:66-70` : `passive_rate = Σ counts[i]*BASE_RATE[i]` — **aucun `prestige_mult`**.
+- `game_state.gd:41-42` : `gain_par_clic = base_gain * prestige_mult` — SEUL consommateur ; `tick` (`game_state.gd:90`) applique le passif SANS `prestige_mult`.
+
+Effet net d'un prestige : perte de tous les purrs + producteurs (rachetés au **même coût de base**, `economy.gd:31` ne dépend que de `owned` remis à 0) contre un ×1.5 qui n'accélère que le clic manuel. La « méta-progression » récompense un axe secondaire et détruit l'axe principal.
+
+**Reproduction** : A avec `producer_counts=[5,0,0]` → `passive_rate=10` ; `B=do_prestige(A)` puis `B.producer_counts=[5,0,0]` → `passive_rate(B)==passive_rate(A)` (prestige n'a rien donné au passif). Ancres `economy.gd:66-70`, `game_state.gd:90`, `prestige.gd:28-30`.
+
+---
+
+## F3 — MEDIUM — Le bonus (R8) ne s'applique JAMAIS au clic et est totalement inerte sans producteur
+
+**Angle** : la wiremap R8 promet « clic → facteur de **gain** > 1 » ; le code n'applique le facteur qu'au passif.
+
+**Faille** :
+- `game_state.gd:90` : `purrs += taux * dt * bonus_factor` — le bonus multiplie le PASSIF.
+- `purr_action.gd:15` : `purrs += n * gain_par_clic()` — le clic **ignore `bonus_factor`** (et `gain_par_clic`, `game_state.gd:42`, ne le lit pas).
+
+Conséquence : caresser pendant la fenêtre de bonus ne rapporte rien de plus. En early game (0 producteur → `passive_rate=0`), cliquer l'objet-bonus est **strictement sans effet** (`2 × 0`). R8 « facteur de gain » laisse attendre un boost du geste central ; le code ne le fait pas. `test_bonus_event` (`kitten_clicker.test.gd:97-115`) vérifie la valeur de `bonus_factor` et l'absence de décrément, jamais qu'un clic pendant le bonus rapporte plus → promesse non prouvée.
+
+**Reproduction** : `s=initial(1)` (0 producteur), `s.time_s=12` ; `s2=click_bonus(s)`→`bonus_factor==2` ; `s3=apply_purr(s2,10)`→`s3.purrs==10*gain_par_clic` (identique à `bonus=1`) ; `tick(s2,1)`→`purrs` inchangé. Ancres `purr_action.gd:15`, `game_state.gd:90,42`.
+
+---
+
+## F4 — MEDIUM — Les preuves de la wiremap citent « 73 passed » alors que le harnais invoqué EXIGE 104 (`EXPECTED_ASSERTS`)
+
+**Angle** : proof text non dérivé de la réalité.
+
+**Faille** : `tests/run_tests.gd:13` fixe `EXPECTED_ASSERTS := 104` et force META FAIL si le total ≠ 104 (`run_tests.gd:60-62`) ; le `constat_run` annonce « 104 passed ». Or **chaque** `preuve` de `09_WIREMAP/wiremap.json` cite `run_tests.gd headless 73 passed/0 failed` (≥14 occurrences : lignes 164, 201, 240, 277, 348, 492, 527, 562, 597, 632, 667, 702, 776, 811) et le corps de test se dit « 73 assertions » (`kitten_clicker.test.gd:6`). Les deux nombres sont contradictoires : à 73 la garde META FAIL ; à 104 les textes wiremap ne sont pas dérivés du run. Chiffre périmé recopié — mode de panne visé par `knowledge_base/proposals/forge.proof_text_must_be_derived.yaml`.
+
+**Reproduction** (statique) : `grep -c "73 passed" .../09_WIREMAP/wiremap.json` (≥14) vs `EXPECTED_ASSERTS` = 104 dans `tests/run_tests.gd`. Assertion : nombre cité doit == `EXPECTED_ASSERTS` ; 73 ≠ 104. Ancres `run_tests.gd:13`, `wiremap.json:164`, `kitten_clicker.test.gd:6`.
+
+---
+
+## F5 — LOW — Le plafond hors-ligne (3600) aplatit toute absence de « plusieurs heures » à ~30 min
+
+**Angle** : prémisse idle « plusieurs heures » vs cap offline.
+
+**Faille** : `OFFLINE_CAP=3600.0` (`offline_gains.gd:12`), `compute=min(rate*D, cap)` (`:19-27`). Avec le producteur de base (2/s, `economy.gd:16`) le cap est atteint en 30 min ; avec le haut (200/s) en 18 s. 2 h, 6 h ou 12 h d'absence rendent exactement la même chose que 30 min. Choix de balance → fog, pas un bug.
+
+**Reproduction** : `compute(2.0,1800)==3600` ; `compute(2.0,7200)==3600` ; `compute(2.0,43200)==3600` (2h==12h). Ancre `offline_gains.gd:12,19-27`.
+
+---
+
+## F6 — LOW — `persistence.from_dict` fait confiance à la longueur des tableaux persistés → lecture hors-borne sur sauvegarde malformée
+
+**Angle** : robustesse de la désérialisation (enveloppe impure non couverte par les oracles purs).
+
+**Faille** : `persistence.gd:39-40` recopie `producer_counts` / `collection_unlocked` tels quels, sans valider leur longueur contre les rosters. Un `producer_counts` de longueur 4 → `economy.gd:69` indexe `PRODUCER_BASE_RATE[3]` (taille 3) hors-borne ; un `collection_unlocked` plus long → `game_state.gd:101-104` indexe `KITTEN_IDS[i]`/`KITTEN_RARITY[i]` (taille 5) hors-borne. Non atteignable par le jeu normal, mais `persistence` lit un fichier `user://` externe non validé (`persistence.gd:78-91`) et aucun test ne couvre `from_dict` à mauvaise taille.
+
+**Reproduction** : `Persistence.from_dict({"producer_counts":[0,0,0,0],"seed_value":1})` puis `Economy.passive_rate(s)` → hors-borne sur `PRODUCER_BASE_RATE`. Ancres `persistence.gd:39`, `economy.gd:69`, `game_state.gd:101-104`.
+
+---
+
+## Rapport final (software / evidence / claim séparés)
+
+- **software_verdict** : *hors autorité du red-team* — je critique, je ne prouve pas. Aucun verdict OK/FAIL/BLOCKED émis ici (advisory → `redteam_advisory`). L'autorité reste le verdict signé du driver + les oracles non-LLM.
+- **evidence_verdict** : `MECHANICAL_VALIDATION_ONLY` pour les ancres statiques (fichier:ligne re-lisibles par un parseur non-LLM). Les reproductions sont exécutables par un oracle en aval mais **je ne les ai pas exécutées** (`run: aucun`).
+- **claim_verdict** : `NO_CLAIM_ALLOWED`.
+- **fog (→ HumanGate Pierre)** : F1 (aucun oracle de longévité — portée/balance), F2 (couplage prestige↔passif — intention de design), F5 (valeur du cap). F3 et F4 sont **mesurables** par oracle en aval (repro fournie), pas du fog.
+
+### SKIPPED_VALIDATION
+- **item** : exécution effective des repros F1–F6 · **où** : `games/kitten_clicker/` · **statut** : non fait · **raison** : contrat red-team `run: aucun` (+ aucun outil d'exécution/écriture disponible dans ce dispatch) — je fournis des repros pour un oracle non-LLM en aval.
+- **item** : volets visuels GPU (R5/R9, `07_TESTS/oracle/*.gd`) · **où** : `main_screen`, `gallery_view` · **statut** : partiel (code `_draw` lu, pas de capture) · **raison** : preuve pixel = oracle produit (fenêtre GPU), hors de mes permissions.
+- **item** : meta-oracle de mutation (survivants « dans des commentaires ») · **où** : chaîne driver · **statut** : non fait · **raison** : hors périmètre (code produit du jeu seulement) ; déjà signalé en fog amont.
+- **item** : roundtrip persistence impur complet (horloge `Time`, fichier `user://`) · **où** : `persistence.gd:59-91` · **statut** : partiel · **raison** : enveloppes impures non testables sans exécution ; seul le noyau pur a été audité (F6).
+
+### RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2 §3)
+- **why_task_existed** :
+  - `problem` : non transmis explicitement — mission constatée : red-teamer le build contre le charter « jouable plusieurs heures / méta-progression » et débusquer ce que la wiremap promet sans prouver.
+  - `oracle` : activation par décision humaine (étape s11 du run), pas par un oracle rouge (solvabilité/mutation/e2e verts côté driver).
+  - `root_cause` : non établie côté produit (aucun bug bloquant) ; côté PREUVE, cause de F1/F4 = la couverture d'oracles prouve les mécaniques en isolation et le franchissement d'UN prestige, jamais la longévité promise ni la dérivation fidèle des textes de preuve.
+  - `action_reason` : produire un rapport de failles indépendant, chaque faille accrochée à une ancre non-LLM ou une repro exécutable, pour alimenter `redteam_advisory`.
+- **result** : 6 failles (1 HIGH, 3 MEDIUM, 2 LOW). Aucune n'est un crash du jeu normal ; F1 attaque la promesse-titre non prouvée, F2/F3 des écarts méca↔promesse, F4 un drift de proof text, F5/F6 des angles balance/robustesse.
+- **proof** : ancres statiques déterministes par faille (`solvability.gd:43-45`, `economy.gd:66-70`, `purr_action.gd:15` vs `game_state.gd:90`, `run_tests.gd:13` vs `wiremap.json:164`). Repros exécutables fournies pour F1–F6 ; **non exécutées** (`run: aucun`).
+- **learning** : sur un idle zéro-perte, « solvable » = atteint UN prestige ≠ « jouable des heures » ; un oracle de solvabilité qui `break` au premier succès ne mesure pas la longévité vendue. Un multiplicateur de prestige qui n'irrigue pas le passif rend la méta-progression cosmétique. À réutiliser : exiger un oracle de LONGÉVITÉ distinct de la solvabilité quand le charter promet une durée de jeu.
+- **next_reason** : chaîne OUVERTE vers HumanGate — F1/F2/F5 = décisions de portée/balance (fog Pierre) ; F3/F4 = écarts mesurables qu'un oracle en aval peut confirmer avant tout verdict. Aucune correction n'est de mon ressort (red-team ne corrige pas). Escalade justifiée : promesse de charter non couverte par un oracle + proof text non dérivé.
+
+```json
+{"findings": [{"angle": "longevite / promesse charter 'plusieurs heures'", "faille": "Aucun oracle ne mesure la longevite 'plusieurs heures' : la seule preuve de progression (solvability.gd) casse au premier prestige (seuil 100 purrs) sans consommer le budget max_ticks=20000, et le contenu est borne (5 chatons plafonnes a 400 purrs, 3 producteurs). La wiremap/charter promet des heures de jeu, aucun point de mesure ne l'etablit.", "severite": "HIGH", "reproduction": "Ancre: games/kitten_clicker/solvability.gd:43-45 (break au 1er prestige) + solvability_bot.gd:26 (SEUIL_CIBLE=100) + collection.gd:15 (5 chatons, plafond 400). Executable: lancer solvability.gd --seed=1 --max_ticks=20000, lire FORGE_TRIAL.ticks == 1er prestige (<< budget)."}, {"angle": "coherence meta-progression vs idle", "faille": "Le multiplicateur permanent de prestige n'affecte que le clic (gain_par_clic) et jamais la production passive (passive_rate ignore prestige_mult) ; do_prestige remet aussi les producteurs a zero (rachat au meme cout de base). Dans un idle ou le passif domine, la meta-progression recompense un axe secondaire tout en detruisant l'axe principal : boucle creuse.", "severite": "MEDIUM", "reproduction": "Ancres: prestige.gd:28-30 (reset producteurs), economy.gd:66-70 (passive_rate sans prestige_mult), game_state.gd:41-42 et 90 (prestige_mult consomme seulement par le clic). Oracle: A.producer_counts=[5,0,0] -> passive_rate=10 ; B=do_prestige puis B.producer_counts=[5,0,0] -> passive_rate(B)==passive_rate(A) (prestige n'a rien donne au passif)."}, {"angle": "wiremap R8 'facteur de gain' vs implementation", "faille": "Le facteur de bonus multiplie uniquement la production passive (game_state.gd:90) et jamais le gain de clic (purr_action.gd:15 ignore bonus_factor). Un clic pendant la fenetre de bonus ne rapporte rien de plus, et cliquer l'objet-bonus sans producteur est strictement sans effet (passif nul x2 = 0). La promesse R8 'clic -> facteur de gain > 1' n'est pas tenue pour le geste de clic et non couverte par test_bonus_event.", "severite": "MEDIUM", "reproduction": "Ancres: purr_action.gd:15 (clic sans bonus_factor), game_state.gd:90 (bonus sur passif seul). Oracle: s=initial(1) sans producteur, s.time_s=12 ; s2=click_bonus(s) -> bonus_factor==2 ; s3=apply_purr(s2,10) -> s3.purrs==10*gain_par_clic (identique a bonus=1) ; tick(s2,1) -> purrs inchange (passif nul)."}, {"angle": "proof text non derive de la realite", "faille": "Toutes les preuves de 09_WIREMAP/wiremap.json citent 'run_tests.gd headless 73 passed/0 failed' (>=14 occurrences) et le corps de test se dit '73 assertions', alors que le harnais impose EXPECTED_ASSERTS=104 (run_tests.gd:13, force META FAIL si total!=104) et que le constat_run rapporte 104 passed. Un re-run a 73 echouerait la garde ; les textes de preuve wiremap sont un chiffre perime recopie, pas un releve du run reel.", "severite": "MEDIUM", "reproduction": "Statique: grep -c '73 passed' games/kitten_clicker/09_WIREMAP/wiremap.json (>=14) vs grep EXPECTED_ASSERTS games/kitten_clicker/tests/run_tests.gd (=104). Assertion de derivation: nombre cite dans preuve[*] doit == EXPECTED_ASSERTS ; 73 != 104. Ancres: run_tests.gd:13, wiremap.json:164, kitten_clicker.test.gd:6."}, {"angle": "cap hors-ligne vs premisse 'plusieurs heures'", "faille": "OFFLINE_CAP=3600 : le retour hors-ligne (principal appat d'un idle) est plafonne a 3600 purrs, atteint en 30 min avec le producteur de base (2/s) et 18 s avec le haut (200/s). 2 h, 6 h ou 12 h d'absence rendent exactement la meme chose que 30 min, contredisant la promesse de longevite.", "severite": "LOW", "reproduction": "Ancre: offline_gains.gd:12,19-27. Oracle: OfflineGains.compute(2.0,1800)==3600 ; compute(2.0,7200)==3600 ; compute(2.0,43200)==3600 (2h==12h)."}, {"angle": "robustesse deserialisation", "faille": "persistence.from_dict recopie producer_counts et collection_unlocked sans valider leur longueur contre les rosters (economy 3 / collection 5). Un tableau persiste plus long (save editee/corrompue) provoque une lecture hors-borne dans Economy.passive_rate (PRODUCER_BASE_RATE[i]) ou GameState.project (KITTEN_IDS[i]), erreur runtime. Non atteignable par le jeu normal, mais persistence lit un fichier user:// externe non valide.", "severite": "LOW", "reproduction": "Ancres: persistence.gd:39, economy.gd:69, game_state.gd:101-104. Oracle: Persistence.from_dict({'producer_counts':[0,0,0,0],'seed_value':1}) puis Economy.passive_rate(s) -> lecture hors-borne sur PRODUCER_BASE_RATE (taille 3)."}]}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le charter promet 'jouable plusieurs heures / meta-progression' mais aucun oracle ne mesure la longevite : la solvabilite s'arrete au premier prestige et le contenu est borne ; le multiplicateur de prestige n'irrigue pas le passif (meta-progression creuse pour un idle), le bonus ne s'applique jamais au clic, et les textes de preuve de la wiremap citent 73 assertions la ou le harnais en exige 104.", "root_cause": "La couverture d'oracles prouve les mecaniques en isolation et le franchissement d'UN prestige, jamais la duree de jeu promise ; et les proof texts wiremap ne sont pas derives du run reel."}

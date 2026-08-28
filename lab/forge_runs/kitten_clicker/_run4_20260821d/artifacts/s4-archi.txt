@@ -1,0 +1,155 @@
+I now have everything needed: the exact 17 feature ids, both oracles' mechanics, and the standard Godot topology. Key mechanical facts that drive the design:
+
+- **`check_architecture` (post-build)**: `modules = set(blueprint["modules"])`; a violation source is `_module_of(path) = parts[0]` (**first-level dir only**), while an import *target* is any `res://` path segment. So only forbidden edges whose **source is a real first-level directory** (`05_SYSTEMS`, `03_WORLD`, `06_RUNTIME`, `07_TESTS`) can ever fire.
+- **`check_blueprint_contract` (pre-build, my oracle)**: requires `responsabilites[]` covering **all 17 features**, both ends of every `deps_interdites` pair ∈ modules, no cycle, and no declared dependency that is also forbidden.
+- **Standard topology (Snake wiremap)**: logic = `05_SYSTEMS/`, render/input/loop = `06_RUNTIME/adapters/{presentation,input_adapter,runtime_loop}/`, data = `03_WORLD/`, proofs = `07_TESTS/`.
+
+The friction: the standard collapses *rendu* and *input* into `06_RUNTIME`, so expressing the two mandated distinct forbidden edges (logique→rendu **and** logique→input) requires naming the adapter sub-concerns `presentation` and `input_adapter` as modules — they serve as catchable import-*target* tokens whose source (`05_SYSTEMS`) is a real first-level dir.
+
+---
+
+## RAPPORT FINAL — s4-archi / kitten_clicker-20260821d
+
+### software_verdict / evidence_verdict / claim_verdict
+
+- **software_verdict: BLOCKED** — je ne peux PAS exécuter `check_blueprint_contract.mjs` (permissions `run: aucun`, Bash désactivé). Le blueprint est produit et conçu prédicat-par-prédicat pour PASSER, mais aucune exécution d'oracle n'a eu lieu dans ce contexte. Le verdict définitif appartient à l'exécuteur qui matérialise `blueprint.json` puis lance l'oracle.
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — portée limitée : j'ai *tracé mécaniquement* chaque règle en LISANT la source (`check_blueprint_contract.mjs` l.118-233, `upstream_schema.mjs::featureIds` l.250-258, `static_oracles.check_architecture` l.198-260, `repo_map.yaml`). Ce n'est pas une exécution.
+- **claim_verdict: NO_CLAIM_ALLOWED** — aucun oracle exécuté ⇒ pas d'auto-certification. **fog HumanGate** : l'exécuteur doit lancer `node scripts/forge/check_blueprint_contract.mjs <run_dir>/blueprint.json --featuremap <run_dir>/featuremap.json` et confirmer VERDICT=OK avant s5.
+
+### Ancres non-LLM citées (lues, non exécutées)
+- `featureIds()` extrait les ids de **feature** (F1…F17), pas système ni capacité → `couvre` cite des `F*` exacts. Vérifié contre `featuremap.json` (17 features).
+- `check_architecture` : `_module_of = rel.parts[0]` → sources fire-ables = dossiers de 1er niveau réels. Mes deux arêtes mandatées ont pour source `05_SYSTEMS` (dossier réel) → non vacantes.
+- `repo_map.yaml` : racines figées `05_SYSTEMS/ 06_RUNTIME/ 03_WORLD/ 07_TESTS/` ; adaptateurs `06_RUNTIME/adapters/{id}/` → `presentation`, `input_adapter` sont des segments de chemin `res://` réels (tokens d'import catchables).
+
+### Couverture featuremap (17/17)
+| Feature | Module(s) couvrant |
+|---|---|
+| F1 clic productif | 05_SYSTEMS (incrément) + input_adapter (capture) |
+| F2 feedback clic | presentation |
+| F3 génération auto | 05_SYSTEMS (calcul/tick) + 06_RUNTIME (avance le tick) |
+| F4 affichage prod. | presentation |
+| F5 achat chatons | 05_SYSTEMS |
+| F6 améliorations | 05_SYSTEMS |
+| F7 courbe paliers | 05_SYSTEMS |
+| F8 solvabilité | 05_SYSTEMS (atteignable) + 07_TESTS (bot le prouve) |
+| F9 prestige | 05_SYSTEMS |
+| F10 registre chatons | 03_WORLD |
+| F11 lieux | 03_WORLD |
+| F12 objets | 03_WORLD |
+| F13 album | presentation |
+| F14 quêtes | presentation |
+| F15 bonus temporaire | 05_SYSTEMS (règle) + 06_RUNTIME (minuteur) |
+| F16 ambiance audio | presentation |
+| F17 absence de défaite | 05_SYSTEMS |
+
+**Features non couvertes : aucune. Couvertures fantômes : aucune** (tous les ids de `couvre` existent dans `featuremap.json`).
+
+### Graphe de dépendances (acyclique, vérifié par lecture de `detecterCycles`)
+`03_WORLD → ∅` · `input_adapter → ∅` · `05_SYSTEMS → [03_WORLD]` · `presentation → [05_SYSTEMS, 03_WORLD]` · `06_RUNTIME → [05_SYSTEMS, 03_WORLD, presentation, input_adapter]` · `07_TESTS → [tous]`. Aucun arc remontant → **pas de cycle**. Aucune `dependance` n'appartient à `deps_interdites` (vérifié pair-à-pair).
+
+### deps_interdites (non vide, sources = dossiers 1er niveau réels ⇒ fire-ables)
+- `05_SYSTEMS → presentation` (**logique↛rendu**, mandaté)
+- `05_SYSTEMS → input_adapter` (**logique↛input**, mandaté)
+- `05_SYSTEMS → 06_RUNTIME` (renfort : logique↛couche runtime/scène)
+- `03_WORLD → 05_SYSTEMS` / `03_WORLD → 06_RUNTIME` / `03_WORLD → presentation` (les données déclaratives = feuille pure)
+
+### SKIPPED_VALIDATION
+- **item** : exécution de `check_blueprint_contract.mjs` · **où** : ce blueprint vs `featuremap.json` · **statut** : NON FAIT · **raison** : permission `run: aucun` + Bash désactivé dans ce contexte. Conformité tracée par lecture de source uniquement.
+- **item** : `forge.static_oracles.check_architecture` · **où** : `games/kitten_clicker` · **statut** : NON APPLICABLE ICI · **raison** : oracle d'APRÈS-build sur `src` vide → vacuement vert, ce n'est pas mon oracle (contrat, section ORACLES).
+
+### RETURN LINEAGE
+- **why_task_existed** :
+  - `problem` : le run doit prouver que l'intention amont atteint réellement l'architecture ; s4 doit produire un blueprint gelé couvrant la featuremap (17 features) sans cycle. (hérité du charter/dispatch)
+  - `oracle` : `check_blueprint_contract.mjs` (avant-build) — activation par la chaîne Forge, pas par une mesure de défaut.
+  - `root_cause` : non applicable (étape planifiée de la chaîne, pas réparation d'un échec).
+  - `action_reason` : un blueprint conçu contre chaque prédicat de l'oracle + les deux séparations mandatées répond exactement au besoin de couverture/anti-cycle.
+- **result** : blueprint (6 modules, 6 arêtes interdites, 6 responsabilités, 17/17 features couvertes, acyclique) prêt à matérialiser. Oracle NON exécuté (run interdit).
+- **proof** : lecture de `check_blueprint_contract.mjs` l.118-233 + `upstream_schema.mjs::featureIds` + `featuremap.json` (17 features) + `static_oracles.py::_module_of/check_architecture`. Aucune commande lancée (permission `run: aucun`).
+- **learning** : sous topologie STANDARD, `_module_of=parts[0]` fait que seule une arête interdite dont la SOURCE est un dossier de 1er niveau réel peut jamais se déclencher ; *rendu* et *input* partageant `06_RUNTIME`, les deux séparations mandatées ne sont exprimables/catchables qu'en déclarant `presentation` et `input_adapter` (segments `res://` réels) comme modules-cibles. Contrainte à honorer par s5/s9 : logique sous `05_SYSTEMS/`, rendu/input sous `06_RUNTIME/adapters/{presentation,input_adapter}/`.
+- **next_reason** : la lignée continue normalement vers s5-wiremap — MAIS un maillon reste ouvert : l'exécuteur doit lancer `check_blueprint_contract` (je ne le peux pas) et Pierre/HumanGate confirme le gel du blueprint. Escalade = cette exécution manquante, pas un défaut de conception.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "sous la topologie STANDARD, check_architecture derive le module source d'une violation via parts[0] (dossier de 1er niveau) ; rendu et input partageant 06_RUNTIME, les deux separations mandatees logique->rendu et logique->input ne sont exprimables ET fire-ables qu'en declarant les sous-concerns d'adaptateur presentation/input_adapter comme modules-cibles, granularite que le libelle 'premier niveau' du contrat n'anticipe pas", "root_cause": "_module_of=rel.parts[0] dans static_oracles.check_architecture combine a la collision physique rendu+input dans 06_RUNTIME/adapters du standard Godot"}
+
+```json
+{
+  "modules": ["05_SYSTEMS", "06_RUNTIME", "03_WORLD", "07_TESTS", "presentation", "input_adapter"],
+  "deps_interdites": [
+    ["05_SYSTEMS", "presentation"],
+    ["05_SYSTEMS", "input_adapter"],
+    ["05_SYSTEMS", "06_RUNTIME"],
+    ["03_WORLD", "05_SYSTEMS"],
+    ["03_WORLD", "06_RUNTIME"],
+    ["03_WORLD", "presentation"]
+  ],
+  "ownership": {
+    "05_SYSTEMS": "Logique de jeu pure : economie (ronrons, couts croissants), production au clic et passive, ameliorations, courbe de paliers, solvabilite, prestige/meta, bonus temporaire, contrat cosy (aucune defaite). Aucune I/O, aucun rendu, aucun input, aucune horloge.",
+    "06_RUNTIME": "Coquille runtime : composition de scene principale, boucle de tick bornee, cablage logique<->adaptateurs, minuterie du bonus. Ne decide d'aucune regle.",
+    "03_WORLD": "Donnees declaratives de contenu (chatons.json, lieux.json, objets.json) — feuille pure du graphe, ne depend d'aucun code.",
+    "07_TESTS": "Oracles deterministes non-LLM + bot de solvabilite pilotant le canal d'entree public — preuve, jamais experience joueur.",
+    "presentation": "Adaptateur de rendu (06_RUNTIME/adapters/presentation) : affichage compteur, sprites chatons par rarete, lieux, album X/N, journal de quetes, feedback visuel de clic, playback audio par evenement. LIT l'etat, ne decide de rien.",
+    "input_adapter": "Adaptateur d'entree (06_RUNTIME/adapters/input_adapter) : traduit l'InputEvent (clic pelote) en action normalisee. Canal unique partage par le joueur et le bot de solvabilite ; la logique n'y touche jamais."
+  },
+  "responsabilites": [
+    {
+      "module": "05_SYSTEMS",
+      "responsabilite": "Toute la logique de jeu pure, decomposee en sous-systemes nommes (economie, production, upgrades, progression/paliers, prestige, evenements, contrat cosy) — deterministe, sans rendu ni input ni I/O.",
+      "couvre": ["F1_production_au_clic", "F3_generation_automatique", "F5_achat_chatons", "F6_ameliorations", "F7_courbe_de_paliers", "F8_solvabilite", "F9_prestige", "F15_bonus_temporaire", "F17_absence_de_defaite"],
+      "dependances": ["03_WORLD"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Un harnais headless exerce la logique pure et asserte STRICTEMENT : compteur == n+1 par clic, cout_{k+1} > cout_k, taux/tick strictement superieur apres amelioration, index de palier == 3 en au plus T ticks (T fini borne), multiplicateur de prestige strictement croissant et persistant apres reset des compteurs de run ; aucun etat runtime etiquete defeat/game_over. check_architecture (apres build) confirme qu'aucun fichier de 05_SYSTEMS n'importe presentation, input_adapter ni 06_RUNTIME."
+      }
+    },
+    {
+      "module": "06_RUNTIME",
+      "responsabilite": "Coquille runtime : scene principale, boucle de tick bornee a 1 tick/trame, cablage de la logique aux adaptateurs, minuterie du bonus temporaire. Aucune regle de jeu propre.",
+      "couvre": ["F3_generation_automatique", "F15_bonus_temporaire"],
+      "dependances": ["05_SYSTEMS", "03_WORLD", "presentation", "input_adapter"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "La scene principale lancee avance le tick sans intervention : des qu'au moins un chaton est possede, le compteur de ronrons croit au fil des ticks ; la fenetre de bonus temporaire s'ouvre puis expire avec retour STRICT a la production de base."
+      }
+    },
+    {
+      "module": "03_WORLD",
+      "responsabilite": "Registres declaratifs du contenu : chatons (nommes + rarete), lieux (refuge + debloques), objets. Donnees inertes lues par la logique et le rendu.",
+      "couvre": ["F10_registre_chatons", "F11_lieux", "F12_objets"],
+      "dependances": [],
+      "preuve_attendue": {
+        "kind": "file_write",
+        "statement": "03_WORLD/chatons.json (>=6 entrees {name, rarity}, >=2 raretes distinctes), 03_WORLD/lieux.json (>=2 lieux, descripteurs visuels non identiques), 03_WORLD/objets.json (>=3 objets, ids/descripteurs uniques) existent ; un oracle asserte les cardinaux et la distinction."
+      }
+    },
+    {
+      "module": "07_TESTS",
+      "responsabilite": "Oracles deterministes non-LLM (variance des paliers, audio, absence de defaite) et bot de solvabilite pilotant le canal d'entree public.",
+      "couvre": ["F8_solvabilite"],
+      "dependances": ["05_SYSTEMS", "03_WORLD", "06_RUNTIME", "presentation", "input_adapter"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "07_TESTS/oracle/solvability.* pilote le MEME canal d'entree que le joueur et asserte index_palier == 3 (egalite STRICTE, jamais >=) en un nombre de ticks fini borne explicitement ; le harnais est cable dans la commande d'oracle du projet (verifie par check_solvability_wired)."
+      }
+    },
+    {
+      "module": "presentation",
+      "responsabilite": "Adaptateur de rendu pur (LIT l'etat, ne decide rien) : compteur, sprites chatons differencies par rarete, lieux distincts, album X/N, journal de quetes (objectif + avancement), feedback visuel de clic, playback d'un son distinct par evenement.",
+      "couvre": ["F2_feedback_de_clic", "F4_affichage_production", "F13_album_collection", "F14_journal_quetes", "F16_ambiance_audio"],
+      "dependances": ["05_SYSTEMS", "03_WORLD"],
+      "preuve_attendue": {
+        "kind": "visual",
+        "statement": "En fenetre GPU reelle, deux captures a deux etats distincts different d'au moins 1 pixel dans la zone concernee : pulsation de la pelote au clic, compteur qui change, sprite chaton apparu apres achat, album X/N mis a jour, >=3 zones de quete avec objectif + avancement ; en parallele 07_TESTS/oracle/core_audio.gd journalise 4 declenchements DISTINCTS (click, achat, deblocage, prestige) + ambiance idle."
+      }
+    },
+    {
+      "module": "input_adapter",
+      "responsabilite": "Adaptateur d'entree : traduit l'InputEvent (clic sur la pelote centrale) en action normalisee. Canal unique partage par le joueur et le bot ; la logique ne connait ni evenement moteur ni peripherique.",
+      "couvre": ["F1_production_au_clic"],
+      "dependances": [],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Une action de clic emise sur le canal d'entree public produit exactement +1 ronron via la logique (compteur == n+1, strict) ; canal neutralise => 0 effet (falsification directe, jamais un vert silencieux)."
+      }
+    }
+  ]
+}
+```

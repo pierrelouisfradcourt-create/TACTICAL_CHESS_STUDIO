@@ -1,0 +1,96 @@
+I now have everything I need. The charter oracle is `static_oracles.check_charter` (scripts/forge/static_oracles.py:1111), executed advisory by the executor's `_materialize_yaml` (run_real.py:1311), which writes `charter.yaml` from the **last valid ```yaml block**. The exact schema: 3 non-empty strings (`objectif`, `plateforme_cible`, `reference_jeu`) + 4 non-empty lists of non-empty strings (`hors_scope`, `criteres_succes`, `actions_interdites`, `criteres_demo`), no « à définir » (accent/case-insensitive). Both design-intent fields have a traceable Pierre source (`design_intent.md`, 2026-08-21).
+
+---
+
+## RAPPORT FINAL — s0-contrat (kitten_clicker-20260821g)
+
+**Sources lues** : `scripts/forge/contracts/SCHEMA.md` · `scripts/forge/contracts/s0-contrat.yaml` · `lab/forge_runs/kitten_clicker/design_intent.md` (design-intent de Pierre) · l'oracle réel `static_oracles.check_charter` + le matérialiseur `run_real._materialize_yaml`. `lab/forge_runs/kitten_clicker/PROJECT_BIBLE.md` **n'existe pas** (premier run complet) → j'ai utilisé `design_intent.md`, qui EST une source Pierre valide, à sa place.
+
+**Verdicts (séparés)**
+- **software_verdict: OK** — charter.yaml rédigé, **7/7 champs requis remplis**, conformité tracée champ par champ contre les règles exactes de `static_oracles.check_charter` (static_oracles.py:1111-1156).
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — l'oracle `check_charter` est déterministe non-LLM et sera **exécuté par le matérialiseur** `_materialize_yaml` sur le fichier écrit (run_real.py:1311, reçu advisory joint). Je ne l'ai **pas exécuté moi-même** (permissions `run: aucun`, aucun outil d'exécution dans ce contexte) ; ma vérification est une trace manuelle déterministe et reproductible contre le code source, pas une exécution.
+- **claim_verdict: NO_CLAIM_ALLOWED**.
+
+**Oracle cité** : `forge.static_oracles.check_charter` (schéma R7 : 3 chaînes + 4 listes non vides, rejet de tout « à définir »).
+
+**Flous du prompt — résolus vs remontés**
+- *Résolus, source Pierre tracée* : `reference_jeu` = « Cookie Clicker + Neko Atsume » (design_intent.md l.3, Pierre 2026-08-21 + tâche de dispatch Pierre 2026-08-22) · `plateforme_cible` = Godot 4.6.3 desktop fenêtre GPU (design_intent.md l.4) · tout le contenu exigé (6 chatons nommés, 2 lieux, 3 objets, 3 quêtes, 4 sons événementiels, feedback clic, courbe de paliers à ≥3 valeurs, bot au 3e palier) est explicitement porté par la tâche de dispatch (Pierre).
+- *Remontés en fog HumanGate* : **aucun bloquant**. Point d'honnêteté (pas un fog décisionnel) : `check_charter` **n'évalue aucune provenance** de `reference_jeu` (limite assumée, static_oracles.py:1126) — la provenance Pierre est ici résolue par source tracée, donc pas remontée.
+
+**RETURN LINEAGE** (FORGE_CAUSAL_LINEAGE_V2 §3)
+- **why_task_existed** :
+  - *problem* : le run `full_godot_content` (décision Pierre 2026-08-22, run complet par composition) démarre par s0 ; `charter.yaml` est consommé en aval par s2-worldscan, s2.6, s3, s4, s5, s6 — sans lui, ces étapes partent aveugles.
+  - *oracle* : aucun — activation par **décision humaine** (Pierre, 2026-08-22).
+  - *root_cause* : non applicable — s0 est le point d'entrée de la chaîne, pas la correction d'un défaut mesuré.
+  - *action_reason* : rédiger un charter complet 7 champs est exactement ce que s0 doit produire pour alimenter la chaîne amont.
+- **result** : `charter.yaml` rédigé, 7/7 champs remplis, conforme aux règles de `check_charter` (trace manuelle).
+- **proof** : aucune commande exécutée (`run: aucun`) ; vérification = trace déterministe contre `static_oracles.check_charter` (static_oracles.py:1111-1156) ; l'exécution mécanique aura lieu dans `_materialize_yaml` (run_real.py:1311).
+- **learning** : l'exécuteur matérialise `charter.yaml` depuis le **dernier bloc YAML fencé** de la sortie s0 (`_materialize_yaml`, régie `_FENCED_YAML`) ; le validateur exige 3 chaînes (`objectif`, `plateforme_cible`, `reference_jeu`) + 4 listes non vides (`hors_scope`, `criteres_succes`, `actions_interdites`, `criteres_demo`) et rejette « à définir » normalisé accents/casse — d'où bloc UNIQUE et terminal, valeurs de liste toujours guillemetées.
+- **next_reason** : **chaîne causale FERMÉE pour s0** — charter produit et conforme, aucun défaut non résolu ; la suite du profil (s2-worldscan) enchaîne par ordre normal, pas par escalade.
+
+**SKIPPED_VALIDATION**
+- *item* : exécution de l'oracle `check_charter` — *où* : charter.yaml de ce run — *statut* : non fait par moi — *raison* : `run: aucun` + aucun outil d'exécution dans ce contexte de sous-agent ; remplacé par une trace manuelle déterministe contre le code source. Exécution réelle assurée par `_materialize_yaml`.
+- *item* : vérification mécanique de la provenance Pierre de `reference_jeu` — *où* : champ `reference_jeu` — *statut* : non vérifiable mécaniquement (fait de gate, pas de schéma) — *raison* : `check_charter` n'évalue aucune provenance (static_oracles.py:1126) ; provenance tracée à `design_intent.md` (Pierre) + tâche de dispatch (Pierre) — résolue par source, pas remontée en fog.
+
+Charter (bloc terminal, matérialisé en `charter.yaml`) :
+
+```yaml
+objectif: >-
+  Produire un clicker de chatons mignons jouable plusieurs heures sur Godot 4.6.3
+  desktop, dans l'esprit Cookie Clicker (boucle incrementale, production passive,
+  paliers) croise Neko Atsume (collection de chatons, attractivite, identite
+  mignonne). Boucle principale : CLICK -> RONRONS -> CHATONS -> PRODUCTION
+  AUTOMATIQUE -> AMELIORATIONS -> NOUVEAUX CHATONS / LIEUX -> META-PROGRESSION
+  (prestige) coherente. Le jeu doit VIVRE a l'ecran (chatons nommes, lieux, objets,
+  quetes, sons evenementiels, feedback au clic) et etre SOLVABLE (un bot atteint le
+  3e palier en un nombre de ticks fini).
+plateforme_cible: "Godot 4.6.3 desktop (fenetre GPU, rendu reel — jamais headless)"
+reference_jeu: "Cookie Clicker (boucle incrementale / progression / paliers) + Neko Atsume (collection de chatons / attractivite / identite mignonne) — modele choisi par Pierre, source lab/forge_runs/kitten_clicker/design_intent.md (2026-08-21) et tache de dispatch (2026-08-22)"
+hors_scope:
+  - "Pas de multijoueur ni de composante en ligne (jeu solo hors-ligne)"
+  - "Pas de monetisation, microtransactions ni publicite"
+  - "Pas de portage web ni mobile pour ce run (cible desktop uniquement)"
+  - "Pas de 3D : le jeu est en 2D"
+  - "Pas de mode histoire / campagne narrative au-dela des petites quetes du refuge"
+  - "Pas de sauvegarde cloud ni de synchronisation de comptes"
+  - "Pas de generation procedurale de contenu infinie au-dela du contenu specifie"
+  - "Aucune modification de src/, tests/, autopilot.py ni de la lane STUDIO gelee"
+criteres_succes:
+  - "Le compteur de ronrons augmente strictement (+N) a chaque clic — assertion stricte, jamais un >= tautologique"
+  - "Au moins un chaton achete devient visible dans le refuge"
+  - "La production automatique fait strictement monter les ronrons sans aucun clic"
+  - "Au moins une amelioration augmente strictement le taux de production par seconde"
+  - "La meta-progression (prestige) debloque au moins un second lieu"
+  - "Le jeu contient au moins 6 chatons nommes, 2 lieux, 3 objets et 3 quetes"
+  - "La courbe de paliers porte au moins 3 valeurs de seuil distinctes (regle de variance des metriques)"
+  - "Un bot joueur atteint le 3e palier en un nombre de ticks fini (solvabilite prouvee, non tautologique)"
+  - "Chaque evenement (clic, achat, deblocage, prestige) declenche un son distinct, journalise par 07_TESTS/oracle/core_audio.gd"
+  - "L'oracle de code (mutation + solvabilite) et les six oracles du standard passent au vert sans faux-vert"
+actions_interdites:
+  - "Ne jamais toucher src/, tests/, autopilot.py, scripts/studioV2/ ni la lane STUDIO gelee"
+  - "Aucun git commit ni push : la decision de merge/reject/freeze appartient a HumanGate (Pierre)"
+  - "Aucune courbe de paliers a variance nulle : les seuils doivent porter au moins 3 valeurs distinctes"
+  - "Aucun test a assertion tautologique (>=) : asserter le comportement strict (le compteur tue vraiment, coins == n+1)"
+  - "Aucun champ « a definir », vide ou evasif dans les artefacts produits"
+  - "Pas de logique de jeu dans les scripts d'UI (regle .claude/rules/godot-scripts)"
+  - "Aucun son purement decoratif : chaque son doit etre declenche par son evenement propre"
+  - "Aucune fonction GDScript de plus de 50 lignes sans decoupage (regle godot-scripts)"
+  - "Aucun chemin absolu ni chemin de poste : chemins relatifs au repo root uniquement, open() en encoding utf-8"
+  - "Aucun appel a une API Anthropic externe ; aucun fichier temporaire laisse en place"
+criteres_demo:
+  - "Le compteur de ronrons affiche a l'ecran augmente visiblement a chaque clic sur la pelote centrale"
+  - "Apres un achat, un nouveau chaton apparait visiblement dans le refuge a l'ecran"
+  - "Le compteur de ronrons continue de monter a l'ecran sans aucun clic (production automatique visible)"
+  - "Apres l'achat d'une amelioration, le taux de production par seconde affiche a l'ecran augmente visiblement"
+  - "Un bot joueur fait avancer visiblement l'indicateur de palier a l'ecran (jauge de progression qui monte)"
+  - "Au moins 6 chatons NOMMES, chacun avec une identite visuelle distincte selon sa rarete (sprite/couleur reconnaissable a l'ecran)"
+  - "Au moins 2 lieux visitables : le refuge de depart plus au moins 1 lieu debloque par la meta-progression"
+  - "Au moins 3 objets distincts visibles a l'ecran (jouets, accessoires ou meubles du refuge)"
+  - "Au moins 3 petites quetes dont l'objectif et la progression sont affiches a l'ecran"
+  - "Un son DISTINCT pour chacun des evenements clic, achat, deblocage et prestige, declenche par l'evenement lui-meme (audio procedural accepte ; preuve = 07_TESTS/oracle/core_audio.gd avec journal des declenchements)"
+  - "Un feedback visuel immediat au clic (animation, particule ou rebond de la pelote visible a l'ecran)"
+  - "Une courbe de paliers portant au moins 3 valeurs distinctes (regle de variance : les seuils de palier ne sont pas identiques)"
+  - "Un bot atteint le 3e palier en un nombre de ticks fini (solvabilite prouvee, non tautologique)"
+```
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

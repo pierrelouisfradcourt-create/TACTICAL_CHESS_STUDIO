@@ -1,0 +1,343 @@
+{
+ "claim_verdict": "NO_CLAIM_ALLOWED",
+ "decision": "BLOCKED",
+ "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
+ "git_head": "3843d7b93d7ff324e6761bdb76b7e4e065b2746e",
+ "hmac": "ba54577492d0255691bd9324aae9d018b0884903b352a64f8fe076e0eb5e9f9c",
+ "humangate_flags": [
+  "standard rouge: violation",
+  "red-team dégradé: reviewer indépendant n'a pas tourné (fallback)"
+ ],
+ "is_game": true,
+ "nonce": "1770b8f7b203b541369eda215b8c13bb",
+ "oracles": {
+  "archi": {
+   "detail": {
+    "debordements_ownership": {
+     "checked": false,
+     "items": []
+    },
+    "deps_interdites_violées": [],
+    "modules_sans_test": [
+     "02_ENTITIES"
+    ],
+    "passed": true
+   },
+   "evidence_path": "",
+   "evidence_sha256": "",
+   "oracle_id": "archi",
+   "run_id": "kitten_clicker-20260821g",
+   "status": "OK",
+   "ts": 1787409552.5403981
+  },
+  "code": {
+   "detail": {
+    "e2e": {
+     "passed": true,
+     "raisons": []
+    },
+    "evidence_seal": {
+     "evidence_path": "lab/forge_runs/kitten_clicker/evidence/oracle_kitten_clicker.log",
+     "reason": "FLUX_D_EXPLOITATION_IGNORE_PAR_GIT",
+     "sealed": false
+    },
+    "harness_no_hardcoded_flags": {
+     "passed": true,
+     "raisons": []
+    },
+    "oracle_measures": {
+     "mecanique": true,
+     "solvabilite": {
+      "failed_seeds": [],
+      "lost": 0,
+      "project": "games/kitten_clicker",
+      "trials": 20,
+      "verdict": "OK",
+      "won": 20
+     }
+    },
+    "product_oracle_godot_activation": {
+     "active": false,
+     "godot_capacity_present": true,
+     "proof_descriptor_present": false,
+     "reason": "aucun descripteur `proof:` bien formé dans game_contract.yaml"
+    },
+    "reason": "fichiers logiques inconnus (ni logic_files ni wiremap.json) — preuve mutation impossible ; hypothèse inconnue = BLOCKED",
+    "regime_preuve": "historique",
+    "returncode": 0,
+    "reuse_ratio_wired": {
+     "passed": false,
+     "raisons": [
+      "run-oracle.mjs absent"
+     ]
+    },
+    "search_consulted": {
+     "count": 1,
+     "passed": true,
+     "raisons": []
+    },
+    "solvability": {
+     "checked": true,
+     "passed": false,
+     "raisons": [
+      "run-oracle.mjs absent",
+      "solvability.mjs absent"
+     ]
+    },
+    "solvability_mesure": {
+     "mesure": "cablage_du_harnais",
+     "ne_mesure_pas": "la solvabilite du jeu (won/trials) — un `passed: true` ne prouve AUCUNE partie gagnee",
+     "resultat_reel": "non remonte au recu : voir evidence/oracle_<jeu>.log, NON versionne (.gitignore:81)"
+    }
+   },
+   "evidence_path": "lab/forge_runs/kitten_clicker/evidence/oracle_kitten_clicker.log",
+   "evidence_sha256": "",
+   "oracle_id": "code",
+   "run_id": "kitten_clicker-20260821g",
+   "status": "BLOCKED",
+   "ts": 1787409552.4317029
+  },
+  "standard": {
+   "detail": {
+    "missing": [
+     "C:\\TACTICAL_CHESS_STUDIO\\games\\kitten_clicker/00_CHARTER/game_contract.yaml absent ou illisible"
+    ],
+    "reason": "entrée(s) requise(s) absente(s)/illisible(s) pour l'oracle standard — hypothèse inconnue = BLOCKED"
+   },
+   "evidence_path": "",
+   "evidence_sha256": "",
+   "oracle_id": "standard",
+   "run_id": "kitten_clicker-20260821g",
+   "status": "BLOCKED",
+   "ts": 1787409552.9313886
+  },
+  "wiremap": {
+   "detail": {
+    "amont_traversal": {
+     "claim_verdict": "NO_CLAIM_ALLOWED",
+     "facts": {
+      "boucles_recompense": {
+       "addresses": [
+        "worldscan:games[0].loops.minute_1",
+        "worldscan:games[0].loops.minute_10",
+        "worldscan:games[0].loops.hour_5",
+        "worldscan:games[0].loops.endgame",
+        "worldscan:games[1].loops.minute_1",
+        "worldscan:games[1].loops.minute_10",
+        "worldscan:games[1].loops.hour_5",
+        "worldscan:games[1].loops.endgame",
+        "gm_worldscan:dimensions[2]",
+        "gm_worldscan:dimensions[4]",
+        "gm_worldscan:dimensions[5]"
+       ],
+       "exigences": [
+        "EX02",
+        "EX03",
+        "EX04",
+        "EX05",
+        "EX06",
+        "EX07",
+        "EX12",
+        "EX13",
+        "EX14",
+        "EX17",
+        "EX18",
+        "EX20",
+        "EX21"
+       ],
+       "files_present": true,
+       "leaves": [
+        "clk_click_entry",
+        "clk_click_increment",
+        "clk_click_response",
+        "prod_passive_ronrons",
+        "shop_buy_kitten_entry",
+        "shop_buy_kitten_effect",
+        "shop_buy_upgrade_entry",
+        "shop_buy_upgrade_effect",
+        "ref_kitten_appears",
+        "ref_rarity_visual",
+        "prog_objective_next",
+        "meta_prestige_entry",
+        "meta_prestige_unlock_place",
+        "coll_collection_hud",
+        "quest_panel_display",
+        "fb_click_pelote_anim",
+        "fb_event_sounds"
+       ],
+       "lines": [
+        "input.pelote",
+        "input.acheter_chaton",
+        "input.acheter_amelioration",
+        "input.prestige",
+        "core.purrs",
+        "core.shop",
+        "core.prestige",
+        "render.hud",
+        "render.refuge",
+        "render.click_response",
+        "render.quests",
+        "entity.kitten",
+        "entity.pelote",
+        "audio.events",
+        "asset.wool_ball",
+        "asset.kitten_tabby_common",
+        "asset.kitten_gray_common",
+        "asset.kitten_calico_common",
+        "asset.kitten_tuxedo_rare",
+        "asset.kitten_siamese_rare",
+        "asset.kitten_golden_legendary",
+        "asset.rarity_frame_set",
+        "asset.place_garden_unlocked",
+        "asset.upgrade_icon_set",
+        "asset.click_feedback_pop",
+        "asset.ui_panel_frame",
+        "oracle.main_screen_render",
+        "oracle.gallery_render",
+        "oracle.core_audio",
+        "core.main_loop",
+        "core.input",
+        "core.game_state",
+        "core.render",
+        "core.audio"
+       ],
+       "produced": true,
+       "reached": "BUILD"
+      },
+      "conditions_defaite": {
+       "addresses": [],
+       "exigences": [],
+       "files_present": null,
+       "leaves": [],
+       "lines": [],
+       "produced": false,
+       "reached": "NOT_PRODUCED"
+      },
+      "conditions_victoire": {
+       "addresses": [],
+       "exigences": [],
+       "files_present": null,
+       "leaves": [],
+       "lines": [],
+       "produced": false,
+       "reached": "NOT_PRODUCED"
+      },
+      "contraintes_narratives": {
+       "addresses": [
+        "story_bible:sections[0]",
+        "story_bible:sections[4]",
+        "story_bible:sections[7]"
+       ],
+       "exigences": [
+        "EX08",
+        "EX09"
+       ],
+       "files_present": true,
+       "leaves": [
+        "content_kittens_registry",
+        "content_locations_registry"
+       ],
+       "lines": [
+        "content.registries",
+        "asset.refuge_start"
+       ],
+       "produced": true,
+       "reached": "BUILD"
+      },
+      "objectifs_joueur": {
+       "addresses": [
+        "worldscan:games[0].objectives[0].player_goal",
+        "worldscan:games[1].objectives[0].player_goal"
+       ],
+       "exigences": [
+        "EX01",
+        "EX23"
+       ],
+       "files_present": true,
+       "leaves": [
+        "prog_objective_permanent",
+        "state_no_defeat"
+       ],
+       "lines": [
+        "core.no_defeat",
+        "render.hud",
+        "asset.ui_panel_frame",
+        "oracle.main_screen_render",
+        "core.boot",
+        "core.end_condition",
+        "core.exit",
+        "core.error_handling"
+       ],
+       "produced": true,
+       "reached": "BUILD"
+      },
+      "progression": {
+       "addresses": [
+        "gm_worldscan:dimensions[1]"
+       ],
+       "exigences": [
+        "EX15",
+        "EX16"
+       ],
+       "files_present": true,
+       "leaves": [
+        "prog_paliers_variance",
+        "prog_solvability"
+       ],
+       "lines": [
+        "core.paliers",
+        "core.progression",
+        "runtime.godot_project"
+       ],
+       "produced": true,
+       "reached": "BUILD"
+      }
+     },
+     "references": {
+      "adressables": 20,
+      "expected": 20,
+      "non_resolues": [],
+      "resolues": 20
+     },
+     "stages": [
+      "NOT_PRODUCED",
+      "PRODUCED",
+      "PRISME",
+      "GREY_BLOCKS",
+      "WIREMAP",
+      "BUILD"
+     ],
+     "verdict": "ADVISORY"
+    },
+    "features_manquantes": [],
+    "fonctions_renommées": [],
+    "obsoletes": [],
+    "passed": true,
+    "preuves_absentes": []
+   },
+   "evidence_path": "",
+   "evidence_sha256": "",
+   "oracle_id": "wiremap",
+   "run_id": "kitten_clicker-20260821g",
+   "status": "OK",
+   "ts": 1787409552.8095903
+  }
+ },
+ "project": "kitten_clicker",
+ "provenance_ok": true,
+ "redteam_advisory": [
+  "[MEDIUM] LONGUEUR / variance des paliers — Le plafond de palier (PALIER_SEUILS max=30.0, game_state.gd:23) est egal au seuil de prestige (PRESTIGE_SEUIL=30.0, game_state.gd:18) et le palier se calcule sur cumul (paliers.gd:13) qui ne redescend jamais (prestige.reset_courant ne remet que ronrons, prestige.gd:27) : des cumul>=30 (~30 clics a CLIC_GAIN=1.0) le palier est fige a 3 (variance nulle), au meme instant ou le prestige s'ouvre ; rien ne scale au-dela, la cible 'plusieurs heures' n'a aucun appui parametrique. (repro: solvability.gd:63-79 atteint deja palier 3 en SETTLE(20)+30 frames en cliquant seul ; oracle non-LLM : Paliers.palier(cumul) constant=3 pour cumul in {31,100,10000} et assertion statique max(PALIER_SEUILS)==PRESTIGE_SEUIL.)",
+  "[MEDIUM] COHERENCE monde-mecanique (registres) — objects.json et locations.json sont charges au boot (render.gd:180-181) puis jamais consommes : aucun _registres.get('objects'/'locations') en aval ; le jardin est code en dur (render.gd:103), pas lu du registre. Deux des quatre registres du monde sont decoratifs. (repro: grep -rn 'get(\"objects\"' et 'get(\"locations\"' games/kitten_clicker => 0 consommateur hors du load render.gd:180-181.)",
+  "[MEDIUM] COHERENCE monde-mecanique (chatons) — shop.acheter_chaton (shop.gd:18-26) n'incremente que des compteurs chatons/types sans jamais referencer d'id de chaton ; cout (shop.gd:9-10) et production (game_state.gd:14 CHATON_PROD plate 0.2) sont identiques pour tous ; la rarete (kittens.json:3-8) ne sert qu'a choisir un sprite dans l'ordre d'achat (render.gd:92-96). Les 6 chatons distincts sont cosmetiques, la collection est un simple compteur. (repro: statique : shop.gd ne contient aucun id/rarete ; oracle non-LLM : Shop.cout_chaton(e) et Purrs.taux(e) independants du type collecte (fonction de e['chatons']/e['ameliorations'] seuls).)",
+  "[MEDIUM] ASSETS (rendu prouve) — Le rendu des sprites n'est exerce par aucun oracle : solvability.gd (solvability.gd:67-79) ne clique que 'pelote' et lit le Label 'palier', n'achete jamais de chaton ni prestige, donc kitten.gd:21 (load svg), render.gd:103 (jardin) et render.gd:135 (fond) ne sont jamais executes ni assertes ; tests/run_tests.gd:29-49 n'execute que des tests de logique pure RefCounted incapables de toucher une texture. 'SVG charges ET rendus' est non prouve (bien que les .import existent). (repro: statique : solvability.gd ne reference ni nb_chatons_affiches (render.gd:204) ni _fond ni aucune assertion de texture ; oracle absent qui declenche acheter_chaton puis asserte nb_chatons_affiches()>0 et _fond.texture!=null.)",
+  "[MEDIUM] COHERENCE monde-mecanique (quetes) — Aucun systeme de regle de quete n'existe (pas de quetes.gd) : quest_panel.afficher_quetes (quest_panel.gd:28-34) ne fait qu'afficher min(etat[mesure],cible)/cible ; rien ne marque une completion, n'accorde de recompense ou ne conditionne quoi que ce soit. De plus q_click 'Caresse la pelote 10 fois' est mesure par cumul (quests.json:3) qui croit aussi par production passive (purrs.gd:24-27) : le texte ne correspond pas a la metrique. (repro: grep -rn 'quest' games/kitten_clicker/05_SYSTEMS => 0 ; oracle non-LLM : satisfaire une cible de quete ne modifie aucun etat hors le compteur deja miroite ; q_click.mesure=='cumul' alors que le texte promet un compte de clics.)",
+  "[LOW] AUDIO (evenement->son) — Le cablage audio reel (render.gd:73-89) rend les 4 sons joignables par inspection, mais le seul oracle qui joue main.tscn (solvability.gd) ne declenche que 'pelote'->'clic' : achat/deblocage/prestige ne sont jamais emis sur le chemin reel par un oracle (la preuve '4 sons distincts' vient d'un harnais separe), et le franchissement de palier est silencieux (aucun Audio.jouer dans progression.gd). (repro: statique : solvability.gd ne declenche que 'pelote' ; oracle non-LLM : jouer main.tscn, executer chaque affordance et asserter Audio.sons_distincts() (audio.gd:131-136) == {clic,achat,deblocage,prestige} + qu'un franchissement de palier ajoute une entree (echoue : aucun son de palier).)",
+  "[LOW] AFFICHAGE / temps — render._process avance 1 tick par FRAME (render.gd:59-61) et Purrs.taux est un debit par tick (purrs.gd:19-21) ; le HUD l'affiche sous l'etiquette 'Prod/s' (hud.gd:28). A 60 fps la production reelle/seconde vaut taux*60 : l'etiquette 'par seconde' est fausse et la production passive depend du frame-rate (non deterministe en temps reel). (repro: statique : hud.gd:28 etiquette 'Prod/s' la valeur par-tick v['taux'] (purrs.gd:19), avancee 1 tick/frame (render.gd:61) ; oracle non-LLM : comparer taux au delta de ronrons sur 1s reelle => ecart = frame-rate.)"
+ ],
+ "redteam_ran": false,
+ "redteam_reviewer": "claude-opus-4-8",
+ "run_id": "kitten_clicker-20260821g",
+ "scope": "FULL",
+ "software_verdict": "BLOCKED",
+ "ts": 1787410074.605941
+}

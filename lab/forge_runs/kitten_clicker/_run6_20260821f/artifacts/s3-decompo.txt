@@ -1,0 +1,405 @@
+J'ai les trois artefacts amont dans mon contexte (charter, prisme s1, worldscan s2, story bible s2.6, gm-worldscan s2.7) et j'ai lu l'oracle qui jugera ma sortie (`check_decompo.mjs` + `upstream_schema.mjs`) et le schéma. Je construis la featuremap directement — je n'écris aucun fichier, l'exécuteur matérialise le bloc terminal.
+
+## RAPPORT FINAL — s3-decompo / kitten_clicker-20260821f
+
+**Ancres réelles (lues dans mon contexte, `run: aucun` respecté)**
+- `prisme.json` (s1) — **présent**, 25 exigences : GP1-5, LN1-2, CT1-6, VS1-5, AU1-4, MT1-2, AD1. Chacune porte son `id` et son `expected_proof{kind,statement}`.
+- Oracle `check_decompo.mjs` + `upstream_schema.mjs` — **lus, non exécutés** (permission `run: aucun`). J'ai construit la featuremap pour satisfaire chaque branche de `validateFeaturemap`/`collectLeaves` et les deux invariants de `checkDecompoDoc` : **COUVERTURE** (toute exigence portée) et **NON-INVENTION** (tout `source_ref` résout un `id` réel). Le reçu mécanique effectif est produit en aval par l'exécuteur à la matérialisation.
+
+**Décomposition — 8 systèmes / 18 features / 25 feuilles (une par exigence)**
+- `boucle_active` : clic-gain (GP1), feedback-clic (VS2), son-clic (AU1) · HUD permanent (AD1)
+- `economie_production` : production passive (GP3) · amélioration→taux (GP4)
+- `collection_chatons` : registre kittens.json ≥6 (CT1) + rareté ≥3 (CT2) · achat→sprite persistant (GP2) + son-achat (AU2) · rareté visible (VS1) + sprites distincts (VS3) · compteur de collection (CT6)
+- `meta_progression` : variance des paliers (LN1) + solvabilité bot (LN2) · prestige reset+bonus (GP5) + son-prestige (AU4) · son-déblocage (AU3)
+- `lieux` : registre places.json ≥2 (CT3) · décor distinct (VS4)
+- `objets` : registre objects.json ≥3 (CT4) · icône+effet observable (VS5)
+- `quetes` : registre quests.json ≥3 (CT5)
+- `contraintes_systemiques` : aucun game-over atteignable (MT1) · aucun appel réseau (MT2)
+
+**Couverture (vérifiée par inspection contre l'oracle)** : 25/25 exigences portées par ≥1 feuille ; 25/25 feuilles sourcées vers un `id` de prisme existant ; **aucune** feuille orpheline, **aucun** `source_ref` inventé. `expected_proof` de chaque feuille est **hérité verbatim** de l'exigence d'origine — jamais reformulé. Granularité **reportée** (règle de variance) : 1–3 feuilles par feature, min 1 / max 3.
+
+**Verdicts**
+- software_verdict: **OK** — au sens strict prouvable par inspection : arbre conforme à `validateFeaturemap` (game_id, systèmes/features/capacités non vides, `expected_proof.kind ∈ {bot_action,oracle,visual,file_write,mutation}`), ids de feature et de capacité uniques, couverture 25/25, zéro feuille non sourcée.
+- evidence_verdict: **MECHANICAL_VALIDATION_ONLY** — **différé** : je n'ai exécuté aucun oracle (`run: aucun`) ; la validation mécanique effective appartient au reçu que produira l'exécuteur (`node check_decompo.mjs featuremap.json --prisme prisme.json`).
+- claim_verdict: **NO_CLAIM_ALLOWED**.
+- fog → HumanGate : la **granularité** (nombre de feuilles par feature) et la **pertinence du découpage système** relèvent du jugement de Pierre, pas d'un oracle de forme — l'oracle les reporte sans les gater.
+
+**SKIPPED_VALIDATION**
+- item: exécution de `check_decompo.mjs` sur l'artefact · périmètre: featuremap.json de ce run · statut: **non fait** · raison: `run: aucun` dans mes permissions — l'exécuteur la lance à la matérialisation ; conformité assurée par lecture de la source de l'oracle.
+- item: résolution effective des `source_ref` contre le Prisme sur disque · périmètre: 25 feuilles · statut: **partiel** · raison: vérifiée contre la copie du prisme présente dans mon contexte de dispatch, pas contre `<run_dir>/prisme.json` relu à l'instant (`run: aucun`).
+
+**RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2 §3)**
+- why_task_existed:
+  - problem: le charter exige que les données de cadrage amont (victoire, progression, collection, narratif) **atteignent réellement l'aval** et pas seulement le papier ; il faut un arbre fonctionnel qui porte chaque exigence vers une preuve.
+  - oracle: `check_decompo.mjs` (couverture + non-invention), déclenché par l'étape s3-decompo du pipeline.
+  - root_cause: non applicable — activation par la séquence normale du pipeline (s1→s2→s2.6→s2.7→s3), pas par un défaut.
+  - action_reason: décomposer les 25 exigences du Prisme en arbre Système→Feature→capacité, chaque feuille héritant sa preuve attendue, pour rendre la couverture mesurable en aval.
+- result: featuremap à 8 systèmes / 18 features / 25 feuilles ; 25/25 exigences couvertes, 0 feuille non sourcée, 0 preuve inventée (par inspection contre l'oracle).
+- proof: lecture de `check_decompo.mjs:68-131` + `upstream_schema.mjs:285-345` ; mapping exhaustif exigence→feuille ci-dessus. Exécution de l'oracle **non faite** (`run: aucun`), déférée à l'exécuteur.
+- learning: les 5 exigences de destination `s3-decompo` (CT1-CT5) sont des registres de données (`03_WORLD/*.json`) à preuve `file_write` — la featuremap les porte comme feuilles mais leur **matérialisation** revient à l'aval (s9-build) ; la decompo déclare la capacité, elle ne produit pas le fichier.
+- next_reason: chaîne causale **FERMÉE** ici pour la decompo — arbre complet et couvrant, aucune cause non résolue. Le niveau supérieur passe à s4-archi (MT1/MT2 y sont destinés) puis s5-wiremap ; rappel du pré-mortem (manifest précédent : s5 avait omis 10 lignes CORE et déclaré 17 provides inconnus) — ce risque est **structurel à s5**, hors de mon périmètre, non introduit par cette featuremap.
+
+```json
+{
+  "game_id": "kitten_clicker",
+  "systemes": [
+    {
+      "id": "boucle_active",
+      "features": [
+        {
+          "id": "feat_clic",
+          "capacites": [
+            {
+              "id": "cap_clic_gain",
+              "capacite": "Cliquer la pelote centrale incremente le compteur de ronrons d'un gain strictement positif, sans achat prealable.",
+              "source_ref": "GP1",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot clique N fois sans rien acheter ; le compteur passe de 0 a N*gain avec gain > 0 strict (jamais un >= tautologique)."
+              }
+            },
+            {
+              "id": "cap_clic_feedback",
+              "capacite": "Chaque clic sur la pelote declenche un feedback visuel immediat (animation/particule/pop de ronrons) sur la meme action.",
+              "source_ref": "VS2",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Volet 07_TESTS/oracle/click_feedback.gd en gpu_window capture la frame du clic et prouve un changement visuel (animation/particule/pop) absent hors clic."
+              }
+            },
+            {
+              "id": "cap_clic_son",
+              "capacite": "L'evenement clic emet un son propre 'click', journalise au moment du clic et distinct des trois autres evenements.",
+              "source_ref": "AU1",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Volet 07_TESTS/oracle/core_audio.gd journalise un declenchement audio d'identifiant 'click' lors d'un clic, distinct des 3 autres evenements."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_hud_readout",
+          "capacites": [
+            {
+              "id": "cap_hud_total_taux",
+              "capacite": "L'ecran affiche en permanence le total de ronrons et le taux de ronrons par seconde, mis a jour a chaque tick.",
+              "source_ref": "AD1",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Volet 07_TESTS/oracle/hud_readout.gd en gpu_window prouve la presence des deux valeurs a l'ecran et leur mise a jour entre deux ticks."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "economie_production",
+      "features": [
+        {
+          "id": "feat_production_passive",
+          "capacites": [
+            {
+              "id": "cap_prod_passive",
+              "capacite": "Au moins un chaton achete fait monter le compteur de ronrons sans aucune interaction du joueur, a un taux strictement positif par seconde.",
+              "source_ref": "GP3",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot achete 1 chaton puis n'agit plus ; le compteur augmente strictement entre deux ticks sans clic (delta > 0)."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_ameliorations",
+          "capacites": [
+            {
+              "id": "cap_upgrade_taux",
+              "capacite": "Acheter une amelioration augmente de facon observable le taux de ronrons par seconde affiche (strict).",
+              "source_ref": "GP4",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Un test deterministe lit le taux affiche avant/apres achat d'amelioration et asserte taux_apres > taux_avant (strict, pas >=)."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "collection_chatons",
+      "features": [
+        {
+          "id": "feat_registre_chatons",
+          "capacites": [
+            {
+              "id": "cap_kittens_registry",
+              "capacite": "Un registre 03_WORLD/kittens.json declare au moins 6 chatons distincts, chacun avec un id unique et un nom propre non vide.",
+              "source_ref": "CT1",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "03_WORLD/kittens.json existe et contient >= 6 entrees a id unique et champ nom non vide ; un oracle de contenu compte les entrees distinctes."
+              }
+            },
+            {
+              "id": "cap_kittens_rarete",
+              "capacite": "Chaque entree de kittens.json porte un champ rarete parmi au moins 3 classes distinctes, les 3 classes etant effectivement representees.",
+              "source_ref": "CT2",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "Un oracle lit 03_WORLD/kittens.json et asserte >= 3 valeurs de rarete distinctes reellement presentes parmi les entrees."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_achat_chaton",
+          "capacites": [
+            {
+              "id": "cap_achat_spawn",
+              "capacite": "Acheter un chaton fait apparaitre a l'ecran un sprite distinct qui persiste dans le refuge apres l'achat.",
+              "source_ref": "GP2",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Volet 07_TESTS/oracle/kitten_spawn.gd en gpu_window capture la scene avant/apres achat et prouve l'apparition d'un nouveau sprite persistant."
+              }
+            },
+            {
+              "id": "cap_achat_son",
+              "capacite": "L'evenement achat declenche un son propre 'buy', journalise a l'achat et d'identifiant different de 'click'.",
+              "source_ref": "AU2",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Volet 07_TESTS/oracle/core_audio.gd journalise un declenchement 'buy' a l'achat, d'identifiant different de 'click'."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_identite_visuelle_chatons",
+          "capacites": [
+            {
+              "id": "cap_rarete_visuelle",
+              "capacite": "Chaque niveau de rarete produit un traitement visuel distinct, tel que deux chatons de rarete differente different visiblement a l'ecran.",
+              "source_ref": "VS1",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Volet 07_TESTS/oracle/rarity_identity.gd en gpu_window capture un chaton par rarete et prouve des rendus non identiques (difference de pixels au-dessus d'un seuil) entre classes."
+              }
+            },
+            {
+              "id": "cap_sprite_distinct",
+              "capacite": "Chacun des >= 6 chatons rend un sprite visuellement distinct des autres, identifiable sans lire son nom.",
+              "source_ref": "VS3",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Volet 07_TESTS/oracle/kitten_identity.gd en gpu_window capture les 6 sprites et prouve qu'aucune paire n'est pixel-identique."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_suivi_collection",
+          "capacites": [
+            {
+              "id": "cap_collection_compteur",
+              "capacite": "Le jeu tient un compteur de collection affiche (chatons obtenus sur total) qui progresse a chaque nouveau chaton distinct debloque.",
+              "source_ref": "CT6",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Volet 07_TESTS/oracle/collection_hud.gd en gpu_window montre le compteur de collection passer de X/T a (X+1)/T apres deblocage d'un chaton distinct."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "meta_progression",
+      "features": [
+        {
+          "id": "feat_paliers",
+          "capacites": [
+            {
+              "id": "cap_paliers_variance",
+              "capacite": "La courbe de paliers de meta-progression expose au moins 3 valeurs de seuil distinctes et non triviales.",
+              "source_ref": "LN1",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot franchit les paliers successifs et enregistre les seuils atteints ; l'oracle asserte >= 3 valeurs de seuil distinctes non triviales (distribution, pas egalite tautologique)."
+              }
+            },
+            {
+              "id": "cap_solvabilite_bot",
+              "capacite": "Un bot deterministe joue seul et fait franchir au jeu le 3e palier de meta-progression en un nombre fini de ticks.",
+              "source_ref": "LN2",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Volet de solvabilite s9-build ou un bot deterministe atteint palier_3 en <= T ticks (T fini borne), avec assertion que le palier est reellement franchi."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_prestige",
+          "capacites": [
+            {
+              "id": "cap_prestige_reset_bonus",
+              "capacite": "Apres un prestige, la production est remise a la base mais un bonus permanent persiste, tel que reatteindre le meme palier prend strictement moins de ticks.",
+              "source_ref": "GP5",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot atteint un palier, prestige, puis reatteint le meme palier en un nombre de ticks strictement inferieur."
+              }
+            },
+            {
+              "id": "cap_prestige_son",
+              "capacite": "L'evenement prestige declenche un son distinct des 3 autres ; les 4 identifiants audio sont deux a deux distincts.",
+              "source_ref": "AU4",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Volet 07_TESTS/oracle/core_audio.gd journalise les 4 declenchements 'click','buy','unlock','prestige' avec 4 identifiants deux a deux distincts."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_deblocage",
+          "capacites": [
+            {
+              "id": "cap_unlock_son",
+              "capacite": "L'evenement deblocage (nouveau chaton ou lieu) declenche un son propre 'unlock', journalise au moment du deblocage et d'identifiant distinct des autres.",
+              "source_ref": "AU3",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Volet 07_TESTS/oracle/core_audio.gd journalise un declenchement 'unlock' au deblocage, d'identifiant distinct des autres."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lieux",
+      "features": [
+        {
+          "id": "feat_registre_lieux",
+          "capacites": [
+            {
+              "id": "cap_places_registry",
+              "capacite": "Un registre 03_WORLD/places.json declare au moins 2 lieux, dont le refuge initial et au moins 1 lieu debloque par la meta-progression, chacun a decor distinct.",
+              "source_ref": "CT3",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "03_WORLD/places.json contient >= 2 lieux a id unique, l'un marque initial et l'autre debloque par palier ; un oracle compte et verifie les marqueurs."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_decor_lieux",
+          "capacites": [
+            {
+              "id": "cap_decor_distinct",
+              "capacite": "Chaque lieu visitable rend a l'ecran un decor distinct, tel que passer du refuge a un lieu debloque change visiblement l'arriere-plan.",
+              "source_ref": "VS4",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Volet 07_TESTS/oracle/place_decor.gd en gpu_window capture chaque lieu et prouve des decors non identiques entre lieux."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "objets",
+      "features": [
+        {
+          "id": "feat_registre_objets",
+          "capacites": [
+            {
+              "id": "cap_objects_registry",
+              "capacite": "Un registre 03_WORLD/objects.json declare au moins 3 objets distincts, chacun avec une reference d'icone et un effet observable declares.",
+              "source_ref": "CT4",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "03_WORLD/objects.json contient >= 3 objets a id unique portant chacun un champ icone non vide et un champ effet non vide ; oracle de contenu."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_effet_objets",
+          "capacites": [
+            {
+              "id": "cap_objet_icone_effet",
+              "capacite": "Chaque objet possede est represente par une icone visible a l'ecran et son effet se manifeste par un changement observable a l'activation.",
+              "source_ref": "VS5",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Volet 07_TESTS/oracle/object_effect.gd en gpu_window prouve l'icone a l'ecran et un changement d'etat visible a l'activation de l'objet."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "quetes",
+      "features": [
+        {
+          "id": "feat_registre_quetes",
+          "capacites": [
+            {
+              "id": "cap_quests_registry",
+              "capacite": "Un registre 03_WORLD/quests.json declare au moins 3 quetes, chacune avec un objectif chiffre, un compteur de progression et un etat d'accomplissement affichable.",
+              "source_ref": "CT5",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "03_WORLD/quests.json contient >= 3 quetes a id unique portant objectif (cible chiffree), champ de progression et etat d'accomplissement ; oracle de contenu."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "contraintes_systemiques",
+      "features": [
+        {
+          "id": "feat_invariant_non_defaite",
+          "capacites": [
+            {
+              "id": "cap_no_gameover",
+              "capacite": "Aucun etat de jeu atteignable ne supprime la colonie ni ne declenche un game-over ; la seule 'fin' est le franchissement de paliers.",
+              "source_ref": "MT1",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Un test parcourt les transitions d'etat exposees et asserte l'absence de tout etat 'defaite'/'game_over' atteignable."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_hors_ligne",
+          "capacites": [
+            {
+              "id": "cap_no_network",
+              "capacite": "Le jeu construit ne realise aucun appel reseau au runtime (aucune socket sortante, requete HTTP ou API externe).",
+              "source_ref": "MT2",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Un scan statique des scripts 06_RUNTIME asserte l'absence d'appel reseau (HTTPRequest/socket/API externe) ; toute occurrence est un finding."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

@@ -1,0 +1,326 @@
+{
+ "game_id": "kitten_clicker",
+ "systemes": [
+  {
+   "id": "sys_boucle_clic",
+   "features": [
+    {
+     "id": "feat_clic_pelote",
+     "capacites": [
+      {
+       "id": "cap_clic_pelote_entree",
+       "capacite": "R1a ENTREE — le joueur clique l'affordance 'pelote' au centre de la scene principale (geste d'entree de la boucle de production manuelle).",
+       "source_ref": "p_click_pelote",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot depuis main.tscn clique l'affordance 'pelote' N fois (capacite d'ENTREE) ; l'oracle constate que l'action est bien recue par la scene reelle."
+       }
+      },
+      {
+       "id": "cap_clic_pelote_effet",
+       "capacite": "R1b EFFET — chaque clic sur 'pelote' fait monter STRICTEMENT le compteur de ronrons affiche.",
+       "source_ref": "p_click_pelote",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot depuis main.tscn clique 'pelote' N fois ; l'oracle asserte ronrons == N (increment strict, jamais un >=)."
+       }
+      },
+      {
+       "id": "cap_clic_increment_strict",
+       "capacite": "R2 — l'increment de clic vaut exactement 1 par clic, protege contre une regression tautologique (>=).",
+       "source_ref": "m_click_strict",
+       "expected_proof": {
+        "kind": "mutation",
+        "statement": "Une mutation qui remplace ronrons+=1 par une borne >= est TUEE par l'oracle : le test asserte ronrons == n+1 strict et echoue sur le mutant."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_clic_feedback",
+     "capacites": [
+      {
+       "id": "cap_clic_feedback",
+       "capacite": "R3 — chaque clic sur la pelote declenche un feedback visuel explicite (rebond de pelote ou particule ronron).",
+       "source_ref": "v_click_feedback",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_click_feedback.gd en gpu_window asserte qu'un clic produit un changement visuel transitoire (rebond ou particule) dans la frame suivante."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_chatons_production",
+   "features": [
+    {
+     "id": "feat_achat_chaton",
+     "capacites": [
+      {
+       "id": "cap_achat_chaton_entree",
+       "capacite": "R4a ENTREE — le joueur clique l'affordance 'acheter_chaton' pour acquerir un chaton (action distincte du clic de pelote).",
+       "source_ref": "p_buy_kitten",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot depuis main.tscn clique l'affordance 'acheter_chaton' (capacite d'ENTREE) ; l'oracle constate l'action sur la scene reelle."
+       }
+      },
+      {
+       "id": "cap_achat_chaton_effet",
+       "capacite": "R4b EFFET — l'achat fait entrer un chaton dans la collection observable : le compteur augmente de 1 et un sprite de chaton apparait.",
+       "source_ref": "p_buy_kitten",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot depuis main.tscn, disposant d'assez de ronrons, clique 'acheter_chaton' ; l'oracle asserte que le compteur de collection augmente de 1 et qu'un sprite de chaton apparait dans la scene."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_production_auto",
+     "capacites": [
+      {
+       "id": "cap_production_auto",
+       "capacite": "R5 — apres l'achat d'au moins un chaton et sans aucun clic, les ronrons affiches augmentent au fil des frames (production autonome).",
+       "source_ref": "s_auto_production",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot achete un chaton puis cesse tout clic ; l'oracle asserte que ronrons a augmente strictement apres wait_frames sans input."
+       }
+      },
+      {
+       "id": "cap_recompense_chaton",
+       "capacite": "R6 — le chaton achete apparait dans le refuge ET son apport est ajoute au taux de production affiche (recompense immediate et durable).",
+       "source_ref": "s_reward_kitten",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Apres achat d'un chaton, l'oracle asserte que le taux_production a augmente du montant attendu et que le sprite du chaton est present dans la scene."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_registre_chatons",
+     "capacites": [
+      {
+       "id": "cap_registre_chatons",
+       "capacite": "R7 — le jeu embarque un registre de >=6 chatons nommes repartis sur les trois raretes (commune, rare, legendaire).",
+       "source_ref": "c_kittens_named",
+       "expected_proof": {
+        "kind": "file_write",
+        "statement": "Le build ecrit 03_WORLD/kittens.json contenant >=6 chatons nommes avec un champ rarete couvrant commune, rare et legendaire."
+       }
+      },
+      {
+       "id": "cap_identite_rarete",
+       "capacite": "R8 — chaque rarete (commune, rare, legendaire) est rendue avec une identite visuelle distincte reconnaissable a l'oeil.",
+       "source_ref": "v_rarity_identity",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_visual_rarity.gd en gpu_window asserte que les 3 raretes rendent des sprites visuellement distincts (difference de palette/silhouette au-dessus d'un seuil)."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_ameliorations",
+   "features": [
+    {
+     "id": "feat_achat_amelioration",
+     "capacites": [
+      {
+       "id": "cap_amelioration_taux",
+       "capacite": "R9 — apres l'achat d'une amelioration, le taux de production affiche est strictement plus eleve qu'avant l'achat.",
+       "source_ref": "s_upgrade_rate",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot releve le taux de production, achete 'acheter_amelioration', releve a nouveau ; l'oracle asserte taux_apres > taux_avant (strict)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_courbe_paliers",
+     "capacites": [
+      {
+       "id": "cap_variance_couts",
+       "capacite": "R10 — la courbe des couts/paliers porte >=3 valeurs distinctes non triviales (information variable reelle, variance non nulle).",
+       "source_ref": "l_variance_costs",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Un oracle de variance lit la table des paliers et asserte >=3 valeurs de cout distinctes et non triviales (variance non nulle)."
+       }
+      },
+      {
+       "id": "cap_solvabilite_palier",
+       "capacite": "R11 — un bot-joueur deterministe atteint le 3e palier en un nombre de ticks fini (solvabilite du jeu).",
+       "source_ref": "l_palier_curve",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "L'oracle de solvabilite fait jouer un bot deterministe depuis main.tscn ; asserte que le 3e palier est atteint en un nombre de ticks fini et non trivial."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_meta_progression",
+   "features": [
+    {
+     "id": "feat_deblocage_lieu",
+     "capacites": [
+      {
+       "id": "cap_deblocage_lieu_entree",
+       "capacite": "R12a ENTREE — le joueur clique l'affordance 'acheter_amelioration' de deblocage de meta-progression pour ouvrir un nouveau lieu.",
+       "source_ref": "p_unlock_location",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot depuis main.tscn, au seuil requis, clique l'affordance 'acheter_amelioration' de deblocage (capacite d'ENTREE)."
+       }
+      },
+      {
+       "id": "cap_deblocage_lieu_effet",
+       "capacite": "R12b EFFET — le deblocage fait apparaitre un nouveau lieu (jardin) present et selectionnable dans le HUD lieux.",
+       "source_ref": "p_unlock_location",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot depuis main.tscn atteint le seuil et clique 'acheter_amelioration' de deblocage ; l'oracle asserte qu'un nouveau lieu (jardin) devient present et selectionnable dans le HUD lieux."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_lieux",
+     "capacites": [
+      {
+       "id": "cap_registre_lieux",
+       "capacite": "R13 — le jeu embarque un registre de >=2 lieux jouables dont le refuge initial et un lieu debloquable par meta-progression.",
+       "source_ref": "c_locations",
+       "expected_proof": {
+        "kind": "file_write",
+        "statement": "Le build ecrit 03_WORLD/locations.json contenant >=2 lieux dont un marque comme refuge initial et un comme debloquable par meta-progression."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_prestige",
+     "capacites": [
+      {
+       "id": "cap_prestige_entree",
+       "capacite": "R14a ENTREE — le joueur clique l'affordance 'prestige' au seuil pour declencher la remise a zero contre un bonus permanent.",
+       "source_ref": "p_prestige",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot depuis main.tscn, au seuil, clique l'affordance 'prestige' (capacite d'ENTREE)."
+       }
+      },
+      {
+       "id": "cap_prestige_effet",
+       "capacite": "R14b EFFET — le prestige remet visiblement les ronrons a zero et enregistre un multiplicateur permanent.",
+       "source_ref": "p_prestige",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot depuis main.tscn, au seuil, clique 'prestige' ; l'oracle asserte que ronrons affiche passe a 0 et qu'un multiplicateur permanent est enregistre."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_objectifs",
+   "features": [
+    {
+     "id": "feat_banniere_objectif",
+     "capacites": [
+      {
+       "id": "cap_objectif_initial",
+       "capacite": "R15 — le HUD affiche en permanence une banniere d'objectif portant un premier but non vide (accumuler assez de ronrons pour un premier chaton).",
+       "source_ref": "g_goal_first",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_goal_display.gd en gpu_window asserte que le HUD 'objectif' affiche un texte de but non vide au lancement de la scene principale."
+       }
+      },
+      {
+       "id": "cap_objectif_jardin",
+       "capacite": "R16 EFFET — une fois le 1er palier franchi, la banniere d'objectif montre un nouveau but textuellement distinct : debloquer et amenager le jardin.",
+       "source_ref": "g_goal_garden",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_goal_display.gd asserte qu'apres le 1er palier le HUD 'objectif' affiche un texte different du but initial."
+       }
+      },
+      {
+       "id": "cap_objectif_legendaire",
+       "capacite": "R17 EFFET — la banniere d'objectif peut montrer un 3e but textuellement distinct des deux precedents : recueillir un chaton legendaire.",
+       "source_ref": "g_goal_legendary",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "07_TESTS/oracle/core_goal_display.gd asserte que le HUD 'objectif' peut afficher un 3e texte de but distinct des deux precedents."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_contenu_monde",
+   "features": [
+    {
+     "id": "feat_objets",
+     "capacites": [
+      {
+       "id": "cap_registre_objets",
+       "capacite": "R18 — le jeu embarque un registre de >=3 objets identifiables (pelote, patee, coussin), chacun avec un sprite associe.",
+       "source_ref": "c_objects",
+       "expected_proof": {
+        "kind": "file_write",
+        "statement": "Le build ecrit 03_WORLD/objects.json contenant >=3 objets nommes et identifiables, chacun avec un sprite associe."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_quetes",
+     "capacites": [
+      {
+       "id": "cap_registre_quetes",
+       "capacite": "R19 — le jeu embarque un registre de >=3 quetes, chacune avec un objectif affichable a l'ecran (texte ou seuil de jauge).",
+       "source_ref": "c_quests",
+       "expected_proof": {
+        "kind": "file_write",
+        "statement": "Le build ecrit 03_WORLD/quests.json contenant >=3 quetes, chacune avec un objectif affichable (texte ou seuil de jauge) verifiable a l'ecran."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_audio",
+   "features": [
+    {
+     "id": "feat_sons_evenements",
+     "capacites": [
+      {
+       "id": "cap_sons_evenements",
+       "capacite": "R20 — chacun des 4 evenements (clic, achat, deblocage, prestige) declenche un son distinct et reconnaissable.",
+       "source_ref": "a_event_sounds",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "07_TESTS/oracle/core_audio.gd journalise un declenchement par evenement et asserte 4 entrees de son distinctes (clic, achat, deblocage, prestige)."
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

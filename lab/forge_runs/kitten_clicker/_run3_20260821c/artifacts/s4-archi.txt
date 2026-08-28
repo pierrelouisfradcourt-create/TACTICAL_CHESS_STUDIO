@@ -1,0 +1,248 @@
+I now have everything I need: the exact pre-build oracle (`check_blueprint_contract` — my gate), the post-build oracle (`check_architecture` — `_module_of` = top-level folder; not my gate), `featureIds` (coverage targets = the **8 feature ids**, not leaves), and the **proven pacman precedent** (fine-grained logical modules + `ownership` to repo_map paths + full `responsabilites[]`, receipts green at s10b). Charter and knowledge_packet do not exist in the run_dir (Read failed on both) — I inherit nothing from them and will not invent them.
+
+---
+
+## RAPPORT FINAL — s4-archi / kitten_clicker-20260821c
+
+**Ancres (chaque affirmation citée) :**
+
+- **Oracle d'AVANT-BUILD = MON gate** : `forge.check_blueprint_contract` (`scripts/forge/check_blueprint_contract.mjs`, lu ligne à ligne). Il exige : `modules` (liste NON VIDE de chaînes, sans doublon) · `deps_interdites` NON VIDE (paires de modules connus) · `responsabilites[]` NON VIDE avec `{module∈modules, responsabilite, couvre[]⊆featureIds, dependances[] (jamais absent), preuve_attendue{kind,statement}}` · **couverture** (chaque feature ∈ featuremap portée par ≥1 module) · **pas de couverture fantôme** · **pas de cycle** · **pas d'auto-contradiction** (une `dependance` ne peut pas être dans `deps_interdites`). Le champ `couvre` cible les **ids de FEATURE** — `upstream_schema.mjs::featureIds` liste `systemes[].features[].id`, **pas** les feuilles.
+- **Oracle d'APRÈS-BUILD ≠ mon gate** : `forge.static_oracles.check_architecture` (lu). `_module_of` ne rend que le **premier dossier** sous `src_root`. Limite transmise (identique à `blueprint_v2.json#limite_de_mesure_connue`, pacman) : les paires entre modules fins d'une même couche ne seront pas probantes post-build. Fait **transmis, non re-mesuré** ici — appelé maintenant sur un `src/` vide il serait vacuement vert (c'est le mauvais moment).
+- **Précédent proven** : `lab/forge_runs/pacman/blueprint.json` (s4, Godot/GDScript) — reçus s10b `ALL CHECKS PASSED`. J'en reprends la forme **1:1** : modules logiques fins, `ownership` vers les gabarits `repo_map` (`system: 05_SYSTEMS/{id}/`, `system.adapter: 06_RUNTIME/adapters/{id}/`), `responsabilites[]` complet. C'est cette forme (et non `{modules, deps_interdites}` seuls) que l'exécuteur matérialise et que `check_blueprint_contract` exige — livrer le sous-ensemble minimal ferait FAIL `responsabilites` (absent).
+- **featuremap** (`lab/forge_runs/kitten_clicker/featuremap.json`, lu) : 5 systèmes / **8 features** / 10 feuilles (R1..R10). Les 8 ids : `feat_geste_caresse, feat_ecran_principal, feat_producteurs_auto, feat_galerie, feat_persistance_monotone, feat_prestige, feat_gains_hors_ligne, feat_objet_bonus`.
+- **repo_map** (table FIGÉE, lue) : racines `02_ENTITIES…10_FORGE` ; gabarits `05_SYSTEMS/{id}/` et `06_RUNTIME/adapters/{id}/`. Toute adresse y est confrontée.
+
+**Architecture — invariant central (répond à R3, dont `destination: s4-archi` = MON étape).** Le cœur de simulation est **PUR et headless** : 7 modules logiques (`05_SYSTEMS/`) qui ne dépendent JAMAIS du rendu, de l'input, ni de l'I/O runtime. C'est ce qui rend l'oracle R3 possible (rejouer une session et prouver la collection monotone / aucun `game_over` atteignable) et rend le bot de solvabilité pilotable par le seul canal d'intentions public. La séparation **logique→rendu** et **logique→input** exigée est déclarée explicitement (49 paires : `L × {rendu, input, io}`), plus l'invariant pur-cœur complet.
+
+**Couverture (8/8), owners + co-couvertures :**
+
+| Feature (id) | preuve amont | Module(s) qui couvrent | Preuve portée |
+|---|---|---|---|
+| feat_geste_caresse (R1,R10) | bot_action | `purr_action`, `input_adapter`, `runtime_loop` | bot_action |
+| feat_ecran_principal (R9) | visual | `main_screen` | **visual** |
+| feat_producteurs_auto (R2,R7) | bot_action | `economy`, `game_state` | bot_action |
+| feat_galerie (R5) | visual | `collection` (données), `gallery_view` | **visual** (gallery_view) |
+| feat_persistance_monotone (R3) | oracle | `collection`, `debug_probe` | **oracle** |
+| feat_prestige (R6) | bot_action | `prestige`, `solvability_bot` | bot_action |
+| feat_gains_hors_ligne (R4) | bot_action | `offline_gains`, `persistence` | bot_action |
+| feat_objet_bonus (R8) | bot_action | `bonus_event` | bot_action |
+
+Le rendu porte les preuves `visual` (R9, R5) ; le cœur logique porte `bot_action`/`oracle` ; la couleur/pixel ne remonte jamais dans la logique. Graphe `dependances` = **DAG** (logique→logique et runtime→logique uniquement ; aucun retour). Aucune `dependance` déclarée n'apparaît dans `deps_interdites` (les interdits sont tous logique→{rendu/input/io}, les deps toutes logique→logique ou runtime→logique) — **pas d'auto-contradiction, pas de cycle**.
+
+**Garde-fous appliqués (pré-mortem) :** aucun god-object (chaque module = une responsabilité unique ; `game_state` compose mais ne calcule pas les règles) ; `solvability_bot` doit **GAGNER** (atteindre le seuil de prestige — la relance long-terme = condition de progression d'un clicker), pas juste exercer une mécanique ; preuves écrites en **assertions strictes** (`v1 - v0 == N × gain`, `c1 < c2 < c3`, `mult > 1`, égalité stricte), aucun `>=` tautologique ; point d'entrée explicite (`runtime_loop`, R10 — jouable dès le chargement, sans menu bloquant).
+
+**Verdicts :**
+- `software_verdict: OK` — livrable produit : bloc `json` blueprint **conforme par construction** à `checkBlueprintDoc` (relu prédicat par prédicat) : modules non vides sans doublon, 49 paires interdites valides, 14 `responsabilites` (chaque module a son entrée), 8/8 features couvertes, 0 couverture fantôme, DAG sans cycle, 0 auto-contradiction. Adossé à la lecture de l'oracle et de la featuremap.
+- `evidence_verdict: MECHANICAL_VALIDATION_ONLY` — conformité établie par mapping du bloc contre `check_blueprint_contract.mjs` + `upstream_schema.mjs::featureIds` ; aucune exécution.
+- `claim_verdict: NO_CLAIM_ALLOWED` — aucun reçu d'oracle **exécuté** en ma possession (`run: aucun`). Je ne certifie pas `VERDICT BLUEPRINT: OK`.
+- `fog → exécuteur/HumanGate` : exécuter `node scripts/forge/check_blueprint_contract.mjs <run_dir>/blueprint.json --featuremap <run_dir>/featuremap.json` pour le reçu mécanique de couverture/cycles/contradiction.
+
+**SKIPPED_VALIDATION :**
+- item : exécution de `check_blueprint_contract.mjs` · périmètre : `blueprint.json` matérialisé · statut : **non fait** · raison : `run: aucun` (permissions du contrat) ; validation déléguée à l'exécuteur.
+- item : matérialisation de `blueprint.json` · périmètre : run_dir · statut : **non fait (assumé)** · raison : le contrat interdit d'écrire ce fichier (« tu n'écris JAMAIS ce fichier ») ; l'exécuteur matérialise le bloc terminal.
+- item : lecture de `charter.yaml` et `knowledge_packet.json` (mandatory_read) · périmètre : run_dir · statut : **impossible — fichiers absents** · raison : `Read` échoue sur les deux chemins (`lab/forge_runs/kitten_clicker/charter.yaml`, `…/knowledge_packet.json` inexistants). Rien n'a été **supposé** à leur place (même honnêteté que `pacman#remonte_plutot_qu_invente`) — l'INTENT LINEAGE n'a pas pu être hérité et n'est pas deviné ; besoin remonté en fog HumanGate.
+- item : probance post-build des paires fines · périmètre : `deps_interdites` · statut : **limite connue transmise** · raison : `_module_of` = 1er dossier ; paires intra-couche non probantes après build. Dit, non subi en silence (cf. `pacman#limite_de_mesure_connue`).
+
+---
+
+```json
+{
+  "game_id": "kitten_clicker",
+  "etape": "s4-archi",
+  "run_id": "kitten_clicker-20260821c",
+  "plateforme": "Godot / GDScript (cible games/kitten_clicker ; premiere campagne Godot du sous-genre clicker)",
+  "modules": [
+    "purr_action",
+    "economy",
+    "prestige",
+    "collection",
+    "offline_gains",
+    "bonus_event",
+    "game_state",
+    "input_adapter",
+    "main_screen",
+    "gallery_view",
+    "persistence",
+    "debug_probe",
+    "runtime_loop",
+    "solvability_bot"
+  ],
+  "deps_interdites": [
+    ["purr_action", "main_screen"], ["purr_action", "gallery_view"], ["purr_action", "input_adapter"], ["purr_action", "runtime_loop"], ["purr_action", "persistence"], ["purr_action", "debug_probe"], ["purr_action", "solvability_bot"],
+    ["economy", "main_screen"], ["economy", "gallery_view"], ["economy", "input_adapter"], ["economy", "runtime_loop"], ["economy", "persistence"], ["economy", "debug_probe"], ["economy", "solvability_bot"],
+    ["prestige", "main_screen"], ["prestige", "gallery_view"], ["prestige", "input_adapter"], ["prestige", "runtime_loop"], ["prestige", "persistence"], ["prestige", "debug_probe"], ["prestige", "solvability_bot"],
+    ["collection", "main_screen"], ["collection", "gallery_view"], ["collection", "input_adapter"], ["collection", "runtime_loop"], ["collection", "persistence"], ["collection", "debug_probe"], ["collection", "solvability_bot"],
+    ["offline_gains", "main_screen"], ["offline_gains", "gallery_view"], ["offline_gains", "input_adapter"], ["offline_gains", "runtime_loop"], ["offline_gains", "persistence"], ["offline_gains", "debug_probe"], ["offline_gains", "solvability_bot"],
+    ["bonus_event", "main_screen"], ["bonus_event", "gallery_view"], ["bonus_event", "input_adapter"], ["bonus_event", "runtime_loop"], ["bonus_event", "persistence"], ["bonus_event", "debug_probe"], ["bonus_event", "solvability_bot"],
+    ["game_state", "main_screen"], ["game_state", "gallery_view"], ["game_state", "input_adapter"], ["game_state", "runtime_loop"], ["game_state", "persistence"], ["game_state", "debug_probe"], ["game_state", "solvability_bot"]
+  ],
+  "ownership": {
+    "purr_action": "05_SYSTEMS/purr_action/",
+    "economy": "05_SYSTEMS/economy/",
+    "prestige": "05_SYSTEMS/prestige/",
+    "collection": "05_SYSTEMS/collection/",
+    "offline_gains": "05_SYSTEMS/offline_gains/",
+    "bonus_event": "05_SYSTEMS/bonus_event/",
+    "game_state": "05_SYSTEMS/game_state/",
+    "input_adapter": "06_RUNTIME/adapters/input_adapter/",
+    "main_screen": "06_RUNTIME/adapters/main_screen/",
+    "gallery_view": "06_RUNTIME/adapters/gallery_view/",
+    "persistence": "06_RUNTIME/adapters/persistence/",
+    "debug_probe": "06_RUNTIME/adapters/debug_probe/",
+    "runtime_loop": "06_RUNTIME/adapters/runtime_loop/",
+    "solvability_bot": "06_RUNTIME/adapters/solvability_bot/"
+  },
+  "responsabilites": [
+    {
+      "module": "purr_action",
+      "responsabilite": "Appliquer UNE caresse a l'etat de jeu recu en argument : incrementer le compteur de caresses de gain_par_clic (strictement positif, derive de la base et du multiplicateur de prestige portes par l'etat), et rendre un nouvel etat. Fonction PURE : ne lit aucun peripherique, ne dessine rien, n'a aucune horloge. Point de mutation UNIQUE du compteur par clic.",
+      "couvre": ["feat_geste_caresse"],
+      "dependances": [],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Un bot applique N caresses sur un etat initial sans autre action ; le compteur passe de v0 a v1 avec v1 - v0 == N * gain_par_clic ET gain_par_clic > 0 (egalite stricte, jamais >=)."
+      }
+    },
+    {
+      "module": "economy",
+      "responsabilite": "Detenir les producteurs automatiques : achat d'un producteur (debit du cout courant), COURBE DE COUT strictement croissante par rachat d'un meme producteur, et TAUX de production passive par unite de temps. Fonctions pures : la production est PRODUITE ici (taux), son application dans le temps est composee par game_state. Aucune constante de rendu, aucun acces horloge de plateforme.",
+      "couvre": ["feat_producteurs_auto"],
+      "dependances": [],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Un bot achete le meme producteur 3 fois : la suite des couts affiches est strictement croissante, c1 < c2 < c3 (jamais >=) ; et le taux de production passive expose est strictement positif apres le premier achat."
+      }
+    },
+    {
+      "module": "prestige",
+      "responsabilite": "Tenir l'action de prestige : au franchissement du seuil, remettre a zero la production courante (compteur et producteurs) et appliquer un multiplicateur permanent > 1 qui persiste apres le reset et augmente le gain de base des caresses futures. Fonction pure ; lit la production courante pour calculer le gain de multiplicateur.",
+      "couvre": ["feat_prestige"],
+      "dependances": ["economy"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Un bot atteint le seuil et declenche le prestige : apres reset, mult_permanent > 1 (strict) ET gain_par_clic post-reset > gain_par_clic initial pre-prestige (strict) ; la production courante est bien remise a 0."
+      }
+    },
+    {
+      "module": "collection",
+      "responsabilite": "Detenir le MODELE DE DONNEES de la galerie : chaque chaton avec un etat (verrouille/debloque) et un palier de rarete ; le deblocage est PERMANENT ; aucune transition subie (temps, absence, action) ne retire un chaton deja debloque et aucun etat game_over n'est representable. Invariant de monotonie non decroissante encode structurellement (R3, destination s4-archi). Fonctions pures.",
+      "couvre": ["feat_persistance_monotone", "feat_galerie"],
+      "dependances": [],
+      "preuve_attendue": {
+        "kind": "oracle",
+        "statement": "Un oracle rejoue une session (caresses, achats, temps ecoule, fermeture/reouverture, bonus ignore) et verifie qu'aucune transition ne diminue la taille de la collection et qu'aucun etat game_over n'est atteignable ; un chaton debloque reste debloque a tous les ticks ulterieurs."
+      }
+    },
+    {
+      "module": "offline_gains",
+      "responsabilite": "Calculer les gains hors-ligne pour une duree D RECUE EN ARGUMENT : production_passive * D, eventuellement capee a un plafond declare, valeur strictement positive tant que D>0 et qu'au moins un producteur est possede. Fonction pure : ne lit AUCUNE horloge de plateforme (D lui est remise par persistence).",
+      "couvre": ["feat_gains_hors_ligne"],
+      "dependances": ["economy"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Avec au moins un producteur et D>0, gains_hors_ligne == min(production_passive * D, plafond) ET gains_hors_ligne > 0 (strict) ; avec zero producteur, gains_hors_ligne == 0."
+      }
+    },
+    {
+      "module": "bonus_event",
+      "responsabilite": "Tenir l'objet-bonus ephemere comme MODELE PUR : apparition par intermittence (planning deterministe seede), fenetre de vie bornee, effet temporaire (gain multiplie pendant une duree) au clic dans la fenetre, disparition en fin de fenetre. Ignorer l'objet n'entraine AUCUNE penalite et AUCUN decrement du total. Fonctions pures ; aucun rendu.",
+      "couvre": ["feat_objet_bonus"],
+      "dependances": [],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Un bot clique l'objet dans sa fenetre : un bonus temporaire s'applique (facteur de gain > 1 pendant une duree bornee, puis retour a 1). Second essai sans clic : l'objet disparait en fin de fenetre, aucun bonus applique, et le total est INCHANGE (aucun decrement)."
+      }
+    },
+    {
+      "module": "game_state",
+      "responsabilite": "Etre l'ORIGINE UNIQUE d'un etat de jeu et composer le tick pur dans un ordre fige : appliquer la production passive dans le temps, faire progresser le planning du bonus, projeter l'etat en releve observable. Ne mute jamais son entree : produit un nouvel etat. Ne connait ni rendu, ni input, ni horloge de plateforme (le pas de temps lui est remis).",
+      "couvre": ["feat_producteurs_auto"],
+      "dependances": ["purr_action", "economy", "prestige", "collection", "offline_gains", "bonus_event"],
+      "preuve_attendue": {
+        "kind": "oracle",
+        "statement": "Un bot achete un producteur puis n'emet aucune caresse pendant T pas de temps : le compteur croit strictement, v(T) > v(0) ; deux executions de meme graine et memes pas de temps produisent des releves observables identiques champ par champ (determinisme)."
+      }
+    },
+    {
+      "module": "input_adapter",
+      "responsabilite": "Traduire les evenements de peripherique (clic souris, tap tactile) en INTENTIONS du vocabulaire ferme (caresser, acheter un producteur, declencher le prestige, cliquer le bonus) ou en 'aucune'. CANAL D'ENTREE PUBLIC UNIQUE : le bot de solvabilite emet ses intentions par ce meme canal, jamais par une ecriture directe dans l'etat. Ne dessine rien, ne calcule aucune valeur de jeu.",
+      "couvre": ["feat_geste_caresse"],
+      "dependances": ["game_state", "purr_action", "economy", "prestige"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "A l'etat qui suit un clic sur la zone du chaton, l'intention emise est exactement 'caresser' et le compteur a augmente d'exactement gain_par_clic ; un clic hors zone active n'emet aucune intention et laisse l'etat inchange."
+      }
+    },
+    {
+      "module": "main_screen",
+      "responsabilite": "Rendre l'ecran principal a partir du SEUL releve observable : compteur de caresses lisible en permanence, chaton central cliquable en zone focale, feedback visuel immediat a chaque clic (nombre flottant ou animation). Lit l'etat, ne le modifie jamais, ne consulte aucun systeme de regles ; ne fait remonter aucune couleur dans la logique.",
+      "couvre": ["feat_ecran_principal"],
+      "dependances": ["game_state"],
+      "preuve_attendue": {
+        "kind": "visual",
+        "statement": "Capture de l'ecran de jeu : compteur numerique visible ET chaton central en zone focale ; captures avant/apres un clic montrant le compteur incremente et un feedback visuel (nombre flottant ou animation) present apres et absent avant."
+      }
+    },
+    {
+      "module": "gallery_view",
+      "responsabilite": "Rendre l'ecran collection a partir du releve observable du modele de collection : chaque chaton avec son etat verrouille (silhouette/cadenas) ou debloque, et son badge de rarete. Lit l'etat, ne le modifie jamais ; aucune donnee de collection n'est detenue ici (elle vit dans le module collection).",
+      "couvre": ["feat_galerie"],
+      "dependances": ["game_state"],
+      "preuve_attendue": {
+        "kind": "visual",
+        "statement": "Capture de l'ecran collection montrant au moins un chaton verrouille (silhouette/cadenas) et un debloque avec badge de rarete ; apres la condition de deblocage, l'entree correspondante passe de verrouille a debloque a l'ecran."
+      }
+    },
+    {
+      "module": "persistence",
+      "responsabilite": "Serialiser/deserialiser l'etat sur disque et LIRE l'horloge de plateforme pour calculer la duree D entre fermeture et reouverture, remise en argument a offline_gains. SEUL module a lire l'horloge reelle et le systeme de fichiers ; ne calcule aucune valeur de jeu (delegue le calcul des gains a offline_gains).",
+      "couvre": ["feat_gains_hors_ligne"],
+      "dependances": ["game_state", "offline_gains"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Fermer puis relancer avec l'horloge avancee de D : a la reouverture un panneau affiche gains_hors_ligne > 0 (strict) egal a la valeur rendue par offline_gains pour ce D et ce taux, et ce montant est ajoute au total charge."
+      }
+    },
+    {
+      "module": "debug_probe",
+      "responsabilite": "Exposer a un lecteur EXTERIEUR au runtime, tick par tick, le releve observable de l'etat (compteur, producteurs, multiplicateur, taille et etats de la collection). Sans ce point de sortie, l'exigence R3 (monotonie de la collection, aucun game_over) n'a aucun observateur et n'est pas verifiable. Ne calcule rien : recopie la projection pure.",
+      "couvre": ["feat_persistance_monotone"],
+      "dependances": ["game_state"],
+      "preuve_attendue": {
+        "kind": "oracle",
+        "statement": "A chaque tick d'une session rejouee, la taille de collection lue par un lecteur exterieur est egale a celle de l'etat au meme tick et ne decroit jamais d'un tick au suivant ; aucun releve ne porte d'etat game_over."
+      }
+    },
+    {
+      "module": "runtime_loop",
+      "responsabilite": "Amorcer l'application SUR LA SCENE PRINCIPALE, sans ecran de configuration bloquant : le chaton central est cliquable des la fin du chargement. Convertir le temps du moteur en pas de temps remis au tick pur. SEUL endroit ou l'horloge du moteur pilote le tick. Point d'entree runtime explicite du jeu.",
+      "couvre": ["feat_geste_caresse"],
+      "dependances": ["game_state", "input_adapter", "main_screen", "gallery_view", "persistence", "bonus_event"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Au lancement, un bot clique immediatement sur le chaton sans franchir aucun menu : le compteur s'incremente des le premier clic (v passe de 0 a gain_par_clic)."
+      }
+    },
+    {
+      "module": "solvability_bot",
+      "responsabilite": "Prouver la PROGRESSION du jeu : planifier et emettre, par le canal d'intentions PUBLIC (input_adapter), une suite d'actions (caresser, acheter des producteurs, laisser accumuler, declencher le prestige) qui atteint le seuil de prestige dans un budget de ticks DECLARE. Ne calcule aucune mutation lui-meme : il demande, le jeu decide.",
+      "couvre": ["feat_prestige"],
+      "dependances": ["game_state", "input_adapter"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Execution sur graine de reference : dans le budget de ticks declare, le bot atteint le seuil de prestige et le declenche avec succes (mult_permanent passe strictement > 1), code de retour 0 ; un budget volontairement insuffisant ne franchit PAS le seuil (controle negatif)."
+      }
+    }
+  ]
+}
+```
+
+**RETURN LINEAGE** (FORGE_CAUSAL_LINEAGE_V2 §3) —
+- `why_task_existed:` {`problem:` sans blueprint gelé, s5-wiremap et le build découpent le code sans graphe de dépendances ni couverture tracée vers les 8 features ; R3 (`destination: s4-archi`) exige que l'invariant de monotonie/zéro-défaite soit posé en ARCHITECTURE, pas plus tard · `oracle:` `forge.check_blueprint_contract` (couverture / cycles / auto-contradiction / responsabilités), qui FAIL si une feature n'est couverte par aucun module ou si une dépendance est aussi interdite · `root_cause:` non applicable — activation par séquence de pipeline (dispatch s4 après s3-decompo), pas par un défaut mesuré · `action_reason:` j'ai découpé en 14 modules (7 cœur pur `05_SYSTEMS/`, 7 adaptateurs `06_RUNTIME/`), déclaré 49 arêtes interdites logique→{rendu/input/io}, couvert 8/8 features, en DAG sans cycle}
+- `result:` blueprint complet produit (bloc terminal, forme pacman-proven) ; 8/8 features couvertes, 0 couverture fantôme, 14 responsabilités (1 par module), DAG acyclique, 0 auto-contradiction — conforme par construction à `checkBlueprintDoc` ; non matérialisé en fichier (interdit par le contrat), oracle non exécuté (`run: aucun`)
+- `proof:` aucune commande exécutée (permissions `run: aucun`) — conformité établie par mapping du bloc contre `check_blueprint_contract.mjs` + `upstream_schema.mjs::featureIds` (8 ids de `featuremap.json`) ; reçu mécanique délégué à l'exécuteur : `node scripts/forge/check_blueprint_contract.mjs <run_dir>/blueprint.json --featuremap <run_dir>/featuremap.json`
+- `learning:` `couvre` cible les ids de FEATURE (`featureIds`), jamais les feuilles ; et le livrable s4 conforme est la FORME COMPLÈTE (modules+deps_interdites+ownership+responsabilites, précédent pacman green s10b), pas le sous-ensemble `{modules, deps_interdites}` que `check_architecture` consomme — livrer ce sous-ensemble ferait FAIL `check_blueprint_contract` sur `responsabilites` absent. La limite `_module_of` (paires intra-couche non probantes post-build) est un fait transmis, pas un défaut à corriger ici.
+- `next_reason:` chaîne causale FERMÉE côté s4 pour le livrable — conforme par construction, aucune cause non résolue. UN besoin remonté à HumanGate (fog), non bloquant pour l'oracle : `charter.yaml` et `knowledge_packet.json` sont ABSENTS du run_dir — l'INTENT LINEAGE (intention humaine, invariants, hors_scope, provenance) n'a pas pu être hérité et n'a pas été deviné. s5-wiremap et l'exécuteur devraient savoir que cette architecture n'a été confrontée à aucun charter.
+
+SKIPPED_VALIDATION: voir la section structurée du rapport (4 items : exécution `check_blueprint_contract` non faite — `run: aucun` ; matérialisation `blueprint.json` non faite — interdite par contrat ; `charter.yaml`/`knowledge_packet.json` illisibles — absents du run_dir, non supposés ; probance post-build des paires fines — limite `_module_of` transmise, non re-mesurée).
+RETURN_REASON: {"status": "DISCOVERED", "problem": "charter.yaml et knowledge_packet.json sont absents du run_dir lab/forge_runs/kitten_clicker : l'INTENT LINEAGE (intention humaine, invariants, hors_scope, provenance) exige en mandatory_read n'a pas pu etre herite par s4-archi", "root_cause": "artefacts amont s0-contrat (charter) et world-scan (knowledge_packet) non materialises dans le run_dir avant le dispatch s4"}

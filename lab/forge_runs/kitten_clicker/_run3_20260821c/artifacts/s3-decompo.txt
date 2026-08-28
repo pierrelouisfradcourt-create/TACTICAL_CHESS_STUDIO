@@ -1,0 +1,220 @@
+I've now read the exact contract that governs my output. The oracle `check_decompo.mjs` delegates to `validateFeaturemap`/`collectLeaves` in `upstream_schema.mjs`. The binding requirements are precise:
+
+- **Structure**: `{game_id, systemes:[{id, features:[{id, capacites:[leaf]}]}]}`, every level a non-empty array.
+- **Leaf**: `{id, capacite, source_ref, expected_proof:{kind∈[bot_action|oracle|mutation|visual|file_write], statement}}`, all non-empty; feature ids and leaf ids globally unique.
+- **Coverage**: every Prisme `exigences[].id` (R1..R10) carried by ≥1 leaf.
+- **Non-invention**: every `source_ref` resolves to a real R-id; `expected_proof` inherited verbatim, never invented.
+
+The Prisme carries exactly 10 exigences (R1–R10). I map each to one leaf, inheriting its `expected_proof` byte-for-byte from `prisme.json`, and group them into a functional tree.
+
+---
+
+## RAPPORT FINAL — s3-decompo / kitten_clicker-20260821c
+
+**Ancres (chaque affirmation citée) :**
+
+- **Prisme** (`lab/forge_runs/kitten_clicker/prisme.json`, lu à la source) : 10 exigences R1–R10, chacune avec `id`, `enonce`, `expected_proof{kind,statement}`. C'est la SEULE source légitime de `source_ref` et de `expected_proof` (garde-fou : la preuve est héritée, jamais inventée).
+- **Oracle** `forge.check_decompo` (lu ligne à ligne, + `upstream_schema.mjs::validateFeaturemap/collectLeaves`) : mesure COUVERTURE (toute exigence portée), NON-INVENTION (tout `source_ref` résout à un R-id), COMPLÉTUDE (chaque feuille `{capacite, expected_proof}`). Granularité REPORTÉE, non gatée. **Non exécuté** (`run: aucun` dans mon contrat) — la vérification mécanique appartient à l'exécuteur / `run_real.py`.
+
+**Décomposition — une ligne par règle (R1..R10), toutes portées par une feuille :**
+
+| R | Nom (comportement observable) | Système → Feature | kind de preuve |
+|---|---|---|---|
+| R1 | Caresse : chaque clic incrémente le compteur (>0), affiché immédiatement | Cœur de caresse → Geste de caresse | bot_action |
+| R10 | Jouable au 1er écran : chaton cliquable dès le chargement, 1er clic gagne | Cœur de caresse → Geste de caresse | bot_action |
+| R9 | Écran principal : compteur lisible en permanence + chaton focal + feedback visuel | Cœur de caresse → Écran principal | visual |
+| R2 | Production passive : après achat d'un producteur, le compteur monte sans clic | Économie → Producteurs automatiques | bot_action |
+| R7 | Coût croissant : chaque rachat d'un producteur renchérit strictement | Économie → Producteurs automatiques | bot_action |
+| R5 | Galerie : états verrouillé/débloqué + rareté ; déblocage permanent | Collection → Galerie | visual |
+| R3 | Zéro-perte : collection monotone non décroissante, aucun game-over | Collection → Persistance monotone | oracle |
+| R6 | Prestige : reset de la production courante contre multiplicateur permanent (>1) | Progression long-terme → Prestige | bot_action |
+| R4 | Gains hors-ligne : à la réouverture après D, gains passifs positifs ajoutés | Rétention temporelle → Gains hors-ligne | bot_action |
+| R8 | Objet-bonus éphémère : cliquable en fenêtre bornée, bonus temporaire, zéro pénalité si ignoré | Rétention temporelle → Objet-bonus éphémère | bot_action |
+
+**Traçabilité de couverture** : 10/10 exigences du Prisme portées par exactement 1 feuille chacune ; 0 feuille non sourcée ; 0 `source_ref` orphelin. Structure : 5 systèmes / 8 features / 10 feuilles ; granularité observée 1–2 feuilles/feature (reportée, non gatée). Les destinations aval hétérogènes (R3→s4-archi, R5/R9→s5-wiremap, R10→s9-build) ne dispensent PAS s3 de porter chaque exigence : l'oracle exige la couverture de **tous** les ids, le champ `destination` ne désigne que le consommateur aval — omettre R3/R5/R9/R10 serait une omission silencieuse (FAIL couverture).
+
+**Verdicts :**
+- `software_verdict: OK` — livrable produit : un bloc `json` featuremap valide, matérialisable en `featuremap.json`, conforme **par construction** aux exigences de `validateFeaturemap` (arbres non vides, feuilles complètes, ids uniques) et couvrant les 10 exigences avec `source_ref` résolvables — mappées une à une contre `prisme.json` et contre la source de l'oracle.
+- `evidence_verdict: MECHANICAL_VALIDATION_ONLY` — limité à la conformité de forme vérifiée par relecture de l'oracle et du Prisme ; aucune exécution.
+- `claim_verdict: NO_CLAIM_ALLOWED` — je ne dispose d'aucun reçu d'oracle **exécuté** ; je ne peux pas auto-certifier `VERDICT DECOMPO: OK`.
+- `fog → exécuteur/HumanGate` : exécuter `node scripts/forge/check_decompo.mjs <run_dir>/featuremap.json --prisme <run_dir>/prisme.json` pour produire le reçu mécanique de couverture/non-invention.
+
+**SKIPPED_VALIDATION :**
+- item : exécution de `check_decompo.mjs` sur l'artefact · périmètre : `featuremap.json` produit ici · statut : **non fait** · raison : `run: aucun` (permissions du contrat) ; validation déléguée à l'exécuteur/`run_real.py` par construction du pipeline (même patron que s2/s2.6/s2.7).
+- item : matérialisation du fichier `featuremap.json` · périmètre : run_dir · statut : **non fait (assumé)** · raison : le contrat interdit explicitement d'écrire ce fichier moi-même (« tu n'écris JAMAIS ce fichier ») ; l'exécuteur matérialise le bloc terminal.
+- item : fidélité de chaque `expected_proof` à sa source · périmètre : 10 feuilles · statut : **fait (recopie verbatim)** · raison : chaque `expected_proof{kind,statement}` est copié octet-pour-octet depuis l'exigence R-correspondante de `prisme.json`, jamais reformulé — non oraclé ici (l'oracle vérifie la présence/forme, pas l'égalité au Prisme), rattrapable par diff en aval.
+
+---
+
+```json
+{
+  "game_id": "kitten_clicker",
+  "systemes": [
+    {
+      "id": "core_caresse",
+      "features": [
+        {
+          "id": "feat_geste_caresse",
+          "capacites": [
+            {
+              "id": "cap_caresse_incremente",
+              "capacite": "Caresser le chaton central via un clic incremente le compteur de caresses d'une valeur strictement positive, affichee immediatement.",
+              "source_ref": "R1",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot caresse le chaton N fois sans autre action ; le compteur passe de v0 a v1 avec v1 - v0 == N x gain_par_clic et gain_par_clic > 0."
+              }
+            },
+            {
+              "id": "cap_jouable_premier_ecran",
+              "capacite": "Des la fin du chargement de la scene principale, le chaton central est cliquable et le premier clic produit un gain, sans ecran de configuration bloquant prealable.",
+              "source_ref": "R10",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Au lancement, un bot clique immediatement sur le chaton sans franchir de menu ; le compteur s'incremente des le premier clic."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_ecran_principal",
+          "capacites": [
+            {
+              "id": "cap_ecran_compteur_focal",
+              "capacite": "L'ecran principal affiche en permanence un compteur de caresses lisible et un chaton central cliquable en zone focale ; chaque clic produit un feedback visuel immediat.",
+              "source_ref": "R9",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Capture de l'ecran de jeu montrant compteur numerique visible + chaton central en zone focale ; captures avant/apres un clic montrant le compteur incremente et un feedback visuel (nombre flottant ou animation)."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "economie_production",
+      "features": [
+        {
+          "id": "feat_producteurs_auto",
+          "capacites": [
+            {
+              "id": "cap_production_passive",
+              "capacite": "Apres achat d'au moins un producteur automatique, le compteur de caresses augmente au fil du temps sans aucun clic du joueur.",
+              "source_ref": "R2",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot achete un producteur puis n'emet aucun clic pendant T secondes ; le compteur croit strictement, v(T) > v(0)."
+              }
+            },
+            {
+              "id": "cap_cout_croissant",
+              "capacite": "Le cout d'un producteur donne augmente strictement a chaque achat de ce producteur : cout_apres > cout_avant.",
+              "source_ref": "R7",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot achete le meme producteur 3 fois de suite ; la suite des couts affiches est strictement croissante, c1 < c2 < c3."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "collection_chatons",
+      "features": [
+        {
+          "id": "feat_galerie",
+          "capacites": [
+            {
+              "id": "cap_galerie_etats_rarete",
+              "capacite": "La galerie affiche chaque chaton avec un etat (verrouille/debloque) et un palier de rarete visible ; debloquer un chaton fait passer son etat a debloque de facon permanente.",
+              "source_ref": "R5",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Capture de l'ecran collection : au moins un chaton verrouille (silhouette/lock) et un debloque avec badge de rarete ; apres condition de deblocage, l'entree change d'etat vers debloque."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_persistance_monotone",
+          "capacites": [
+            {
+              "id": "cap_collection_monotone_sans_defaite",
+              "capacite": "Aucun evenement subi (temps, absence, action) ne retire un chaton deja debloque ni ne declenche d'ecran de defaite : la collection est monotone non decroissante.",
+              "source_ref": "R3",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Un oracle rejoue une session (clics, achats, temps ecoule, fermeture/reouverture) et verifie qu'aucune transition ne diminue la taille de la collection et qu'aucune scene game_over n'est atteignable."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "progression_prestige",
+      "features": [
+        {
+          "id": "feat_prestige",
+          "capacites": [
+            {
+              "id": "cap_prestige_multiplicateur_permanent",
+              "capacite": "Declencher le prestige remet a zero la production courante mais applique un multiplicateur permanent (>1) qui persiste apres le reset et augmente le gain de base.",
+              "source_ref": "R6",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot atteint le seuil de prestige et declenche le reset ; apres reset, mult_permanent > 1 et gain_par_clic post-reset > gain_par_clic initial pre-prestige."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "retention_temporelle",
+      "features": [
+        {
+          "id": "feat_gains_hors_ligne",
+          "capacites": [
+            {
+              "id": "cap_gains_hors_ligne",
+              "capacite": "A la reouverture apres une fermeture de duree D, le jeu calcule et affiche des gains hors-ligne strictement positifs, ajoutes au total.",
+              "source_ref": "R4",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Fermer puis relancer avec une horloge avancee de D ; a la reouverture un panneau affiche gains_hors_ligne > 0 coherents avec production_passive x D (eventuellement capee)."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_objet_bonus",
+          "capacites": [
+            {
+              "id": "cap_objet_bonus_ephemere",
+              "capacite": "Un objet-bonus ephemere apparait par intermittence, reste cliquable pendant une duree bornee puis disparait ; le cliquer dans la fenetre octroie un bonus temporaire mesurable, ne pas le cliquer n'entraine aucune penalite.",
+              "source_ref": "R8",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot attend l'apparition de l'objet-bonus, le clique dans sa fenetre de vie : un bonus temporaire s'applique (gain multiplie pendant une duree). Dans un second essai il ne clique pas : l'objet disparait, aucun bonus, aucun decrement du total."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+**RETURN LINEAGE** (FORGE_CAUSAL_LINEAGE_V2 §3) —
+- `why_task_existed:` {`problem:` le pipeline Forge a besoin, entre le Prisme (exigences observables) et l'archi (s4), d'un arbre fonctionnel Système→Feature→capacité où chaque feuille porte sa preuve attendue, sinon s4/s5 découpent sans traçabilité vers les exigences · `oracle:` `forge.check_decompo` (COUVERTURE / NON-INVENTION / COMPLÉTUDE), qui FAIL si une exigence n'est portée par aucune feuille ou si un `source_ref` n'existe pas · `root_cause:` non applicable — activation par séquence de pipeline (dispatch s3 après s1/s2/s2.6/s2.7), pas par un défaut mesuré · `action_reason:` j'ai décomposé les 10 exigences R1–R10 en 10 feuilles réparties en 5 systèmes / 8 features, chaque feuille héritant verbatim de sa preuve attendue}
+- `result:` featuremap valide par construction produite (bloc terminal) ; 10/10 exigences couvertes, 0 feuille non sourcée, 0 `source_ref` orphelin ; non matérialisée en fichier (interdit par le contrat) et oracle non exécuté (`run: aucun`)
+- `proof:` aucune commande exécutée (permissions `run: aucun`) — conformité établie par mapping manuel du bloc contre `upstream_schema.mjs::validateFeaturemap` et contre les 10 ids de `prisme.json` ; reçu mécanique délégué à l'exécuteur : `node scripts/forge/check_decompo.mjs <run_dir>/featuremap.json --prisme <run_dir>/prisme.json`
+- `learning:` les destinations aval hétérogènes d'une exigence (s4-archi, s5-wiremap, s9-build) ne dispensent JAMAIS s3 de porter cette exigence dans une feuille — l'oracle exige la couverture de tous les ids, le champ `destination` désigne seulement le consommateur aval, pas une permission d'omettre à s3
+- `next_reason:` chaîne causale FERMÉE côté s3 — livrable conforme par construction, aucune cause non résolue. Le seul pas restant est la validation mécanique (exécution de `check_decompo`) qui appartient à l'exécuteur par conception du pipeline, non une escalade.
+
+SKIPPED_VALIDATION: voir la section structurée du rapport ci-dessus (3 items : exécution de `check_decompo` non faite — `run: aucun` ; matérialisation du fichier non faite — interdite par contrat ; fidélité des `expected_proof` faite par recopie verbatim, non oraclée).
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

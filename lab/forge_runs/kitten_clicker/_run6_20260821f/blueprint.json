@@ -1,0 +1,148 @@
+{
+ "modules": [
+  "05_SYSTEMS",
+  "06_RUNTIME",
+  "02_ENTITIES",
+  "03_WORLD",
+  "render",
+  "input",
+  "audio"
+ ],
+ "deps_interdites": [
+  [
+   "05_SYSTEMS",
+   "render"
+  ],
+  [
+   "05_SYSTEMS",
+   "input"
+  ],
+  [
+   "05_SYSTEMS",
+   "audio"
+  ]
+ ],
+ "ownership": {
+  "05_SYSTEMS": "game-logic",
+  "03_WORLD": "content-registries",
+  "02_ENTITIES": "game-entities",
+  "render": "output-render-adapter",
+  "input": "input-adapter",
+  "audio": "audio-adapter",
+  "06_RUNTIME": "composition-root"
+ },
+ "responsabilites": [
+  {
+   "module": "05_SYSTEMS",
+   "responsabilite": "Logique de jeu pure et deterministe : economie (ronrons, gain strict au clic, production passive, ameliorations), paliers de meta-progression, prestige (reset + bonus permanent), suivi de collection, deblocages, invariant non-defaite. Expose un etat et des signaux ; ne connait ni rendu, ni entree, ni audio.",
+   "couvre": [
+    "feat_clic",
+    "feat_production_passive",
+    "feat_ameliorations",
+    "feat_paliers",
+    "feat_prestige",
+    "feat_suivi_collection",
+    "feat_invariant_non_defaite",
+    "feat_deblocage"
+   ],
+   "dependances": [
+    "03_WORLD"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot deterministe joue via l'API de 05_SYSTEMS et franchit le 3e palier en un nombre fini de ticks (solvability.gd) ; gain strict > 0 au clic (compteur == N*gain), delta production > 0 entre deux ticks sans clic."
+   }
+  },
+  {
+   "module": "03_WORLD",
+   "responsabilite": "Registres de contenu declaratifs : kittens.json (>=6 chatons distincts, >=3 raretes), places.json (>=2 lieux dont refuge initial + 1 debloque), objects.json (>=3 objets icone+effet), quests.json (>=3 quetes objectif chiffre+progression). Donnees pures, aucune logique, aucune dependance.",
+   "couvre": [
+    "feat_registre_chatons",
+    "feat_registre_lieux",
+    "feat_registre_objets",
+    "feat_registre_quetes"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "file_write",
+    "statement": "Oracles de contenu comptent >=6 chatons a id/nom uniques et >=3 raretes representees, >=2 lieux marques initial/debloque, >=3 objets a icone+effet non vides, >=3 quetes a objectif chiffre, progression et etat d'accomplissement."
+   }
+  },
+  {
+   "module": "02_ENTITIES",
+   "responsabilite": "Objets de jeu instanciables et persistants : le chaton (sprite distinct par rarete, persistant apres achat) et la pelote centrale. Scenes/scripts autonomes pilotes par le runtime, sans regle d'economie.",
+   "couvre": [
+    "feat_achat_chaton"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/kitten_spawn.gd en gpu_window capture la scene avant/apres achat et prouve l'apparition d'un sprite de chaton distinct et persistant."
+   }
+  },
+  {
+   "module": "render",
+   "responsabilite": "Adaptateur de sortie visuelle (06_RUNTIME/adapters/render) : HUD total+taux/s mis a jour au tick, feedback immediat au clic, identite visuelle distincte par rarete, decors distincts par lieu, icones+effets d'objets. Lit l'etat du modele, ne le mute jamais.",
+   "couvre": [
+    "feat_hud_readout",
+    "feat_identite_visuelle_chatons",
+    "feat_decor_lieux",
+    "feat_effet_objets"
+   ],
+   "dependances": [
+    "05_SYSTEMS",
+    "02_ENTITIES",
+    "03_WORLD"
+   ],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "Oracles gpu_window (hud_readout.gd, rarity_identity.gd, place_decor.gd, object_effect.gd) prouvent la presence des valeurs a l'ecran et des differences de pixels au-dessus du seuil entre raretes/lieux/etats d'objet."
+   }
+  },
+  {
+   "module": "input",
+   "responsabilite": "Adaptateur d'entree (06_RUNTIME/adapters/input) : capture le clic sur la pelote et les actions d'achat/amelioration, les traduit en appels a l'API de 05_SYSTEMS. Aucune regle d'economie ; direction autorisee input -> logique uniquement.",
+   "couvre": [
+    "feat_clic"
+   ],
+   "dependances": [
+    "05_SYSTEMS"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot emet N clics via l'adaptateur d'entree ; le compteur de ronrons de 05_SYSTEMS passe de 0 a N*gain avec gain > 0 strict (jamais un >= tautologique)."
+   }
+  },
+  {
+   "module": "audio",
+   "responsabilite": "Adaptateur audio procedural (06_RUNTIME/adapters/audio) : joue un son distinct pour chacun des 4 evenements (click, buy, unlock, prestige) sur reception du signal correspondant, cable par le runtime. Aucune decision de jeu.",
+   "couvre": [
+    "feat_deblocage"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "07_TESTS/oracle/core_audio.gd journalise les 4 declenchements 'click','buy','unlock','prestige' avec 4 identifiants deux a deux distincts."
+   }
+  },
+  {
+   "module": "06_RUNTIME",
+   "responsabilite": "Racine de composition : scene Godot principale, arbre de noeuds, boucle de tick ; instancie 05_SYSTEMS et cable ses signaux vers les adaptateurs render/input/audio. Aucun appel reseau (jeu solo hors-ligne).",
+   "couvre": [
+    "feat_hors_ligne"
+   ],
+   "dependances": [
+    "05_SYSTEMS",
+    "02_ENTITIES",
+    "03_WORLD",
+    "render",
+    "input",
+    "audio"
+   ],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "Scan statique des scripts 06_RUNTIME asserte l'absence d'appel reseau (HTTPRequest/socket/API externe) ; sonde runtime_alive verte sur la scene produite."
+   }
+  }
+ ]
+}

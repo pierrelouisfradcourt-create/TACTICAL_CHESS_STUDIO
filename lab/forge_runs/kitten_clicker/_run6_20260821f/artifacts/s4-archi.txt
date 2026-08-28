@@ -1,0 +1,125 @@
+I now have everything the two oracles require, verified against source. Key mechanics confirmed:
+
+- **`check_architecture`** (`static_oracles.py:75-78`): source module = `rel.parts[0]` (first dir); target = any module token found among an import's path segments (`_imports(path) & modules`). So render/input/audio under the frozen `06_RUNTIME/adapters/{id}/` are indistinguishable at first-folder level — the exact wall in pre-mortem `manifest-9e19650`. The only fix is to declare the adapter concerns as **target tokens** (`render`, `input`, `audio`), which then match the path segment `…/adapters/render/…`.
+- **`check_blueprint_contract.mjs`** (my real oracle): both ends of every `deps_interdites` pair **must be declared modules** (line 138-141); **every module needs a `responsabilites[]` entry** (207-209); **every featuremap feature must be covered** (212-216); no cycles; no dependance that is also forbidden.
+- **`featureIds()`** (`upstream_schema.mjs:250`) extracts `systemes[].features[].id` — so `couvre` cites the 18 **feature** ids (not capacité ids).
+
+The design below makes `logique→rendu`, `logique→input`, `logique→audio` three **distinct and enforceable** forbidden edges (not a toothless single `05_SYSTEMS→06_RUNTIME` collapse), while `modules` stays a flat list of strings.
+
+---
+
+## RAPPORT FINAL — s4-archi / kitten_clicker-20260821f
+
+**software_verdict: BLOCKED** — je n'ai PAS le droit d'exécuter (`permissions.run: aucun`). Le blueprint est construit pour satisfaire `check_blueprint_contract.mjs`, mais seul l'exécuteur peut lancer l'oracle après matérialisation de `blueprint.json`. Je ne peux donc pas produire de reçu d'exécution moi-même.
+**evidence_verdict: MECHANICAL_VALIDATION_ONLY** — chaque décision est adossée à la lecture du code des deux oracles (`check_blueprint_contract.mjs`, `static_oracles.py`) et de la table figée `repo_map.yaml`, pas à un jugement.
+**claim_verdict: NO_CLAIM_ALLOWED**
+
+### Couverture featuremap (18 features → ≥1 module chacune)
+Vérifiée manuellement contre `featureIds()` appliqué à `artifacts/s3-decompo.txt` :
+
+| Module | Concern | Couvre (feature ids) |
+|---|---|---|
+| `05_SYSTEMS` | logique pure | feat_clic, feat_production_passive, feat_ameliorations, feat_paliers, feat_prestige, feat_suivi_collection, feat_invariant_non_defaite, feat_deblocage |
+| `03_WORLD` | registres contenu | feat_registre_chatons, feat_registre_lieux, feat_registre_objets, feat_registre_quetes |
+| `02_ENTITIES` | objets de jeu | feat_achat_chaton |
+| `render` | sortie visuelle | feat_hud_readout, feat_identite_visuelle_chatons, feat_decor_lieux, feat_effet_objets |
+| `input` | entrée | feat_clic |
+| `audio` | sons d'événements | feat_deblocage |
+| `06_RUNTIME` | racine de composition | feat_hors_ligne |
+
+- **Features non couvertes** : aucune (18/18).
+- **Couvertures fantômes** : aucune (tous les ids cités existent dans la featuremap).
+- feat_clic et feat_deblocage sont en double couverture **assumée** : ce sont des features multi-couches (clic = capture `input` + gain `05_SYSTEMS` ; déblocage = logique `05_SYSTEMS` + son `audio`). L'oracle autorise ≥1 coverer ; c'est honnête, pas un remplissage.
+
+### Graphe de dépendances (acyclique, vérifié)
+`05_SYSTEMS→03_WORLD` · `render→{05_SYSTEMS,02_ENTITIES,03_WORLD}` · `input→05_SYSTEMS` · `06_RUNTIME→{05_SYSTEMS,02_ENTITIES,03_WORLD,render,input,audio}` · `03_WORLD/02_ENTITIES/audio` = feuilles. Aucun arc retour → **0 cycle**. `04_ASSETS` volontairement NON déclaré module (aucune feature à couvrir ; chargé via `load()` sans être un nœud du graphe) — l'inclure aurait forcé une couverture fantôme.
+
+### deps_interdites (3 séparations, toutes exécutables)
+`[05_SYSTEMS→render]`, `[05_SYSTEMS→input]`, `[05_SYSTEMS→audio]`. Les 4 extrémités sont des modules déclarés (contrainte ligne 138-141). Aucune n'est une dépendance déclarée du graphe (pas d'auto-contradiction : `05_SYSTEMS` ne dépend que de `03_WORLD`). Ces arêtes **peuvent réellement rougir** après build : si un fichier sous `05_SYSTEMS/` importe `res://06_RUNTIME/adapters/render/…`, `_path_segments` produit le token `render`, `parts[0]="05_SYSTEMS"` → violation. Ce n'est donc pas une assertion inviolable (cf. `forge.assertion_that_cannot_fail.yaml`).
+
+### fog → HumanGate (décision structurelle, pas un claim)
+Les modules `render`/`input`/`audio` **ne sont pas des dossiers de premier niveau** (ils vivent sous `06_RUNTIME/adapters/{id}/`, `repo_map` figé). C'est une **déviation délibérée** de la consigne « dossier de premier niveau » de la TÂCHE, imposée par la mécanique : `check_architecture` dérive la source par `parts[0]`, donc render et input, partageant la racine `06_RUNTIME`, sont indistinguables au niveau racine. La seule façon d'exprimer `logique→rendu` ET `logique→input` comme deux arêtes distinctes ET d'avoir les deux extrémités déclarées (oracle s4) est d'utiliser les noms d'adaptateurs comme jetons-cibles. Ratification de cette convention = ressort HumanGate (Pierre), pas oracle.
+
+### SKIPPED_VALIDATION
+- **item** : exécution de `check_blueprint_contract.mjs blueprint.json --featuremap featuremap.json` · **où** : run_dir kitten_clicker · **statut** : non fait · **raison** : `permissions.run: aucun` — l'exécuteur matérialise `blueprint.json` puis lance l'oracle ; je ne peux pas exécuter.
+- **item** : confirmation de l'existence sur disque de `featuremap.json` · **où** : run_dir · **statut** : partiel · **raison** : outils Glob/Bash désactivés cette session ; couverture dérivée de l'artefact `artifacts/s3-decompo.txt` fourni (source de `featuremap.json`).
+
+### RETURN LINEAGE
+- **why_task_existed** :
+  - problem: produire une architecture qui couvre les 18 features et qui exprime des séparations logique↔I/O réellement enforçables — après échecs répétés à s10s/s9 (`manifest-130043515fbb0708`, `manifest-9e19650ee5dc1f23`).
+  - oracle: `check_blueprint_contract.mjs` (avant build) ; en aval `forge.static_oracles.check_architecture`.
+  - root_cause: `_module_of=rel.parts[0]` + `system.adapter → 06_RUNTIME/adapters/{id}/` (repo_map figé) rendent render/input indistinguables au niveau racine.
+  - action_reason: déclarer render/input/audio comme jetons-cibles sous 06_RUNTIME rend les 3 séparations distinctes et exécutables sans toucher la table figée.
+- **result** : blueprint à 7 modules, 3 arêtes interdites (extrémités déclarées), 18/18 features couvertes, graphe acyclique, aucune auto-contradiction. Non exécuté (permission run refusée).
+- **proof** : lecture de `check_blueprint_contract.mjs` (l.120-233), `static_oracles.py::_module_of/_imports/check_architecture` (l.75-260), `upstream_schema.mjs::featureIds` (l.250-258), `repo_map.yaml` (`system.adapter`). Aucune commande lancée (run interdit).
+- **learning** : sous topologie STANDARD, toute séparation de sortie/entrée doit passer par des jetons-cibles d'adaptateur — le niveau racine ne les porte jamais ; c'est réutilisable pour tout futur jeu Godot du parc.
+- **next_reason** : la chaîne se poursuit en s5-wiremap qui doit matérialiser `06_RUNTIME/adapters/render|input|audio/` conformément à ce blueprint ; escalade nécessaire seulement si l'exécuteur, en lançant l'oracle, remonte un écart — sinon la lignée passe la main proprement.
+
+```json
+{
+  "modules": ["05_SYSTEMS", "06_RUNTIME", "02_ENTITIES", "03_WORLD", "render", "input", "audio"],
+  "deps_interdites": [["05_SYSTEMS", "render"], ["05_SYSTEMS", "input"], ["05_SYSTEMS", "audio"]],
+  "ownership": {
+    "05_SYSTEMS": "game-logic",
+    "03_WORLD": "content-registries",
+    "02_ENTITIES": "game-entities",
+    "render": "output-render-adapter",
+    "input": "input-adapter",
+    "audio": "audio-adapter",
+    "06_RUNTIME": "composition-root"
+  },
+  "responsabilites": [
+    {
+      "module": "05_SYSTEMS",
+      "responsabilite": "Logique de jeu pure et deterministe : economie (ronrons, gain strict au clic, production passive, ameliorations), paliers de meta-progression, prestige (reset + bonus permanent), suivi de collection, deblocages, invariant non-defaite. Expose un etat et des signaux ; ne connait ni rendu, ni entree, ni audio.",
+      "couvre": ["feat_clic", "feat_production_passive", "feat_ameliorations", "feat_paliers", "feat_prestige", "feat_suivi_collection", "feat_invariant_non_defaite", "feat_deblocage"],
+      "dependances": ["03_WORLD"],
+      "preuve_attendue": {"kind": "bot_action", "statement": "Un bot deterministe joue via l'API de 05_SYSTEMS et franchit le 3e palier en un nombre fini de ticks (solvability.gd) ; gain strict > 0 au clic (compteur == N*gain), delta production > 0 entre deux ticks sans clic."}
+    },
+    {
+      "module": "03_WORLD",
+      "responsabilite": "Registres de contenu declaratifs : kittens.json (>=6 chatons distincts, >=3 raretes), places.json (>=2 lieux dont refuge initial + 1 debloque), objects.json (>=3 objets icone+effet), quests.json (>=3 quetes objectif chiffre+progression). Donnees pures, aucune logique, aucune dependance.",
+      "couvre": ["feat_registre_chatons", "feat_registre_lieux", "feat_registre_objets", "feat_registre_quetes"],
+      "dependances": [],
+      "preuve_attendue": {"kind": "file_write", "statement": "Oracles de contenu comptent >=6 chatons a id/nom uniques et >=3 raretes representees, >=2 lieux marques initial/debloque, >=3 objets a icone+effet non vides, >=3 quetes a objectif chiffre, progression et etat d'accomplissement."}
+    },
+    {
+      "module": "02_ENTITIES",
+      "responsabilite": "Objets de jeu instanciables et persistants : le chaton (sprite distinct par rarete, persistant apres achat) et la pelote centrale. Scenes/scripts autonomes pilotes par le runtime, sans regle d'economie.",
+      "couvre": ["feat_achat_chaton"],
+      "dependances": [],
+      "preuve_attendue": {"kind": "visual", "statement": "07_TESTS/oracle/kitten_spawn.gd en gpu_window capture la scene avant/apres achat et prouve l'apparition d'un sprite de chaton distinct et persistant."}
+    },
+    {
+      "module": "render",
+      "responsabilite": "Adaptateur de sortie visuelle (06_RUNTIME/adapters/render) : HUD total+taux/s mis a jour au tick, feedback immediat au clic, identite visuelle distincte par rarete, decors distincts par lieu, icones+effets d'objets. Lit l'etat du modele, ne le mute jamais.",
+      "couvre": ["feat_hud_readout", "feat_identite_visuelle_chatons", "feat_decor_lieux", "feat_effet_objets"],
+      "dependances": ["05_SYSTEMS", "02_ENTITIES", "03_WORLD"],
+      "preuve_attendue": {"kind": "visual", "statement": "Oracles gpu_window (hud_readout.gd, rarity_identity.gd, place_decor.gd, object_effect.gd) prouvent la presence des valeurs a l'ecran et des differences de pixels au-dessus du seuil entre raretes/lieux/etats d'objet."}
+    },
+    {
+      "module": "input",
+      "responsabilite": "Adaptateur d'entree (06_RUNTIME/adapters/input) : capture le clic sur la pelote et les actions d'achat/amelioration, les traduit en appels a l'API de 05_SYSTEMS. Aucune regle d'economie ; direction autorisee input -> logique uniquement.",
+      "couvre": ["feat_clic"],
+      "dependances": ["05_SYSTEMS"],
+      "preuve_attendue": {"kind": "bot_action", "statement": "Un bot emet N clics via l'adaptateur d'entree ; le compteur de ronrons de 05_SYSTEMS passe de 0 a N*gain avec gain > 0 strict (jamais un >= tautologique)."}
+    },
+    {
+      "module": "audio",
+      "responsabilite": "Adaptateur audio procedural (06_RUNTIME/adapters/audio) : joue un son distinct pour chacun des 4 evenements (click, buy, unlock, prestige) sur reception du signal correspondant, cable par le runtime. Aucune decision de jeu.",
+      "couvre": ["feat_deblocage"],
+      "dependances": [],
+      "preuve_attendue": {"kind": "oracle", "statement": "07_TESTS/oracle/core_audio.gd journalise les 4 declenchements 'click','buy','unlock','prestige' avec 4 identifiants deux a deux distincts."}
+    },
+    {
+      "module": "06_RUNTIME",
+      "responsabilite": "Racine de composition : scene Godot principale, arbre de noeuds, boucle de tick ; instancie 05_SYSTEMS et cable ses signaux vers les adaptateurs render/input/audio. Aucun appel reseau (jeu solo hors-ligne).",
+      "couvre": ["feat_hors_ligne"],
+      "dependances": ["05_SYSTEMS", "02_ENTITIES", "03_WORLD", "render", "input", "audio"],
+      "preuve_attendue": {"kind": "oracle", "statement": "Scan statique des scripts 06_RUNTIME asserte l'absence d'appel reseau (HTTPRequest/socket/API externe) ; sonde runtime_alive verte sur la scene produite."}
+    }
+  ]
+}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "sous topologie STANDARD figee, les separations logique->rendu et logique->input ne sont pas exprimables comme deux aretes distinctes au niveau du premier dossier, car render et input partagent la racine 06_RUNTIME", "root_cause": "static_oracles.check_architecture derive la source d'une violation par rel.parts[0] alors que repo_map.yaml place les adaptateurs sous 06_RUNTIME/adapters/{id}/ ; seules des cibles-jetons d'adaptateur (render/input/audio) rendent les separations distinctes et enforcables"}

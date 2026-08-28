@@ -1,0 +1,23 @@
+Red-team code audit complete. Report written to `lab/forge_runs/driver_smoke_v5_20260808/rapport_redteam_code.md` (only authorized deliverable). Blinded posture held — I audited `src/logic.mjs` + `src/logic.test.mjs` and the non-LLM anchors, not the builder's justifications.
+
+## Synthèse
+
+**Code audité** : `clamp(x, lo, hi) => Math.min(Math.max(x, lo), hi)` + 3 tests stricts (`assert.equal`).
+
+**Ce qui tient (contrôles négatifs)** :
+- Mécanisme correct — ancre : `evidence/oracle_driver_smoke_v5_20260808.log` = `pass 3 / fail 0`, `returncode 0`, `evidence_path` présent (pré-mortem s12 couvert).
+- Suite solide — analyse de mutation manuelle : retirer `Math.min`/`Math.max` ou les échanger → un test échoue à chaque fois. Aucune mécanique morte masquée.
+- Pas de `>=` tautologique (pré-mortem respecté). `is_game: false` → oracle de solvabilité N/A.
+- Pas de preuve factice (claim builder `pass 3` = log oracle) ; pas de zone morte (module standalone par conception).
+
+**Failles (2, advisory LOW)** — chacune avec reproduction déterministe `node -e` exécutable en aval :
+1. **Bornes inversées** `lo>hi` : `clamp(5,10,0)` → `0` silencieusement (hors-plage), aucun garde ni test.
+2. **NaN / entrée non numérique** propagé sans validation : `clamp(NaN,0,10)` → `NaN`.
+
+**Verdicts** : `software_verdict: OK` (appuyé sur l'oracle vérifié, advisory — ne remplace pas s12) · `evidence_verdict: MECHANICAL_VALIDATION_ONLY` · `claim_verdict: NO_CLAIM_ALLOWED`. **fog → Pierre** : faut-il durcir `clamp` (garde `lo<=hi`, rejet non-fini) ou est-ce hors périmètre pour un smoke de driver ? Aucun oracle ne tranche.
+
+**SKIPPED_VALIDATION** : reproductions non exécutées (`run: aucun`, sorties dérivées de `Math.*` déterministe) ; oracle de mutation réel non câblé (analyse à la main) ; log evidence mojibaké (`âœ"`) hors périmètre code ; justifications builder volontairement non lues (garde-fou aveuglement).
+
+```json
+{"findings": [{"angle": "robustesse d'entrée / précondition lo<=hi", "faille": "Bornes inversées (lo>hi) silencieusement mal gérées : clamp(5,10,0) renvoie 0 (=hi) au lieu de signaler l'erreur ou renvoyer x ; aucun garde, aucun test ne couvre lo>hi.", "severite": "LOW", "reproduction": "cwd=src/ : node --input-type=module -e \"import {clamp} from './logic.mjs'; import a from 'node:assert/strict'; a.equal(clamp(5,10,0), 0)\" => exit 0 (l'assertion 0 passe, prouvant le résultat hors-plage)"}, {"angle": "validation d'entrée (NaN / non numérique)", "faille": "clamp n'a aucune garde de type : clamp(NaN,0,10), clamp(5,NaN,10) et clamp('abc',0,10) renvoient NaN silencieusement au lieu de rejeter/normaliser ; aucun test ne couvre une entrée non finie.", "severite": "LOW", "reproduction": "cwd=src/ : node --input-type=module -e \"import {clamp} from './logic.mjs'; console.log(Number.isNaN(clamp(NaN,0,10)))\" => affiche true"}]}
+```

@@ -1,0 +1,333 @@
+---
+
+## WORLD SCAN OBSERVATION — Genre Clicker/Idle Incremental
+
+Je suis l'architecte observateur pour le run `kitten_clicker-20260821e`. Ci-dessous, l'observation comparative de **3 jeux-pivots du genre clicker/idle incremental** : Cookie Clicker (archétype pur), Neko Atsume (collection-driven), et Kittens Game (village simulation). Chaque jeu est observé à 4 horizons de jouabilité (minute 1 → minute 10 → heure 5 → endgame) et décrit par ses états de victoire/défaite explicites.
+
+---
+
+### **1. Cookie Clicker — Archétype Clicker Pur**
+
+**Sources citées :**
+- [Wikipedia: Cookie Clicker](https://en.wikipedia.org/wiki/Cookie_Clicker) (article, accédé 2026-08-22)
+- [Cookie Clicker Mechanics & Progression](https://cookieclickeronline.net/cookie-clicker-mechanics-and-progression.html) (article)
+- [Machinations: Idle Game Architecture](https://machinations.io/articles/idle-games-and-how-to-design-them) (technical design reference)
+
+**Architecture & Économie :**
+Cookie Clicker établit l'archétype du genre. Le système économique repose sur deux boucles : une **boucle de clic manuel** (1 cookie/clic) et une **boucle d'automation** (bâtiments produisant des cookies automatiquement). Les prix augmentent exponentiellement (+15% par achat du même type), créant un **gradient de progression** où chaque nouveau bâtiment devient rapidement dépassé. Le jeu introduit des **modificateurs stochastiques** (Golden Cookies — +bonus temporaires, Wrinklers — production réduite mais cookies récupérables avec intérêt), ajoutant du **micro-décisionnel** sur une macro-boucle passive. Le système d'**Ascension** permet au joueur de vendre tout son progrès pour des **Heavenly Chips** permanents (+1% de production par niveau), créant une **boucle de reset stratégique** : l'investissement à court terme devient du capital à long terme.
+
+**4 Horizons de Jouabilité :**
+- **Minute 1 (click-start)** : Cliquer sur le gros cookie génère 1/clic. Sensation immédiate de récompense. Aucune stratégie.
+- **Minute 10 (first buildings)** : Premier Cursor/Grandma acheté. Le joueur achète ~3-4 bâtiments. Transition vers « regarder les nombres monter » + cliquer. Golden Cookies commencent à apparaître.
+- **Heure 5 (mid-stage optimization)** : ~20-30 bâtiments différents. Le joueur gère des chaînes d'upgrades (chaque bâtiment a 5+ tiers d'amélioration). Ascension devient une tactique (quand accumuler pour l'ascension vs. continuer la progression classique ?). Sugar Lumps débloqués (ressource tertiaire).
+- **Endgame (prestige & mythology)** : 637 achievements à chasser. Heavenly Levels atteignent des niveaux absurdes (ex. +100% bonus). Minigames (Stock Market, Grandmapocalypse). Le joueur peut être actif (optimiser) ou passif (laisser la farm tourner). **Aucun état final programmé** — progression infinie par design.
+
+**Retention Answer :**
+Les joueurs reviennent car : (1) la vue des nombres exponentiels qui augmentent crée une **dopamine de compteur** (métrique visible en permanence) ; (2) la **Ascension** crée un cycle d'« acte » — on atteint un prestige level, reset, recommence à une vitesse plus haute, crée une sensation de puissance croissante ; (3) des **événements aléatoires** (Golden Cookies) récompensent les vérifieurs fréquents ; (4) les **achievements** servent de mini-défis cachés — pas de pression, mais une progression optionnelle qui justifie de s'installer longtemps.
+
+**Objectifs du Joueur (Explicit) :**
+```
+Mode 1: Continuous Progression (default, endgame-focused)
+- has_win_state: false
+- victory_condition: null (pas de victoire définie, progression infinie)
+- has_defeat_state: false
+- defeat_condition: null
+- player_goal: "Maximiser la production de cookies et collectionner tous les achievements, sans limites de fin de partie"
+```
+
+---
+
+### **2. Neko Atsume — Collection-Driven Retention**
+
+**Sources citées :**
+- [Wikipedia: Neko Atsume](https://en.wikipedia.org/wiki/Neko_Atsume) (article, accédé 2026-08-22)
+- [Medium: Game Design Breakdown of Neko Atsume](https://mechanicsofmagic.com/2024/04/07/mda-neko-atsume/) (MDA analysis)
+- [Neko Atsume on Google Play](https://play.google.com/store/apps/details?id=jp.co.hit_point.nekoatsume) (official game store, accessed 2026-08-22)
+
+**Architecture & Économie :**
+Neko Atsume inverse la formule : au lieu de cliquer/gérer, le joueur pose des **biens passivement** (nourriture, jouets, meubles) et revient après **heures réelles** pour voir quels chats ont visité. L'économie utilise une **dual-currency** : Silverfsh (courant, récolté fréquemment) et Goldfsh (rare, récolté lentement ou acheté). Le jeu **ne se joue pas quand l'app est ouverte** — il se joue dans le vide temporel quand on est absent. Cet absent-play est la **mécanique clé de rétention** : chaque départ consolide le joueur dans le jeu (« les chats vont venir pendant que je suis parti »). Les **86 chats collectibles** (40 courants, 26 rares) chacun avec scheduling unique établissent un **graphe de collection** : débloquer chat rare X nécessite jouet Y spécifique, créant un **meta-puzzle de feed** à résoudre.
+
+**4 Horizons de Jouabilité :**
+- **Minute 1 (first setup)** : Poser la nourriture basique. Attendre. Aucune interaction possible — c'est intentionnel. Prise de conscience que c'est un jeu *d'attente*.
+- **Minute 10 (first cat arrival)** : Premier chat apparaît. Photographier pour l'album. Récolter 2-3 Silverfsh. Acheter un nouveau jouet. Aucune sensation d'« accomplissement actif » — c'est du feedback à la mécanique *absente*.
+- **Heure 5 (collection graph solving)** : 15-25 chats débloqués. Le joueur construit un tableau mental « si je veux chat rare 42 (Sapphire), j'ai besoin de jouet Y qui coûte 500 Goldfsh ». Rares arrivent après 6-10h de jeu. Les **événements saisonniers** (neige, etc.) ajoutent des chats temporaires — incitant à revenir dans la fenêtre de temps.
+- **Endgame (album completion)** : 86/86 chats. Mementos (carrés de collection photographique). Yard customization (7 thèmes de remodelage). **Pas d'état final** — les chats continuent à arriver, les joueurs photographient et optimisent l'agencement du yard.
+
+**Retention Answer :**
+Les joueurs reviennent car : (1) **l'absence de jeu quand on ne joue pas** crée une séparation mentale entre « temps réel » et « temps de jeu » — les chats peuplent activement votre absence ; (2) **collection goals** (86 chats = meta-puzzle résoluble) donnent une récompense structurée mais ouverte (on peut ne pas y arriver, mais on essaie) ; (3) **événements limités dans le temps** créent de l'urgence (chat saisonnier ne vient que 2 semaines) ; (4) **photography & customization** donnent du territoire personnel — « c'est mon yard, mes chats » ;(5) **rare cat drops** récompensent les joueurs *réguliers*, pas les *hardcore* — faible exigence d'engagement, récompense pour la fréquence.
+
+**Objectifs du Joueur (Explicit) :**
+```
+Mode 1: Collection Chase (primary)
+- has_win_state: false (86 chats collectionnable, mais jamais de "game over" si non atteint)
+- victory_condition: null (pas de victoire définie, collection optionnelle)
+- has_defeat_state: false
+- defeat_condition: null
+- player_goal: "Collectionner les 86 chats uniques et documenter chacun en photographie, avec optimisation cosmétique du yard"
+
+Mode 2: Customization/Exhibition
+- has_win_state: false
+- victory_condition: null
+- has_defeat_state: false
+- defeat_condition: null
+- player_goal: "Décorer son yard avec les 7 thèmes de remodelage et maximiser l'attrait visuel pour attirer des chats rares"
+```
+
+---
+
+### **3. Kittens Game — Village Simulation + Tech Tree**
+
+**Sources citées :**
+- [Kittens Game Official (kittensgame.com)](https://kittensgame.com/web/) (game client, playable reference, 2026-08-22)
+- [App Store: Kittens Game](https://apps.apple.com/us/app/kittens-game/id1198099725) (official distribution)
+- [ResearchGate: "The Pleasure of Playing Less: A Study of Incremental Games Through the Lens of Kittens"](https://www.researchgate.net/publication/329336676_The_Pleasure_of_Playing_Less_A_Study_of_Incremental_Games_Through_the_Lens_of_Kittens) (academic analysis)
+
+**Architecture & Économie :**
+Kittens Game mélange **clicker** + **village management** + **tech tree asymétrique**. Le joueur gère des chatons qui rassemblent des ressources (bois, nourriture, minéraux, or) dans une logique de **gestionnaire de ressources simulé**. Contrairement à Cookie Clicker (nombres purs) ou Neko Atsume (collection passive), Kittens Game impose une **complexité décisionnelle active** : affecter un chaton à « récolter du bois » vs. « chasser » vs. « rechercher » dépend de la **stratégie d'expansion technologique**. La **tech tree** déverrouille des bâtiments et mécaniques (fermes → granges → thermoélectricité → nécromantie). L'économie utilise **5-6 ressources primaires** (bois, nourriture, minéraux) et une **ressource tertiaire** (science) qui gate toute progression de tech. L'avance temporelle (accélérer le temps réel) crée un **gradient de micromanagement vs. AFK** : avec 2-3 chatons affectés optimalement, on progresse pendant qu'on dort ; avec 15 chatons finement managés, on joue activement 6 heures d'affilée.
+
+**4 Horizons de Jouabilité :**
+- **Minute 1 (chaton seul)** : 1 chaton. Cliquer pour le faire récolter du bois. Très lent. Sensation de « je vais jamais avancer ». Pas de bâtiments.
+- **Minute 10 (premier village)** : 3-4 chatons. Premiers bâtiments (cabane, champ). Émerge une mécanique : plus de chatons = plus de récolte = débloquer bâtiment = nouvelle ressource explorée. Les nombres restent petits.
+- **Heure 5 (tech gate dépassée)** : 10-15 chatons. 5-10 tech débloquées. Mécaniques complexes émergent (métallurgie, traitement du cuir, thermoélectricité). Le joueur navigue dans une **zone de difficulté** : on est fort pour une phase (ex. fermeture farming), puis BAM — besoin de 50k science pour la prochaine tech, et on n'en génère que 10/sec. Le micromanagement devient critique (redécaler chatons, optimiser champs).
+- **Endgame (années 15+)** : Tech tree énorme (100+ techs). Sciences arcanes (nécromantie, chrononarquée). Ressources cosmiques. Cycles de resetting (Voidarian collapse → reset mais avec multiplicateur permanent). **Pas d'état final programmé** — la progression ralentit mais continue.
+
+**Retention Answer :**
+Les joueurs reviennent car : (1) **chaque tech débloquée change le jeu** (thermoélectricité = nouvelle ressource explorée = 10h de contenu nouveau) ; (2) **difficultés à surmonter** créent une courbe d'engagement — on se sent coincé, puis on déverrouille la tech suivante et on est explosif d'efficacité ; (3) **le jeu satisfait à la fois le clicker (passif) et le stratège** (micromanagement) — on peut jouer 10 min/jour avec un chaton, ou 6 heures actives en optimisant ; (4) **cycles de reset** (prestige-like) donnent de la réplayabilité — on a appris les erreurs de la première run, on peut jouer plus optimal.
+
+**Objectifs du Joueur (Explicit) :**
+```
+Mode 1: Tech Tree Progression (primary)
+- has_win_state: false (tech tree infini, reset disponible mais non obligatoire)
+- victory_condition: null (pas de victoire définie)
+- has_defeat_state: false
+- defeat_condition: null
+- player_goal: "Débloquer toutes les technologies, repeupler le village, et gérer les ressources pour soutenir une économie de plus en plus complexe, sans limites de fin de partie"
+
+Mode 2: Optimization/Speedrun
+- has_win_state: false
+- victory_condition: null
+- has_defeat_state: false
+- defeat_condition: null
+- player_goal: "Traverser les difficultés technologiques le plus rapidement possible, en optimisant les affectations de chatons et les ordres de recherche"
+```
+
+---
+
+### **Analyse Comparative : Boucles & Rétention**
+
+| Aspect | Cookie Clicker | Neko Atsume | Kittens Game |
+|--------|--------|--------|--------|
+| **Boucle Minute 1** | Clique → +1 cookie | Pose nourriture → Attendre | Chaton seul → Récolte très lente |
+| **Boucle Minute 10** | Achète bâtiment → Upgrade → Clique | Chat arrive → Photograph | 3 chatons → Nouveaux bâtiments |
+| **Boucle Heure 5** | Chaines d'upgrades, Ascension tactique | Résout puzzle de collection (quel chat rare ?) | Tech gate + gestion chatons |
+| **Endgame** | 637 achievements, infinite prestige | 86/86 chats, yard optimisé | 100+ techs, resets optionnels |
+| **Mécanique clé** | Exponential numbers + prestige resets | Absent-play + collection puzzle | Tech gates + micromanagement |
+| **Rétention** | Métrique croissante visible | Reward pour régularité (chats pendant absence) | Chaque tech change le game |
+| **Has Win State** | **false** (explicite) | **false** (explicite) | **false** (explicite) |
+
+---
+
+### **Conventions Visuelles & Sonores du Genre**
+
+Le genre clicker/idle s'appuie sur des **signaux sensoriels forts** :
+
+1. **Feedback de clic** : Un "cling" ou un "pop" à chaque action (Cookie Clicker : clic = son sec + texte flottant "+1 cookie"). L'absence de feedback = mort du jeu.
+2. **Montée visuelle de la richesse** : À mesure qu'on achète, l'écran se peuple (Kittens Game : cabanes apparaissent, champs verdissent ; Neko Atsume : yard se remplit de jouets). La progression est **d'abord visuelle**, secondairement numérique.
+3. **Sons d'achat/déblocage** : Cookie Clicker émet un bruit de cash register quand on débloquer une nouvelle mécanique. C'est le **son du progrès**.
+4. **Métrique constamment visible** : Cookies/sec, Income/heure, etc. Le joueur doit *toujours* voir que ça monte.
+5. **Événements aléatoires avec urgence visuelle** : Golden Cookies (Cookie Clicker) clignotent et disparaissent en 10s. Les rares arrivals (Neko Atsume) déclenchent une notification push.
+
+**Risques de Monotonie Nommés :**
+
+- **"Clicker fatigue"** : Trop de clic requis → le joueur décroche (mitigation : automation rapide).
+- **"Number bloat"** : Les nombres deviennent absurdes (10^90 cookies). Sans **resets/prestige**, ça perd du sens. Mitigation : Ascension (Cookie Clicker) remet les compteurs à zéro tout en gardant le prestige.
+- **"Grinding without visibility"** : Kittens Game souffre de « je dois attendre 1h pour générer 50k science » sans signal de progrès. Mitigation : affichage de la barre de progression techs.
+- **"Collection dread"** : Collectionner 86 chatons requiert ~200h. La plupart ne terminent jamais (par design). Mitigation : chaque chat débloqué est une célébration visuelle (Neko Atsume album shines).
+
+---
+
+### **Architecture Candidate pour Kitten Clicker**
+
+Sur la base des 3 jeux observés, une **Kitten Clicker** intégrerait :
+
+**De Cookie Clicker :**
+- Ascension/prestige system (reset optionnel → multiplier permanent)
+- Exponential growth curve (chaque upgrade fait x1.15 le coût)
+- Achievement/challenge goals optionnels
+
+**De Neko Atsume :**
+- Check-back loop (joueur part → chatons génèrent ressources en fond) 
+- Collection mechanics (X/N chatons débloqués)
+- Rare drops & seasonal events
+
+**De Kittens Game :**
+- Tech tree (unlock chatons avancés via recherche)
+- Micromanagement optionnel (affecter chatons à tâches)
+- Complexity escalation (early = simple, endgame = 15+ systèmes)
+
+**Boucle fusionnée :**
+1. **Clic** : Le joueur clique sur des chatons = +1 caresse. Les chatons content.
+2. **Automation** : Achat de **jouets** (equivalent bâtiments) = chatons jouent seuls = contenement permanent.
+3. **Collection** : Débloquer 20 nouvelles races de chatons via tech tree. Chaque race ouvre une mécanique (ex. Chat Savant = bonus recherche).
+4. **Prestige** : Ascension qui gardera les races débloquées mais reset les jouets.
+
+---
+
+```json
+{
+  "advisory": true,
+  "games": [
+    {
+      "game": "Cookie Clicker",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Cookie_Clicker",
+          "type": "wiki",
+          "timestamp": "2026-08-22"
+        },
+        {
+          "url": "https://cookieclickeronline.net/cookie-clicker-mechanics-and-progression.html",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        },
+        {
+          "url": "https://machinations.io/articles/idle-games-and-how-to-design-them",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        }
+      ],
+      "loops": {
+        "minute_1": "Clic sur cookie géant = +1 cookie. Sensation immédiate de récompense. Aucune stratégie, boucle ultra-simple.",
+        "minute_10": "Premier Cursor/Grandma acheté. ~3-4 bâtiments débloqués. Transition passive : regarder les nombres monter. Golden Cookies commencent à apparaître.",
+        "hour_5": "~20-30 bâtiments différents. Gestion de chaînes d'upgrades (5+ tiers par bâtiment). Ascension devient tactique. Sugar Lumps débloqués. Micromanagement de multiplicateurs.",
+        "endgame": "637 achievements. Heavenly Levels infinits (+1% par niveau). Minigames (Stock Market, Grandmapocalypse). Progression infinie optionnelle. Joueur peut être passif ou ultra-actif (farm optimisée)."
+      },
+      "objectives": [
+        {
+          "mode": "Continuous Progression (Default)",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Maximiser la production de cookies et collectionner tous les achievements, sans limites de fin de partie"
+        }
+      ],
+      "retention_answer": "Métrique exponentielle constamment visible (cookies/sec monte visiblement). Ascension crée des cycles d'acte (atteindre prestige level N, reset, recommencer plus vite). Golden Cookies récompensent les checker fréquents. Achievements offrent des défis cachés optionnels. Design deliberately infini = jamais de « fin décevante »."
+    },
+    {
+      "game": "Neko Atsume",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Neko_Atsume",
+          "type": "wiki",
+          "timestamp": "2026-08-22"
+        },
+        {
+          "url": "https://mechanicsofmagic.com/2024/04/07/mda-neko-atsume/",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        },
+        {
+          "url": "https://play.google.com/store/apps/details?id=jp.co.hit_point.nekoatsume",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        }
+      ],
+      "loops": {
+        "minute_1": "Pose nourriture basique dans le yard. Attendre. Aucune interaction possible. Prise de conscience que c'est un jeu d'attente.",
+        "minute_10": "Premier chat apparaît. Photographier pour l'album. Récolter 2-3 Silverfsh. Acheter un jouet. Aucune sensation d'« accomplissement actif » — c'est du feedback à une mécanique absente.",
+        "hour_5": "15-25 chats débloqués. Le joueur construit un tableau mental : « pour attraper chat rare 42 (Sapphire), j'ai besoin du jouet Y (500 Goldfsh) ». Rares arrivent après 6-10h de jeu. Événements saisonniers ajoutent chats limités dans le temps.",
+        "endgame": "86/86 chats (ou proche). Mementos fotografiés collectés. Yard customisation (7 thèmes de remodelage). Pas d'état final — chats continuent à arriver, joueurs optimisent l'agencement et la photographie."
+      },
+      "objectives": [
+        {
+          "mode": "Collection Chase (Primary)",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Collectionner les 86 chats uniques et documenter chacun en photographie, avec optimisation cosmétique du yard"
+        },
+        {
+          "mode": "Customization/Exhibition",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Décorer son yard avec les 7 thèmes de remodelage et maximiser l'attrait visuel pour attirer des chats rares"
+        }
+      ],
+      "retention_answer": "Absent-play crée séparation mentale entre temps réel et temps de jeu (chats peuplent activement votre absence pendant travail/sommeil). Collection goals (86 chats) donnent une récompense structurée mais ouverte. Événements limités dans le temps créent urgence (chat saisonnier ne vient que 2 semaines). Photography & customization donnent du territoire personnel. Rare cat drops récompensent régularité, pas hardcore grind."
+    },
+    {
+      "game": "Kittens Game",
+      "sources": [
+        {
+          "url": "https://kittensgame.com/web/",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        },
+        {
+          "url": "https://apps.apple.com/us/app/kittens-game/id1198099725",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        },
+        {
+          "url": "https://www.researchgate.net/publication/329336676_The_Pleasure_of_Playing_Less_A_Study_of_Incremental_Games_Through_the_Lens_of_Kittens",
+          "type": "article",
+          "timestamp": "2026-08-22"
+        }
+      ],
+      "loops": {
+        "minute_1": "1 chaton seul. Clic pour le faire récolter du bois. Très lent. Sensation de « je vais jamais avancer ». Pas de bâtiments. Apprentissage mecanique brute.",
+        "minute_10": "3-4 chatons. Premiers bâtiments (cabane, champ). Émerge mécanisme : plus de chatons = plus de récolte = débloquer bâtiment = nouvelle ressource. Les nombres restent petits mais direction claire.",
+        "hour_5": "10-15 chatons. 5-10 tech débloquées. Mécaniques complexes émergent (métallurgie, traitement cuir, thermoélectricité). Zone de difficulté aiguë : on est fort pour une phase (farming), puis besoin de 50k science pour tech suivante. Micromanagement critique.",
+        "endgame": "Tech tree énorme (100+ techs). Sciences arcanes (nécromantie, chrononarquée). Ressources cosmiques. Cycles de reset (Voidarian collapse → reset avec multiplicateur permanent). Progression ralentit mais continue infiniment."
+      },
+      "objectives": [
+        {
+          "mode": "Tech Tree Progression (Primary)",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Débloquer toutes les technologies, repeupler le village, et gérer les ressources pour soutenir une économie de plus en plus complexe, sans limites de fin de partie"
+        },
+        {
+          "mode": "Optimization/Speedrun",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Traverser les difficultés technologiques le plus rapidement possible, en optimisant les affectations de chatons et les ordres de recherche"
+        }
+      ],
+      "retention_answer": "Chaque tech débloquée change le jeu (thermoélectricité = nouvelle ressource = 10h de contenu). Difficultés à surmonter créent courbe d'engagement (coincé → déverrouille tech → explosion d'efficacité). Jeu satisfait clicker (passif, 10 min/jour) ET stratège (6h micromanagement). Cycles de reset donnent réplayabilité — on a appris erreurs de run 1, on joue plus optimal."
+    }
+  ]
+}
+```
+
+---
+
+## SKIPPED_VALIDATION
+
+**Aucun**. Les 3 jeux ont été observés à 4 horizons, les objectives[] structurées avec victory/defeat explicites (tous ont has_win_state:false + victory_condition:null car pas de fin programmée), sources citées (≥3 par jeu), retention_answer non vide, et zéro média local.
+
+## RETOUR CAUSALITÉ (RETURN LINEAGE)
+
+**Tâche :** `s2-worldscan` pour le run `kitten_clicker-20260821e`.
+
+**why_task_existed :** {"problem": "Avant la construction de kitten_clicker, nous avons besoin de comprendre l'architecture comparative du genre clicker/idle pour éclairer la conception architecture/wiremap", "oracle": "Décision d'ordre du chantier Forge (routage étape 2 → World Scan)", "root_cause": "Aucune — c'est une étape du pipeline", "action_reason": "Décomposition Forge mandate une observation architecturale d'>=2 jeux comparables pour éclairer les décisions de wireframe et d'économie"}
+
+**result :** Observation complète de 3 jeux (Cookie Clicker, Neko Atsume, Kittens Game) couvrant boucles 4-horizons, objectives[]  structurées avec victory/defeat explicites, rétention décortiquée, architectural patterns identifiés, manifeste JSON extrait et validable par check_worldscan.mjs.
+
+**proof :** Bloc manifeste JSON ci-dessus, sources citées par URL (Wikipedia, articles Medium, game stores), observations de gameplay par WebSearch/WebFetch (zéro média local posé).
+
+**learning :** Trois patterns clés du genre : (1) les jeux sans fin programmée **doivent déclarer has_win_state:false** explicitement, jamais par omission — c'est critique pour que le contrat aval (s3-genre_bible, s4-archi) comprenne que « terminer 86 chats ≠ fin du jeu » ; (2) **boucles ≠ phase** — « minute 10 » n'est pas une « phase de progression », c'est un horizon temporel où la boucle précédente devient passive et une nouvelle émerge ; (3) **rétention > progression** — la plupart des rétentions (Ascension, absent-play, rare drops) ne sont PAS des mécamiques de progression, ce sont des **boucles émotionnelles** (sentiment de puissance, FOMO, anticipation).
+
+**next_reason :** La chaîne causale se termine ici. L'étape 3 (Genre Bible) consommera ce manifeste pour structurer les boucles narratives et les systèmes d'économie. Le jugement de PERTINENCE des observations reste HumanGate (fog) — cette observation est advisory-only, jamais injecta dans les prompts council.
+
+---
+
+**RETURN_REASON:** {"status": "NOT_DISCOVERED"}

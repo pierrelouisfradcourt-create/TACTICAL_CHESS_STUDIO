@@ -1,0 +1,407 @@
+{
+ "game_id": "kitten_clicker",
+ "exigences": [
+  {
+   "id": "EX01",
+   "source": "EXPECTED",
+   "source_role": "world-scan",
+   "reference": "worldscan:games[0].objectives[0].player_goal",
+   "acteur": "PLAYER",
+   "loop_role": "PLAYER_GOAL",
+   "observe": {
+    "hud": "objectif",
+    "predicate": "nonempty"
+   },
+   "observation": "Cookie Clicker n'a pas d'etat de victoire ; le but du joueur observe est de maximiser indefiniment sa production (player_goal: maximize CPS).",
+   "claim": "Un clicker tient le joueur par un objectif chiffre toujours visible et jamais atteint, pas par une fin de partie.",
+   "enonce": "Le HUD affiche en permanence un libelle d'objectif courant non vide, par exemple 'Atteindre le palier 2 : 500 ronrons'.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_hud.gd en gpu_window : le Label 'objectif' est non vide a l'ouverture de la scene."
+   },
+   "destination": "s3-decompo"
+  },
+  {
+   "id": "EX02",
+   "source": "EXPECTED",
+   "source_role": "world-scan",
+   "reference": "worldscan:games[0].loops.minute_1",
+   "acteur": "PLAYER",
+   "loop_role": "PLAYER_ACTION",
+   "affordance": "pelote",
+   "repeat": 5,
+   "observe": {
+    "hud": "ronrons",
+    "predicate": "increases"
+   },
+   "observation": "A la minute 1 de Cookie Clicker, cliquer le gros cookie rapporte 1 cookie par tap avec un feedback immediat.",
+   "claim": "Le geste fondateur du genre est un clic direct sur une cible centrale qui produit la ressource ; ici la cible est une pelote et la ressource des ronrons.",
+   "enonce": "Le joueur peut cliquer la cible pelote au centre de l'ecran ; chaque clic incremente le compteur de ronrons affiche.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd : n clics sur pelote => ronrons == valeur initiale + n x gain_par_clic (assertion stricte, jamais >=)."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "EX03",
+   "source": "EXPECTED",
+   "source_role": "world-scan",
+   "reference": "worldscan:games[0].loops.minute_1",
+   "acteur": "SYSTEM",
+   "loop_role": "GAME_RESPONSE",
+   "observe": {
+    "hud": "ronrons",
+    "predicate": "increases"
+   },
+   "observation": "Le feedback de clic de Cookie Clicker combine gain de +1 et animation d'eclatement du cookie avec particules.",
+   "claim": "La reponse au clic doit etre double, numerique stricte ET visuelle, sinon le clic parait mort meme si le compteur bouge.",
+   "enonce": "Chaque clic sur la pelote declenche simultanement un increment strict du compteur de ronrons et une animation de rebond ou particule de la pelote dans la meme frame.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd : apres un clic, ronrons_apres == ronrons_avant + gain ET le flag animation_jouee de la pelote vaut true."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "EX04",
+   "source": "EXPECTED",
+   "source_role": "world-scan",
+   "reference": "worldscan:games[1].loops.minute_10",
+   "acteur": "SYSTEM",
+   "loop_role": "REWARD",
+   "observation": "Dans Neko Atsume, la premiere recompense visible est l'arrivee d'un chat qui laisse des poissons apres quelques minutes.",
+   "claim": "La premiere recompense d'un clicker de chatons n'est pas un nombre mais une apparition : le premier chaton achete doit se materialiser dans le refuge.",
+   "enonce": "Quand le joueur a assez de ronrons pour son premier achat, l'achat fait apparaitre un chaton nomme visible dans la zone refuge.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_refuge.gd en gpu_window : avant achat 0 sprite de chaton, apres achat >=1 sprite de chaton nomme present a l'ecran."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "EX05",
+   "source": "EXPECTED",
+   "source_role": "world-scan",
+   "reference": "worldscan:games[0].loops.minute_10",
+   "acteur": "PLAYER",
+   "loop_role": "UNLOCK",
+   "affordance": "acheter_chaton",
+   "observe": {
+    "hud": "production_par_seconde",
+    "predicate": "increases",
+    "wait_frames": 30
+   },
+   "observation": "A la minute 10 de Cookie Clicker, le premier batiment achete genere 0,1 cookie par seconde sans clic.",
+   "claim": "Acheter un producteur debloque la production passive ; l'achat d'un chaton doit donc activer un taux de ronrons par seconde.",
+   "enonce": "Le joueur peut acheter un chaton en cliquant la cible acheter_chaton ; apres l'achat, le taux de production par seconde affiche augmente strictement.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd : le bot clique acheter_chaton, puis production_par_seconde_apres > production_par_seconde_avant (strict) et les ronrons montent ensuite sans clic."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "EX06",
+   "source": "EXPECTED",
+   "source_role": "world-scan",
+   "reference": "worldscan:games[0].loops.hour_5",
+   "acteur": "SYSTEM",
+   "loop_role": "NEXT_GOAL",
+   "observe": {
+    "hud": "objectif",
+    "predicate": "changes"
+   },
+   "observation": "A l'heure 5 de Cookie Clicker, la progression ne se fige jamais : un nouveau deblocage est toujours visible en avant.",
+   "claim": "Apres avoir atteint un palier, le joueur doit immediatement recevoir un nouvel objectif chiffre, sinon la boucle se referme sur du vide.",
+   "enonce": "Des qu'un palier est atteint, le libelle d'objectif du HUD est remplace par le palier suivant, avec un seuil strictement superieur, sans ecran vide intermediaire.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_hud.gd : au franchissement d'un palier, le texte du Label 'objectif' change et cite un seuil superieur au precedent."
+   },
+   "destination": "s3-decompo"
+  },
+  {
+   "id": "EX07",
+   "source": "EXPECTED",
+   "source_role": "world-scan",
+   "reference": "worldscan:games[0].loops.endgame",
+   "acteur": "PLAYER",
+   "loop_role": "META_LOOP",
+   "affordance": "prestige",
+   "observe": {
+    "hud": "lieux",
+    "predicate": "increases"
+   },
+   "observation": "L'endgame de Cookie Clicker est l'ascension : un reset volontaire qui fait progresser une meta-monnaie et rouvre la progression.",
+   "claim": "La meta-progression d'un clicker de chatons se materialise par l'ouverture d'un nouveau lieu plutot que par un seul multiplicateur abstrait.",
+   "enonce": "Le joueur peut declencher le prestige en cliquant la cible prestige ; le prestige rend visitable un second lieu et le nombre de lieux affiche augmente de 1 a 2.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd : le bot atteint le seuil de prestige, clique prestige, puis nombre_de_lieux passe de 1 a 2 (strict) et le second lieu devient visitable."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "EX08",
+   "source": "EXPECTED",
+   "source_role": "story-bible",
+   "reference": "story_bible:characters",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE",
+   "observation": "La section characters de la Story Bible (GROUNDED) ancre un casting d'au moins 6 chatons nommes, hierarchises par rarete avec une identite visuelle distincte.",
+   "claim": "Un refuge credible exige que ces chatons soient des donnees de contenu nommees et persistees, pas des sprites anonymes generes a la volee.",
+   "enonce": "Le jeu embarque un registre de contenu listant au moins 6 chatons, chacun avec un nom unique et un niveau de rarete.",
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "Registre 03_WORLD/kittens.json present, tableau de >=6 entrees {nom unique, rarete}, verifie par lecture de fichier."
+   },
+   "destination": "s3-decompo"
+  },
+  {
+   "id": "EX09",
+   "source": "EXPECTED",
+   "source_role": "story-bible",
+   "reference": "story_bible:context",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE",
+   "observation": "La section context (GROUNDED) pose que le monde s'etend par deblocage de lieux : un refuge de depart plus au moins un lieu ouvert par la meta-progression.",
+   "claim": "Ces lieux doivent exister comme entites de contenu adressables pour que le prestige ait quelque chose de concret a debloquer.",
+   "enonce": "Le jeu embarque un registre d'au moins 2 lieux, dont le refuge de depart et au moins un lieu marque comme debloque par le prestige.",
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "Registre 03_WORLD/locations.json present, >=2 entrees {id lieu, debloque_par}, dont une debloque_par='prestige'."
+   },
+   "destination": "s3-decompo"
+  },
+  {
+   "id": "EX10",
+   "source": "ADDITIONS",
+   "source_role": "prisme-produit",
+   "reference": null,
+   "acteur": "SYSTEM",
+   "loop_role": "NONE",
+   "observation": "Le charter exige au moins 3 objets visibles (jouets, accessoires, meubles) mais la Story Bible ne porte aucune section d'objets ancree (events et relations sont NOT_GROUNDED).",
+   "claim": "En l'absence de source narrative, le contenu-objet est une proposition produit du realisateur : le refuge doit contenir des objets distincts pour paraitre habite.",
+   "enonce": "Le jeu embarque un registre d'au moins 3 objets distincts destines a l'affichage dans le refuge.",
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "Registre 03_WORLD/objects.json present, >=3 entrees {id objet, type}, verifie par lecture de fichier."
+   },
+   "destination": "s3-decompo"
+  },
+  {
+   "id": "EX11",
+   "source": "ADDITIONS",
+   "source_role": "prisme-produit",
+   "reference": null,
+   "acteur": "SYSTEM",
+   "loop_role": "NONE",
+   "observation": "Le charter demande au moins 3 petites quetes avec objectif et progression affiches ; la Story Bible classe la section events NOT_GROUNDED, aucune quete n'est ancree.",
+   "claim": "Les quetes sont donc une proposition produit a concevoir localement, pas un fait de monde ; leur valeur est de guider le joueur entre deux paliers.",
+   "enonce": "Le jeu embarque au moins 3 quetes, chacune avec un objectif et une progression courante destines a l'affichage a l'ecran.",
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "Registre 03_WORLD/quests.json present, >=3 entrees {id quete, objectif, cible_progression}, verifie par lecture de fichier."
+   },
+   "destination": "s3-decompo"
+  },
+  {
+   "id": "EX12",
+   "source": "EXPECTED",
+   "source_role": "world-scan",
+   "reference": "worldscan:games[1].loops.hour_5",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE",
+   "observation": "Neko Atsume distingue a l'heure 5 des chats communs et des variantes rares, chaque chat ayant un art distinct servant d'objectif de collection.",
+   "claim": "La rarete n'a de valeur que si elle est lisible a l'oeil : deux raretes doivent produire deux identites visuelles reconnaissables sans lire de texte.",
+   "enonce": "Chaque niveau de rarete de chaton se traduit par un sprite ou une palette distincte, reconnaissable a l'ecran.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_rarity_visual.gd en gpu_window : capture d'au moins 2 chatons de raretes differentes ; les regions de sprite different (hash de pixels non identiques)."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "EX13",
+   "source": "EXPECTED",
+   "source_role": "world-scan",
+   "reference": "worldscan:games[0].loops.minute_1",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE",
+   "observation": "Le clic de Cookie Clicker eclate le cookie avec des particules, un feedback visuel immediat dans la frame du clic.",
+   "claim": "Sans retour visuel immediat, le joueur doute que son clic a compte meme si le compteur monte ; la pelote doit reagir visiblement.",
+   "enonce": "Chaque clic sur la pelote produit dans la meme frame une animation visible, rebond ou particule, de la pelote.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_click_feedback.gd en gpu_window : deux captures avant/apres clic different au niveau des pixels de la pelote (animation detectee)."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "EX14",
+   "source": "EXPECTED",
+   "source_role": "world-scan",
+   "reference": "worldscan:games[0].loops.minute_1",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE",
+   "observation": "Cookie Clicker associe au clic un son satisfaisant dedie (Audio: satisfying click a la minute 1).",
+   "claim": "Un son par evenement rend un clicker tactile ; les 4 evenements clic, achat, deblocage, prestige doivent chacun porter un son distinct, sinon ils se confondent a l'oreille.",
+   "enonce": "Chacun des 4 evenements clic, achat, deblocage et prestige declenche un son propre et distinct des trois autres.",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "07_TESTS/oracle/core_audio.gd tient un journal des declenchements : apres avoir provoque les 4 evenements, le journal contient 4 identifiants de son distincts, un par evenement."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "EX15",
+   "source": "EXPECTED",
+   "source_role": "gm-world-scan",
+   "reference": "gm_worldscan:progression",
+   "acteur": "PLAYER",
+   "loop_role": "NONE",
+   "observation": "Le GM World Scan mesure une dimension progression avec un premier deblocage observable des ~10 min et une courbe de couts exponentielle (dimension progression, MEASURED).",
+   "claim": "Une courbe de progression n'est valide que si elle est franchissable : un bot doit pouvoir atteindre le 3e palier en un nombre fini de ticks, sinon le jeu est injouable au-dela.",
+   "enonce": "Un bot joueur atteint le 3e palier de la courbe en un nombre fini de ticks, prouvant la solvabilite de la progression.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd : le bot joue (clics + achats) et atteint palier_courant == 3 en ticks < BORNE_FINIE ; assertion stricte d'egalite au palier 3."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "EX16",
+   "source": "EXPECTED",
+   "source_role": "gm-world-scan",
+   "reference": "gm_worldscan:progression",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE",
+   "observation": "La dimension progression du GM World Scan repose sur des seuils de couts croissants et distincts (cost_first_building, croissance x1.15).",
+   "claim": "Une courbe de paliers dont les seuils seraient egaux ne mesurerait rien (variance nulle) ; les seuils doivent porter au moins 3 valeurs distinctes non triviales.",
+   "enonce": "La courbe de paliers du jeu comporte au moins 3 seuils de valeurs strictement distinctes et croissantes.",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "07_TESTS/oracle/core_paliers.gd : lit la table des seuils de palier et verifie >=3 valeurs distinctes strictement croissantes (pas d'egalite tautologique)."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "EX17",
+   "source": "EXPECTED",
+   "source_role": "world-scan",
+   "reference": "worldscan:games[0].loops.minute_10",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE",
+   "observation": "A la minute 10 de Cookie Clicker, la production passe passive : le compteur monte sans action du joueur.",
+   "claim": "La promesse incrementale n'est tenue que si les ronrons montent reellement sans clic une fois des chatons possedes, sinon le jeu reste un simple bouton.",
+   "enonce": "Lorsqu'au moins un chaton producteur est possede, le compteur de ronrons augmente strictement au fil du temps sans aucun clic.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd : apres achat d'un chaton, laisser passer N ticks sans clic ; ronrons_apres > ronrons_avant (strict)."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "EX18",
+   "source": "EXPECTED",
+   "source_role": "world-scan",
+   "reference": "worldscan:games[0].loops.hour_5",
+   "acteur": "PLAYER",
+   "loop_role": "PLAYER_ACTION",
+   "affordance": "acheter_amelioration",
+   "observe": {
+    "hud": "production_par_seconde",
+    "predicate": "increases"
+   },
+   "observation": "A l'heure 5 de Cookie Clicker, les ameliorations achetees multiplient la production des batiments existants.",
+   "claim": "Une amelioration doit produire un gain de debit mesurable et immediat, sinon le joueur ne percoit pas l'effet de sa depense.",
+   "enonce": "Le joueur peut acheter une amelioration en cliquant la cible acheter_amelioration ; apres l'achat, le taux de production par seconde affiche augmente strictement.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd : le bot clique acheter_amelioration, puis production_par_seconde strictement superieure a la valeur d'avant achat."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "EX19",
+   "source": "EXPECTED",
+   "source_role": "gm-world-scan",
+   "reference": "gm_worldscan:metagame",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE",
+   "observation": "Le GM World Scan chiffre la meta : prestige a formule cubique et bonus permanent +1% par niveau (dimension metagame, MEASURED).",
+   "claim": "Le prestige doit laisser une trace permanente, un bonus conserve apres reset, sinon la meta-boucle ne recompense pas le sacrifice de la run.",
+   "enonce": "Apres un prestige, un bonus de production permanent est applique et conserve malgre la reinitialisation des ronrons courants.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "07_TESTS/oracle/solvability.gd : mesurer le multiplicateur avant et apres un cycle de prestige ; multiplicateur_apres > multiplicateur_avant et ronrons remis a la base."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "EX20",
+   "source": "EXPECTED",
+   "source_role": "world-scan",
+   "reference": "worldscan:games[1].loops.hour_5",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE",
+   "observation": "Neko Atsume rend visibles des objectifs de collection (compteur X/total, mementos) qui guident le retour du joueur.",
+   "claim": "Les quetes du refuge ne guident que si leur objectif ET leur progression sont affiches en continu, pas seulement stockes.",
+   "enonce": "Chaque quete active affiche a l'ecran son objectif et sa progression courante, par exemple '2/3 chatons nourris'.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_quetes.gd en gpu_window : le panneau de quetes affiche >=3 quetes, chacune avec un libelle d'objectif non vide et un indicateur de progression."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "EX21",
+   "source": "EXPECTED",
+   "source_role": "world-scan",
+   "reference": "worldscan:games[1].loops.hour_5",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE",
+   "observation": "Neko Atsume affiche une progression de collection lisible (par exemple 43/86 chats vus) comme drive completionniste.",
+   "claim": "Un compteur de collection visible transforme l'accumulation de chatons en objectif mesurable ; le jeu doit exposer combien de chatons distincts sont possedes.",
+   "enonce": "Le HUD affiche un compteur de collection de la forme 'possedes / total' qui augmente quand un nouveau chaton distinct est acquis.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_hud.gd : le Label 'collection' est non vide et sa valeur augmente apres acquisition d'un chaton d'un type non encore possede."
+   },
+   "destination": "s5-wiremap"
+  },
+  {
+   "id": "EX22",
+   "source": "ADDITIONS",
+   "source_role": "prisme-produit",
+   "reference": null,
+   "acteur": "SYSTEM",
+   "loop_role": "NONE",
+   "observation": "Aucune source amont ne specifie l'animation d'inactivite des chatons ; le charter exige seulement que le jeu VIVE a l'ecran.",
+   "claim": "Un refuge de chatons statiques parait mort meme mecaniquement correct (lecon studio : mecaniquement OK, visuellement mort) ; une micro-animation d'idle est une proposition produit pour tenir la promesse de vie.",
+   "enonce": "Chaque chaton visible dans le refuge joue une animation d'inactivite en boucle (respiration, clignement ou remue-queue) tant qu'il est a l'ecran.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "07_TESTS/oracle/core_refuge.gd en gpu_window : deux captures espacees de quelques frames d'un meme chaton au repos different au niveau des pixels (idle animee)."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "EX23",
+   "source": "EXPECTED",
+   "source_role": "world-scan",
+   "reference": "worldscan:games[0].objectives[0].player_goal",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE",
+   "observation": "Cookie Clicker n'a ni etat de defaite ni game over (has_defeat_state false) ; une mauvaise decision coute du temps, pas une penalite.",
+   "claim": "Le registre du jeu etant doux et zen, il ne doit contenir aucun etat d'echec ; le joueur ne peut jamais perdre sa partie.",
+   "enonce": "Le jeu ne comporte aucun etat de defaite : aucune condition ne termine la partie ni ne reinitialise involontairement la progression du joueur.",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "07_TESTS/oracle/core_no_defeat.gd : parcours des etats de jeu, aucun etat atteignable n'est marque 'defeat' ou 'game_over'."
+   },
+   "destination": "s4-archi"
+  }
+ ]
+}

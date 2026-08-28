@@ -1,0 +1,106 @@
+Write is disabled in this session — so the deliverable mechanism is confirmed: the executor extracts the **terminal fenced charter block** from my response (that is why the flagged contradiction with `RETURN_REASON` exists). I produce the report, then the charter block, then the mandatory return line.
+
+---
+
+## Rapport final — s0-contrat / kitten_clicker-20260821h2
+
+**Sources lues (mandatory_read) :** `scripts/forge/contracts/SCHEMA.md` ✓ · `lab/forge_runs/kitten_clicker/design_intent.md` ✓ (design-intent Pierre, 2026-08-21) · pré-mortem PILOU ✓ (fourni dans le dispatch) · `PROJECT_BIBLE.md` → **absent** (confirmé, pas encore créé — normal à ce stade).
+
+**Flous du prompt — résolus vs remontés :**
+- `reference_jeu` → **résolu, source Pierre traçable** : « Cookie Clicker + Neko Atsume », écrit noir sur blanc dans `design_intent.md`. Non inventé. Pas de fog.
+- `plateforme_cible` → **résolu, source Pierre traçable** : Godot 4.6.3 desktop / fenêtre GPU, idem `design_intent.md`. Pas de fog.
+- Contenu spécifique (noms des chatons, lieux, objets, quêtes) → **délibérément non inventé** : hors périmètre s0 (relève de s2 world-scan / s3 histoire). Le charter en fixe les **compteurs et propriétés observables** comme critères, il ne les remplit pas — respect du gardeFou.
+- 7 champs R7 tous remplis, aucun « à définir », aucun vide.
+
+**Oracle cité :** Oracle CHARTER déterministe non-LLM (validateur de schéma qui échoue si un champ requis est vide/absent/« à définir »). Je ne l'ai **pas exécuté** (permission `run: aucun`, et Write/Bash désactivés) → je ne peux pas produire de reçu mécanique moi-même.
+
+**Verdicts :**
+- `software_verdict:` **BLOCKED** — au sens strict de la règle de restitution : le charter est complet et conforme au schéma **par construction**, mais je n'ai pas pu faire tourner l'oracle CHARTER (`run: aucun`). La conformité de schéma est donc à confirmer par l'exécuteur/gate, pas auto-certifiée.
+- `evidence_verdict:` MECHANICAL_VALIDATION_ONLY (dès que l'oracle CHARTER tourne sur le bloc extrait).
+- `claim_verdict:` **NO_CLAIM_ALLOWED**.
+
+**Provenance Pierre de `reference_jeu` (fait de gate, non vérifiable par schéma) :** ✅ **présente et tracée** vers `design_intent.md`. Aucun fog HumanGate requis sur ce point.
+
+**SKIPPED_VALIDATION :**
+- item : exécution de l'oracle CHARTER · où : `charter.yaml` produit · statut : non fait · raison : permission `run: aucun` + Write/Bash désactivés en session — l'oracle doit être lancé par l'exécuteur sur le bloc extrait.
+- item : écriture du fichier `charter.yaml` sur disque · où : `lab/forge_runs/kitten_clicker/` · statut : non fait · raison : outil Write désactivé — le livrable est le bloc terminal extrait par l'exécuteur (mécanisme confirmé).
+
+**RETURN LINEAGE**
+- `why_task_existed:`
+  - `problem:` aucun jeu kitten_clicker n'a de charter cadré ; run complet par composition décidé par Pierre (2026-08-22).
+  - `oracle:` aucun — activation par décision humaine (Pierre).
+  - `root_cause:` non établie (démarrage de boucle, pas correction d'un défaut).
+  - `action_reason:` s0 est le point d'entrée : sans charter aux 7 champs remplis, aucune étape aval n'est cadrée ni activable.
+- `result:` charter.yaml complet aux 7 champs R7, criteres_demo[] portant les 5 mécaniques + (a)→(h), `reference_jeu`/`plateforme_cible` tracés à la source Pierre. Non validé par l'oracle CHARTER (non exécutable ici).
+- `proof:` lecture `design_intent.md` (reference_jeu + plateforme_cible confirmés lignes 3-4) ; SCHEMA.md (états de champ, règle de restitution) ; `s0-contrat.yaml` (noms exacts des 7 champs). Oracle CHARTER : non lancé (run interdit).
+- `learning:` la contradiction de forme « bloc yaml UNIQUE et terminal » vs « RETURN_REASON dernière ligne » (manifest-453b6b904ab48def) reste active ; résolue ici par placement : bloc charter = seul bloc clôturé (extraction par bornes de fence intacte), RETURN_REASON = ligne bare finale.
+- `next_reason:` la chaîne continue vers s2-worldscan — l'exécuteur doit passer le bloc charter à l'oracle CHARTER pour convertir le BLOCKED en OK. Chaîne causale non fermée (étape amont d'une boucle).
+
+Le charter (bloc terminal, extrait par l'exécuteur) :
+
+```yaml
+objectif: >-
+  Produire un clicker de chatons mignons jouable plusieurs heures sur Godot 4.6.3
+  desktop, avec une boucle de progression et une méta-progression cohérentes.
+  Boucle principale : CLIC sur la zone centrale (pelote de laine / pâtée / coussin)
+  -> RONRONS -> achat de CHATONS -> PRODUCTION AUTOMATIQUE -> AMÉLIORATIONS ->
+  déblocage de NOUVEAUX CHATONS et LIEUX -> MÉTA-PROGRESSION. Le run doit démontrer
+  que les données amont (World Scan : conditions_victoire, conditions_defaite,
+  objectifs_joueur, progression, boucles_recompense ; Histoire : chatons, lieux,
+  objets, petites quêtes) sont réellement CONSOMMÉES par les Grey Blocks, la
+  WireMap, le Builder et les oracles — pas seulement présentes dans les documents.
+
+reference_jeu: >-
+  Cookie Clicker (boucle incrémentale / progression / paliers) + Neko Atsume
+  (collection de chatons / attractivité / identité mignonne). Source Pierre :
+  lab/forge_runs/kitten_clicker/design_intent.md (2026-08-21). Choisi par Pierre,
+  jamais inventé ni supposé par l'agent.
+
+plateforme_cible: >-
+  Godot 4.6.3, desktop, fenêtre GPU (rendu réel, pas headless — la capture Godot
+  exige une fenêtre GPU). Source Pierre : lab/forge_runs/kitten_clicker/design_intent.md.
+
+hors_scope:
+  - "Pas de multijoueur, de réseau, de synchronisation cloud ni de classement en ligne"
+  - "Pas de monétisation, d'achats intégrés ni de publicité"
+  - "Pas de build web/HTML : la cible est Godot 4.6.3 desktop uniquement"
+  - "Pas de genre hors clicker/incrémental : ni combat temps réel, ni PvP, ni action-plateforme"
+  - "Ne touche pas aux lanes protégées ou gelées : src/, tests/, autopilot.py, scripts/studioV2/"
+  - "Le charter cadre, il n'exécute pas : ni World Scan (étape 2), ni architecture (étape 4), ni build"
+
+criteres_succes:
+  - "Le clic produit des ronrons : le compteur augmente strictement à chaque clic (comportement strict, jamais un >= tautologique)"
+  - "Production automatique réelle : après l'achat d'au moins un chaton, les ronrons augmentent sans aucun clic"
+  - "Une amélioration achetée augmente le taux de production de façon mesurable (taux après > taux avant, strict)"
+  - "La méta-progression débloque au moins un nouveau lieu au-delà du refuge initial"
+  - "Solvabilité prouvée : un bot-joueur déterministe atteint le 3e palier en un nombre de ticks fini (oracle de solvabilité, obligatoire s9-build)"
+  - "Traversée amont mesurée : conditions_victoire, conditions_defaite, objectifs_joueur, progression et boucles_recompense issus du World Scan sont consommés par Grey Blocks, WireMap et Builder (sonde check_amont_traversal.mjs, advisory)"
+  - "Règle de variance : la courbe des coûts/paliers porte au moins 3 valeurs distinctes non triviales, prouvée sur échantillon"
+  - "Profondeur suffisante pour une jouabilité de plusieurs heures : paliers multiples et méta-progression réellement atteignables"
+
+actions_interdites:
+  - "Jamais de git commit ni git push : merge/reject/freeze appartient au HumanGate (Pierre)"
+  - "Ne jamais inventer ni supposer reference_jeu ou plateforme_cible : sans source Pierre explicite, remonter en fog HumanGate"
+  - "Aucun oracle LLM-as-judge : les oracles restent déterministes non-LLM (code, archi, wiremap, mutation, solvabilité)"
+  - "Aucun claim auto-certifié sans oracle : claim_verdict reste NO_CLAIM_ALLOWED, sinon fog HumanGate"
+  - "Jamais de >= tautologique dans un test : asserter le comportement strict (kill tue vraiment, compteur == n+1)"
+  - "Aucun reçu de code sans evidence_path : exécution non prouvable => BLOCKED (leçon s12-verdict)"
+  - "Aucune métrique à variance nulle servant à classer, générer ou calibrer le jeu"
+  - "Ne jamais étendre unilatéralement les tables figées du standard (capabilities.yaml, repo_map.yaml, core_requirements.yaml) pour le genre clicker : cette extension est un gate Pierre, pas une invention d'agent"
+
+criteres_demo:
+  - "MÉCANIQUE 1 — au clic sur la zone centrale, le compteur de ronrons affiché à l'écran monte immédiatement"
+  - "MÉCANIQUE 2 — après un achat, un nouveau chaton est visible à l'écran (sprite présent dans la scène)"
+  - "MÉCANIQUE 3 — une fois un chaton acquis, les ronrons continuent de monter à l'écran sans aucun clic (production visible)"
+  - "MÉCANIQUE 4 — après achat d'une amélioration, le rythme d'augmentation des ronrons à l'écran est visiblement plus rapide qu'avant"
+  - "MÉCANIQUE 5 — un bot-joueur joue seul et atteint un palier visible à l'écran (progression affichée)"
+  - "(a) Au moins 6 chatons nommés, chacun avec une identité visuelle distincte par rareté (au moins commune / rare / légendaire discernables à l'oeil)"
+  - "(b) Au moins 2 lieux jouables : le refuge de départ plus au moins 1 lieu débloqué par la méta-progression"
+  - "(c) Au moins 3 objets présents et identifiables à l'écran"
+  - "(d) Au moins 3 petites quêtes dont l'objectif est visible à l'écran (texte ou jauge d'avancement)"
+  - "(e) Un son distinct et reconnaissable pour chacun des 4 événements clic, achat, déblocage et prestige, déclenché par l'événement (audio procédural accepté ; preuve = volet 07_TESTS/oracle/core_audio.gd avec journal des déclenchements)"
+  - "(f) Un feedback visuel explicite au clic (ex. la pelote rebondit, une particule ronron s'envole)"
+  - "(g) La courbe des paliers affiche au moins 3 valeurs distinctes à l'écran (règle de variance des métriques)"
+  - "(h) Un bot atteint le 3e palier en un nombre de ticks fini (solvabilité vérifiable)"
+```
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Contradiction de forme active dans le contrat s0 : la tache exige le bloc yaml UNIQUE et terminal, la regle de restitution exige RETURN_REASON en toute derniere ligne sans texte apres — inconciliables au sens strict quand le livrable EST le bloc code terminal extrait par l'executeur", "root_cause": "La regle de restitution generique n'a pas de cas pour un agent dont le livrable est un bloc code terminal ; resolu ici par placement (bloc charter = seul fence clos, RETURN_REASON = ligne bare finale) mais la regle reste a amender au niveau du contrat"}

@@ -1,0 +1,81 @@
+# KITTEN_CLICKER — contrat de jeu (budget). Cible GODOT 4.6.3 desktop.
+# Format : scripts/forge/standard/SCHEMA.md §1. Pose par l'etape s9-build-godot-standard
+# (run kitten_clicker-20260821c) comme scaffolding standard exige par l'oracle s10s.
+# Rendu par primitives du moteur, zero asset importe (charter : plan cc0, aucun asset attendu).
+
+schema_version: 1
+game_id: kitten_clicker
+node: 5
+runtimes: [rules, godot]
+
+budget:
+  # reuses VIDE : la recherche KB (knowledge_base/search.mjs, 5 intentions) n'a rendu
+  #   aucune brique GDScript clicker/economie/collection au tier `validated` importable —
+  #   seuls des bricks JS grid-nav/combat et des lecons de process. Rien a reutiliser au
+  #   tier exige par la loi de budget.
+  reuses: []
+  # adds VIDE : ce build ne PROMET aucun depot en bibliotheque. Ne rien promettre est le
+  #   choix honnete (fail-closed) ; une promesse `adds` non tenue serait `promis_non_depose`.
+  adds: []
+
+assets:
+  # Valeurs legales du standard : cc0 (plan A) | generated (plan B). Le charter ne prevoit
+  # AUCUN asset externe (rendu par primitives du moteur) ; cc0 est le plan par defaut sans
+  # qu'aucun asset ne soit attendu. Note : core.audio est DEFERRED dans la wiremap (aucun
+  # asset audio dans ce build ; charter : audio hors perimetre tant que les Grey Blocks ne
+  # sont pas valides).
+  plan: cc0
+
+# =====================================================================================
+# DESCRIPTEUR DE PREUVE — contrat docs/forge/CONTRAT_PREUVE_MUTATION_V1.md.
+# Forme calquee sur games/snake/00_CHARTER/game_contract.yaml (premier jeu Godot migre,
+# ratifie Pierre 2026-07-28) : le driver l'evalue (evaluate_proof_descriptor) et execute
+# lui-meme le gate mutation (le forgeron n'a pas l'executeur Python — divergence connue).
+# =====================================================================================
+proof:
+  schema_version: 1
+  # Le runtime QUI PROUVE. Doit appartenir a `runtimes:` ci-dessus (regle de forme 1).
+  runtime: godot
+
+  mutation:
+    # PERIMETRE PAR CATEGORIE, jamais par extension. Les categories ci-dessous couvrent
+    # EXACTEMENT celles presentes dans games/kitten_clicker/09_WIREMAP/wiremap.json
+    # (fichiers[] : system, system.adapter, test.oracle, godot.project_root) — regle de
+    # forme 4 : une categorie ni jugee ni exclue est un BLOCKED, jamais un oubli silencieux.
+    categories_mutables: [system]
+    categories_exclues:
+      - system.adapter      # rendu/runtime -> couvert par l'oracle produit (visuels GPU), pas mutation
+      - test.unit           # ne jamais muter la preuve elle-meme
+      - test.oracle         # idem (volets visuels gpu_window)
+      - godot.project_root  # project.godot / main.tscn / solvability.gd : config et bot de preuve
+      - godot.project_tests # tests/run_tests.gd : LE harnais, muter serait muter la preuve
+
+    # COMMANDE DEDIEE A LA MUTATION — le harnais mecanique seul (rapide), jamais l'oracle
+    # complet (mecanique + solvabilite). Le harnais enumere 07_TESTS/unit/*.test.gd.
+    command: ["<bin:godot>", "--headless", "--path", ".", "--script", "res://tests/run_tests.gd"]
+    cwd: "games/kitten_clicker"   # relatif a la racine du depot
+    binary_ref: godot             # resolu a l'execution par scripts/forge/godot_bin.mjs
+    expects_exit_zero: true
+
+    budget:
+      max_mutants: 200
+      timeout_per_mutant_s: 30
+      total_timeout_s: 900
+      cost_class: engine          # un lancement moteur par mutant
+
+    seals:
+      # Chaine de preuve : ce qui est scelle pour repondre apres coup a « quelle preuve
+      # exacte a produit ce verdict ? ». RELATIF AU JEU. L'entree enumere les corps de test,
+      # les deux sont donc scelles : le point d'entree ET le corps unitaire.
+      wrapper: []
+      test_scripts:
+        - "tests/run_tests.gd"
+        - "07_TESTS/unit/kitten_clicker.test.gd"
+
+  solvability:
+    # Un bot deterministe atteint le seuil de prestige (meta-progression) dans un budget de
+    # ticks fini et borne. Valeurs alignees sur scripts/forge/oracles.json (kitten_clicker).
+    entry: "solvability.gd"
+    max_ticks: 20000
+    trials: 20
+    trial_timeout_ms: 120000

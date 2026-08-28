@@ -1,0 +1,855 @@
+{
+ "schema_version": 2,
+ "game_id": "kitten_clicker",
+ "run_id": "kitten_clicker-20260821c",
+ "dispatch_marker": "s9-build-godot-standard:kitten_clicker-20260821c:2",
+ "claim_verdict": "NO_CLAIM_ALLOWED",
+ "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
+ "note": "Wiremap de jeu (categorie wiremap, scaffolding standard exige par l'oracle s10s), distincte du squelette gele du RUN (lab/forge_runs/kitten_clicker/wiremap.json). Elle indexe les fichiers reellement deposes et couvre les 10 exigences CORE. provides/requires : vocabulaire ferme capabilities.yaml uniquement.",
+ "systems": [
+  {
+   "id": "game_state",
+   "category": "system",
+   "allowed_deps": [
+    "purr_action",
+    "economy",
+    "offline_gains",
+    "bonus_event",
+    "collection"
+   ],
+   "role": "Etat de partie PUR (ronrons, producteurs, temps, prestige, deblocages) + tick pur (production passive, bonus, deblocages). Ne connait ni scene ni noeud."
+  },
+  {
+   "id": "purr_action",
+   "category": "system",
+   "allowed_deps": [],
+   "role": "R1 : applique N caresses a l'etat, gain_par_clic strict (>0)."
+  },
+  {
+   "id": "economy",
+   "category": "system",
+   "allowed_deps": [],
+   "role": "R2/R7 : achat de producteurs, courbe de cout strictement croissante, taux passif."
+  },
+  {
+   "id": "offline_gains",
+   "category": "system",
+   "allowed_deps": [
+    "economy"
+   ],
+   "role": "R4 : gains hors-ligne = min(taux passif * duree, plafond), 0 sans producteur."
+  },
+  {
+   "id": "prestige",
+   "category": "system",
+   "allowed_deps": [],
+   "role": "R6 : reset contre multiplicateur permanent (>1 strict), seuil de franchissement."
+  },
+  {
+   "id": "collection",
+   "category": "system",
+   "allowed_deps": [],
+   "role": "R3/R5 : deblocages add-only permanents des chatons, paliers de rarete."
+  },
+  {
+   "id": "bonus_event",
+   "category": "system",
+   "allowed_deps": [],
+   "role": "R8 : objet-bonus ephemere seede, facteur borne puis retour a 1, aucune penalite."
+  },
+  {
+   "id": "runtime_loop",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "game_state",
+    "input_adapter",
+    "main_screen",
+    "gallery_view",
+    "persistence",
+    "bonus_event"
+   ],
+   "role": "Point d'entree runtime : amorce la scene principale (boot_state) sans menu bloquant ; cadence le tick pur ; route les intentions et rend."
+  },
+  {
+   "id": "input_adapter",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "game_state",
+    "economy"
+   ],
+   "role": "Traduit une entree en intention (CARESSER/ACHETER/AUCUNE) et l'applique ; absorbe l'entree hors zone sans invalider l'etat."
+  },
+  {
+   "id": "main_screen",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "game_state"
+   ],
+   "role": "R9 : compteur lisible, chaton focal cliquable, feedback flottant ; volet visuel GPU."
+  },
+  {
+   "id": "gallery_view",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "collection"
+   ],
+   "role": "R5 : galerie verrouille/debloque + rarete ; volet visuel GPU."
+  },
+  {
+   "id": "persistence",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "game_state",
+    "offline_gains"
+   ],
+   "role": "R4 : serialisation aller-retour + application des gains hors-ligne a la reouverture."
+  },
+  {
+   "id": "debug_probe",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "game_state",
+    "collection"
+   ],
+   "role": "R3 : observateur exterieur (taille de collection, absence de game_over)."
+  },
+  {
+   "id": "solvability_bot",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "game_state",
+    "economy",
+    "prestige"
+   ],
+   "role": "R6 : bot deterministe qui atteint le seuil de prestige dans un budget de ticks borne (solvabilite)."
+  }
+ ],
+ "lines": [
+  {
+   "id": "core.boot",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "category": "system.adapter",
+   "provides": [
+    "game.boot"
+   ],
+   "requires": [
+    "game.state"
+   ],
+   "owner": true,
+   "system_parent": "runtime_loop",
+   "address": "06_RUNTIME/adapters/runtime_loop/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Lancement de la scene principale sans intervention : etat initial jouable atteint (purrs==0, chaton focal cliquable), 0 menu intercale, 0 erreur."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/runtime_loop/runtime_loop.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "RuntimeLoop.boot_state / _ready : amorce la scene principale, chaton cliquable des la fin du chargement.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/kitten_clicker : run_tests.gd headless 73 passed/0 failed (fichiers:1), exit 0 ; solvabilite 20/20 won verdict OK ; test_first_screen_playable (boot_state purrs==0, aucun menu).",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "core.main_loop",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "category": "system",
+   "provides": [
+    "game.loop"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "game_state",
+   "address": "05_SYSTEMS/game_state/",
+   "expected_proof": {
+    "kind": "test",
+    "statement": "Meme etat + meme graine + meme pas de temps -> meme etat suivant sur N ticks (determinisme)."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/game_state/game_state.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "GameState.tick : fait avancer l'etat (production passive, bonus, deblocages) de facon deterministe.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/kitten_clicker : run_tests.gd headless 73 passed/0 failed (fichiers:1), exit 0 ; solvabilite 20/20 won verdict OK ; test_determinism (meme graine -> meme compteur/temps/collection).",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "core.input",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "category": "system.adapter",
+   "provides": [
+    "input.action"
+   ],
+   "requires": [
+    "game.state"
+   ],
+   "owner": true,
+   "system_parent": "input_adapter",
+   "address": "06_RUNTIME/adapters/input_adapter/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Une action emise (CARESSER/ACHETER) modifie l'etat de facon observable ; AUCUNE laisse l'etat inchange."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/input_adapter/input_adapter.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "InputAdapter.apply / intention_from_click : traduit une entree en intention et l'applique.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/kitten_clicker : run_tests.gd headless 73 passed/0 failed (fichiers:1), exit 0 ; solvabilite 20/20 won verdict OK ; test_input_adapter_intentions (CARESSER +gain, ACHETER debite, AUCUNE inchange).",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "core.game_state",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "category": "system",
+   "provides": [
+    "game.state"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "game_state",
+   "address": "05_SYSTEMS/game_state/",
+   "expected_proof": {
+    "kind": "test",
+    "statement": "L'etat est lisible a tout instant et ne prend que des valeurs declarees (ronrons>=0, producteurs, prestige)."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/game_state/game_state.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "GameState.initial / project : detient et expose l'etat courant, immutable par copie.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/kitten_clicker : run_tests.gd headless 73 passed/0 failed (fichiers:1), exit 0 ; solvabilite 20/20 won verdict OK ; test_gain_par_clic + test_debug_probe (etat lisible, valeurs declarees).",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "core.end_condition",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "category": "system",
+   "provides": [
+    "game.end"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "game_state",
+   "address": "05_SYSTEMS/game_state/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "SANS OBJET pour un idle zero-perte : voir reason (exemption de genre, decision Pierre)."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "BLOCKED",
+   "reason": "GENRE/CORE MISMATCH remonte a HumanGate (fog). Le charter cadre un clicker idle ZERO-PERTE (R3 : « aucun game_over atteignable ») : il n'existe, par design, aucune condition de fin de partie gagnee/perdue. core.end_condition (proof_kind bot_action, « etat final gagne ou perdu, jamais indefini ») presuppose un jeu a win/lose. Non applicable a ce genre — mais NOT_APPLICABLE est interdit sur une ligne CORE. Statue BLOCKED, decision d'exemption de genre = Pierre. La monotonie stricte (jamais de game_over) EST prouvee par test_collection_monotone.",
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [],
+   "fonction": "(aucune) : pas de systeme de fin de partie dans ce genre idle zero-perte.",
+   "preuve": "BLOCKED (fog) : voir reason. Contre-preuve d'absence de fin negative : test_collection_monotone (60 ticks, aucun game_over).",
+   "statut": "BLOCKED"
+  },
+  {
+   "id": "core.restart",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "category": "system.adapter",
+   "provides": [
+    "game.restart"
+   ],
+   "requires": [
+    "game.state"
+   ],
+   "owner": true,
+   "system_parent": "runtime_loop",
+   "address": "06_RUNTIME/adapters/runtime_loop/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un demarrage neuf (boot_state) rend un etat initial propre (purrs==0, aucun producteur), identique au premier lancement, sans residu."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/runtime_loop/runtime_loop.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "RuntimeLoop.boot_state(seed) : renvoie un etat initial propre pour une nouvelle session.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/kitten_clicker : run_tests.gd headless 73 passed/0 failed (fichiers:1), exit 0 ; solvabilite 20/20 won verdict OK ; test_first_screen_playable (boot_state purrs==0, aucun residu) + test_persistence_roundtrip.",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "core.exit",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "category": "system.adapter",
+   "provides": [
+    "game.exit"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "runtime_loop",
+   "address": "06_RUNTIME/adapters/runtime_loop/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Sortie demandee -> processus termine, code 0. Aujourd'hui prouve uniquement au niveau harnais (quit(0)), pas comme feature de jeu."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "BLOCKED",
+   "reason": "BESOIN NON PREVU remonte a HumanGate (fog). Le squelette gele (lab/forge_runs/kitten_clicker/wiremap.json) ne declare AUCUN systeme de sortie in-game (bouton quitter / capacite game.exit) : ce n'etait pas une ligne de la carte, il ne s'improvise pas (garde-fou : un manque se remonte BLOCKED). Le processus se termine proprement via le moteur/les harnais (run_tests.gd et solvability.gd appellent quit(0)), mais aucune ligne du squelette ne porte game.exit. Decision d'ajout = Pierre.",
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [],
+   "fonction": "(aucune) : pas de systeme de sortie in-game dans le squelette gele.",
+   "preuve": "BLOCKED (fog) : voir reason. Sortie propre au niveau harnais : run_tests.gd/solvability.gd exit 0.",
+   "statut": "BLOCKED"
+  },
+  {
+   "id": "core.render",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "category": "system.adapter",
+   "provides": [
+    "render.frame"
+   ],
+   "requires": [
+    "game.state"
+   ],
+   "owner": true,
+   "system_parent": "main_screen",
+   "address": "06_RUNTIME/adapters/main_screen/",
+   "expected_proof": {
+    "kind": "pixel",
+    "statement": "Deux captures GPU a des etats differents different ; aucune capture monochrome ; le compteur incremente et un feedback apparait apres un clic."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/main_screen/main_screen.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/main_screen_render.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "MainScreen.render / _draw : compteur numerique visible en permanence + chaton focal + feedback flottant.",
+   "preuve": "test_main_screen_view (compteur/feedback/zone focale) ; VISUEL gpu_window : res://07_TESTS/oracle/main_screen_render.gd (voir constat run).",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "core.audio",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "category": "system.adapter",
+   "provides": [
+    "audio.cue"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "main_screen",
+   "address": "06_RUNTIME/adapters/main_screen/",
+   "expected_proof": {
+    "kind": "artifact",
+    "statement": "Un asset audio existe, est reference par le contrat, et son declenchement est trace. Reporte (aucun asset audio dans ce build)."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "DEFERRED",
+   "reason": "Aucun retour sonore dans ce build : rendu par primitives du moteur, zero asset importe (charter). Reporte, non omis.",
+   "until": "Validation des Grey Blocks + decision Pierre sur les assets audio (charter hors_scope : « generation d'assets audio/musique originaux : hors perimetre tant que les Grey Blocks ne sont pas valides »).",
+   "decider": "Pierre / HumanGate",
+   "write_order": null,
+   "fichiers": [],
+   "fonction": "(aucune) : audio reporte (charter : assets audio hors perimetre tant que Grey Blocks non valides).",
+   "preuve": "DEFERRED (until/decider) : voir reason.",
+   "statut": "DEFERRED"
+  },
+  {
+   "id": "core.error_handling",
+   "source": "CORE",
+   "source_role": null,
+   "reference": null,
+   "category": "system.adapter",
+   "provides": [
+    "error.guard"
+   ],
+   "requires": [],
+   "owner": true,
+   "system_parent": "input_adapter",
+   "address": "06_RUNTIME/adapters/input_adapter/",
+   "expected_proof": {
+    "kind": "test",
+    "statement": "Entrees hors domaine (clic hors zone focale, intention AUCUNE) -> etat de jeu toujours valide, aucun decrement, aucune exception."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/input_adapter/input_adapter.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "InputAdapter.apply(AUCUNE) / intention_from_click hors zone : absorbe l'entree invalide sans invalider l'etat.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/kitten_clicker : run_tests.gd headless 73 passed/0 failed (fichiers:1), exit 0 ; solvabilite 20/20 won verdict OK ; test_input_adapter_intentions (AUCUNE -> etat inchange ; clic hors zone -> AUCUNE) + test_bonus_event (objet ignore -> total inchange).",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "feat.purr_action",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "category": "system",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "purr_action",
+   "address": "05_SYSTEMS/purr_action/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "N caresses -> v1-v0 == N*gain (egalite stricte), gain>0."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/purr_action/purr_action.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "PurrAction.apply_purr",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/kitten_clicker : run_tests.gd headless 73 passed/0 failed (fichiers:1), exit 0 ; solvabilite 20/20 won verdict OK ; test_purr.",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "feat.economy",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "category": "system",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "economy",
+   "address": "05_SYSTEMS/economy/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Achats successifs : couts strictement croissants c1<c2<c3 ; taux passif>0 apres 1er achat."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/economy/economy.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "Economy.cost / buy_producer / passive_rate",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/kitten_clicker : run_tests.gd headless 73 passed/0 failed (fichiers:1), exit 0 ; solvabilite 20/20 won verdict OK ; test_cost_curve + test_passive_production.",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "feat.offline_gains",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "category": "system",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "offline_gains",
+   "address": "05_SYSTEMS/offline_gains/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "gains hors-ligne == min(taux*D, plafond), >0 pour D>0 avec producteur, ==0 sans producteur."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/offline_gains/offline_gains.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "OfflineGains.compute / compute_for_state",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/kitten_clicker : run_tests.gd headless 73 passed/0 failed (fichiers:1), exit 0 ; solvabilite 20/20 won verdict OK ; test_offline_gains.",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "feat.prestige",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "category": "system",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "prestige",
+   "address": "05_SYSTEMS/prestige/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Franchissement du seuil -> mult permanent >1 strict, gain post>pre strict, production remise a 0 ; sous le budget -> inchange (controle negatif)."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/prestige/prestige.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "Prestige.can_prestige / do_prestige",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/kitten_clicker : run_tests.gd headless 73 passed/0 failed (fichiers:1), exit 0 ; solvabilite 20/20 won verdict OK ; test_prestige + test_prestige_negative_control.",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "feat.collection",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "category": "system",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "collection",
+   "address": "05_SYSTEMS/collection/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Franchissement du seuil -> chaton debloque ; deblocage add-only permanent malgre chute du total ; rarete par palier."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/collection/collection.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "Collection.refresh_unlocks / unlock / rarity",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/kitten_clicker : run_tests.gd headless 73 passed/0 failed (fichiers:1), exit 0 ; solvabilite 20/20 won verdict OK ; test_collection_unlock_permanent + test_collection_monotone.",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "feat.bonus_event",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "category": "system",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "bonus_event",
+   "address": "05_SYSTEMS/bonus_event/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Clic dans la fenetre -> facteur>1 borne puis retour a 1 ; ignore -> total INCHANGE, aucun decrement."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/bonus_event/bonus_event.gd",
+     "category": "system"
+    }
+   ],
+   "fonction": "BonusEvent.click_bonus / is_active / advance",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/kitten_clicker : run_tests.gd headless 73 passed/0 failed (fichiers:1), exit 0 ; solvabilite 20/20 won verdict OK ; test_bonus_event.",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "feat.gallery_view",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "category": "system.adapter",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "gallery_view",
+   "address": "06_RUNTIME/adapters/gallery_view/",
+   "expected_proof": {
+    "kind": "pixel",
+    "statement": "Ecran collection GPU : >=1 chaton verrouille et >=1 debloque avec badge de rarete ; l'entree passe verrouille->debloque de facon permanente."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/gallery_view/gallery_view.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/gallery_render.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "GalleryView.cells / _draw / rarity_color",
+   "preuve": "test_gallery_cells ; VISUEL gpu_window : res://07_TESTS/oracle/gallery_render.gd (voir constat run).",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "feat.persistence",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "category": "system.adapter",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "persistence",
+   "address": "06_RUNTIME/adapters/persistence/",
+   "expected_proof": {
+    "kind": "test",
+    "statement": "Serialisation aller-retour preserve purrs/producteurs/mult/deblocages ; apply_offline ajoute le gain hors-ligne au total charge."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/persistence/persistence.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "Persistence.to_dict / from_dict / apply_offline_for_duration",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/kitten_clicker : run_tests.gd headless 73 passed/0 failed (fichiers:1), exit 0 ; solvabilite 20/20 won verdict OK ; test_persistence_roundtrip + test_offline_gains.",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "feat.debug_probe",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "category": "system.adapter",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "debug_probe",
+   "address": "06_RUNTIME/adapters/debug_probe/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Observateur exterieur : taille de collection lue == etat reel, aucun game_over dans le releve."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/debug_probe/debug_probe.gd",
+     "category": "system.adapter"
+    }
+   ],
+   "fonction": "DebugProbe.collection_size / has_game_over / read",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/kitten_clicker : run_tests.gd headless 73 passed/0 failed (fichiers:1), exit 0 ; solvabilite 20/20 won verdict OK ; test_debug_probe + test_collection_monotone.",
+   "statut": "IMPLEMENTED"
+  },
+  {
+   "id": "feat.solvability_bot",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": null,
+   "category": "system.adapter",
+   "provides": [],
+   "requires": [],
+   "owner": false,
+   "system_parent": "solvability_bot",
+   "address": "06_RUNTIME/adapters/solvability_bot/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot deterministe atteint le seuil de prestige dans un budget de ticks fini et borne (solvabilite) ; budget insuffisant = controle negatif qui ne franchit pas."
+   },
+   "reused_from": {
+    "type": "NEW",
+    "source": null,
+    "copy_sha256": null
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/solvability_bot/solvability_bot.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "solvability.gd",
+     "category": "godot.project_root"
+    }
+   ],
+   "fonction": "SolvabilityBot.choisir_intention / res://solvability.gd",
+   "preuve": "solvabilite 20/20 won verdict OK (node scripts/forge/godot_oracle.mjs games/kitten_clicker).",
+   "statut": "IMPLEMENTED"
+  }
+ ],
+ "discarded": []
+}

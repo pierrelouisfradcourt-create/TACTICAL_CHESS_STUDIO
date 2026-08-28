@@ -1,0 +1,76 @@
+# KITTEN_CLICKER — contrat de jeu (budget). Format : scripts/forge/standard/SCHEMA.md §1.
+# Gabarit : games/breakout_v2/00_CHARTER/game_contract.yaml.
+#
+# node : POSITION DE CURRICULUM NON RATIFIEE. Le schema exige un entier ; l'arbre de
+# curriculum faisant foi pour ce genre (idle/clicker) n'est pas tranche. Valeur provisoire,
+# a confirmer par HumanGate — jamais presentee comme ratifiee.
+#
+# assets.plan : generated — les sprites SVG sont ECRITS par le builder (aucun CC0), conforme
+# a la tache (assets.plan: generated).
+
+schema_version: 1
+game_id: kitten_clicker
+node: 5
+runtimes: [rules, godot]
+
+budget:
+  # reuses : VIDE. L'adaptateur audio est une REUTILISATION DE FICHIER interne
+  # (games/pacman -> games/kitten_clicker, wiremap reused_from.type FILE_REUSE), PAS une
+  # brique de bibliotheque knowledge_base au tier `validated` — la declarer en `reuses`
+  # ferait echouer le volet budget (aucune brique reelle en catalogue). Voir rapport.
+  reuses: []
+  # adds : VIDE. Ce build ne DEPOSE aucune brique en bibliotheque (loi d'empilement : <= 1,
+  # 0 respecte la borne). Rien a promettre -> rien a tenir (pas de promis_non_depose).
+  adds: []
+
+assets:
+  plan: generated
+
+# =====================================================================================
+# DESCRIPTEUR DE PREUVE — contrat docs/forge/CONTRAT_PREUVE_MUTATION_V1.md (FIGE).
+# =====================================================================================
+proof:
+  schema_version: 1
+  runtime: godot
+
+  mutation:
+    # SEULE la logique pure (categorie `system`) est mutee. Tout le reste est EXCLU :
+    # adaptateurs de presentation (mesure Pong : 0 % de mutants tues en aveugle), donnees
+    # de contenu, tests, assets, artefacts racine du moteur. Toutes les categories PRESENTES
+    # dans la wiremap sont ici jugees OU exclues (contrat §2 regle 4).
+    categories_mutables: [system]
+    categories_exclues:
+      - system.adapter        # rendu / input / audio -> oracle produit, jamais mutation
+      - world.rules           # donnees de contenu (registres JSON + chargeur)
+      - asset.sprite          # SVG : binaires de presentation, rien a muter
+      - test.oracle           # oracles produits
+      - godot.project_root    # project.godot / main.tscn / solvability.gd
+      - godot.project_tests   # tests/run_tests.gd
+      - reference.observation # preventif (aucune ligne ne la porte)
+      - asset.mesh            # preventif (aucune ligne ne la porte)
+
+    command: ["<bin:godot>", "--headless", "--path", ".", "--script", "res://tests/run_tests.gd"]
+    cwd: "games/kitten_clicker"
+    binary_ref: godot
+    expects_exit_zero: true
+
+    budget:
+      # Non calibre par une mesure prealable : point de depart large. Le parc logique pur
+      # est petit (10 fichiers systeme), le nombre reel de mutants est mesure par
+      # generate_mutants AVANT execution (anti-troncature §4).
+      max_mutants: 400
+      timeout_per_mutant_s: 30
+      total_timeout_s: 1800
+      cost_class: engine
+
+    seals:
+      wrapper: []
+      test_scripts: ["tests/run_tests.gd"]
+
+  solvability:
+    entry: "solvability.gd"
+    # Borne finie explicite : le bot deterministe atteint le 3e palier bien en deca (mesure
+    # attendue ~250 ticks). Marge large volontaire, non presentee comme calibree.
+    max_ticks: 20000
+    trials: 5
+    trial_timeout_ms: 60000

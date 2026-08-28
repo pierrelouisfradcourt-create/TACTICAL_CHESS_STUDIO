@@ -1,0 +1,117 @@
+Confirmed: no `project.godot` under `games/kitten_clicker` → the code tree does not exist yet. This is a **fresh wiremap that drives the build** (s9), not a map of existing code. My sources of truth are the blueprint (s4, ownership + `preuve_attendue`), the featuremap (s3, R1–R10 leaves) and `prisme.json` (R1–R10 `expected_proof`), reconciled against `repo_map.yaml`.
+
+---
+
+## RAPPORT FINAL — s5-wiremap / kitten_clicker-20260821c
+
+**Ancres (chaque affirmation citée) :**
+
+- **Blueprint** (`lab/forge_runs/kitten_clicker/blueprint.json`, lu) : 14 modules, `ownership` (module → dossier), `couvre` (module → feature), `preuve_attendue{kind,statement}` par module. Plateforme déclarée : **Godot / GDScript** → fichiers `.gd`, racine de code = `games/kitten_clicker`.
+- **repo_map** (`scripts/forge/standard/repo_map.yaml`, lu) : `system: 05_SYSTEMS/{id}/` et `system.adapter: 06_RUNTIME/adapters/{id}/` — les chemins d'`ownership` du blueprint y sont conformes (aucune racine inventée, défaut mesuré 2026-08-05 évité). Entrées de test Godot : `tests/run_tests.gd` + `solvability.gd` (racine projet).
+- **Prisme / featuremap** (lus) : 10 exigences R1–R10, chacune avec `expected_proof` — source unique des colonnes `preuve` (héritées, jamais inventées).
+- **État réel** : `games/kitten_clicker/project.godot` **absent** → aucune code-base à mesurer ; la wiremap est le CONTRAT que s9-build doit réaliser, l'oracle `forge.static_oracles.check_wiremap` (fichiers existants / fonctions définies) s'exécute à **s10c**, pas ici.
+
+**Isomorphisme blueprint → wiremap** — une ligne par exigence (R1..R10), chacune tracée à son module propriétaire (système = dossier), sa fonction, son fichier, sa preuve héritée :
+
+| R | Module (dossier) | fonction | preuve (kind) |
+|---|---|---|---|
+| R1 | purr_action `05_SYSTEMS/purr_action/` | `apply_purr` | bot_action |
+| R2 | game_state + economy `05_SYSTEMS/…/` | `tick` | bot_action |
+| R3 | debug_probe + collection | `probe` | oracle |
+| R4 | offline_gains + persistence | `compute_offline` | bot_action |
+| R5 | gallery_view + collection | `render_gallery` | visual |
+| R6 | prestige + solvability_bot | `do_prestige` | bot_action |
+| R7 | economy `05_SYSTEMS/economy/` | `buy_producer` | bot_action |
+| R8 | bonus_event `05_SYSTEMS/bonus_event/` | `click_bonus` | bot_action |
+| R9 | main_screen `06_RUNTIME/adapters/main_screen/` | `render_main` | visual |
+| R10 | runtime_loop + input_adapter | `_ready` | bot_action |
+
+**Couverture** : 10/10 exigences de la featuremap portées par exactement 1 ligne ; chaque `fonction` NON VIDE, chaque `fichiers` NON VIDE ; 0 capacité non couverte.
+
+**Verdicts :**
+- `software_verdict: OK` — livrable produit (bloc `json` terminal), isomorphe au blueprint, conforme **par construction** au format lu par `forge.static_oracles.check_wiremap` (fonction + fichiers non vides par feature) ; chemins confrontés à `repo_map.yaml` (aucune racine hors table).
+- `evidence_verdict: MECHANICAL_VALIDATION_ONLY` — conformité de forme établie par relecture du blueprint / repo_map / prisme ; aucune exécution.
+- `claim_verdict: NO_CLAIM_ALLOWED` — aucun oracle **exécuté** (`run: aucun`) ; je ne peux ni auto-certifier l'existence des fichiers (le code n'existe pas encore, oracle légitimement à s10c) ni exécuter `check_wiremap_contract`.
+- `fog → exécuteur/HumanGate` : (1) matérialiser `wiremap.json` depuis le bloc terminal ; (2) à s9-build, réaliser exactement ces 10 fonctions/fichiers ; (3) à s10c, `forge.static_oracles.check_wiremap` valide fichiers existants + fonctions définies.
+
+**SKIPPED_VALIDATION :**
+- item : exécution de `forge.static_oracles.check_wiremap` (fichiers/fonctions réels) · périmètre : les 10 lignes · statut : **non fait** · raison : le code n'existe pas encore (`project.godot` absent) — l'oracle est un oracle APRÈS-build (s10c) par conception ; `run: aucun` dans mon contrat.
+- item : `node scripts/forge/check_wiremap_contract.mjs` (couverture par `couvre[]`) · périmètre : format v2 `{systems,lines}` · statut : **non applicable** · raison : la TÂCHE CONCRÈTE impose le format simple `{features:[…]}` lu par `static_oracles.check_wiremap`, qui ne porte pas de champ `couvre` ; la couverture est ici établie par construction (10/10 R présentes, 1 ligne/exigence). Divergence de format contrat↔parser signalée, non tranchée par un oracle → remontée en fog, pas un claim.
+- item : matérialisation de `wiremap.json` · périmètre : run_dir · statut : **non fait (assumé)** · raison : le contrat m'interdit d'écrire le fichier ; l'exécuteur le matérialise depuis le bloc terminal.
+
+```json
+{
+  "features": [
+    {
+      "feature": "R1 Caresse incremente le compteur",
+      "fonction": "apply_purr",
+      "fichiers": ["05_SYSTEMS/purr_action/purr_action.gd"],
+      "preuve": "bot_action — tests/run_tests.gd::test_purr : un bot applique N caresses sur un etat initial, v1 - v0 == N * gain_par_clic (egalite STRICTE) et gain_par_clic > 0"
+    },
+    {
+      "feature": "R2 Production passive apres achat",
+      "fonction": "tick",
+      "fichiers": ["05_SYSTEMS/game_state/game_state.gd", "05_SYSTEMS/economy/economy.gd"],
+      "preuve": "bot_action — tests/run_tests.gd::test_passive_production : achat d'un producteur puis aucun clic pendant T pas de temps, le compteur croit strictement v(T) > v(0) ; game_state.tick applique le taux passif produit par economy"
+    },
+    {
+      "feature": "R3 Zero-perte : collection monotone, aucun game_over",
+      "fonction": "probe",
+      "fichiers": ["06_RUNTIME/adapters/debug_probe/debug_probe.gd", "05_SYSTEMS/collection/collection.gd"],
+      "preuve": "oracle — tests/run_tests.gd::test_collection_monotone : un oracle rejoue une session (clics, achats, temps, fermeture/reouverture) ; a chaque tick la taille de collection lue par debug_probe ne decroit jamais et aucun etat game_over n'est atteignable"
+    },
+    {
+      "feature": "R4 Gains hors-ligne a la reouverture",
+      "fonction": "compute_offline",
+      "fichiers": ["05_SYSTEMS/offline_gains/offline_gains.gd", "06_RUNTIME/adapters/persistence/persistence.gd"],
+      "preuve": "bot_action — tests/run_tests.gd::test_offline_gains : persistence lit l'horloge et remet D a offline_gains ; gains_hors_ligne == min(production_passive * D, plafond) et > 0 (strict) pour D>0 avec >=1 producteur, == 0 sans producteur ; montant ajoute au total charge"
+    },
+    {
+      "feature": "R5 Galerie : etats verrouille/debloque + rarete, deblocage permanent",
+      "fonction": "render_gallery",
+      "fichiers": ["06_RUNTIME/adapters/gallery_view/gallery_view.gd", "05_SYSTEMS/collection/collection.gd"],
+      "preuve": "visual — capture GPU (product_oracle_godot, fenetre GPU obligatoire) de l'ecran collection : >=1 chaton verrouille (silhouette/cadenas) et >=1 debloque avec badge de rarete ; apres condition de deblocage (collection.unlock, add-only), l'entree passe de verrouille a debloque de facon permanente"
+    },
+    {
+      "feature": "R6 Prestige : reset contre multiplicateur permanent",
+      "fonction": "do_prestige",
+      "fichiers": ["05_SYSTEMS/prestige/prestige.gd", "06_RUNTIME/adapters/solvability_bot/solvability_bot.gd"],
+      "preuve": "bot_action — solvability.gd (exit 0) : le bot atteint le seuil de prestige dans le budget de ticks declare et declenche do_prestige ; apres reset, mult_permanent > 1 (strict), gain_par_clic post-reset > gain_par_clic initial pre-prestige (strict), production courante remise a 0 ; budget insuffisant = controle negatif qui NE franchit PAS le seuil"
+    },
+    {
+      "feature": "R7 Cout croissant par rachat",
+      "fonction": "buy_producer",
+      "fichiers": ["05_SYSTEMS/economy/economy.gd"],
+      "preuve": "bot_action — tests/run_tests.gd::test_cost_curve : achat du meme producteur 3 fois, la suite des couts est strictement croissante c1 < c2 < c3 (jamais >=) ; taux de production passif strictement positif apres le premier achat"
+    },
+    {
+      "feature": "R8 Objet-bonus ephemere sans penalite",
+      "fonction": "click_bonus",
+      "fichiers": ["05_SYSTEMS/bonus_event/bonus_event.gd"],
+      "preuve": "bot_action — tests/run_tests.gd::test_bonus_event : clic dans la fenetre de vie -> facteur de gain > 1 pendant une duree bornee puis retour a 1 ; sans clic -> l'objet disparait en fin de fenetre, aucun bonus, total INCHANGE (aucun decrement)"
+    },
+    {
+      "feature": "R9 Ecran principal : compteur lisible + chaton focal + feedback",
+      "fonction": "render_main",
+      "fichiers": ["06_RUNTIME/adapters/main_screen/main_screen.gd"],
+      "preuve": "visual — capture GPU de l'ecran de jeu : compteur numerique visible en permanence ET chaton central cliquable en zone focale ; captures avant/apres un clic montrant le compteur incremente et un feedback visuel (nombre flottant ou animation) present apres, absent avant"
+    },
+    {
+      "feature": "R10 Jouable au premier ecran, sans configuration bloquante",
+      "fonction": "_ready",
+      "fichiers": ["06_RUNTIME/adapters/runtime_loop/runtime_loop.gd", "06_RUNTIME/adapters/input_adapter/input_adapter.gd"],
+      "preuve": "bot_action — tests/run_tests.gd::test_first_screen_playable : au lancement, runtime_loop._ready amorce la scene principale avec le chaton cliquable des la fin du chargement ; un bot clique immediatement (intention 'caresser' via input_adapter) sans franchir aucun menu, le compteur passe de 0 a gain_par_clic au premier clic"
+    }
+  ]
+}
+```
+
+**RETURN LINEAGE** (FORGE_CAUSAL_LINEAGE_V2 §3) —
+- `why_task_existed:` {`problem:` entre le blueprint (s4, arbre de modules) et le build (s9), le pipeline a besoin d'une carte isomorphe qui lie chaque exigence R à son module/fichier/fonction avec sa preuve attendue, sinon s9 code sans cible traçable et s10c n'a aucun attendu à confronter au réel · `oracle:` `forge.static_oracles.check_wiremap` (à s10c : fichiers existants, fonctions définies) — ma sortie est son entrée ; en amont, `check_wiremap_contract` mesure la couverture attendu-vs-plan · `root_cause:` non applicable — activation par séquence de pipeline (dispatch s5 après s4), pas par un défaut mesuré · `action_reason:` j'ai produit 10 lignes isomorphes au blueprint, une par exigence R1–R10, chaque fonction/fichier dérivé de l'`ownership` du blueprint confronté à `repo_map.yaml`, chaque preuve héritée verbatim de l'`expected_proof` du prisme}
+- `result:` wiremap simple-format valide par construction produite (bloc terminal) ; 10/10 exigences couvertes, tous `fonction`/`fichiers` non vides, tous chemins conformes à repo_map (Godot : `05_SYSTEMS/{id}/`, `06_RUNTIME/adapters/{id}/`) ; non matérialisée en fichier (interdit) et oracle non exécuté (code inexistant + `run: aucun`)
+- `proof:` aucune commande exécutée (`run: aucun`) — conformité établie par mapping manuel : blueprint.ownership → chemins, prisme.expected_proof → preuves, `Read` de `project.godot` (absent) confirmant que l'oracle fichiers/fonctions appartient à s10c ; reçu mécanique délégué : `forge.static_oracles.check_wiremap` à s10c
+- `learning:` sur une première campagne Godot, la wiremap doit émettre des chemins `.gd` conformes à `repo_map` (`system`/`system.adapter`) et référencer les entrées de test réelles du moteur (`tests/run_tests.gd`, `solvability.gd`) — présupposer une topologie web (leçon pré-mortem `instrument_assumes_instead_of_reads`) produirait des chemins que s10c rejetterait ; ici la topologie est LUE du blueprint, pas supposée
+- `next_reason:` chaîne causale FERMÉE côté s5 — livrable conforme par construction, aucune cause non résolue. Restent des pas APPARTENANT à l'aval par conception (matérialisation du fichier par l'exécuteur, réalisation des 10 fonctions à s9, vérification fichiers/fonctions à s10c) — ce ne sont pas des escalades. Point à porter en fog non-bloquant : divergence de format entre le contrat (décrit v2 `{systems,lines}` + `couvre[]`) et la TÂCHE CONCRÈTE (format simple `{features:[…]}` lu par `static_oracles.check_wiremap`) ; j'ai suivi l'instruction opérative (la tâche concrète), la couverture restant garantie par construction.
+
+SKIPPED_VALIDATION: voir la section structurée du rapport ci-dessus (3 items : oracle fichiers/fonctions non fait — code inexistant, oracle s10c ; `check_wiremap_contract` non applicable — format simple imposé, couverture par construction ; matérialisation du fichier non faite — interdite par contrat).
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

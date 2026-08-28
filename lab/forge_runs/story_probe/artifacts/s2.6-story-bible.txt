@@ -1,0 +1,95 @@
+The measured facts are now established, and they are decisive:
+
+- My **prompt context carried neither worldscan.json nor charter** — the executor's `_UPSTREAM_BY_STEP` injection that was contracted "en amont" did not deliver them.
+- The three most plausible run_dir paths for these artifacts **do not exist on disk** (3/3 Read failures).
+- I have **Read only** (Bash/Glob/Grep disabled) — I cannot enumerate directories, and the guard-rail forbids compensating for absent sources by hunting elsewhere: *« leur absence du contexte se déclare dans inputs_recus, jamais ne se compense »*.
+
+Per `FORGE_PIPELINE_TARGET_V1.md` §3, the **STORY BIBLE station is `NOT_FOUND`** in the target pipeline, and §7.2 places its creation/wiring behind an open, blocking HUMAN GATE. So the missing injection is not a bug I may silently repair (it touches gated station-creation surface) — it is a `HUMAN_REQUIRED` wiring gap. My correct action as this worker is to honor the guard-rail: **an almost-empty but honest bible, every section `NOT_GROUNDED` with its reason.** Filling it would fabricate a world that becomes a structural lie for the GM downstream.
+
+---
+
+## RAPPORT FINAL — s2.6-story-bible / story-probe-20260814
+
+**Ancres citées (par leur ABSENCE mesurée, non compensée) :**
+- `worldscan.json` (s2-worldscan) — **absent de mon contexte** ET introuvable aux 3 chemins run_dir sondés (`lab/forge_runs/story_probe/`, `lab/forge_runs/story-probe-20260814/`). Ancre d'ancrage n°1 : indisponible.
+- `charter.yaml` du run — **absent de mon contexte** ET introuvable au chemin sondé. Ancre d'ancrage n°2 : indisponible.
+- `check_story_bible(data)` (`forge.static_oracles`) — oracle de forme **NON exécuté** : `run: aucun` dans mes permissions, Bash désactivé. Aucun reçu produit par moi.
+
+**Fondement doc (non-LLM) du diagnostic :** `docs/forge/FORGE_PIPELINE_TARGET_V1.md` §3 (STORY BIBLE = `NOT_FOUND`, aucune ligne `_UPSTREAM_BY_STEP` ne l'alimente) et §7.2 (création de station amont = HUMAN GATE ouvert, bloquant). `SCHEMA.md` : `mandatory_read` *déclare*, seul `_UPSTREAM_BY_STEP` *transmet* — c'est ce second mécanisme qui manque pour s2.6.
+
+**Sections NOT_GROUNDED (8/8) et leur raison :** context, chronology, stakes, factions, characters, relations, events, coherence_rules — **toutes** déclarées `NOT_GROUNDED`, cause racine unique : aucune des deux seules sources recevables (worldscan, charter) n'était présente dans le contexte injecté. `inputs_recus: {worldscan:false, charter:false}` — sincère.
+
+**Verdicts :**
+- `software_verdict: BLOCKED` — livrable JSON produit et matérialisable, mais (a) vide-par-nécessité faute des deux sources amont, et (b) son oracle d'acceptation `check_story_bible` non exécuté par moi (`run: aucun`). Blocage AMONT, pas défaut de fabrication.
+- `evidence_verdict: MECHANICAL_VALIDATION_ONLY` — seules preuves mécaniques versées : 3 échecs Read (paths inexistants) + absence des artefacts du contexte. Aucune auto-certification LLM.
+- `claim_verdict: NO_CLAIM_ALLOWED`.
+
+**fog → HumanGate (Pierre) :**
+1. **Câblage manquant** : `s2.6-story-bible` n'a aucune entrée `_UPSTREAM_BY_STEP` injectant `worldscan.json` + `charter` (station `NOT_FOUND` §3, gated §7.2). Décision requise — créer la flèche d'injection relève du HUMAN GATE contrats, pas d'une réparation d'exécutant. Je **ne la répare pas** (surface gatée).
+2. **Acceptabilité** : une Story Bible intégralement `NOT_GROUNDED` est-elle la sortie attendue d'un run sans sources (sonde `story_probe`), ou le run doit-il HALTER avant s2.6 tant que s2-worldscan n'a pas produit ? Jugement produit → Pierre.
+
+**SKIPPED_VALIDATION :**
+- item: exécution de `check_story_bible(data)` · périmètre: mon livrable JSON · statut: **non fait** · raison: `run: aucun` + Bash désactivé — je ne peux pas lancer l'oracle ; l'exécuteur/oracle aval le fera sur l'artefact matérialisé.
+- item: vérification d'ancrage worldscan/charter (contenu) · périmètre: les 8 sections · statut: **non faisable** · raison: sources absentes du contexte et du disque sondé ; par garde-fou, l'absence se déclare, ne se compense pas.
+- item: énumération exhaustive du run_dir pour localiser les artefacts · périmètre: `lab/forge_runs/` · statut: **partiel (3 chemins sondés)** · raison: pas de Glob/Bash ; Read exige un chemin exact. L'absence de contexte reste le fait déterminant quelle que soit l'issue disque.
+
+Livrable terminal (matérialisable en `story_bible.json` par l'exécuteur — je n'écris aucun fichier) :
+
+```json
+{
+  "game_id": "story_probe",
+  "inputs_recus": { "worldscan": false, "charter": false },
+  "sections": [
+    {
+      "id": "context",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucune source d'ancrage recue dans le contexte (worldscan absent, charter absent — inputs_recus false/false) et introuvable aux chemins run_dir sondes. Le contexte du monde ne peut se poser que depuis une entree reelle ; l'inventer serait du remplissage interdit par le garde-fou.",
+      "elements": []
+    },
+    {
+      "id": "chronology",
+      "status": "NOT_GROUNDED",
+      "reason": "Ni worldscan ni charter en contexte : aucune date, ere ou sequence d'evenements a citer ni a deduire d'elements cites.",
+      "elements": []
+    },
+    {
+      "id": "stakes",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucune entree recevable : aucun enjeu narratif ancrable. Un enjeu fabrique ici deviendrait un mensonge structurel en aval (Game Master).",
+      "elements": []
+    },
+    {
+      "id": "factions",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucune source : zero faction extractible. Une faction sans source+ref verifiable est interdite (garde-fou : aucun remplissage).",
+      "elements": []
+    },
+    {
+      "id": "characters",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucune source : zero personnage extractible ni deductible depuis une entree citee.",
+      "elements": []
+    },
+    {
+      "id": "relations",
+      "status": "NOT_GROUNDED",
+      "reason": "Sans personnages ni factions ancres (sources absentes), aucune relation ne peut etre posee sans invention.",
+      "elements": []
+    },
+    {
+      "id": "events",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucune entree (worldscan/charter) : aucun evenement du monde a citer ni a inferer.",
+      "elements": []
+    },
+    {
+      "id": "coherence_rules",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucune matiere narrative ancree n'existe : il n'y a pas de monde etabli sur lequel enoncer des regles de coherence.",
+      "elements": []
+    }
+  ]
+}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "s2.6-story-bible s'est execute sans ses deux seules sources d'ancrage : worldscan.json et charter absents du contexte injecte ET introuvables aux 3 chemins run_dir sondes (Read only, pas d'enumeration possible). Bible produite honnetement vide (8/8 NOT_GROUNDED).", "root_cause": "La station STORY BIBLE est NOT_FOUND dans le pipeline cible (FORGE_PIPELINE_TARGET_V1 §3) : aucune entree _UPSTREAM_BY_STEP n'injecte worldscan+charter vers s2.6 ; le cablage releve du HUMAN GATE contrats ouvert (§7.2), pas d'une reparation d'executant."}

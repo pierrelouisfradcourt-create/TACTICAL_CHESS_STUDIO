@@ -1,0 +1,145 @@
+{
+ "game_id": "kitten_clicker",
+ "exigences": [
+  {
+   "id": "R1",
+   "source": "EXPECTED",
+   "source_role": "s2-worldscan",
+   "reference": "worldscan:games[0].loops.minute_1",
+   "observation": "Le worldscan decrit la boucle minute_1 de Cookie Clicker : le joueur clique sur le gros cookie et gagne 1-10 unites par clic, avec feedback audio-visuel direct.",
+   "claim": "Le coeur d'experience d'un clicker est un geste manuel dont chaque occurrence produit un gain positif immediatement lisible ; kitten_clicker herite de ce coeur avec la caresse.",
+   "enonce": "Caresser le chaton central incremente le compteur de caresses d'une valeur strictement positive a chaque clic, affichee immediatement.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot caresse le chaton N fois sans autre action ; le compteur passe de v0 a v1 avec v1 - v0 == N x gain_par_clic et gain_par_clic > 0."
+   },
+   "destination": "s3-decompo"
+  },
+  {
+   "id": "R2",
+   "source": "EXPECTED",
+   "source_role": "s2-worldscan",
+   "reference": "worldscan:games[0].loops.minute_10",
+   "observation": "Le worldscan decrit la boucle minute_10 : des batiments passifs (Farms, Granaries) produisent automatiquement et la boucle passe du clic actif a l'idle.",
+   "claim": "Un clicker viable doit rendre la progression independante du clic manuel via des producteurs automatiques achetables, sinon la retention idle s'effondre.",
+   "enonce": "Apres achat d'au moins un producteur automatique, le compteur de caresses augmente au fil du temps sans aucun clic du joueur.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot achete un producteur puis n'emet aucun clic pendant T secondes ; le compteur croit strictement, v(T) > v(0)."
+   },
+   "destination": "s3-decompo"
+  },
+  {
+   "id": "R3",
+   "source": "EXPECTED",
+   "source_role": "s2.6-story-bible",
+   "reference": "story_bible:coherence_rules",
+   "observation": "La story bible ancre une regle de coherence GROUNDED : le cadre est zero-penalite, toute progression est cumulative et irreversible, sans etat de defaite.",
+   "claim": "L'absence de perte subie est un pilier du ressenti calme du sous-genre collection-idle ; kitten_clicker doit donc exclure structurellement le game-over et le retrait de collectibles.",
+   "enonce": "Aucun evenement subi (temps, absence, action) ne retire un chaton deja debloque ni ne declenche d'ecran de defaite : la collection est monotone non decroissante.",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "Un oracle rejoue une session (clics, achats, temps ecoule, fermeture/reouverture) et verifie qu'aucune transition ne diminue la taille de la collection et qu'aucune scene game_over n'est atteignable."
+   },
+   "destination": "s4-archi"
+  },
+  {
+   "id": "R4",
+   "source": "EXPECTED",
+   "source_role": "s2-worldscan",
+   "reference": "worldscan:games[1].retention_answer",
+   "observation": "Le worldscan indique pour Neko Atsume que la progression passive continue meme pendant le sommeil du joueur, rendant l'engagement sans effort, les recompenses se decouvrant a la reouverture.",
+   "claim": "kitten_clicker doit materialiser un calcul de gains hors-ligne restitue a la reouverture pour reproduire cet engagement sans effort.",
+   "enonce": "A la reouverture apres une fermeture de duree D, le jeu calcule et affiche des gains hors-ligne strictement positifs, ajoutes au total.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Fermer puis relancer avec une horloge avancee de D ; a la reouverture un panneau affiche gains_hors_ligne > 0 coherents avec production_passive x D (eventuellement capee)."
+   },
+   "destination": "s3-decompo"
+  },
+  {
+   "id": "R5",
+   "source": "EXPECTED",
+   "source_role": "s2-worldscan",
+   "reference": "worldscan:games[1].objectives[0].player_goal",
+   "observation": "Le worldscan donne l'objectif de Neko Atsume : collectionner les 66 chats et leurs 66 mementos par placement strategique, progression cumulative et irreversible.",
+   "claim": "L'axe de collection a raretes graduees est le moteur de curiosite de kitten_clicker ; il faut une galerie de chatons avec etats verrouille/debloque et paliers de rarete.",
+   "enonce": "La galerie affiche chaque chaton avec un etat (verrouille/debloque) et un palier de rarete visible ; debloquer un chaton fait passer son etat a debloque de facon permanente.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Capture de l'ecran collection : au moins un chaton verrouille (silhouette/lock) et un debloque avec badge de rarete ; apres condition de deblocage, l'entree change d'etat vers debloque."
+   },
+   "destination": "s5-wiremap"
+  },
+  {
+   "id": "R6",
+   "source": "EXPECTED",
+   "source_role": "s2.7-gm-worldscan",
+   "reference": "gm_worldscan:progression",
+   "observation": "La dimension progression du gm_worldscan mesure que le prestige octroie un multiplicateur permanent (Cookie Clicker +1%/niveau, Hero Soul +10%/niveau) encourageant le cycle reset-and-rebuild.",
+   "claim": "kitten_clicker doit offrir une action de prestige convertissant la progression courante en multiplicateur permanent survivant au reset, sinon la boucle long-terme n'a pas de relance.",
+   "enonce": "Declencher le prestige remet a zero la production courante mais applique un multiplicateur permanent (>1) qui persiste apres le reset et augmente le gain de base.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot atteint le seuil de prestige et declenche le reset ; apres reset, mult_permanent > 1 et gain_par_clic post-reset > gain_par_clic initial pre-prestige."
+   },
+   "destination": "s3-decompo"
+  },
+  {
+   "id": "R7",
+   "source": "EXPECTED",
+   "source_role": "s2.7-gm-worldscan",
+   "reference": "gm_worldscan:economy",
+   "observation": "La dimension economy du gm_worldscan mesure un regime de croissance exponentiel 10^n et un cout de batiment x1.15 par achat, produisant une courbe exponentielle.",
+   "claim": "Pour preserver la sensation de paliers debloques sans emballement, chaque achat d'un meme producteur doit rencherir, imposant une courbe de cout croissante.",
+   "enonce": "Le cout d'un producteur donne augmente strictement a chaque achat de ce producteur : cout_apres > cout_avant.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot achete le meme producteur 3 fois de suite ; la suite des couts affiches est strictement croissante, c1 < c2 < c3."
+   },
+   "destination": "s3-decompo"
+  },
+  {
+   "id": "R8",
+   "source": "EXPECTED",
+   "source_role": "s2.7-gm-worldscan",
+   "reference": "gm_worldscan:rng",
+   "observation": "La dimension rng du gm_worldscan mesure un evenement chronometre (Golden Cookie, ~15s de vie) qui force une attention periodique sans notification push.",
+   "claim": "kitten_clicker gagne une retention active en inserant un objet-bonus ephemere, cliquable dans une fenetre courte, offrant un bonus temporaire, sans jamais penaliser l'inattention.",
+   "enonce": "Un objet-bonus ephemere apparait par intermittence, reste cliquable pendant une duree bornee puis disparait ; le cliquer dans la fenetre octroie un bonus temporaire mesurable, ne pas le cliquer n'entraine aucune penalite.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot attend l'apparition de l'objet-bonus, le clique dans sa fenetre de vie : un bonus temporaire s'applique (gain multiplie pendant une duree). Dans un second essai il ne clique pas : l'objet disparait, aucun bonus, aucun decrement du total."
+   },
+   "destination": "s3-decompo"
+  },
+  {
+   "id": "R9",
+   "source": "EXPECTED",
+   "source_role": "s2-worldscan",
+   "reference": "worldscan:games[0].retention_answer",
+   "observation": "Le worldscan donne comme premiere raison de retour a Cookie Clicker le feedback immediat du clic (son, numero qui monte) et la sensation de controle direct.",
+   "claim": "L'ecran principal de kitten_clicker doit rendre le compteur de caresses et le chaton cliquable dominants et lisibles en permanence pour porter ce feedback.",
+   "enonce": "L'ecran principal affiche en permanence un compteur de caresses lisible et un chaton central cliquable en zone focale ; chaque clic produit un feedback visuel immediat.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Capture de l'ecran de jeu montrant compteur numerique visible + chaton central en zone focale ; captures avant/apres un clic montrant le compteur incremente et un feedback visuel (nombre flottant ou animation)."
+   },
+   "destination": "s5-wiremap"
+  },
+  {
+   "id": "R10",
+   "source": "ADDITIONS",
+   "source_role": "s1-prisme",
+   "reference": null,
+   "observation": "Le premier geste d'un joueur de clicker est de cliquer l'objet central avant toute lecture de tutoriel ; c'est le happy-path immediat (proposition produit, non tiree d'une adresse amont).",
+   "claim": "kitten_clicker doit etre jouable au premier ecran sans etape de configuration : le chaton central est cliquable des le chargement, avant tout menu.",
+   "enonce": "Des la fin du chargement de la scene principale, le chaton central est cliquable et le premier clic produit un gain, sans ecran de configuration bloquant prealable.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Au lancement, un bot clique immediatement sur le chaton sans franchir de menu ; le compteur s'incremente des le premier clic."
+   },
+   "destination": "s9-build"
+  }
+ ]
+}

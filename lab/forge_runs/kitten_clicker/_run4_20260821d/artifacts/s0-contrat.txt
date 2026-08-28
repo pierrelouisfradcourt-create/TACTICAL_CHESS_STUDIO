@@ -1,0 +1,121 @@
+Le tool `Write` est désactivé dans cette session (comme Bash). Le mécanisme de matérialisation est donc l'extraction par le harness du **bloc de sortie terminal** — ce qu'explicite d'ailleurs la règle de forme du dispatch (« bloc unique et terminal ») et le commit `4f8c245` (l'artefact d'une étape = le dernier bloc qui passe son validateur). Je livre le charter comme bloc terminal.
+
+J'ai lu tous les fichiers obligatoires (SCHEMA.md, design_intent.md, contrat s0, oracles statiques) ; pas de Project Bible ni de charter préexistant. Voici le rapport, puis le charter.
+
+---
+
+## Rapport final — s0-contrat / kitten_clicker-20260821d
+
+**Oracle cité** : oracle CHARTER (validateur de schéma déterministe non-LLM — parse `charter.yaml`, échoue si un champ requis est vide/absent/« à définir »). **Non exécuté dans cette étape** (`run: aucun` au contrat ; par ailleurs Write/Bash désactivés) → il tranche au gate. Aucun LLM-as-judge.
+
+**software_verdict: OK** *(structurel, self-inspection mécanique)* — les 7 champs R7 sont présents et non vides (`objectif`, `hors_scope[]`, `criteres_succes[]`, `actions_interdites[]`, `plateforme_cible`, `reference_jeu`, `criteres_demo[]`) ; aucun « à définir » ; toute valeur de liste est quotée ou en bloc `>-` (aucun scalaire nu portant « : »). L'exécution autoritaire de l'oracle CHARTER reste déférée au gate (cf. SKIPPED_VALIDATION).
+**evidence_verdict: MECHANICAL_VALIDATION_ONLY** *(limité à l'inspection structurelle du livrable ; l'oracle CHARTER n'a pas été exécuté ici)*.
+**claim_verdict: NO_CLAIM_ALLOWED.**
+
+**Flous du prompt — résolus vs remontés :**
+- *Résolus depuis source Pierre (aucune invention)* :
+  - `reference_jeu` = Cookie Clicker + Neko Atsume → `design_intent.md` l.3 + dispatch 2026-08-22.
+  - `plateforme_cible` = Godot 4.6.3 desktop fenêtre GPU → `design_intent.md` l.4 + dispatch.
+  - `criteres_demo[]` (5 mécaniques + (a)..(h)) → dispatch s0-contrat (Pierre, 2026-08-22).
+  - `hors_scope[]`, `criteres_succes[]`, `actions_interdites[]` → dérivés du `design_intent.md` + doctrine CLAUDE.md / ADR-002 + pré-mortem (chess_tcg périmé, >= tautologique, variance, evidence_path, harnais Godot run_tests.gd).
+- *Remontés en fog HumanGate* : **aucun**. Tous les champs design-intent portent une source Pierre traçable (`design_intent.md` + dispatch). « Jouable plusieurs heures » sans cible chiffrée est explicitement cadré par `hors_scope` (pas de preuve d'équilibrage longue durée dans ce run), ce n'est donc pas un flou bloquant.
+
+**SKIPPED_VALIDATION :**
+- item : exécution de l'oracle CHARTER (validateur de schéma) · périmètre : `lab/forge_runs/kitten_clicker/charter.yaml` · statut : non fait · raison : `run: aucun` au contrat s0 + Write/Bash désactivés dans cette session ; validation autoritaire déférée au gate.
+- item : matérialisation physique du fichier dans le run_dir · périmètre : idem · statut : non fait par l'agent · raison : Write désactivé → matérialisation par extraction du bloc terminal (à vérifier côté harness, cf. `next_reason`).
+
+**RETURN LINEAGE :**
+- `why_task_existed:`
+  - `problem:` run kitten_clicker complet par composition (décision Pierre 2026-08-22) ; le pré-mortem `manifest-59c210e6` montre que `charter.yaml` absent du run_dir a cassé l'héritage INTENT LINEAGE de s4-archi et de s2.6 (Read file-not-found).
+  - `oracle:` aucun — activation par décision humaine (Pierre), corroborée par le reçu pré-mortem `manifest-59c210e6`.
+  - `root_cause:` artefact amont s0 (charter) non matérialisé dans le run_dir avant le dispatch aval.
+  - `action_reason:` produire un charter complet, 7 champs, design-intent tracé à Pierre, pour que l'intention humaine soit héritable en aval.
+- `result:` charter rédigé — 7 champs remplis, 0 « à définir », `reference_jeu`/`plateforme_cible` tracés à `design_intent.md`, `criteres_demo` portant les 5 mécaniques + (a)..(h) ; émis comme bloc terminal.
+- `proof:` lectures effectuées (SCHEMA.md, design_intent.md, s0-contrat.yaml, static_oracles.py) ; Write/Bash indisponibles (erreurs « No such tool available ») ; oracle CHARTER non exécuté (`run: aucun`) — preuve d'oracle déférée au gate.
+- `learning:` en session s0, l'artefact se matérialise par le bloc terminal extrait par le harness (Write disabled) ; la forme (listes quotées / bloc `>-`, bloc unique et terminal) EST la condition de lisibilité — deux charters sur trois avaient échoué par scalaire nu portant « : ».
+- `next_reason:` chaîne NON fermée — l'étape aval doit consommer ce charter ; à vérifier explicitement côté orchestrateur que le harness a bien écrit `charter.yaml` dans `lab/forge_runs/kitten_clicker/` (le défaut `manifest-59c210e6` était précisément l'absence dans le run_dir).
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}
+
+```yaml
+# charter.yaml — kitten_clicker (run kitten_clicker-20260821d, etape s0-contrat)
+# Schema : scripts/forge/contracts/SCHEMA.md — output_contract s0-contrat.yaml (7 champs R7)
+# Redige 2026-08-22. Source design-intent : lab/forge_runs/kitten_clicker/design_intent.md (Pierre)
+# Provenance design-intent (tracable Pierre, PAS invente par l'agent) :
+#   reference_jeu + plateforme_cible : design_intent.md l.3-4 (Pierre 2026-08-21) + dispatch 2026-08-22
+#   criteres_demo mecaniques + (a)..(h) : dispatch s0-contrat kitten_clicker-20260821d (Pierre 2026-08-22)
+# Forme : toute valeur de liste est entre guillemets doubles ou en bloc >- ; aucun scalaire nu portant deux-points.
+
+objectif: >-
+  Produire un petit clicker de chatons mignons sur Godot 4.6.3 desktop, jouable
+  plusieurs heures, avec une boucle de progression et une meta-progression
+  coherentes. Boucle centrale : le joueur clique sur une pelote/patee/coussin
+  central pour produire des ronrons, ronrons qui achetent des chatons, chatons qui
+  produisent automatiquement, production financee par des ameliorations, le tout
+  debloquant de nouveaux chatons et lieux jusqu'a une meta-progression (prestige).
+  Chaine CLICK vers RONRONS vers CHATONS vers PRODUCTION AUTOMATIQUE vers
+  AMELIORATIONS vers NOUVEAUX CHATONS ET LIEUX vers META-PROGRESSION. Le run doit
+  demontrer que les conditions de victoire/defaite, objectifs joueur, progression
+  et contraintes narratives produites en amont atteignent reellement les Grey
+  Blocks, la WireMap, le Builder et les oracles, pas seulement presentes dans les
+  documents.
+
+hors_scope:
+  - "Pas de multijoueur, reseau, serveur ni sauvegarde cloud."
+  - "Pas de monetisation ni microtransactions."
+  - "Pas d'art final ni d'assets 3D : Grey Blocks / placeholders 2D acceptes au stade build (identite visuelle par forme/couleur/taille, pas par art fini)."
+  - "Pas de portage web ni mobile : cible unique Godot 4.6.3 desktop, fenetre GPU."
+  - "Pas de preuve d'equilibrage sur plusieurs heures reelles : le run prouve la boucle, la variance des paliers et la solvabilite par un bot, pas le tuning fin longue duree."
+  - "N'ecrit pas de code, ne decide pas l'architecture (etape 4) ni le world scan (etape 2) : cette etape ne produit QUE charter.yaml."
+  - "Ne touche pas aux lanes protegees (src/, tests/, autopilot.py, lane STUDIO gelee)."
+
+criteres_succes:
+  - "charter.yaml valide : les 7 champs (objectif, hors_scope, criteres_succes, actions_interdites, plateforme_cible, reference_jeu, criteres_demo) remplis, aucun vide ni a definir."
+  - "World scan produit explicitement conditions_victoire, conditions_defaite, objectifs_joueur, progression, boucles_recompense, ET ces informations sont CONSOMMEES en aval (Grey Blocks / WireMap / Builder), mesure par la sonde check_amont_traversal.mjs (advisory)."
+  - "Grey Blocks : les competences click, production, upgrades, deblocages, evenements, quetes, meta-progression sont reellement reconnaissables a l'execution, pas seulement declarees."
+  - "WireMap reconcilie intention visuelle avec architecture technique avec donnees avec runtime Godot ; l'oracle wiremap deterministe (isomorphisme WireMap vers code) PASS."
+  - "Build Godot passe l'oracle standard s10s (scaffolding standard + tests/run_tests.gd a enumeration DirAccess + garde EXPECTED_ASSERTS) ; patron de harnais = snake / breakout_v2 / tetris, JAMAIS chess_tcg (pre-STANDARD, non conforme)."
+  - "Solvabilite (oracle de JEU) : un bot automatise atteint le 3e palier de progression en un nombre de ticks fini, assertion STRICTE (jamais un plus-grand-ou-egal tautologique) ; un jeu aux objectifs inatteignables est un FAIL meme si tous les tests unitaires passent."
+  - "Courbe de paliers : au moins 3 valeurs distinctes (regle de variance ratifiee Pierre 2026-07-21) ; une metrique de palier a variance nulle ne mesure pas ce que son nom promet."
+  - "Audio : volet 07_TESTS/oracle/core_audio.gd journalise 4 declenchements DISTINCTS (clic, achat, deblocage, prestige), un son par evenement."
+  - "Verdict de sortie signe HMAC re-verifie par forge.verify_run ; software_verdict issu UNIQUEMENT des recus d'oracle ; claim_verdict NO_CLAIM_ALLOWED ; HumanGate (Pierre) decide merge/reject/freeze."
+
+actions_interdites:
+  - "Ne jamais commiter ni pusher : gate Pierre explicite obligatoire."
+  - "Ne pas toucher src/, tests/, autopilot.py, scripts/studioV2/, ni la lane STUDIO gelee."
+  - "Ne pas inventer ni re-choisir reference_jeu ou plateforme_cible : fixes par Pierre (design_intent.md) ; un changement passe par HumanGate."
+  - "Pas de plus-grand-ou-egal tautologique dans un oracle de solvabilite : asserter le comportement STRICT (compteur egal n+1, le bot atteint reellement le 3e palier) ; un plus-grand-ou-egal masque une mecanique morte."
+  - "Pas de flag de succes ecrit en dur dans un harnais/oracle (passed vrai, ok vrai...) : le statut se CALCULE, jamais ne se declare."
+  - "Aucun claim sans oracle non-LLM execute : claim_verdict NO_CLAIM_ALLOWED, sinon fog HumanGate ; jamais de LLM-as-judge sur le code."
+  - "Ne pas declarer une competence, un chaton, un lieu, un objet ou une quete seulement en prose : chaque item promis dans criteres_demo doit etre reconnaissable/cable a l'execution."
+  - "Aucune metrique a variance nulle (ou identiquement egale a une autre grandeur) servant a classer/generer/calibrer : prouver au moins 2 valeurs distinctes non triviales avant usage."
+  - "Ne pas citer chess_tcg comme patron de harnais Godot (perime, ni game_contract.yaml ni 09_WIREMAP ni run_tests.gd DirAccess) : utiliser snake / breakout_v2 / tetris."
+  - "Aucun recu de verdict sans evidence_path : execution non prouvable donne BLOCKED."
+
+plateforme_cible: >-
+  Godot 4.6.3, desktop, fenetre GPU obligatoire (rendu fenetre). Le mode headless
+  rend une texture nulle (driver dummy) et rend impossible toute capture GPU ou
+  preuve pixel ; la capture exige une fenetre GPU reelle.
+
+reference_jeu: >-
+  Cookie Clicker (boucle incrementale, progression, paliers) plus Neko Atsume
+  (collection de chatons, attractivite, identite mignonne). CHOISI PAR PIERRE.
+  Source tracable : lab/forge_runs/kitten_clicker/design_intent.md l.3 (Pierre
+  2026-08-21) et dispatch s0-contrat kitten_clicker-20260821d (2026-08-22). Non
+  invente ni suppose par l'agent.
+
+criteres_demo:
+  - "Compteur de ronrons : cliquer sur la pelote centrale incremente le compteur AFFICHE a l'ecran d'exactement plus 1 par clic (assertion stricte compteur egal n+1, jamais plus-grand-ou-egal)."
+  - "Chaton visible apres achat : acheter un chaton fait APPARAITRE a l'ecran un chaton (sprite/bloc) qui n'etait pas present avant l'achat."
+  - "Production sans clic : sans aucune interaction, des qu'au moins un chaton est acquis, le compteur de ronrons augmente au fil des ticks."
+  - "Amelioration qui monte le taux : acheter une amelioration fait passer le taux de production par tick a une valeur STRICTEMENT superieure, visible a l'ecran."
+  - "Bot au palier : un bot automatise atteint un palier de progression en un nombre de ticks fini (solvabilite, assertion stricte)."
+  - "(a) Au moins 6 chatons NOMMES, chacun avec une identite visuelle distincte PAR RARETE : forme, couleur ou taille differenciant les raretes a l'ecran, pas seulement dans les donnees."
+  - "(b) Au moins 2 lieux jouables : le refuge de depart plus au moins 1 lieu debloque par la meta-progression, chaque lieu visuellement distinct a l'ecran."
+  - "(c) Au moins 3 objets distincts, chacun visible et identifiable a l'ecran."
+  - "(d) Au moins 3 petites quetes dont l'OBJECTIF est affiche a l'ecran (texte d'objectif plus etat d'avancement visibles)."
+  - "(e) Un son DISTINCT pour chacun des 4 evenements clic, achat, deblocage, prestige, declenche par l'evenement. Audio procedural accepte ; preuve egal volet 07_TESTS/oracle/core_audio.gd journalisant les declenchements par evenement."
+  - "(f) Un feedback visuel au clic (la pelote se deforme/pulse, une particule ronron s'envole...) visible a chaque clic."
+  - "(g) Une courbe de paliers portant au moins 3 valeurs DISTINCTES (regle de variance : couts/seuils de palier non identiquement egaux)."
+  - "(h) Un bot atteint le 3e palier en un nombre de ticks FINI (solvabilite stricte, borne de ticks explicite, jamais un plus-grand-ou-egal tautologique)."
+```

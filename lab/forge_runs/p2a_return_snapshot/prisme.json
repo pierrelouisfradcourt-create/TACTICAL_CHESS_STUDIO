@@ -1,0 +1,117 @@
+{
+ "game_id": "p2a_return_snapshot",
+ "exigences": [
+  {
+   "id": "prisme-td-001-boucle-immediate",
+   "source": "EXPECTED",
+   "source_role": "prisme",
+   "reference": "World Scan — Bloons TD 6 (https://bloons.fandom.com/wiki/Bloons_TD_6)",
+   "observation": "Dans Bloons TD 6, poser un Dart Monkey et voir les Red Bloons eclater credite 1 dollar par pop, une boucle de feedback etablie en moins de 30 secondes.",
+   "claim": "Le joueur ne comprend l'economie qu'a condition que le lien poser vers tuer vers gagner soit rendu visible et recompense des les premieres secondes, avant tout tutoriel.",
+   "enonce": "Dans les 30 premieres secondes de partie, poser une tour puis tuer un ennemi doit incrementer le compteur d'argent affiche d'un montant strictement positif.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot pose une tour au tick 0 et laisse un ennemi entrer a portee ; a la mort de l'ennemi le compteur money passe de M a une valeur strictement superieure a M, en moins de 30 secondes simulees."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "prisme-td-002-kill-credite-strict",
+   "source": "EXPECTED",
+   "source_role": "prisme",
+   "reference": "World Scan — Defense Grid: The Awakening (https://waywardstrategy.com/2018/09/07/defense-grid-the-awaking-retrospective-review/)",
+   "observation": "Le World Scan classe Bloons TD 6 et Defense Grid: The Awakening comme cash-driven : chaque ennemi tue rapporte de l'argent direct reinvesti en tours ou ameliorations.",
+   "claim": "Si un kill ne credite pas d'argent de facon strictement mesurable, la boucle d'investissement est morte et le joueur ne peut pas faire monter sa defense en puissance.",
+   "enonce": "Chaque ennemi tue credite un montant d'argent superieur a zero ; le compteur apres kill est strictement superieur au compteur avant kill, jamais egal.",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "Oracle de solvabilite : sur une vague scriptee, money_after_kill est strictement superieur a money_before_kill pour chaque kill ; l'assertion est stricte, un >= est rejete car il masquerait une mecanique morte."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "prisme-td-003-franchissement-retire-vie",
+   "source": "EXPECTED",
+   "source_role": "prisme",
+   "reference": "World Scan — Plants vs Zombies (https://plantsvszombies.wiki.gg/wiki/Plants_vs._Zombies)",
+   "observation": "Dans Plants vs Zombies un zombie qui atteint le bord gauche de la pelouse, et dans Kingdom Rush un ennemi qui atteint le bout du chemin, declenchent la sanction.",
+   "claim": "La sanction spatiale — un ennemi franchit la ligne egale une perte — est le seul enjeu qui rend la defense signifiante ; sans elle laisser passer n'a aucun cout et le placement devient decoratif.",
+   "enonce": "Un ennemi qui atteint la zone a defendre retire un nombre de vies deterministe et observable au compteur, superieur ou egal a un.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot laisse passer un ennemi sans le tuer ; le compteur lives passe de L a L moins k avec k superieur ou egal a un, exactement au tick du franchissement, verifie tick par tick."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "prisme-td-004-defaite-terminale",
+   "source": "EXPECTED",
+   "source_role": "prisme",
+   "reference": "World Scan — Kingdom Rush (https://kingdomrushtd.fandom.com/wiki/Kingdom_Rush)",
+   "observation": "Kingdom Rush et Plants vs Zombies definissent une condition de defaite explicite — ennemi qui franchit ou vies epuisees — qui termine la partie.",
+   "claim": "Un etat de defaite atteignable et detectable est ce qui transforme une simulation de tir en jeu a enjeu ; sans etat terminal il n'y a ni echec ni pression.",
+   "enonce": "Quand le compteur de vies atteint zero, la partie entre dans un etat defeat terminal observable : l'arene cesse d'accepter des placements et un etat de fin est affiche.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot passif laisse toutes les vagues franchir ; a lives egal zero l'etat de jeu bascule sur defeat et toute tentative de placement ulterieure est refusee."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "prisme-td-005-pose-sous-financee-refusee",
+   "source": "ADDITIONS",
+   "source_role": "prisme",
+   "reference": null,
+   "observation": "Un joueur en debut d'apprentissage tentera de poser une tour qu'il ne peut pas payer : c'est le premier geste qui casse si rien ne l'en empeche.",
+   "claim": "Sans refus explicite et feedback a la pose sous-financee, le joueur croit avoir pose une tour absente et attribue sa defaite a un bug plutot qu'a sa gestion des ressources.",
+   "enonce": "Une tentative de pose avec argent insuffisant est refusee sans rien debiter, sans creer de tour, avec un retour visuel de refus.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Capture : tentative de pose alors que money est inferieur au prix de la tour ; aucune tour n'apparait sur la case, le compteur money reste inchange, un signal de refus est rendu a l'ecran."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "prisme-td-006-portee-borne-degats",
+   "source": "EXPECTED",
+   "source_role": "prisme",
+   "reference": "World Scan — Kingdom Rush (https://jake-pauls.medium.com/towers-towers-everywhere-9a7931a9ed43)",
+   "observation": "Dans Kingdom Rush chaque type de tour remplit une niche — Archer pour la portee, Mage contre l'armure — et le placement par rapport au chemin determine ce qui est touche.",
+   "claim": "Si une tour touche des ennemis hors de sa portee affichee, le placement strategique perd tout sens et la variete de tours s'effondre en un geste optimal unique.",
+   "enonce": "Une tour n'inflige de degats qu'aux ennemis situes dans son rayon de portee declare ; un ennemi hors rayon ne subit aucun degat de cette tour.",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "Oracle : pour une tour de portee R, un ennemi a distance d superieure a R ne voit jamais ses points de vie baisser du fait de cette tour ; un ennemi a d inferieure ou egale a R en subit les degats."
+   },
+   "destination": "s4-archi"
+  },
+  {
+   "id": "prisme-td-007-victoire-solvable",
+   "source": "EXPECTED",
+   "source_role": "prisme",
+   "reference": "World Scan — Bloons TD 6 (https://www.bloonswiki.com/List_of_rounds_in_BTD6)",
+   "observation": "Le mode campagne de Bloons TD 6 se gagne en survivant a toutes les vagues jusqu'au round cible, et Plants vs Zombies Adventure de meme a chaque niveau.",
+   "claim": "Une carte sans condition de victoire atteignable n'est pas un niveau mais un bac a sable ; un jeu a campagne doit exposer un etat de victoire distinct de ne pas encore avoir perdu, et un bot competent doit pouvoir l'atteindre.",
+   "enonce": "Survivre a la derniere vague declaree d'une carte fait basculer la partie dans un etat victory terminal, distinct de l'etat en cours et de l'etat defeat, et cet etat est atteignable par un bot solveur.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot solveur qui defend correctement atteint la fin de la derniere vague et l'etat de jeu bascule sur victory ; test de solvabilite : au moins un bot DOIT pouvoir gagner la carte, pas seulement passer les tests unitaires."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "prisme-td-008-vagues-sequentielles",
+   "source": "EXPECTED",
+   "source_role": "prisme",
+   "reference": "World Scan — Plants vs Zombies (https://plantsvszombies.wiki.gg/wiki/Survival:_Endless)",
+   "observation": "Plants vs Zombies structure les vagues en flags de 10 a 15 zombies, la selection de graines se rejoue entre deux flags ; les vagues sont sequentielles et bornees.",
+   "claim": "Si les vagues se chevauchent sans frontiere observable, le joueur ne peut ni planifier ni respirer, et la montee de pression par paliers — le rythme du genre — devient illisible.",
+   "enonce": "La vague N plus un ne commence qu'apres resolution de tous les ennemis de la vague N (tues ou franchis), ou sur declenchement explicite du joueur ; l'indicateur de vague passe de N a N plus un sans etat intermediaire ambigu.",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "Oracle : aucun ennemi de la vague N plus un n'existe dans l'arene tant qu'un ennemi de la vague N est vivant et non franchi, sauf declenchement joueur explicite trace."
+   },
+   "destination": "s3-decompo"
+  }
+ ]
+}

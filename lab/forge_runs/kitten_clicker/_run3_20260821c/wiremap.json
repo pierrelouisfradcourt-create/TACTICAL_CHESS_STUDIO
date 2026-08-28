@@ -1,0 +1,223 @@
+{
+ "features": [
+  {
+   "feature": "R1 Caresse incremente le compteur",
+   "fonction": "apply_purr",
+   "fichiers": [
+    "05_SYSTEMS/purr_action/purr_action.gd"
+   ],
+   "preuve": "bot_action — tests/run_tests.gd::test_purr : un bot applique N caresses sur un etat initial, v1 - v0 == N * gain_par_clic (egalite STRICTE) et gain_par_clic > 0",
+   "couvre": [
+    "apply_purr"
+   ],
+   "statut": "IMPLEMENTED",
+   "constat": {
+    "fichiers_reels": [
+     "05_SYSTEMS/purr_action/purr_action.gd"
+    ],
+    "fonction_reelle": "PurrAction.apply_purr",
+    "preuve_recue": "node scripts/forge/godot_oracle.mjs games/kitten_clicker => '=== RESULT: 104 passed, 0 failed (fichiers: 1) ===', exit 0 (104==EXPECTED_ASSERTS) ; solvabilite 20/20 won verdict OK ; test_purr (v1-v0==5*gain, egalite stricte, gain>0)"
+   }
+  },
+  {
+   "feature": "R2 Production passive apres achat",
+   "fonction": "tick",
+   "fichiers": [
+    "05_SYSTEMS/game_state/game_state.gd",
+    "05_SYSTEMS/economy/economy.gd"
+   ],
+   "preuve": "bot_action — tests/run_tests.gd::test_passive_production : achat d'un producteur puis aucun clic pendant T pas de temps, le compteur croit strictement v(T) > v(0) ; game_state.tick applique le taux passif produit par economy",
+   "couvre": [
+    "tick"
+   ],
+   "statut": "IMPLEMENTED",
+   "constat": {
+    "fichiers_reels": [
+     "05_SYSTEMS/game_state/game_state.gd",
+     "05_SYSTEMS/economy/economy.gd"
+    ],
+    "fonction_reelle": "GameState.tick / Economy.passive_rate",
+    "preuve_recue": "node scripts/forge/godot_oracle.mjs games/kitten_clicker => '=== RESULT: 104 passed, 0 failed (fichiers: 1) ===', exit 0 (104==EXPECTED_ASSERTS) ; solvabilite 20/20 won verdict OK ; test_passive_production (v(T)>v(0) sans clic apres achat)"
+   }
+  },
+  {
+   "feature": "R3 Zero-perte : collection monotone, aucun game_over",
+   "fonction": "probe",
+   "fichiers": [
+    "06_RUNTIME/adapters/debug_probe/debug_probe.gd",
+    "05_SYSTEMS/collection/collection.gd"
+   ],
+   "preuve": "oracle — tests/run_tests.gd::test_collection_monotone : un oracle rejoue une session (clics, achats, temps, fermeture/reouverture) ; a chaque tick la taille de collection lue par debug_probe ne decroit jamais et aucun etat game_over n'est atteignable",
+   "couvre": [
+    "probe"
+   ],
+   "statut": "IMPLEMENTED",
+   "constat": {
+    "fichiers_reels": [
+     "06_RUNTIME/adapters/debug_probe/debug_probe.gd",
+     "05_SYSTEMS/collection/collection.gd"
+    ],
+    "fonction_reelle": "DebugProbe.collection_size / Collection.refresh_unlocks",
+    "preuve_recue": "node scripts/forge/godot_oracle.mjs games/kitten_clicker => '=== RESULT: 104 passed, 0 failed (fichiers: 1) ===', exit 0 (104==EXPECTED_ASSERTS) ; solvabilite 20/20 won verdict OK ; test_collection_monotone (60 ticks, taille jamais decroissante, grew strict, aucun game_over) + test_debug_probe"
+   }
+  },
+  {
+   "feature": "R4 Gains hors-ligne a la reouverture",
+   "fonction": "compute_offline",
+   "fichiers": [
+    "05_SYSTEMS/offline_gains/offline_gains.gd",
+    "06_RUNTIME/adapters/persistence/persistence.gd"
+   ],
+   "preuve": "bot_action — tests/run_tests.gd::test_offline_gains : persistence lit l'horloge et remet D a offline_gains ; gains_hors_ligne == min(production_passive * D, plafond) et > 0 (strict) pour D>0 avec >=1 producteur, == 0 sans producteur ; montant ajoute au total charge",
+   "couvre": [
+    "compute_offline"
+   ],
+   "statut": "IMPLEMENTED",
+   "constat": {
+    "fichiers_reels": [
+     "05_SYSTEMS/offline_gains/offline_gains.gd",
+     "06_RUNTIME/adapters/persistence/persistence.gd"
+    ],
+    "fonction_reelle": "OfflineGains.compute / Persistence.apply_offline_for_duration",
+    "preuve_recue": "node scripts/forge/godot_oracle.mjs games/kitten_clicker => '=== RESULT: 104 passed, 0 failed (fichiers: 1) ===', exit 0 (104==EXPECTED_ASSERTS) ; solvabilite 20/20 won verdict OK ; test_offline_gains (rate*D==200 exact, cape au plafond, ==0 sans producteur, ajoute au total) + test_persistence_roundtrip"
+   }
+  },
+  {
+   "feature": "R5 Galerie : etats verrouille/debloque + rarete, deblocage permanent",
+   "fonction": "render_gallery",
+   "fichiers": [
+    "06_RUNTIME/adapters/gallery_view/gallery_view.gd",
+    "05_SYSTEMS/collection/collection.gd"
+   ],
+   "preuve": "visual — capture GPU (product_oracle_godot, fenetre GPU obligatoire) de l'ecran collection : >=1 chaton verrouille (silhouette/cadenas) et >=1 debloque avec badge de rarete ; apres condition de deblocage (collection.unlock, add-only), l'entree passe de verrouille a debloque de facon permanente",
+   "couvre": [
+    "requirement_id_1",
+    "requirement_id_2"
+   ],
+   "statut": "IMPLEMENTED",
+   "constat": {
+    "fichiers_reels": [
+     "06_RUNTIME/adapters/gallery_view/gallery_view.gd",
+     "05_SYSTEMS/collection/collection.gd"
+    ],
+    "fonction_reelle": "GalleryView.cells + GalleryView._draw / Collection.refresh_unlocks",
+    "preuve_recue": "test_gallery_cells + test_collection_unlock_permanent (deblocage add-only permanent, oracle headless 104/104 exit 0) ; VISUEL REELLEMENT EXECUTE par le collecteur officiel: python forge.product_oracle_godot.run_godot_product_oracle('games/kitten_clicker') => gallery_render status=OK mode=gpu_window passed=True fails=[]"
+   }
+  },
+  {
+   "feature": "R6 Prestige : reset contre multiplicateur permanent",
+   "fonction": "do_prestige",
+   "fichiers": [
+    "05_SYSTEMS/prestige/prestige.gd",
+    "06_RUNTIME/adapters/solvability_bot/solvability_bot.gd"
+   ],
+   "preuve": "bot_action — solvability.gd (exit 0) : le bot atteint le seuil de prestige dans le budget de ticks declare et declenche do_prestige ; apres reset, mult_permanent > 1 (strict), gain_par_clic post-reset > gain_par_clic initial pre-prestige (strict), production courante remise a 0 ; budget insuffisant = controle negatif qui NE franchit PAS le seuil",
+   "couvre": [
+    "do_prestige"
+   ],
+   "statut": "IMPLEMENTED",
+   "constat": {
+    "fichiers_reels": [
+     "05_SYSTEMS/prestige/prestige.gd",
+     "06_RUNTIME/adapters/solvability_bot/solvability_bot.gd"
+    ],
+    "fonction_reelle": "Prestige.do_prestige / SolvabilityBot.choisir_intention",
+    "preuve_recue": "SOLVABILITE REELLE via node scripts/forge/godot_oracle.mjs games/kitten_clicker => solvability_godot: trials=20 won=20 lost=0 failed_seeds=[] verdict=OK, exit 0 (budget oracles.json: max_ticks=20000, trials=20) ; test_prestige (mult 1->1.5 strict, gain post>pre strict, reset a 0) + test_prestige_negative_control (purrs=50 sous seuil 100 -> NE franchit pas). Note: le controle negatif budget=5 et FORGE_TRIAL {succeeded,ticks} de la generation precedente n'ont PAS ete reproduits par ce format d'oracle (verdict/won) -- correction d'un recu fabrique."
+   }
+  },
+  {
+   "feature": "R7 Cout croissant par rachat",
+   "fonction": "buy_producer",
+   "fichiers": [
+    "05_SYSTEMS/economy/economy.gd"
+   ],
+   "preuve": "bot_action — tests/run_tests.gd::test_cost_curve : achat du meme producteur 3 fois, la suite des couts est strictement croissante c1 < c2 < c3 (jamais >=) ; taux de production passif strictement positif apres le premier achat",
+   "couvre": [
+    "buy_producer"
+   ],
+   "statut": "IMPLEMENTED",
+   "constat": {
+    "fichiers_reels": [
+     "05_SYSTEMS/economy/economy.gd"
+    ],
+    "fonction_reelle": "Economy.cost / Economy.buy_producer",
+    "preuve_recue": "node scripts/forge/godot_oracle.mjs games/kitten_clicker => '=== RESULT: 104 passed, 0 failed (fichiers: 1) ===', exit 0 (104==EXPECTED_ASSERTS) ; solvabilite 20/20 won verdict OK ; test_cost_curve (c1<c2<c3 strict: 10<11<13, taux passif>0 apres 1er achat)"
+   }
+  },
+  {
+   "feature": "R8 Objet-bonus ephemere sans penalite",
+   "fonction": "click_bonus",
+   "fichiers": [
+    "05_SYSTEMS/bonus_event/bonus_event.gd"
+   ],
+   "preuve": "bot_action — tests/run_tests.gd::test_bonus_event : clic dans la fenetre de vie -> facteur de gain > 1 pendant une duree bornee puis retour a 1 ; sans clic -> l'objet disparait en fin de fenetre, aucun bonus, total INCHANGE (aucun decrement)",
+   "couvre": [
+    "click_bonus"
+   ],
+   "statut": "IMPLEMENTED",
+   "constat": {
+    "fichiers_reels": [
+     "05_SYSTEMS/bonus_event/bonus_event.gd"
+    ],
+    "fonction_reelle": "BonusEvent.click_bonus / is_active / advance",
+    "preuve_recue": "node scripts/forge/godot_oracle.mjs games/kitten_clicker => '=== RESULT: 104 passed, 0 failed (fichiers: 1) ===', exit 0 (104==EXPECTED_ASSERTS) ; solvabilite 20/20 won verdict OK ; test_bonus_event (clic->facteur 2 borne puis retour 1 ; ignore->total inchange, aucun decrement)"
+   }
+  },
+  {
+   "feature": "R9 Ecran principal : compteur lisible + chaton focal + feedback",
+   "fonction": "render_main",
+   "fichiers": [
+    "06_RUNTIME/adapters/main_screen/main_screen.gd"
+   ],
+   "preuve": "visual — capture GPU de l'ecran de jeu : compteur numerique visible en permanence ET chaton central cliquable en zone focale ; captures avant/apres un clic montrant le compteur incremente et un feedback visuel (nombre flottant ou animation) present apres, absent avant",
+   "couvre": [
+    "render_main"
+   ],
+   "statut": "IMPLEMENTED",
+   "constat": {
+    "fichiers_reels": [
+     "06_RUNTIME/adapters/main_screen/main_screen.gd"
+    ],
+    "fonction_reelle": "MainScreen.counter_text/focal_rect/flash_feedback + _draw",
+    "preuve_recue": "test_main_screen_view (compteur formate, zone focale, feedback ; oracle headless 104/104 exit 0) ; VISUEL REELLEMENT EXECUTE par le collecteur officiel: python forge.product_oracle_godot.run_godot_product_oracle('games/kitten_clicker') => main_screen_render status=OK mode=gpu_window passed=True fails=[]"
+   }
+  },
+  {
+   "feature": "R10 Jouable au premier ecran, sans configuration bloquante",
+   "fonction": "_ready",
+   "fichiers": [
+    "06_RUNTIME/adapters/runtime_loop/runtime_loop.gd",
+    "06_RUNTIME/adapters/input_adapter/input_adapter.gd"
+   ],
+   "preuve": "bot_action — tests/run_tests.gd::test_first_screen_playable : au lancement, runtime_loop._ready amorce la scene principale avec le chaton cliquable des la fin du chargement ; un bot clique immediatement (intention 'caresser' via input_adapter) sans franchir aucun menu, le compteur passe de 0 a gain_par_clic au premier clic",
+   "couvre": [
+    "_ready"
+   ],
+   "statut": "IMPLEMENTED",
+   "constat": {
+    "fichiers_reels": [
+     "06_RUNTIME/adapters/runtime_loop/runtime_loop.gd",
+     "06_RUNTIME/adapters/input_adapter/input_adapter.gd"
+    ],
+    "fonction_reelle": "RuntimeLoop.boot_state/_ready / InputAdapter.apply",
+    "preuve_recue": "node scripts/forge/godot_oracle.mjs games/kitten_clicker => '=== RESULT: 104 passed, 0 failed (fichiers: 1) ===', exit 0 (104==EXPECTED_ASSERTS) ; solvabilite 20/20 won verdict OK ; test_first_screen_playable (boot_state: purrs==0, 1er clic 0->gain, chaton focal present, aucun menu)"
+   }
+  }
+ ],
+ "constat_run": {
+  "run_id": "kitten_clicker-20260821c",
+  "etape": "s9-build-godot-standard",
+  "godot": "4.6.3.stable (resolu par scripts/forge/godot_bin.mjs)",
+  "oracle_headless": "node scripts/forge/godot_oracle.mjs games/kitten_clicker => '=== RESULT: 104 passed, 0 failed (fichiers: 1) ===', exit 0 (104==EXPECTED_ASSERTS) ; solvabilite 20/20 won verdict OK",
+  "solvabilite": "node scripts/forge/godot_oracle.mjs games/kitten_clicker => solvability_godot: trials=20 won=20 lost=0 failed_seeds=[] verdict=OK, exit 0 (budget oracles.json: max_ticks=20000 trials=20 trial_timeout_ms=120000)",
+  "visuels_gpu": [
+   "main_screen_render: status=OK mode=gpu_window passed=True fails=[] (collecteur officiel product_oracle_godot, fenetre GPU reelle)",
+   "gallery_render: status=OK mode=gpu_window passed=True fails=[] (collecteur officiel product_oracle_godot, fenetre GPU reelle)"
+  ],
+  "reused_from": "aucun (KB search 5 intentions: seuls des bricks JS grid-nav/combat + lecons process, zero brick GDScript clicker/economy importable)",
+  "lignes_bloquees": "Les 10 features R1-R10 (squelette du RUN) sont IMPLEMENTED. Dans le scaffolding standard (games/kitten_clicker/09_WIREMAP/wiremap.json, exige par l'oracle s10s), 2 exigences CORE sont BLOCKED (fog HumanGate) et 1 DEFERRED, par mismatch genre idle/CORE : core.end_condition (BLOCKED: clicker zero-perte sans fin gagnee/perdue), core.exit (BLOCKED: aucun systeme de sortie in-game dans le squelette gele), core.audio (DEFERRED: assets audio hors perimetre charter).",
+  "scaffolding_standard": "AJOUTE en attempt 2 (attempt 1 avait suivi le patron pre-standard chess_tcg, faisant echouer s10s et l'e2e): 00_CHARTER/game_contract.yaml (proof descriptor mutation+solvabilite), 09_WIREMAP/wiremap.json (v2, 14 systemes, 20 lignes, couvre les 10 CORE), harnais tests/run_tests.gd re-ecrit en enumeration DirAccess de 07_TESTS/unit/kitten_clicker.test.gd (e2e vert), mutation_triage.json (4 survivants equivalents). Les 6 oracles standard + e2e valides en local (verts).",
+  "gate_mutation": "AUTORITE = le driver (verdict signe HMAC). VERIFIE en local par le forgeron (confronter au reel): run_mutation_from_descriptor => total=39 killed=35 survived=4 ; check_mutation_gate + mutation_triage.json => passed=True, survivants_non_tries=[], triage_perimes=[], exception=True (4 equivalents tries -> HumanGate). Survivants: offline_gains le<=0/duration<=0 (rate*0==0, equivalents) + 2 mutations A L'INTERIEUR DE COMMENTAIRES game_state (defaut amont du meta-oracle signale en fog).",
+  "claim_verdict": "NO_CLAIM_ALLOWED"
+ }
+}

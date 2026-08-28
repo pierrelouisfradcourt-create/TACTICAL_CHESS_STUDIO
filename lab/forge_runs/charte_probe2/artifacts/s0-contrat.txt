@@ -1,0 +1,85 @@
+I've read the mandatory sources: `scripts/forge/contracts/SCHEMA.md`, the studio_link Project Bible reader (`project_bible()` returns `""` for a new project — none exists for this one), the intention verbatim, and the pre-mortem (provided inline). The dispatch chain confirms the charter is s0's artifact, consumed downstream as the Prisme/WorldScan `mandatory_read`, and materialized from my terminal YAML block by the M4 producer.
+
+Every one of the three design-intent fields has an **explicit Pierre source in the prompt** — `reference_jeu: Hades`, `plateforme_cible: Godot 4`, and the demo criterion (door that opens on room resolution). No field needs to be invented, so no fog is raised.
+
+Here is the charter:
+
+```yaml
+# charter.yaml — étape s0-contrat · dispatch charte2-20260814
+# Source unique = intention de projet fournie VERBATIM par Pierre. Aucun champ inventé.
+# Roguelike de donjon SOLO, Godot 4, thème « archiviste dans une bibliothèque
+# qui se réécrit à chaque mort ». (Titre du projet non ratifié — hors des 7 champs.)
+
+objectif: >-
+  Construire, en Godot 4, un roguelike de donjon SOLO où le joueur incarne un
+  archiviste enfermé dans une bibliothèque infinie qui se RÉÉCRIT à chaque mort.
+  Deux factions s'opposent sur la conservation ou la destruction des livres ; un
+  personnage récurrent, la Bibliothécaire, accueille le joueur à chaque retour de
+  run. Objectif du joueur : traverser les salles jusqu'à atteindre la Salle des
+  Origines. Le cœur à prouver est la boucle roguelike (run → mort → réécriture →
+  retour à la Bibliothécaire) et la résolution d'une salle (une porte qui s'ouvre).
+
+reference_jeu: "Hades — choix explicite de Pierre (structure roguelike : runs, mort qui réinitialise le run, hub avec PNJ récurrent)."
+
+plateforme_cible: "Godot 4 — moteur imposé par Pierre."
+
+hors_scope:
+  - "Multijoueur / réseau / co-op : le jeu est SOLO (posé par Pierre)."
+  - "Simulation stratégique de la guerre des deux factions : elles sont un cadre narratif du monde, pas un système à modéliser dans ce run."
+  - "Méta-progression complète façon Hades (miroir des ténèbres, armes multiples, arcs de relation PNJ) : hors périmètre de cette première preuve."
+  - "Génération procédurale à grande échelle d'une bibliothèque réellement infinie : une réécriture observable entre deux runs suffit à prouver la boucle."
+  - "Polissage artistique et audio final : placeholders acceptés tant que les critères de démo observables sont tenus."
+  - "Toute lane protégée du studio : src/, tests/, autopilot.py, scripts/studioV2/ — jamais touchées."
+
+criteres_succes:
+  - "Le projet Godot 4 déclare une scène principale et se lance sans erreur (point d'entrée traité comme invariant structurel, vérifié en présence ET en absence)."
+  - "Au moins une salle est jouable : l'archiviste se déplace et une condition de RÉSOLUTION de salle existe et est réellement atteignable (solvabilité prouvée par un bot/agent qui résout la salle — assertion STRICTE, jamais un >= tautologique)."
+  - "La résolution d'une salle DÉCLENCHE l'ouverture d'une porte (changement d'état visible) — le moteur relie la mécanique au critère de démo."
+  - "La mort du joueur réinitialise le run, réécrit l'agencement et ramène le joueur face à la Bibliothécaire (boucle roguelike observable, pas seulement testée en isolation)."
+  - "L'objectif de run est ATTEIGNABLE : il existe une chaîne de salles résolubles menant à la Salle des Origines (un objectif inatteignable est un échec, même si tous les tests unitaires passent)."
+
+criteres_demo:
+  - "Une porte VISIBLE à l'écran s'OUVRE (transition d'état visuelle) au moment exact où une salle est résolue — critère de démo explicite posé par Pierre."
+  - "La Bibliothécaire est visible à l'écran et accueille le joueur au démarrage / au retour d'un run (élément de monde posé par Pierre : « accueille le joueur à chaque retour »)."
+  - "L'archiviste incarné par le joueur est visible et se déplace dans une salle à l'écran (élément posé par Pierre : « le joueur incarne un archiviste »)."
+
+actions_interdites:
+  - "Choisir une reference_jeu ou une plateforme_cible autres que Hades / Godot 4 : ces deux choix appartiennent à Pierre, jamais à un agent."
+  - "git commit / git push : décision réservée à Pierre (HumanGate)."
+  - "Écrire ou modifier une lane protégée : src/, tests/, autopilot.py, scripts/studioV2/."
+  - "Asserter la solvabilité ou une mécanique par un test tautologique (>=, condition toujours vraie) : l'assertion doit être STRICTE et falsifiable."
+  - "Livrer un jeu dont l'objectif (Salle des Origines) est structurellement inatteignable."
+  - "Déclarer un critère de démo observable (la porte qui s'ouvre) satisfait sans preuve de capture par un oracle produit — aucun rendu inerte présenté comme fonctionnel."
+  - "Émettre un claim auto-certifié sans oracle non-LLM à l'appui (claim_verdict: NO_CLAIM_ALLOWED)."
+```
+
+---
+
+## RAPPORT FINAL — s0-contrat (charte2-20260814)
+
+**Oracle cité :** oracle CHARTER (validateur de schéma déterministe non-LLM décrit dans mon contrat — parse `charter.yaml`, échoue si un des 7 champs est vide/absent/contient « à définir »). Je **ne l'ai pas exécuté** : un sous-agent LLM ne lance pas d'oracle, et cet oracle est un pas déterministe aval + porte de sortie. En conséquence, aucun claim mécanique n'est possible de mon poste.
+
+**Flous du prompt — résolus vs remontés :**
+- *Résolus, tracés au prompt Pierre (aucune invention) :* `reference_jeu = Hades` (explicite), `plateforme_cible = Godot 4` (explicite), critère de démo principal (« porte qui s'ouvre quand une salle est résolue », explicite), `objectif`, monde/factions/Bibliothécaire, objectif du joueur (Salle des Origines), boucle « réécriture à chaque mort ».
+- *Remontés en fog HumanGate :* **aucun**. Les trois champs design-intent (`plateforme_cible`, `reference_jeu`, `criteres_demo`) portent chacun une source Pierre explicite — contraste net avec la leçon AutoBattler (référence de jeu choisie sans Pierre). `hors_scope`, `criteres_succes`, `actions_interdites` sont dérivés du prompt + conventions CLAUDE.md/pré-mortem, ce qui est le travail du rédacteur de contrat, pas du design-intent.
+
+**software_verdict: BLOCKED** — charter émis et complet selon ma relecture du schéma, mais sa conformité mécanique n'est PAS prouvée (oracle CHARTER non exécuté par moi). Un OK exigerait le reçu de l'oracle déterministe aval.
+**evidence_verdict: MECHANICAL_VALIDATION_ONLY** — n/a ici : aucune validation mécanique n'a été exécutée de mon poste ; ce champ vaudra une fois l'oracle CHARTER passé en aval.
+**claim_verdict: NO_CLAIM_ALLOWED** — je remonte le besoin : faire passer `charter.yaml` par l'oracle CHARTER déterministe (porte de sortie) avant tout claim de conformité.
+
+**SKIPPED_VALIDATION :**
+- item: exécution de l'oracle CHARTER (validateur de schéma) · où: `charter.yaml` · statut: non fait · raison: un sous-agent LLM ne lance pas d'oracle ; validation déléguée au pas déterministe aval + verify_run.
+- item: matérialisation sur disque de `charter.yaml` · où: run dir canonique du projet · statut: non fait (émis en bloc yaml terminal) · raison: le producteur/matérialiseur YAML du driver (M4) extrait le bloc terminal et écrit le fichier à l'emplacement canonique du run ; je n'invente pas un chemin ni ne laisse un fichier orphelin à la racine.
+
+**RETURN LINEAGE**
+- **why_task_existed:**
+  - `problem:` un nouveau projet ne peut dispatcher aucun agent aval sans charter borné — s0 est le point d'entrée obligatoire de la boucle Forge (le charter est le `mandatory_read` du Prisme/WorldScan).
+  - `oracle:` aucun — activation par décision humaine (GO Pierre avec une intention de projet).
+  - `root_cause:` non établie (pas un défaut : point d'entrée nominal du pipeline).
+  - `action_reason:` rédiger le charter aux 7 champs, chaque champ tracé à une source Pierre, est précisément l'objet de s0.
+- **result:** `charter.yaml` (7 champs) émis en bloc yaml terminal — tous remplis, aucun « à définir », aucun vide ; les 3 champs design-intent sourcés Pierre, aucun fog requis.
+- **proof:** aucune commande d'oracle exécutée (oracle CHARTER = pas déterministe aval, non lançable par un LLM) ; sources lues : `scripts/forge/contracts/SCHEMA.md`, `forge.studio_link.project_bible()` → `""` (projet neuf, aucune bible), `scripts/forge/dispatch.py` (place de s0 dans ORDER), intention Pierre verbatim + pré-mortem inline.
+- **learning:** quand l'intention Pierre porte déjà `reference_jeu` + `plateforme_cible` + un critère de démo observable, la trio design-intent se remplit sans fog — la garde AutoBattler ne se déclenche que quand la source Pierre manque, pas par réflexe.
+- **next_reason:** lignée FERMÉE proprement. La suite (s2-worldscan → s1-prisme) consomme ce charter dans le flux nominal ; ce n'est pas une escalade, aucune cause non résolue ne persiste.
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

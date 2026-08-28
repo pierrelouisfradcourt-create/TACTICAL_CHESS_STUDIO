@@ -1,0 +1,90 @@
+Both Write and Bash are disabled — this red-team runs read-only. Per my output contract, the parser (`forge.run_real.extract_redteam_findings`) reads my response text, so I deliver the report inline below.
+
+---
+
+# Rapport Red-Team CODE — kitten_clicker (dispatch s11-redteam-code / kitten_clicker-20260821e)
+
+Auditeur AVEUGLÉ (aucune justification du builder consultée). Chaque faille cite `fichier:ligne` et une reproduction exécutable par un oracle non-LLM en aval (grep / `test -f` / lancement Godot). Le red-team CRITIQUE ; les oracles PROUVENT. Périmètre lu : `games/kitten_clicker/` (systèmes 05, runtime 06, contenu 03, assets 04, oracles 07, `main.tscn`, `project.godot`) + `wiremap.json`.
+
+## Constat structurant (racine de 3 des 4 failles)
+
+La scène embarquée `main.tscn` (le jeu réellement lancé — `project.godot:14` → `run/main_scene="res://main.tscn"`) n'instancie qu'un seul nœud : `HUD` porté par `hud.gd` (`main.tscn:3,7-8`). Elle ne branche **ni** l'entrée (`input.gd`), **ni** la boucle de production (`auto.gd` — aucun `_process`/`Timer` dans tout le runtime), **ni** le rendu des chatons (`kitten_view.gd`), **ni** l'audio (`audio.gd`), **ni** le chargeur de contenu (`content.gd`). `hud._ready()` appelle `draw_hud(0.0, 0.0)` en dur (`hud.gd:21`) et rien ne le ré-alimente depuis `state.aggregate_rate()`. Le jeu embarqué affiche donc en permanence « 0 ronrons / 0 /sec », sans objet cliquable, sans chaton, sans son. `project.godot:5-7` l'admet dans le code même : « la wiremap gelée ne déclare AUCUNE ligne de coordination runtime … l'assemblage jouable complet n'a pas d'adresse déclarée ». Chaque système est prouvé **en isolation** ; l'intégration jouable n'existe pas.
+
+## Faille 1 — [LONGUEUR / intégration] Le jeu embarqué ne se joue pas — HIGH
+
+**angle** : LONGUEUR. `main.tscn` ne contient que `HUD/hud.gd`. Aucun nœud ne consomme `production/click.gd:on_click`, `production/auto.gd:tick_production`, ni `input/input.gd:capture_click`. Aucun `_process`/`Timer` (vérifié dans `hud.gd`, `feedback.gd`, `onboarding.gd`, `kitten_view.gd`). Résultat : 0 seconde de jeu réel dans la scène livrée — « plusieurs heures » est inatteignable tant que la boucle n'est pas assemblée. À noter, corrects sur leur axe : la courbe de paliers (`tiers.gd:11` → `[50,250,1000,5000]`, 4 valeurs distinctes ≥3) et le fait que le prestige amplifie la production passive **en logique** (`state.gd:31` `aggregate_rate = base_production * prestige_mult * upgrade_bonus`, `prestige.gd:25`). Mais rien de tout cela n'est câblé dans `main.tscn`.
+
+**reproduction** : `grep -nE "click|auto|input|_process|Timer|kitten_view" games/kitten_clicker/main.tscn` → 0 hit (seul `hud.gd`, `main.tscn:3`) ; `godot4 --path games/kitten_clicker` + clic → HUD reste « 0 ronrons / 0 /sec ».
+
+## Faille 2 — [COHÉRENCE monde↔mécanique] Chatons nommés / lieux / quêtes / objets : LISTÉS, jamais JOUÉS — HIGH
+
+**angle** : COHÉRENCE. `content.gd:27 load_registries()` n'a **aucun appelant**. Registres morts à l'exécution :
+- **Chatons** : `chatons.json:4-11` = 8 chatons nommés (`biscuit`…`luciole`). La mécanique achète par rareté (`contribution.gd:26 buy_kitten(state, rarity)`, table en dur `contribution.gd:10-16`) ; les noms n'apparaissent dans aucun `.gd`.
+- **Lieux** : ids codés en dur (`state.gd:19 unlocked_places=["shelter"]`, `prestige.gd:12 SECOND_PLACE="veranda"`) — `lieux.json` jamais lu.
+- **Quêtes** : `quetes.json:3-24` a 4 `condition_completion` mesurables, mais AUCUN moteur de quêtes (pas de capacité `progression.quests` dans `wiremap.json`, aucun `quete*.gd`). Jamais évaluées.
+- **Objets** : `objets.json:3-7` = 3 props ; aucun code ne les instancie.
+
+**reproduction** : `grep -rn "load_registries" games/kitten_clicker` → 1 hit (def `content.gd:27`) ; `grep -rnE "biscuit|moustache|luciole" games/kitten_clicker --include=*.gd` → 0 ; `grep -rnE "quete|condition_completion" games/kitten_clicker --include=*.gd` → 0.
+
+## Faille 3 — [AUDIO] Aucun événement de jeu ne déclenche de son — MEDIUM
+
+**angle** : audio. `audio.gd:117 play_sfx()` synthétise/journalise 4 cues distincts correctement, mais son **unique** appelant est le test `core_audio.gd:20-23` (qui provoque les 4 events en dur). Aucun système (`click.gd`, `contribution.gd`, `prestige.gd`, `input.gd`) ni `main.tscn` ne l'appelle. « clic → son », « achat → son », « prestige → son » sont vrais **seulement dans l'oracle**, faux dans le build. Le journal prouve la synthèse, pas le déclenchement par événement réel.
+
+**reproduction** : `grep -rn "play_sfx" games/kitten_clicker` → 2 lignes : def `audio.gd:117` + test `core_audio.gd` (l.20-23). Aucun appel depuis `05_SYSTEMS/` ou `main.tscn`.
+
+## Faille 4 — [ASSETS / preuve] L'oracle « écran principal » assemble une scène fictive, pas `main.tscn` — MEDIUM
+
+**angle** : assets. Les SVG existent et sont importables (`central_cushion.svg` + `central_cushion.svg.import` → `CompressedTexture2D`), et le code de chargement existe (`kitten_view.gd:19 load_sprite`, `onboarding.gd:15`). MAIS ils ne sont rendus que dans des scènes d'oracle isolées, jamais dans `main.tscn`. Pire : `main_screen_render.gd:23-39` construit son propre écran (fond + coussin + HUD avec `draw_hud(12345.0, 678.0)` en dur, l.39) au lieu de charger `res://main.tscn` — il valide un assemblage que le jeu livré (`main.tscn` = HUD seul) n'a pas. La preuve ne traverse pas la frontière qu'elle valide.
+
+**reproduction** : `grep -n "main.tscn" games/kitten_clicker/07_TESTS/oracle/main_screen_render.gd` → 0 ; comparer aux nœuds de `main.tscn` (`Main`+`HUD` seulement).
+
+## Faille 5 — [dérive carte↔réalité] Oracles déclarés IMPLEMENTED mais absents du disque — MEDIUM
+
+**angle** : cohérence carte↔build. `wiremap.json` marque `IMPLEMENTED` avec des preuves inexistantes : `render.hud`/`logic.game_state` → `core_hud.gd` (wiremap l.107, l.549) **absent** ; `render.kitten_view` → `core_visible_chaton.gd` (wiremap l.605,619) **absent**. (À l'inverse `gallery_render.gd`, `main_screen_render.gd`, `core_audio.gd`, `solvability.gd` existent.) Un statut IMPLEMENTED adossé à une preuve absente est une promesse non tenue.
+
+**reproduction** : `test -f games/kitten_clicker/07_TESTS/oracle/core_hud.gd` → absent ; `test -f games/kitten_clicker/07_TESTS/oracle/core_visible_chaton.gd` → absent. (Constaté ici : deux `Read` sur ces chemins renvoient « file does not exist ».)
+
+## Faille 6 — [LONGUEUR / prestige] La preuve « bot » du prestige n'est jamais exécutée — MEDIUM
+
+**angle** : LONGUEUR / prestige. `wiremap.json` (logic.prestige, l.423) donne `preuve: "solvability.gd/bot"`, mais `solvability.gd` ne prestige jamais : il n'importe pas `prestige.gd` (`solvability.gd:11-16`) et sa boucle (`solvability.gd:42-58`) s'arrête à `tier_reached == 3` sans appeler `do_prestige`. De plus, l'énoncé attendu « production de départ post-prestige > initiale (strict) » est faux sur le taux passif : `prestige.gd:26-29` remet `base_production = 0` et vide `kittens`, donc `aggregate_rate` (`state.gd:31`) = `0 * prestige_mult = 0`, identique au 0 initial. Le gain permanent n'apparaît que sur le clic (`click_value = 1.0 * prestige_mult`, `state.gd:24`) et après re-achat — normal pour un idle-game, mais aucun oracle ne le mesure et l'affirmation du wiremap sur la production passive est non prouvée/inexacte.
+
+**reproduction** : `grep -n "prestige|do_prestige|Prestige" games/kitten_clicker/solvability.gd` → 0 ; statique : `prestige.gd:26-29` (`base_production=0.0`) + `state.gd:31` (`aggregate_rate=base_production*...`).
+
+```json
+{"findings": [
+  {"angle": "LONGUEUR / integration", "faille": "main.tscn n'instancie qu'un HUD statique (main.tscn:3,7-8) affichant draw_hud(0.0,0.0) (hud.gd:21) ; aucune boucle de production (auto.gd, aucun _process/Timer), aucun clic route (input.gd non instancie). Le jeu embarque ne se joue pas — 'plusieurs heures' est inatteignable.", "severite": "HIGH", "reproduction": "grep -nE \"click|auto|input|_process|Timer|kitten_view\" games/kitten_clicker/main.tscn => 0 hit (seul hud.gd, main.tscn:3) ; lancer godot4 --path games/kitten_clicker puis cliquer => HUD reste 0 ronrons/0 sec"},
+  {"angle": "COHERENCE monde<->mecanique", "faille": "content.gd:27 load_registries() n'a aucun appelant ; chatons nommes (chatons.json:4-11) jamais achetes par nom (buy_kitten par rarete, contribution.gd:26) ; lieux codes en dur (state.gd:19, prestige.gd:12) au lieu de lieux.json ; quetes.json:3-24 sans moteur de quetes ; objets.json:3-7 jamais rendus. Monde liste, pas joue.", "severite": "HIGH", "reproduction": "grep -rn \"load_registries\" games/kitten_clicker => 1 hit (def content.gd:27) ; grep -rnE \"biscuit|moustache|luciole\" games/kitten_clicker --include=*.gd => 0 ; grep -rnE \"quete|condition_completion\" games/kitten_clicker --include=*.gd => 0"},
+  {"angle": "AUDIO", "faille": "audio.gd:117 play_sfx n'est appele que par son propre oracle core_audio.gd:20-23 ; aucun evenement de jeu (clic/achat/deblocage/prestige) ne le declenche dans le build (main.tscn sans noeud audio, aucun appel depuis 05_SYSTEMS).", "severite": "MEDIUM", "reproduction": "grep -rn \"play_sfx\" games/kitten_clicker => 2 lignes: def audio.gd:117 + test core_audio.gd (l.20-23), aucun appel gameplay"},
+  {"angle": "ASSETS / preuve", "faille": "main_screen_render.gd:23-39 construit un ecran principal fictif (fond+coussin+HUD hardcode draw_hud(12345,678) l.39) au lieu de charger res://main.tscn ; l'oracle valide un assemblage que le jeu livre (main.tscn = HUD seul) ne possede pas. Les SVG existent et sont importes mais ne sont rendus que dans des scenes d'oracle isolees.", "severite": "MEDIUM", "reproduction": "grep -n \"main.tscn\" games/kitten_clicker/07_TESTS/oracle/main_screen_render.gd => 0 ; comparer aux noeuds de main.tscn (Main+HUD seulement)"},
+  {"angle": "coherence carte<->build", "faille": "wiremap.json marque IMPLEMENTED avec preuve core_hud.gd (l.107,549) et core_visible_chaton.gd (l.605,619), mais ces fichiers oracle sont absents du disque.", "severite": "MEDIUM", "reproduction": "test -f games/kitten_clicker/07_TESTS/oracle/core_hud.gd => absent ; test -f games/kitten_clicker/07_TESTS/oracle/core_visible_chaton.gd => absent"},
+  {"angle": "LONGUEUR / prestige", "faille": "wiremap logic.prestige (l.423) declare preuve solvability.gd/bot, mais solvability.gd n'importe pas prestige.gd (l.11-16) et ne l'appelle jamais (boucle l.42-58 s'arrete a tier 3). De plus prestige.gd:26-29 remet base_production=0, donc aggregate_rate (state.gd:31) = 0 avant ET apres prestige : la production PASSIVE de depart n'est pas strictement superieure post-prestige comme l'affirme le wiremap.", "severite": "MEDIUM", "reproduction": "grep -n \"prestige|do_prestige|Prestige\" games/kitten_clicker/solvability.gd => 0 ; statique: prestige.gd:26-29 (base_production=0.0) + state.gd:31 (aggregate_rate=base_production*...)"}
+]}
+```
+
+## RAPPORT FINAL
+
+- **software_verdict** : FAIL — ancres non-LLM reproductibles : `main.tscn:3,7-8` (HUD statique, grep vide sur click/auto/input, faille 1) ; `content.gd:27 load_registries` sans appelant (grep, faille 2) ; `play_sfx` sans déclencheur de jeu (grep, faille 3) ; 2 oracles IMPLEMENTED absents (`test -f`, faille 5).
+- **evidence_verdict** : MECHANICAL_VALIDATION_ONLY — tout repose sur `grep` / `test -f` / lecture de fichier, jamais sur un jugement.
+- **claim_verdict** : NO_CLAIM_ALLOWED. Red-team ADVISORY : alimente `redteam_advisory`, jamais `software_verdict`/`humangate_flags` directement.
+- **fog → HumanGate (Pierre)** : « le contenu (8 chatons, 3 améliorations, 4 paliers, 1 prestige) tient-il *plusieurs heures* ? » est un jugement, pas un oracle — à trancher par Pierre. Le red-team n'établit mécaniquement que l'absence d'assemblage jouable (faille 1), pas une durée cible.
+
+## SKIPPED_VALIDATION
+
+- **Exécution réelle des oracles / du jeu** — périmètre : tout `games/kitten_clicker/` — statut : NON FAIT — raison : contrat `run: aucun` (ET Bash/Write désactivés dans cette session). Chaque faille est fournie avec une reproduction pour un oracle non-LLM en aval.
+- **Solvabilité chiffrée du bot** — périmètre : `solvability.gd` — statut : PARTIEL — raison : constat statique (bot ne prestige pas, borne `MAX_TICKS=20000` présente) sans exécuter le trial ; nombre exact de ticks pour tier 3 non mesuré.
+- **Fidélité octet du réemploi audio** — périmètre : `audio.gd` (reused_from pacman) — statut : NON FAIT — raison : source pacman + `sound_bank.gd`/`settings.gd` hors périmètre de lecture ; écart déjà documenté dans `audio.gd:8-11`. Hors des 4 angles du dispatch.
+- **Round-trip persistence** — périmètre : `05_SYSTEMS/persistence/save.gd` — statut : NON FAIT — raison : hors des 4 angles (longueur/cohérence/assets/audio) ; non lu en détail.
+
+## RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2 §3)
+
+- **why_task_existed** :
+  - **problem** : vérifier que le build kitten_clicker est un jeu réellement jouable et cohérent (longueur, monde joué vs listé, assets rendus, audio déclenché), non un empilement de mécaniques prouvées isolément.
+  - **oracle** : aucun (activation par décision humaine — dispatch s11-redteam-code, red-team advisory).
+  - **root_cause** : établie — systèmes unit-prouvés mais jamais intégrés dans `main.tscn` (scène = HUD statique) ; contenu de monde chargé par un `load_registries` sans appelant.
+  - **action_reason** : un audit adverse à contexte vierge est le seul moyen de séparer « prouvé en isolation » de « joué dans le build livré » — l'écart qui échappe aux oracles unitaires.
+- **result** : 6 failles reproductibles (2 HIGH, 4 MEDIUM). Le build n'assemble aucune boucle jouable ; chatons nommés/lieux/quêtes/objets listés mais non joués ; audio et SVG exercés seulement par des oracles isolés ; 2 oracles déclarés IMPLEMENTED absents.
+- **proof** : lectures ciblées (`main.tscn:3,7-8`, `hud.gd:21`, `content.gd:27`, `contribution.gd:10-26`, `prestige.gd:12,26-29`, `state.gd:19,31`, `audio.gd:117`, `core_audio.gd:20-23`, `main_screen_render.gd:23-39`, `solvability.gd:11-58`) + deux `Read` renvoyant « file does not exist » sur `07_TESTS/oracle/core_hud.gd` et `core_visible_chaton.gd`. Reproductions grep/`test -f` par faille (exécutables par oracle non-LLM). Aucune commande exécutée par moi (run : aucun).
+- **learning** : pattern dominant = « déclaré/prouvé en isolation ≠ intégré dans la scène livrée » (main.tscn stub + registres à zéro appelant + oracle qui reconstruit sa propre scène au lieu de charger main.tscn). Une preuve verte peut valider un assemblage fictif que le jeu embarqué n'a pas.
+- **next_reason** : escalade justifiée — cause non résolue (aucun assemblage jouable ; monde non consommé) et preuves manquantes/contradictoires (oracles absents ; oracle main_screen qui ne charge pas main.tscn). s12-verdict doit traiter ces findings en `redteam_advisory` et NE PAS accorder software_verdict: OK ; HumanGate (Pierre) tranche merge/reject/freeze.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le build kitten_clicker prouve chaque systeme en isolation mais ne les assemble jamais dans la scene embarquee (main.tscn = HUD statique) ; le contenu de monde (chatons nommes, lieux, quetes, objets) est charge par un load_registries sans appelant, donc liste mais jamais joue ; audio et SVG ne sont exerces que par des oracles isoles ; 2 oracles declares IMPLEMENTED sont absents du disque.", "root_cause": "Absence de ligne de coordination runtime (boot/main) dans la wiremap et dans main.tscn ; les registres de contenu n'ont aucun consommateur cable dans les systemes de jeu."}
