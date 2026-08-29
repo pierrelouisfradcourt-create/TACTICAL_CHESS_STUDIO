@@ -124,6 +124,7 @@ from forge.studio_link import (
 )
 from forge.verify_run import verify_run
 from forge.verdict import (
+    ATTESTATION_SELF,
     CLAIM_VERDICT,
     EVIDENCE_VERDICT,
     _verify_mapping,
@@ -1585,7 +1586,28 @@ class ForgeDriver:
 
     # --- preuve d'exécution (DISPATCH_SPAWN_AUTHORITY_V1) ---------------------
 
-    def _record_spawn_executed(self, etape: str, attempt: int, payload=None) -> None:
+    @staticmethod
+    def _bornage_reel(res) -> tuple[tuple[str, ...] | None, int | None]:
+        """A3 — le bornage d'outils RÉELLEMENT appliqué à ce spawn, tel que rapporté
+        par le mécanisme qui l'a appliqué (`run_real` dépose `res["spawn_link"]` :
+        `tools_effective` / `tools_disallowed_count`, les valeurs de l'appel CLI).
+
+        RIEN n'est recalculé ni deviné ici : un `res` sans amont (exécuteur injecté,
+        étape déterministe in-process, chemin Qwen) rend `(None, None)` — « non
+        mesuré », qui ne se confond pas avec « aucun outil » ([]).
+        """
+        link = res.get("spawn_link") if isinstance(res, dict) else None
+        if not isinstance(link, dict):
+            return (None, None)
+        tools = link.get("tools_effective")
+        count = link.get("tools_disallowed_count")
+        return (
+            tuple(tools) if isinstance(tools, (list, tuple)) else None,
+            int(count) if isinstance(count, int) and not isinstance(count, bool) else None,
+        )
+
+    def _record_spawn_executed(self, etape: str, attempt: int, payload=None,
+                               res=None) -> None:
         """Écrit `spawn_authorized` PUIS `spawn_executed` — CHEMIN B (headless / driver).
 
         Le hook PostToolUse ne voit que les spawns passés par l'outil `Task` (chemin A,
@@ -1612,10 +1634,19 @@ class ForgeDriver:
         PAS `self.key_file` (clé de VERDICT, distincte) — signer l'audit avec une autre
         clé rendrait la ligne invérifiable par le garde et par `spawn_proof`.
         """
+        # A3 (ratifié Pierre 2026-08-28) : la ligne signée porte AUSSI le bornage
+        # RÉELLEMENT appliqué. `allowed_tools` (déclaration de contrat, souvent vide)
+        # reste écrit à l'identique — les lecteurs existants ne changent pas de sens ;
+        # le réel arrive dans deux clés NOUVELLES, renseignées ICI parce que c'est le
+        # point où l'exécution est REVENUE (signer au dispatch aurait signé une
+        # prédiction, jamais l'application).
+        tools_reels, disallowed = self._bornage_reel(res)
         common = dict(
             model=getattr(payload, "model", "") or "",
             provider=getattr(payload, "provider", "") or "",
             allowed_tools=tuple(getattr(payload, "allowed_tools", ()) or ()),
+            tools_effective_signed=tools_reels,
+            tools_disallowed_count=disallowed,
             audit_path=self.audit_path,
         )
         append_spawn_event(EVENT_AUTHORIZED, etape, self.run_id, attempt, **common)
@@ -1752,7 +1783,9 @@ class ForgeDriver:
                 if res["ok"]:
                     output, reviewer, qwen_ok = res["output"], res["reviewer"], True
                     # L'exécution a réellement eu lieu ET rendu un résultat : preuve d'action.
-                    self._record_spawn_executed(etape, entry["attempts"], payload)
+                    # `res` (chemin Qwen) ne porte pas d'amont `spawn_link` : le bornage
+                    # réel y reste `null` — non mesuré, jamais supposé (A3).
+                    self._record_spawn_executed(etape, entry["attempts"], payload, res)
                 else:
                     runner, reviewer = RUNNER_CLAUDE_BLIND, res["reviewer"]
 
@@ -1790,7 +1823,10 @@ class ForgeDriver:
                 # Preuve d'action AVANT de juger le retour : un exécuteur qui rend `ok:False`
                 # (timeout `claude -p`, sortie invalide) A TOUT DE MÊME ÉTÉ EXÉCUTÉ. La ligne
                 # atteste le SPAWN, pas sa réussite — le verdict, lui, reste ailleurs.
-                self._record_spawn_executed(etape, entry["attempts"], payload)
+                # A3 : `res` porte le bornage RÉEL appliqué par l'exécuteur
+                # (`res["spawn_link"]`), y compris quand l'exécution a échoué — une
+                # borne appliquée l'a été, que le retour soit vert ou rouge.
+                self._record_spawn_executed(etape, entry["attempts"], payload, res)
                 if not isinstance(res, dict) or not res.get("ok"):
                     why = res.get("reason", "sans raison") if isinstance(res, dict) else "retour invalide"
                     # `res` peut porter des tokens/coût/durée RÉELS même en échec
@@ -3942,6 +3978,12 @@ class ForgeDriver:
             # Lot 1 ADR-003 (P0-2) : game-ness DÉCLARÉE et signée — verify_run ne
             # dépend plus des seules clés facultatives du detail du reçu code.
             is_game=self.is_game,
+            # A2 (ratifié Pierre 2026-08-28) : ce driver EST le chemin B (headless).
+            # Il écrit lui-même les `spawn_authorized`/`spawn_executed` de ce run
+            # (cf. _record_spawn_executed) — sa preuve d'exécution est donc
+            # AUTO-ATTESTÉE, et le verdict signé le DIT au lieu de se présenter
+            # comme une observation externe.
+            execution_proof_attestation=ATTESTATION_SELF,
         )
         record = signed_aggregate_record(agg, key_file=self.key_file)
         verdict_path = self.run_dir / "verdict.json"
@@ -4763,6 +4805,10 @@ class ForgeDriver:
                 git_head=current_git_head(), nonce=new_nonce(), ts=time.time(),
                 key_file=self.key_file, scope="PARTIAL",
                 is_game=self.is_game,  # lot 1 ADR-003 (P0-2), même fait qu'en s12
+                # A2 : MÊME régime de preuve qu'en s12 — c'est le même producteur
+                # headless. Un verdict partiel ne doit pas paraître mieux attesté
+                # que le complet.
+                execution_proof_attestation=ATTESTATION_SELF,
             )
             record = signed_aggregate_record(agg, key_file=self.key_file)
             out.write_text(
@@ -4779,6 +4825,21 @@ class ForgeDriver:
                 f"verdict partiel non écrit: {exc}")
             self._save(state)
             print(f"[driver] verdict partiel non écrit: {exc}", file=sys.stderr)
+
+    @staticmethod
+    def _execution_proof_fields(record: dict) -> dict:
+        """A2 — remonte le régime de preuve d'exécution DU VERDICT SIGNÉ dans le
+        rapport final, tel quel. RELU du record (jamais re-déclaré ici) : le rapport
+        ne doit jamais affirmer un régime que le corps signé ne porte pas. Un verdict
+        historique (clés absentes) ne fait apparaître AUCUN champ — mieux qu'un
+        régime supposé."""
+        att = record.get("execution_proof_attestation")
+        if not att:
+            return {}
+        return {
+            "execution_proof_attestation": att,
+            "execution_proof_note": record.get("execution_proof_note", ""),
+        }
 
     def _final_report(self, state: dict) -> dict:
         self._reference_guard_check("close")
@@ -4808,6 +4869,7 @@ class ForgeDriver:
                 "software_verdict": record["software_verdict"],
                 "decision": record["decision"],
                 "humangate_flags": list(record.get("humangate_flags", ())),
+                **self._execution_proof_fields(record),
                 "verdict_path": verdict_path,
                 "reason": "",
             }
@@ -4823,6 +4885,7 @@ class ForgeDriver:
                 "decision": record["decision"],
                 "scope": record.get("scope", "PARTIAL"),
                 "humangate_flags": list(record.get("humangate_flags", ())),
+                **self._execution_proof_fields(record),
                 "verdict_path": str(partial),
                 "reason": "verdict signé sur périmètre PARTIEL (profil sans s12) — "
                           "ne prouve rien hors des oracles exécutés dans ce profil",

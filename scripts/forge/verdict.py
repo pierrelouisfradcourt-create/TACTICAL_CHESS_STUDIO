@@ -25,6 +25,25 @@ DEFAULT_KEY_FILE = REPO_ROOT / "scripts" / "forge" / ".forge_key"
 CLAIM_VERDICT = "NO_CLAIM_ALLOWED"
 EVIDENCE_VERDICT = "MECHANICAL_VALIDATION_ONLY"
 
+# --- A2 (ratifié Pierre 2026-08-28) : régime de preuve d'EXÉCUTION des spawns ---
+# INVARIANT : « une preuve doit provenir du mécanisme qui a réalisé l'action, sinon
+# elle est explicitement AUTO_ATTESTED ». Sur le chemin headless (chemin B :
+# `run_real._claude_call_raw` -> sous-processus, hors hook PreToolUse), les
+# événements `spawn_authorized`/`spawn_executed` sont écrits par le DRIVER LUI-MÊME
+# (`ForgeDriver._record_spawn_executed`) : aucun tiers n'observe le spawn. R2-OBS P4
+# le dit déjà ligne à ligne (`spawn_links.jsonl`, `attestation: "self"`) ; l'agrégat
+# SIGNÉ — le seul artefact que HumanGate lit — n'en disait rien et se présentait
+# comme s'il avait été observé de l'extérieur.
+# Vocabulaire FERMÉ (même patron que `scope`) : un régime non prévu est une erreur,
+# jamais une chaîne libre glissée dans un corps signé.
+ATTESTATION_SELF = "self"
+EXECUTION_PROOF_ATTESTATIONS = (ATTESTATION_SELF,)
+EXECUTION_PROOF_SELF_NOTE = (
+    "auto-attesté (chemin B headless) : les événements spawn_authorized/"
+    "spawn_executed de ce run ont été écrits par le driver qui exécute les spawns, "
+    "aucun observateur tiers ne les a constatés"
+)
+
 
 @dataclass(frozen=True)
 class Verdict:
@@ -430,6 +449,15 @@ class AggregateVerdict:
     # verify_run garde l'inférence en filet). verify_run traite is_game=True sans
     # preuve mutation embarquée comme un REJET, plus jamais comme un non-jeu.
     is_game: bool | None = None
+    # A2 (2026-08-28) : RÉGIME DE PREUVE de l'exécution des spawns de ce run.
+    # `"self"` = auto-attesté (le mécanisme qui exécute écrit lui-même sa preuve,
+    # cf. ATTESTATION_SELF) ; `None` = non déclaré (verdict historique, ou
+    # producteur tiers qui ne se prononce pas — jamais un régime supposé).
+    # N'entre dans AUCUN calcul : software_verdict, decision et humangate_flags
+    # sont strictement inchangés. C'est un fait de PROVENANCE, signé avec le
+    # verdict (donc infalsifiable après coup), lisible par HumanGate.
+    execution_proof_attestation: str | None = None
+    execution_proof_note: str = ""      # dérivé du régime, jamais saisi par l'appelant
 
 
 def build_aggregate_verdict(
@@ -451,6 +479,7 @@ def build_aggregate_verdict(
     key_file: Path | None = None,
     scope: str = "FULL",
     is_game: bool | None = None,
+    execution_proof_attestation: str | None = None,
 ) -> AggregateVerdict:
     """Plie les REÇUS D'ORACLE SIGNÉS + le red-team en un verdict signable.
 
@@ -493,9 +522,23 @@ def build_aggregate_verdict(
     ici (software_verdict/decision inchangés) : c'est un fait de provenance que
     ``verify_run`` confronte au reçu code — un ``is_game=True`` sans preuve
     mutation embarquée y devient un rejet, plus jamais un « non-jeu » par défaut.
+
+    ``execution_proof_attestation`` (A2, ratifié Pierre 2026-08-28) : régime de
+    preuve de l'EXÉCUTION des spawns de ce run. Le driver headless passe
+    ``ATTESTATION_SELF`` parce qu'il écrit LUI-MÊME ses `spawn_authorized`/
+    `spawn_executed` (aucun observateur tiers) ; la note lisible est DÉRIVÉE ici,
+    jamais fournie par l'appelant (une note libre serait une narration signée).
+    Ne change AUCUN calcul — jamais bloquant, jamais silencieux. Omis => None,
+    exactement l'ancien comportement (rétro-compat : `verify_run` re-signe le corps
+    STOCKÉ, un verdict historique sans ces clés reste vérifiable tel quel).
     """
     if scope not in ("FULL", "PARTIAL"):
         raise ValueError(f"scope invalide: {scope!r} (attendu FULL ou PARTIAL)")
+    if execution_proof_attestation is not None and (
+            execution_proof_attestation not in EXECUTION_PROOF_ATTESTATIONS):
+        raise ValueError(
+            f"execution_proof_attestation invalide: {execution_proof_attestation!r} "
+            f"(attendu None ou {', '.join(EXECUTION_PROOF_ATTESTATIONS)})")
     if ts is None:
         ts = time.time()
     flags: list[str] = []
@@ -643,6 +686,10 @@ def build_aggregate_verdict(
         humangate_flags=tuple(flags),
         scope=scope,
         is_game=is_game,
+        execution_proof_attestation=execution_proof_attestation,
+        execution_proof_note=(
+            EXECUTION_PROOF_SELF_NOTE
+            if execution_proof_attestation == ATTESTATION_SELF else ""),
     )
 
 

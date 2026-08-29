@@ -69,6 +69,19 @@ class DispatchRecord:
     event: str = EVENT_PREPARED
     attempt: int = 0
     unprofiled: bool = False
+    # A3 (ratifié Pierre 2026-08-28) — BORNAGE RÉELLEMENT APPLIQUÉ, signé.
+    # `allowed_tools` (ci-dessus) reste ce qu'il a toujours été : la DÉCLARATION du
+    # contrat (champs skill/plugin), vide par construction pour 17 contrats sur 19.
+    # Le bornage réel de l'exécuteur (`run_real._effective_step_tools` /
+    # `_derive_disallowed`, passé à `claude -p`) n'entrait dans AUCUNE signature :
+    # la ligne signée décrivait des outils qu'elle n'appliquait pas.
+    # Ces DEUX clés NOUVELLES (jamais une redéfinition de `allowed_tools`, dont les
+    # lecteurs restent valides) le portent, et sont renseignées par les événements
+    # écrits APRÈS l'exécution — là où le mécanisme a réellement appliqué la borne.
+    # `None` = non connu à ce point (ligne `spawn_prepared`, oracle in-process) ;
+    # `[]` dirait « aucun outil », ce serait une affirmation, pas une mesure.
+    tools_effective_signed: tuple[str, ...] | None = None
+    tools_disallowed_count: int | None = None
 
 
 def _resolve_audit_path(audit_path: Path | str | None) -> Path:
@@ -133,6 +146,8 @@ def append_spawn_event(
     model: str = "",
     provider: str = "",
     allowed_tools: tuple[str, ...] = (),
+    tools_effective_signed: tuple[str, ...] | None = None,
+    tools_disallowed_count: int | None = None,
     audit_path: Path | None = None,
     key_file: Path | None = None,
 ) -> bool:
@@ -151,6 +166,12 @@ def append_spawn_event(
     Les champs de payload (`model`, `provider`, ...) sont OPTIONNELS : un hook
     PostToolUse ne connaît que le marqueur (etape/run_id/attempt) et laisse le reste
     vide plutôt que d'inventer. Vide = « non connu à ce point », jamais « aucun ».
+
+    A3 : `tools_effective_signed` / `tools_disallowed_count` = le bornage RÉELLEMENT
+    appliqué à l'exécution (cf. DispatchRecord). Rapportés par l'appelant qui vient
+    de voir l'exécution revenir — jamais recalculés ici (ce module est stdlib-only
+    par contrat : importer `run_real` y ramènerait yaml et casserait le garde
+    fail-closed). Omis => `None` = non connu, jamais un bornage supposé.
     """
     try:
         _append_audit(
@@ -164,6 +185,12 @@ def append_spawn_event(
                 ts=time.time(),
                 event=event,
                 attempt=int(attempt),
+                tools_effective_signed=(
+                    None if tools_effective_signed is None
+                    else tuple(tools_effective_signed)),
+                tools_disallowed_count=(
+                    None if tools_disallowed_count is None
+                    else int(tools_disallowed_count)),
             ),
             audit_path,
             key_file,
