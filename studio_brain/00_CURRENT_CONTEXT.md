@@ -1,92 +1,119 @@
 # Contexte courant TCS
-*(Handoff. Archives journal : `context-archive-2026-08-22-kitten-clicker-v3-v4.md` (runs 6-7, playtest, audit gameplay,
-lots V3/V4), `…-runs4-6.md`, `…-runs1-3.md`, `…-2026-08-21-publication-reparation.md`.)*
+*(Handoff. Dernières sessions : 2026-08-29 — run Forge tower_defense_sonde COMPLET (verdict signé
+AUTHENTIQUE, HUMANGATE_READY_WITH_OBJECTION) · (bis) spec liberté de conception V0 PROPOSED rédigée.
+Archive précédente : `journal/context-archive-2026-08-29-avant-audit-paquetA.md` ; plus anciennes au journal.)*
 
-## Branche : `master` (= origin/master + **12** commits locaux non poussés ; dernier push `50ea9b8`, 08-21). `publish` = snapshot séparé, intouché.
-*(Compte revérifié en revue hebdo 2026-08-23 : le handoff annonçait 7, les Lots A/B l'avaient périmé. 131 entrées sales.)*
-Non commités : artefacts de run `lab/forge_runs/kitten_clicker/` (runs 1-7 archivés `_runN_*/` + builds), `games/kitten_clicker/`
-(build du run 7), `lessons.jsonl`, `RUN_INDEX.md`, observer/, `test_evidence_isolation_fixture.py` (hors lot, 12 lignes) —
-merge/reject/freeze = Pierre.
+## Tower Defense sonde (2026-08-29) — **CLOS par Pierre** (`CLOSURE_20260829.md` dans le run_dir)
+- Décision Pierre : run terminé, AUCUNE reconstruction (jeu/charter/chiffres/findings intacts) ; les 4
+  objections restent des objections ; 5 mutants triés = **CLAIM UNVERIFIED** (pas de ratification sur
+  déclaration du producteur) ; red-team = exécuté mais indépendance **BLOCKED** (fallback ≠ Qwen).
+- Statuts : jeu IMPLEMENTED · tests/E2E/solvabilité TESTED · verdict IMPLEMENTED-avec-objections ·
+  « libre > imposé » UNKNOWN (un seul bras) · fun UNKNOWN · généralisation UNKNOWN.
+- Expérience « s0 conçoit librement » : charter ratifié INCHANGÉ (backup `charter_ratifie_20260829.yaml`),
+  conception 100 % s0 ; findings design = résultats d'expérience, PAS de la dette (décision Pierre) :
+  `lab/forge_runs/tower_defense_sonde/design_findings_20260829.md` (Frost sans prédateur · S10 mono-tour
+  aveugle aux duos · scaling +60 % ambigu · `lives` inventé par le builder ; méta : les angles morts du
+  concepteur deviennent des angles morts de la preuve).
+- Run driver canonique `full` : `verdict.json` signé, verify_run **exit 0 AUTHENTIQUE**, software_verdict
+  OK / HUMANGATE_READY_WITH_OBJECTION. **4 objections à trancher** : 5 survivants mutation triés par le
+  producteur (équivalence non vérifiée) · red-team fallback (Qwen n'a pas tourné) · prisme_control.md FAIL
+  structurel · oracle standard sauté (profil). Coût : 17 appels, 437k tokens, ~3 h 27 cumulées.
+- Mesuré : oracle 6 volets PASS rc=0 · E2E 34/34 Chromium réel · panel 5 bots, variance + inversion de
+  classement (« tall » MEURT vague 3 — nourrit le finding parité hauteur/largeur). Faux vert corrigé en
+  route : `proofs/e2e.mjs` définissait `runE2ETest()` sans l'appeler (détecté par Opus, leçon « verte sans
+  avoir eu lieu »). Incidents infra : OAuth expiré (ré-auth Pierre) + 1 rc=1 transitoire + 2 timeouts s9
+  (salvage FIR-02 efficace). Propositions propose-only déposées (ledger AUDIT_REQUIRED + fiche projet).
+- À savoir : jonction NTFS `games/tower_defense_sonde/node_modules → llm-lego/node_modules` (Playwright).
 
-## Kitten Clicker — test d'autonomie de la Forge (réf. Cookie Clicker + Neko Atsume), 2026-08-21/22
-**Commits master** : `ad6eff4` lot 1 (profil `full_godot_narratif`, injection s2.6/s2.7, `reference` adressable, sonde
-amont) · `bfe04fa` lot 2 (regex YAML, sortie en échec persistée) · `4f8c245` lot 3 (dernier bloc JSON qui PASSE le
-validateur) · `db8c79b` lot 4 (`full_godot_content` : art bible injectée jusqu'à s9) · `e8e9b40` lot 5 (WireMap v2) ·
-`6aa64bf` **V3** (sonde `runtime_alive` hors projet, gate `runtime_dead`, volets sans scène propre, `preuve` → fichier,
-contrat s9 assemblage) · `3843d7b` **V4** (sujet PLAYER au Prisme, `loop.json` projection déterministe, `check_decompo`
-entrée+effet, bot-joueur `player_loop.gd`, `check_loop_bypass`, gate `loop_dead` advisory).
+## Spec liberté de conception (2026-08-29) — PROPOSED, HumanGate en attente
+- Livrable : `docs/forge/FORGE_DESIGN_FREEDOM_SPEC_V0_PROPOSED.md` — ce que Forge reçoit AVANT s0
+  pour maximiser la liberté de s0 sans trous structurels. Aucun chiffre de gameplay, aucun code,
+  tower_defense_sonde non touché.
+- Squelette : N1-N9 non négociables (obligations de preuve/forme : provenance par champ, état
+  initial exhaustif, formules à valeur unique, séparation concepteur/instrumenteur, fidélité
+  charter→build, fog_humangate au schéma) · liberté explicite s0 (tout le dimensionnement, FOG-5
+  préservé) · E1-E7 explicitations · P1-P7 preuves · HumanGate inchangé · 11 anti-patterns
+  observés · protocole paires appariées L/D avec métriques M1-M7 pré-enregistrées.
+- Rien n'est appliqué : ratification Pierre requise avant d'en faire un intrant de contrat s0.
 
-**Paliers ratifiés Pierre** : V1 mécanique prouvable (run 3) · V2 intention → fichiers (run 5) · V3 assemblage runtime
-réel (run 6 : scène vit et réagit ; playtest : « runtime vivant ≠ jeu jouable ») · **V4 boucle joueur** (run 7).
-Doctrines fixées en séance : le Prisme est un PLAFOND (non-invention s3) ; « vérifiable » ≠ « par un bot » ; ne pas
-transformer chaque dimension en oracle ; *un oracle qui reconstruit son environnement peut prouver un jeu qui
-n'existe pas* ; *la boucle n'a pas été perdue par le runtime, elle a été transformée en effets sans sujet joueur
-avant le Builder* ; `loop.json` = projection déterministe du Prisme, jamais LLM → loop.json ; le bot de preuve n'a
-que les entrées d'un joueur (Economy / api_* / 05_SYSTEMS / runtime.gd interdits) ; critère logiciel ≠ HumanGate.
+## Tower Defense sonde (2026-08-29) — HALTED, consolidé, en attente reset/reprise
+- Run `tower_defense_sonde-20260829-build` (`lab/forge_runs/tower_defense_sonde/`) : HALT timeout s9
+  (3 tentatives, escalade haiku→sonnet consommée 1/2), reçus s10a/b/c STALE, aucun verdict signé.
+- Corrections minimales F1-F5 + ordre de reprise consignés (rapport session 2026-08-29) : F1 mutation
+  argv `driver.py:3005` (profil full) · F2 chaîne `awardBounty` (`sim/step.mjs:2`) · F3 honnêteté
+  `run-oracle.mjs` (passed:true en dur) · F4 Playwright + invocation e2e · F5 écart WireMap R47-R55
+  (arbitrage Pierre). Les 5 corrections prisme de s3 = amont, ni nécessaires ni suffisantes à la reprise.
+- Résultat expérimental validé Pierre (n=1, PAS doctrine) : mémoire `design_delegation_vs_proof_ownership`.
+  Boucle ludique = UNKNOWN pas FAIL · « libre > imposé » = UNKNOWN (pas de bras de contrôle) ·
+  charter à double statut (« ratifié » par nom, PROPOSITION par contenu) à trancher avant tout s12.
+- Aucun GO donné : F1-F5, WireMap, install Playwright, charter canonique = décisions HumanGate.
 
-**Ruptures localisées (toutes mesurées, 1-3 et 7 corrigées)** : 1 regex YAML · 2 sortie en échec non persistée ·
-3 dernier bloc JSON · 4 charter advisory (s0 OK sans artefact ; re-spawn prescrit, non implémenté) · 5 couvre fantômes +
-fausse preuve de réparation (`repair_step.mjs:237`) + `ESCALADE` sans consommateur · 6 composition legacy/standard
-(vocabulaires Prisme ≠ STANDARD, `reuse_ratio` rouge structurel) · 7 validateur WireMap v1-only · 8 preuve sans
-exécution produit (volets auto-assemblés, `preuve` prose) · **9 effets sans sujet joueur** (Prisme voix passive).
+## Branche : `master` == `origin/master` == `b86bf27` (2026-08-29, TOUT poussé)
+Série gatée fiche par fiche (protocole fiche → vérification → GO Pierre → commit) puis go push :
+R2-OBS `38262cf` · nivelage `b9ea2a7` · A2+A3 `d4a6152` · A1 `2d0ebb6` · archive `ec2af22` ·
+gates `216e160` · docs `c6dfb0b` · hygiène `b86bf27` (selfaudit_last détracké+ignoré).
+Sale résiduel = pré-existant seulement : `test_evidence_isolation_fixture.py`, jsonl de runs,
+`studio_brain/` divers, 9 fichiers vides racine, `.playwright-mcp/` — triage non fait, non urgent.
 
-**Run 7 (V4, `3843d7b`)** : le bot-joueur joue jusqu'à l'adoption d'un chaton par l'écran seul ; arrêt à NEXT_GOAL (chaîne à un
-maillon), REWARD sans `observe` ; le driver n'a pas mesuré (pas de `proof:`, 3ᵉ fois). Détail : journal `…-gameplay-contract.md`.
+## Vérité architecture (audit V0 2026-08-28, 6 sous-agents contre-vérifiés)
+- Carte courante = `docs/forge/STUDIO_MASTER_SCHEMA.html` **Détail M** (vérité mesurée, en tête).
+- Chemin canonique unique : `run_real.py → ForgeDriver → dispatch → contract → runtime → oracles
+  → verdict → verify_run` (verify_run RÉELLEMENT appelé, traces AUTHENTIQUE).
+- **GELS ratifiés (decision-log 2026-08-28)** : île V2 (7 modules + root_problems/agent_recipes)
+  et panel Prisme multi-lentilles — PASSIVE ≠ DEAD, aucun branchement sans consommateur démontré.
+- Pile Codex/GPT-Navigator = **LEGACY PRÉ-FORGE** (bannières posées ; sources GPT périmées de
+  2-3 mois). Nouvelles project sources GPT = Détail M + ADR-003.
+- **Invariant de gouvernance ratifié** : une preuve provient du mécanisme qui a réalisé l'action,
+  sinon explicitement `AUTO_ATTESTED`. Appliqué : `spawn_links.jsonl`, verdict signé
+  (`execution_proof_attestation`), `tools_effective_signed` dans les événements signés.
 
-### Gameplay Contract `f1bce0d` + run 8b — archivé (journal `…-gameplay-contract.md`) : A→J 12/12 mesuré par le driver ; rupture 10 née au run 8a.
+## Capacités nouvelles (2026-08-28/29)
+- **Un run ne meurt plus en silence** : retry borné sur échec transitoire (`claude -p` rc=1 muet),
+  prompt final persisté (`context/prompt_<etape>_a<attempt>.txt`, sha == manifest),
+  `executor_diagnostic` complet sur halt, joint `spawn_links.jsonl` par spawn.
+- **Gates pre-commit** : node --test BLOQUANT (1 029 tests .mjs, ~2,5 s) · `commit_scope_guard`
+  (détection de périmètre) · volet `mutationRegistry` advisory au selfaudit.
+- **Contrats asset écrits** (`s-asset-produce`/`s-asset-spec`) — MAIS `asset_dispatch.py` ne les
+  charge pas encore et `asset_producer` est absent de `models[].roles` : câblage = gate séparée.
+- 25 contrats one-shot archivés (`contracts/archive/`) ; conservés : orchestrator, redteam-artdirector,
+  s10d, s9-build-godot, wm1-tetris (exigence 10 lignes CORE), wm1-breakout (consommé par observer).
 
-### Décision significative `0a9f4d4` + run 9 — archivé (`…-decision-produit.md`) : DECISION 6/6 mesurée, non-dominance inversée, HumanGate FAIL.
+## Régime de tests (nivelage 2026-08-29 — les 90 min artificielles sont SUPPRIMÉES)
+- **T0** `pytest scripts/forge/tests/ -m "not gpu_window"` = **5 min 42** (2 332 verts) — validation courante.
+- **T1** : `test_observer_integration_real.py` = LE SEUL test autorisé à lancer le vrai Observer (34 s).
+- **T-GPU** : 7 tests `-m gpu_window` (165 s, fenêtres Godot) — sur demande explicite seulement.
+- Cause historique des 90 min : l'Observer réel spawné ~110×/passe par le défaut de classe
+  (docstring qui affirmait le contraire) — corrigée par fixture conftest.
 
-### HumanGate run 9 — archivé : FAIL « jeu complet » (4 causes) → direction produit V1 ratifiée, lot produit `b75f165`.
+## Kitten Clicker
+- Série runs 10-11 arrêtée 2026-08-25 (11 HALTED/BLOCKED) : famille infra (CLI muet) corrigée par
+  R2-OBS ; famille canal design_questions tracée (ruptures 10/11, corrigées ou documentées).
+- **Référence produit ratifiée par l'usage (Pierre 2026-08-28) : la sonde V5 « 3 tableaux »**
+  (`lab/prototypes/kitten_noyau_sonde/`, boucle fermée, grammaire des chatons, ~3,4 s/maillon).
+  Les builds Godot des runs = fixtures de preuve, pas des candidats produit.
+- Observer : moissonné jusqu'au run 9 seulement (2026-08-23) — la série HALTED n'est pas analysée.
+- Design : C.1 V1.2 · C.2 V1.1b · C.3 V1.2 · C.4 V1.1 · C.5/V2.0 GAMEPLAY MAP ratifiés ;
+  **C.6 V1.1 PROPOSED** (`gamedesign/kitten_clicker_game_loop_blueprint_c6.md`) — **5 décisions
+  HumanGate en attente** ; Calibration V2.1 PROPOSED (retirée du run).
 
-### Audits 2026-08-23 — archivés (`…-decision-produit.md`) : construit avant de spécifier ; Art Bible après le GM → Lots A/B.
+## Files et séances
+- Séance de ratification PRÊTE : `lab/reports/ratification_session_20260828.md` (PROPOSED) —
+  ~380 items réels sur 1 529 (1 146 = 6 décisions Snake réémises ×191 : règle de NON-RÉÉMISSION
+  par identité à implémenter avant tout throttle). Paquet B = gestes explicites Pierre uniquement.
 
-### Lots A→G.2 (détail archivé `…-decision-produit.md`) — l'essentiel
-A `497c54b` tuyau Art Bible→GM · B `00b872a` GM=Game Master Opus (game_master, economy.json, art_response, gates) · C.1/C.2 design
-ratifiés (progression + gameplay loop & content, tests de reconstruction 0/0) · V2.1 calibration PROPOSED (retirée du run) · F `c3f82de`
-boucle Art↔GM 2 rondes + design_freeze · D `3565de5` fuites (replay_ref, ordre Prisme, design injecté) · G `138aaa4` rejeu matérialisation
-· G.2 `464515b` canal design_questions (squelette, retour au modèle) · timeout s9 `85537cd` · coercition+budget 3 `00e4637`.
-**Runs 10a-10f** : 10d = LA PREUVE (boucle convergée round 2, shared 100 %, nommage escaladé ; Prisme 22/22 sourcé GM ; grey blocks 20/20 ;
-economy.json lu) mort au timeout s9 ; les autres = ruptures 10/11 (forme haiku, canal) et limite d'usage — toutes corrigées ou tracées.
-Runs 10g/10h : 10g = 2ᵉ convergence (2/2, bidirectionnelle, sans rejeu) puis builder tué par la limite d'usage ; 10h =
-`kitten_clicker-20260824d` : Art R1 OK (3 questions, 2 bloquantes) puis **HALTED à GM R1 après 3 tentatives** — vraie mesure de
-canal cette fois (append-only violé ×2 MALGRÉ le retour listant les ids, fence vide ×1) : le canal a convergé aux runs 10d/10g et
-oscille ici. **Décision Pierre : run 10h EN OBSERVATION (artefacts intacts, pas de relance) + AUDIT DE CONCEPTION lancé** (10 boucles
-de gameplay, matrice, 6 versions, FREEZE_ALLOWED) — **LIVRÉ et confronté** : `docs/audit/2026-08-24-kitten-clicker-loop-completeness-audit.md`.
-**GAME_CONCEPT = PARTIAL** : 5 boucles/6 sans métrique exclusive ; quest/world/skill sans slot ; consommation du design non prouvée
-(`design:` jamais résolu) ; V1→V6 : la PREUVE a progressé (rôles 0→13) bien plus vite que la BOUCLE (actions jouables 1→4, figé dès V4) ;
-une seule ressource, prestige = multiplicateur, aucun lieu jouable, aucune quête récompensée sur les 6 versions ; `product_snapshot`
-V2→V6 = « comment passer les oracles » ; faux déblocage V6 (affordances inertes) = recoupé red-team run 9. FREEZE_ALLOWED=false (10h).
-**C.3 V1.2 RATIFIÉ** (10 boucles × 14 champs, matrice produit/consomme/débloque ; réserve Pierre : le 6/10
-architectural est un diagnostic, jamais un seuil). Genèse archivée au journal.
+## Verrous actifs (Pierre, 2026-08-29)
+- **World Scan : hors périmètre** (scission Modèle 3 = recommandation d'audit, non ouverte).
+- **R8 (premier gm_worldscan.json réel conforme) : BLOQUÉ** jusqu'à signal — préalable de toute
+  décision de topologie World Scan.
+- **3 bannières `00_STUDIO_CONTROL`** : fichiers TRACKÉS (contrairement à leur propre politique),
+  bannières posées mais NON commitées — décision explicite en attente.
+- Profils `review`/`increment` : conservés PASSIVE (0 run).
 
-**C.4 V1.1 RATIFIÉ Pierre 2026-08-24** (verrou : le lot ne « fait pas passer » Kitten — il rend la Forge INCAPABLE de déclarer
-un jeu complet sans boucles fermées). **Lot C.4-code EN COURS** (plan `docs/superpowers/plans/2026-08-24-forge-lot-c4-code-boucles.md`) :
-agents A (schéma) + B (design_state par boucle, DEFERRED humain, R3-lite, gate, heritage/ au freeze). Critère : gm 10h REFUSÉ ; un design honnêtement partiel doit PASSER — **ATTEINT, commit `5feb1b5`**. Run 10h archivé scratchpad `run10h_observed/`.
-**Runs 11 (2026-08-24)** : 11a halté par un FAUX refus (regex de fence non ancrée) ; 11b = **premier HALT honnête**
-de la gate C.4 — 7 DEFERRED honorées, core_loop COMPLETE, `gameplay_loop OPEN(réponse sans modification)` FONDÉ.
-2 correctifs TDD sur fixtures réelles (run_real regex · driver R2a par nom de boucle), 2270 pytest verts, **NON
-COMMITÉS**. Détail archivé au journal.
+## Prochaine étape
+1. Décisions C.6 (5) + périmètre du niveau CONTENT REQUIREMENTS (audit 2026-08-25) — inchangé.
+2. Paquet B (nettoyage) si voulu, geste par geste.
+3. R8 sur signal Pierre — désormais outillé (retry, prompt persisté, diagnostic).
 
-**C.5 RATIFIÉE Pierre 2026-08-25 + INJECTÉE** (condition n°1 tenue, preuve d'exécution : les 4 étapes des deux
-piliers reçoivent la carte ENTIÈRE). 3 défauts trouvés au câblage : s9 touché par ricochet (retiré) · **carte tronquée**
-à 15k car. sur 60k (exemption posée : un contrat `design/*.md` s'injecte entier) · 6 tests figés à mettre à jour.
-Garde anti-dérive canon↔copie posée. **C.5 devient V2.0 GAMEPLAY MAP** (la carte est un OBJET qu'on se passe ; les 14
-éléments ; **R5** = 7 éléments d'une boucle sinon PARTIELLE ; les 14 questions ; la carte de Kitten commence par la
-BOUCLE CANONIQUE, pas par l'échelle de coûts ; direction « chatons travailleurs » inscrite comme test).
-
-**C.6 V1.1 ÉCRIT — PROPOSED** `studio_brain/gamedesign/kitten_clicker_game_loop_blueprint_c6.md` (demande Pierre :
-« reconstruis le jeu réel, boucles imbriquées, AUCUN nombre »). Le jeu en une phrase · **déplacement décisif** : le
-gameplay n'est pas d'acheter des chatons, c'est de leur DONNER QUELQUE CHOSE À FAIRE · 7 boucles imbriquées avec les
-9 questions remplies · l'économie = connecteur, pas boucle · test des chatons travailleurs = **6 maillons, 0 présent**
-· **§7bis PREMIER MONDE proposé** : atelier de paniers (le chaton fabrique ce qui amène le chaton suivant), 2 métiers
-(artisan/jardinier), une quête rapporte du CONTENU qui s'installe, prestige = « on perd les chatons, on garde les
-plans ». Test vierge : 12 corrections dont **mon propre interdit enfreint** (+25 % écrit). **5 décisions = HumanGate.** Ancien plan : UN lot de code (schéma GM 10 boucles + MÉTRIQUE_PROPRE + R1/R2
-Archives scratchpad `run10*_halted/`
-
-### Prochaine étape
-1. Design ratifiés : C.1 V1.2 (+§9 réaligné C.2) · C.2 V1.1b (graine) · C.3 V1.2 · C.4 V1.1 ; Calibration V2.1 PROPOSED (H5).
-
-2. **Décision Pierre en attente** : périmètre/ordre du niveau CONTENT REQUIREMENTS (audit 2026-08-25) ; relance run 11c ou arbitrage R3-lite.
-3. Gates : merge/reject des artefacts non commités (runs 7-9, audits) ; push de `f1bce0d` `0a9f4d4` `b75f165` + Lot A.
-4. Passifs : gates historiques (e2e `DirAccess`, solvabilité argv, mutation), `check_wiremap_contract` non consommé, rupture 10.
+## Impasses / passifs connus (inchangés)
+Gates historiques : e2e `DirAccess`, solvabilité argv, mutation legacy · `check_wiremap_contract`
+non consommé · rupture 10 (rejeu matérialisation, borné) · câblage asset_dispatch → contrats.
