@@ -1,0 +1,122 @@
+{
+  "timestamp": "2026-08-29T16:09:12.284Z",
+  "oracle": "mechanical_validation_only",
+  "verdict": "PASS",
+  "volets": [
+    {
+      "label": "tests/geometry.test.mjs",
+      "argv": [
+        "node",
+        "--test",
+        "tests/geometry.test.mjs"
+      ],
+      "exit_code": 0,
+      "executed": true,
+      "green": true,
+      "output_tail": "ng a result shows the overlay, and a fresh state hides it again (0.0754ms)\n✔ R1: the hairpin path is the exact frozen polyline (cell by cell) (0.06ms)\n✔ R1: path is continuous (each step moves exactly 1 cell, no jumps) (0.0666ms)\n✔ R1b: path folds back on itself (real hairpin, not a straight lane) (0.0645ms)\n✔ R1c: entry lane and dead-end pin are the exact frozen endpoints (0.0709ms)\n✔ R2: every non-path cell is buildable, every path cell is not (1.3025ms)\n✔ R2b: out-of-bounds cells are never buildable (0.0515ms)\n✔ R3: the pin is exactly 6 cells, each seeing an EXACT number of hairpin segments (0.1837ms)\n✔ R3b: falsification twin — cells away from the folds see an EXACT lower count (0.0416ms)\nℹ tests 24\nℹ suites 0\nℹ pass 24\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 60.0326\n"
+    },
+    {
+      "label": "tests/towers.test.mjs",
+      "argv": [
+        "node",
+        "--test",
+        "tests/towers.test.mjs"
+      ],
+      "exit_code": 0,
+      "executed": true,
+      "green": true,
+      "output_tail": "the calendar is deterministic — two reads return the identical table (0.2513ms)\n✔ R26: enemy stats are constant — a Grunt in V10 is EXACTLY a Grunt in V1 (0.1627ms)\n✔ R16: leak damage is the exact frozen cost per enemy type (0.1837ms)\n✔ R5: Gun stats are the exact frozen table at every level (0.4664ms)\n✔ R9: Cannon stats are the exact frozen table at every level (0.0671ms)\n✔ R5b: Frost stats are the exact frozen table at every level (0.0432ms)\n✔ R22: each level multiplies damage by exactly 1.6 and range by exactly 1.1 (0.0418ms)\n✔ R21: Gun L3 total investment is exactly 170 gold (50 + 40 + 80) (0.1161ms)\n✔ R21b: towerCost is priced per tower type, from level 0 and from a live level (0.0842ms)\nℹ tests 16\nℹ suites 0\nℹ pass 16\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 51.8776\n"
+    },
+    {
+      "label": "tests/combat.test.mjs",
+      "argv": [
+        "node",
+        "--test",
+        "tests/combat.test.mjs"
+      ],
+      "exit_code": 0,
+      "executed": true,
+      "green": true,
+      "output_tail": "cts cadence — a Gun fires EXACTLY once in 3 ticks (0.0879ms)\n✔ R14b: resolveCombat applies the Frost on-hit effect for a Frost tower (0.0464ms)\n✔ R14c: resolveCombat applies the Cannon splash to a second enemy (0.0439ms)\n✔ R27: resolveCombat pays a bounty at EXACTLY 0 hp, and never for a live enemy (0.0403ms)\n✔ R43: firing records a shot with the exact tower and target it came from (0.0352ms)\n✔ R43: a shot on a state with no projectile list still records cleanly (0.0769ms)\n✔ R43: a shot lives for EXACTLY its lifetime, then disappears (0.0372ms)\n✔ R43: resolveCombat produces one shot per tower that actually fires (0.0367ms)\n✔ R12: acquireTarget picks the most advanced enemy in range (0.0516ms)\nℹ tests 67\nℹ suites 0\nℹ pass 67\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 68.0537\n"
+    },
+    {
+      "label": "tests/solvability.test.mjs",
+      "argv": [
+        "node",
+        "--test",
+        "tests/solvability.test.mjs"
+      ],
+      "exit_code": 0,
+      "executed": true,
+      "green": true,
+      "output_tail": "mpetent bot WINS at seed 1337, with exact frozen final lives (26.2568ms)\n✔ R35: the naive bot LOSES at seed 1337, at an exact wave, with 0 lives (3.9877ms)\n✔ R32: two identical replays of the same bot at the same seed are STRICTLY equal (37.4765ms)\n✔ R24: two DIFFERENT strategies both win, with strictly different exact outcomes (23.2483ms)\n✔ R27: two DIFFERENT bad strategies both lose, and lose differently (5.8041ms)\n✔ R48: every bot of the panel lands on its exact frozen outcome vector (26.5578ms)\n✔ R47: every panel metric carries REAL variance (>= 2 distinct non-trivial values) (27.0768ms)\n✔ R49: rankBots orders by the named metric, ties broken by name, and two metrics disagree (29.1719ms)\nℹ tests 49\nℹ suites 0\nℹ pass 49\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 242.8279\n"
+    },
+    {
+      "label": "purity",
+      "argv": [
+        "grep",
+        "non-deterministic-calls"
+      ],
+      "exit_code": 2,
+      "executed": true,
+      "green": true,
+      "output_tail": ""
+    },
+    {
+      "label": "solvability.mjs",
+      "argv": [
+        "node",
+        "solvability.mjs"
+      ],
+      "exit_code": 0,
+      "executed": true,
+      "green": true,
+      "output_tail": "spent_total\":-1190}\n  naive      DEFEAT   {\"lives_final\":0,\"wave_reached\":3,\"leaks_total\":18,\"gold_spent_total\":-200}\n  tall       DEFEAT   {\"lives_final\":0,\"wave_reached\":3,\"leaks_total\":19,\"gold_spent_total\":-50}\n  wide       VICTORY  {\"lives_final\":9,\"wave_reached\":11,\"leaks_total\":11,\"gold_spent_total\":-350}\n  tempo      VICTORY  {\"lives_final\":10,\"wave_reached\":11,\"leaks_total\":10,\"gold_spent_total\":-340}\n\n  variance: {\"lives_final\":[11,0,9,10],\"wave_reached\":[11,3],\"leaks_total\":[9,18,19,11,10],\"gold_spent_total\":[-1190,-200,-50,-350,-340]}\n  rank by lives_final : competent > tempo > wide > naive > tall\n  rank by leaks_total : tall > naive > wide > tempo > competent\n\nEvidence written to C:\\TACTICAL_CHESS_STUDIO\\games\\tower_defense_sonde\\proofs\\solvability-evidence.json\n\nRESULT: PASS\n"
+    },
+    {
+      "label": "e2e.mjs",
+      "argv": [
+        "node",
+        "e2e.mjs"
+      ],
+      "exit_code": 0,
+      "executed": true,
+      "green": true,
+      "output_tail": "ave 1 put exactly 5 Grunts on the map — got 5, want 5\n[E2E] OK   restart resets gold — got 100, want 100\n[E2E] OK   restart clears the towers — got [], want []\n[E2E] OK   restart returns to PREPARATION — got \"PREPARATION\", want \"PREPARATION\"\n[E2E] OK   an undefended run really ends — got \"DEFEAT\", want \"DEFEAT\"\n[E2E] OK   defeat means exactly zero lives — got 0, want 0\n[E2E] OK   #overlay is shown at the end — got false, want false\n[E2E] OK   #overlay names the outcome — got \"DEFEAT\", want \"DEFEAT\"\n[E2E] OK   restart clears the result — got null, want null\n[E2E] OK   restart gives the opening lives back — got 20, want 20\n[E2E] OK   #overlay is hidden again — got true, want true\n[E2E] OK   zero console errors during the whole run — got [], want []\n[E2E] 34 checks, 34 satisfied\nRESULT: PASS\n"
+    },
+    {
+      "label": "tests/lint_assertions.mjs",
+      "argv": [
+        "node",
+        "tests/lint_assertions.mjs"
+      ],
+      "exit_code": 0,
+      "executed": true,
+      "green": true,
+      "output_tail": "violation(s)\nC:\\TACTICAL_CHESS_STUDIO\\games\\tower_defense_sonde\\tests\\solvability.test.mjs: 0 violation(s)\nC:\\TACTICAL_CHESS_STUDIO\\games\\tower_defense_sonde\\tests\\step.test.mjs: 0 violation(s)\nC:\\TACTICAL_CHESS_STUDIO\\games\\tower_defense_sonde\\tests\\targeting.test.mjs: 0 violation(s)\nC:\\TACTICAL_CHESS_STUDIO\\games\\tower_defense_sonde\\tests\\towers.test.mjs: 0 violation(s)\nC:\\TACTICAL_CHESS_STUDIO\\games\\tower_defense_sonde\\tests\\upgrades.test.mjs: 0 violation(s)\nC:\\TACTICAL_CHESS_STUDIO\\games\\tower_defense_sonde\\tests\\waves.test.mjs: 0 violation(s)\nC:\\TACTICAL_CHESS_STUDIO\\games\\tower_defense_sonde\\tests\\waves_phase.test.mjs: 0 violation(s)\n\nEvidence written to C:\\TACTICAL_CHESS_STUDIO\\games\\tower_defense_sonde\\proofs\\lint-assertions-evidence.json\n\n✓ PASS: 0 tautological assertion(s) found\n"
+    },
+    {
+      "label": "tests/evidence.mjs",
+      "argv": [
+        "node",
+        "tests/evidence.mjs"
+      ],
+      "exit_code": 0,
+      "executed": true,
+      "green": true,
+      "output_tail": "=== EVIDENCE PATH CHECK (tests/evidence.mjs) ===\n\nC:\\TACTICAL_CHESS_STUDIO\\games\\tower_defense_sonde\\proofs\\oracle-evidence.json: OK -> C:\\TACTICAL_CHESS_STUDIO\\games\\tower_defense_sonde\\proofs\\oracle-evidence.json\nC:\\TACTICAL_CHESS_STUDIO\\games\\tower_defense_sonde\\proofs\\lint-assertions-evidence.json: OK -> C:\\TACTICAL_CHESS_STUDIO\\games\\tower_defense_sonde\\proofs\\lint-assertions-evidence.json\nC:\\TACTICAL_CHESS_STUDIO\\games\\tower_defense_sonde\\proofs\\mutation-harness-evidence.json: OK -> C:\\TACTICAL_CHESS_STUDIO\\games\\tower_defense_sonde\\proofs\\mutation-harness-evidence.json\n\nEvidence written to C:\\TACTICAL_CHESS_STUDIO\\games\\tower_defense_sonde\\proofs\\evidence-check-evidence.json\n\n✓ PASS\n"
+    }
+  ],
+  "reuse_ratio": {
+    "executed": true,
+    "exit_code": 0,
+    "gated": false,
+    "output_tail": "file\": \"tests/visual_capture.mjs\",\n      \"specifier\": \"node:test\",\n      \"classification\": \"external\",\n      \"resolved\": null\n    },\n    {\n      \"file\": \"tests/visual_capture.mjs\",\n      \"specifier\": \"fs\",\n      \"classification\": \"external\",\n      \"resolved\": null\n    },\n    {\n      \"file\": \"tests/visual_capture.mjs\",\n      \"specifier\": \"path\",\n      \"classification\": \"external\",\n      \"resolved\": null\n    },\n    {\n      \"file\": \"tests/visual_capture.mjs\",\n      \"specifier\": \"url\",\n      \"classification\": \"external\",\n      \"resolved\": null\n    },\n    {\n      \"file\": \"tests/visual_capture.mjs\",\n      \"specifier\": \"./_playthrough_driver.mjs\",\n      \"classification\": \"local\",\n      \"resolved\": \"C:\\\\TACTICAL_CHESS_STUDIO\\\\games\\\\tower_defense_sonde\\\\tests\\\\_playthrough_driver.mjs\"\n    }\n  ]\n}\n"
+  },
+  "mutation": {
+    "executed": false,
+    "verdict": "NOT_MEASURED",
+    "note": "measured by the driver (forge.mutation_proof); this oracle never asserts a mutation result it did not run"
+  },
+  "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\games\\tower_defense_sonde\\proofs\\oracle-evidence.json"
+}

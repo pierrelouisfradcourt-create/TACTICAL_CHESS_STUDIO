@@ -1,0 +1,50 @@
+[
+  {
+    "name": "ge->gt",
+    "fichier": "config/geometry.mjs",
+    "line": 65,
+    "expression": "for (let x = GRID_WIDTH - 1; x >= SPIRAL_BOX + 1; x--) entryCells.push([x, 0]);",
+    "justification": "EQUIVALENT, mesure mecanique. Le mutant raccourcit la voie d'entree d'une case (elle s'arrete a x=8 au lieu de x=7). flattenSegments() rebranche alors les segments nommes via bridgeSteps([8,0] -> [6,0]), qui re-insere exactement la case [7,0] retiree (elle pousse [7,0] puis [6,0], puis pop() retire [6,0] qui appartient au segment suivant). La polyligne produite est donc IDENTIQUE octet pour octet. Preuve : tests/geometry.test.mjs R1 compare pathCells() a PATH_GOLDEN cellule par cellule (deepEqual sur les 47 cases) ; le mutant passe ce test parce que la sortie ne change pas, pas parce que le test serait faible. Aucun test ne peut distinguer ce mutant : il ne modifie aucune valeur observable.",
+    "preuve_mecanique": "tests/geometry.test.mjs::R1 (deepEqual pathCells() vs PATH_GOLDEN, 47 cellules)"
+  },
+  {
+    "name": "le->lt",
+    "fichier": "config/geometry.mjs",
+    "line": 37,
+    "expression": "while (top <= bottom",
+    "justification": "EQUIVALENT, mesure mecanique. La spirale n'atteint jamais l'egalite top === bottom : les bornes evoluent par pas de 2 sur une boite de 6, donc (top,bottom) vaut (0,6) puis (2,4) puis (4,2). A l'entree la comparaison est strictement vraie, a la sortie strictement fausse ; la frontiere <= / < n'est jamais franchie. Preuve : tests/geometry.test.mjs R1 compare la polyligne complete a PATH_GOLDEN et le mutant produit exactement les memes 47 cases. Un test ne peut distinguer un cas de bord qui n'existe pas dans cette geometrie ; changer la geometrie pour le creer serait une decision de design (charter), pas une correction de test.",
+    "preuve_mecanique": "tests/geometry.test.mjs::R1 (deepEqual pathCells() vs PATH_GOLDEN, 47 cellules)"
+  },
+  {
+    "name": "le->lt",
+    "fichier": "config/geometry.mjs",
+    "line": 38,
+    "expression": "&& left <= right) {",
+    "justification": "EQUIVALENT, mesure mecanique. Meme raison que la clause top/bottom ligne 37 : (left,right) vaut (0,6) puis (2,4) puis (4,2) — l'egalite left === right n'est jamais atteinte sur une boite de 6 parcourue par pas de 2. La condition est strictement vraie a chaque iteration executee et strictement fausse a la sortie. Preuve : tests/geometry.test.mjs R1 (polyligne complete inchangee sous mutation).",
+    "preuve_mecanique": "tests/geometry.test.mjs::R1 (deepEqual pathCells() vs PATH_GOLDEN, 47 cellules)"
+  },
+  {
+    "name": "and->or",
+    "fichier": "config/geometry.mjs",
+    "line": 38,
+    "expression": "&& left <= right) {",
+    "justification": "EQUIVALENT, mesure mecanique. Les deux clauses de la boucle sont TOUJOURS de meme valeur de verite dans cette geometrie : top/bottom et left/right partent des memes bornes (0,6) et sont decrementees ensemble par le meme pas de 2 (top += 2; bottom -= 2; left += 2; right -= 2). Elles sont vraies ensemble aux iterations 1 et 2, fausses ensemble a l'iteration 3. && et || rendent donc la meme valeur a chaque evaluation. Preuve : tests/geometry.test.mjs R1 (polyligne complete inchangee sous mutation). Rendre ce mutant tuable exigerait une boite non carree — une decision de level design, pas un renforcement de test.",
+    "preuve_mecanique": "tests/geometry.test.mjs::R1 (deepEqual pathCells() vs PATH_GOLDEN, 47 cellules)"
+  },
+  {
+    "name": "false->true",
+    "fichier": "bots/bots.mjs",
+    "line": 13,
+    "expression": "if (!validateAndApply(state, { type: 'SELECT_TOWER', towerType })) return false;",
+    "justification": "EQUIVALENT, garde structurellement inatteignable. Le corps de cette garde ne s'execute JAMAIS : validateAndApply route SELECT_TOWER vers actions/actions.mjs#selectTowerType, qui affecte state.selectedTowerType et retourne `true` inconditionnellement (aucune branche de refus, aucun jet possible — l'affectation d'une propriete sur l'etat de jeu ne leve pas). `!true` vaut donc toujours false et la ligne 14 n'est jamais atteinte ; muter la valeur qu'elle retourne ne change aucune sortie observable. Le mutant JUMEAU de la ligne 12 (meme regle false->true sur la garde de case occupee, elle ATTEIGNABLE) est, lui, TUE par tests/bots.test.mjs (« build places once and REFUSES a second tower on the same cell ») : la garde reellement franchissable est mesuree, celle-ci ne peut pas l'etre.",
+    "preuve_mecanique": "tests/bots.test.mjs::build places once and REFUSES a second tower on the same cell (tue le jumeau L12) ; actions/actions.mjs#selectTowerType retourne true sans branche"
+  },
+  {
+    "name": "or->and",
+    "fichier": "sim/waves.mjs",
+    "line": 11,
+    "expression": "if (state.phase === 'VICTORY' || state.phase === 'DEFEAT') {",
+    "justification": "EQUIVALENT, raisonnement exhaustif sur les 4 phases. Le mutant neutralise la garde de sortie anticipee (phase === 'VICTORY' && phase === 'DEFEAT' est faux pour toute phase, une phase etant une chaine unique). Le corps qui suit est integralement garde par `if (state.phase === 'PREPARATION')`, mutuellement exclusif avec VICTORY et DEFEAT : quand la garde retiree aurait declenche, la seule branche restante est deja fermee. Aucune sortie observable ne change (phase, wavePhaseTime, enemies, gold). Preuve : tests/waves_phase.test.mjs, test « updatePreparation only ever ticks the PREPARATION phase », qui verifie pour SPAWNING, VICTORY et DEFEAT que la phase, l'horloge de phase ET la liste d'ennemis sont strictement inchangees — le mutant satisfait ces egalites parce qu'il ne change rien, pas parce que le test serait laxiste. Les deux mutants eq->neq de la MEME ligne sont, eux, TUES : la garde n'est pas exclue de la mesure.",
+    "preuve_mecanique": "tests/waves_phase.test.mjs::R28 (updatePreparation only ever ticks the PREPARATION phase)"
+  }
+]
