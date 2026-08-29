@@ -257,6 +257,66 @@ export function auditSolvabilityBudget(repoRoot) {
 }
 
 /**
+ * Volet `mutationRegistry` (A10, Paquet A decision 10, ratifie Pierre 2026-08-28) —
+ * `check_mutation_registry.mjs` (ids uniques, ACCEPTED avec preuve, references existantes
+ * sur disque, confidence DERIVEE, etc.) tournait deja mais n'etait appele par AUCUN gate ni
+ * self-audit : un registre pouvait deriver en silence. MEME PONT que `auditContractSync`
+ * (spawnSync, isolation totale) mais ici l'interprete est `node` lui-meme (le checker est un
+ * module ESM natif, pas Python) — pas besoin de `pythonCandidates`.
+ *
+ * N'entre PAS dans `ok` : RAPPORTE, ne ratifie jamais — meme discipline que
+ * `registryDivergences` et `solvabilityBudget` juste au-dessus/en-dessous. Un registre qui
+ * derive est un signal pour Pierre, pas un motif mecanique pour refuser un commit du studio.
+ * @param {string} repoRoot
+ * @returns {{status:'ok'|'derive'|'non_evaluable', problems:Array, stats:object|null, detail:string}}
+ */
+export function auditMutationRegistry(repoRoot) {
+  const scriptPath = join(repoRoot, 'scripts', 'forge', 'check_mutation_registry.mjs');
+  if (!existsSync(scriptPath)) {
+    return { status: 'non_evaluable', problems: [], stats: null,
+      detail: `checker absent : ${scriptPath}` };
+  }
+  let r;
+  try {
+    r = spawnSync(process.execPath, [scriptPath], {
+      cwd: repoRoot,
+      encoding: 'utf-8',
+      timeout: CONTRACT_SYNC_TIMEOUT_MS,
+      maxBuffer: CONTRACT_SYNC_MAX_BUFFER,
+    });
+  } catch (e) {
+    return { status: 'non_evaluable', problems: [], stats: null,
+      detail: `spawn a leve : ${e && e.message ? e.message : String(e)}` };
+  }
+  if (r.error) {
+    return { status: 'non_evaluable', problems: [], stats: null,
+      detail: `interpreteur node injoignable : ${r.error.message}` };
+  }
+  if (r.status === 0 || r.status === 1) {
+    // check_mutation_registry.mjs ecrit une ligne "VERDICT REGISTRE: OK|FAIL" sur stdout
+    // AVANT son JSON final (pas de flag --json qui coupe la prose, contrairement au capteur
+    // Python contract_sync) : on isole le JSON par le premier '{' plutot que de parser tout
+    // stdout tel quel.
+    const jsonStart = (r.stdout || '').indexOf('{');
+    try {
+      if (jsonStart === -1) throw new Error('aucun JSON trouve dans stdout');
+      const parsed = JSON.parse(r.stdout.slice(jsonStart));
+      if (parsed.ok) {
+        return { status: 'ok', problems: [], stats: parsed.stats || null,
+          detail: `${(parsed.stats && parsed.stats.mutations) ?? '?'} mutation(s) — registre valide` };
+      }
+      return { status: 'derive', problems: parsed.problems || [], stats: parsed.stats || null,
+        detail: `${(parsed.problems || []).length} probleme(s) — voir la liste ci-dessous` };
+    } catch (e) {
+      return { status: 'non_evaluable', problems: [], stats: null,
+        detail: `stdout non parsable en JSON (exit ${r.status}) : ${String(e.message || e).slice(0, 300)}` };
+    }
+  }
+  return { status: 'non_evaluable', problems: [], stats: null,
+    detail: `code de sortie inattendu ${r.status} — stderr : ${(r.stderr || '').trim().slice(0, 300) || '(vide)'}` };
+}
+
+/**
  * Lance l'audit complet du studio.
  * @param {string} repoRoot
  * @returns {{repoRoot:string, docDrift:Array, dormancy:Array, contractSync:object, ok:boolean}}
@@ -275,6 +335,7 @@ export function runSelfAudit(repoRoot, deps = {}) {
   // de production n'ont pas de 2e argument et sont STRICTEMENT inchanges.
   const pontContractSync = deps.contractSync || auditContractSync;
   const pontSolvabilityBudget = deps.solvabilityBudget || auditSolvabilityBudget;
+  const pontMutationRegistry = deps.mutationRegistry || auditMutationRegistry;
   const exp = loadExpectations(repoRoot);
   const docDrift = auditDocClaims(repoRoot, exp.doc_claims || []);
   const dormancy = auditConnectorDormancy(repoRoot, exp.connectors || { watched: [] });
@@ -301,9 +362,13 @@ export function runSelfAudit(repoRoot, deps = {}) {
   // (meme regime que `registryDivergences` juste au-dessus) : signaler une contradiction de
   // declaration n'est pas la trancher, et `oracles.json` fait autorite en attendant.
   const solvabilityBudget = pontSolvabilityBudget(repoRoot);
+  // Registre de mutation : RAPPORTE, jamais dans `ok` — meme regime que registryDivergences
+  // et solvabilityBudget ci-dessus (doctrine 2026-08-10 : signaler une derive n'est pas la
+  // trancher). Best-effort strict, deja garanti par auditMutationRegistry (jamais de throw).
+  const mutationRegistry = pontMutationRegistry(repoRoot);
   const ok = docDrift.length === 0 && hardDormancy.length === 0 && contractSync.status === 'ok';
   return { repoRoot, docDrift, dormancy, contractSync, registryDivergences,
-           solvabilityBudget, ok };
+           solvabilityBudget, mutationRegistry, ok };
 }
 
 /**
@@ -443,6 +508,12 @@ function main() {
   }
   // non_evaluable reste un statut DISTINCT de 'derive' : un controle qui n'a pas pu tourner
   // n'apporte aucune garantie, il ne doit jamais etre confondu avec une derive constatee.
+
+  const mr = r.mutationRegistry || { status: 'non_evaluable', problems: [], detail: '(absent)' };
+  console.error(`\nRegistre de mutation (mutation_registry.json) : ${mr.status.toUpperCase()} — ${mr.detail}`);
+  if (mr.status === 'derive') {
+    for (const p of mr.problems) console.error(`  - ${p}`);
+  }
 
   console.error(`\nVERDICT : ${r.ok ? 'STUDIO ALIGNE ✅' : 'DERIVE DETECTEE ⚠ (corriger la carte ou ratifier)'}`);
 

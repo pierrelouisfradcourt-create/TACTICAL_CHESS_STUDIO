@@ -16,6 +16,45 @@ if git diff --cached -- 'src/*.rs' 'ml/*.py' | grep -E '^\+(.*TODO|.*FIXME)' | g
   exit 1
 fi
 
+# A10 (Paquet A, décision 10, ratifiée Pierre 2026-08-28) : `commit_scope_guard.py` compare
+# l'index STAGÉ à un périmètre DÉCLARÉ (scripts/forge/commit_scopes.json — né de l'incident
+# 2026-08-06 : un `git add` multi-chemins avait embarqué 382 fichiers d'un chantier voisin).
+# Un seul périmètre existe à ce jour (asset_library) : on ne peut pas imposer --scope
+# aveuglément (ça refuserait tout commit qui ne touche pas ce périmètre) — on ne l'active QUE
+# si l'index touche DÉJÀ ce périmètre, et alors tout le reste de l'index doit y rester.
+# Sémantique du script sans ambiguïté (docstring : exit 0 conforme / exit 1 refuse) => BLOQUANT.
+# Placé ICI, AVANT le selfaudit ci-dessous qui modifie l'index lui-même (git add
+# STUDIO_STATUS.generated.md) — la garde doit voir l'index tel que l'agent l'a réellement stagé.
+if command -v node >/dev/null 2>&1 && [ -f scripts/forge/commit_scopes.json ]; then
+  TOUCHED_SCOPE="$(node --input-type=module - <<'NODEEOF'
+import { readFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
+const cfg = JSON.parse(readFileSync('scripts/forge/commit_scopes.json', 'utf-8'));
+const staged = execSync('git diff --cached --name-only').toString()
+  .split(/\r?\n/).filter(Boolean).map((f) => f.replace(/\\/g, '/'));
+for (const [name, prefixes] of Object.entries(cfg.scopes || {})) {
+  const norm = prefixes.map((p) => p.replace(/\/$/, ''));
+  if (staged.some((f) => norm.some((p) => f === p || f.startsWith(p + '/')))) {
+    process.stdout.write(name);
+    process.exit(0);
+  }
+}
+NODEEOF
+)" || true
+  if [ -n "$TOUCHED_SCOPE" ]; then
+    PY=""
+    for cand in .venv312/Scripts/python.exe .venv312/bin/python; do
+      if [ -f "$cand" ]; then PY="$cand"; break; fi
+    done
+    if [ -z "$PY" ]; then PY="python"; fi
+    if ! "$PY" -m scripts.forge.commit_scope_guard --scope "$TOUCHED_SCOPE"; then
+      echo "❌ commit_scope_guard : index hors périmètre déclaré '$TOUCHED_SCOPE' — désindexe (git reset HEAD -- <fichier>)."
+      exit 1
+    fi
+    echo "✅ commit_scope_guard : index conforme au périmètre '$TOUCHED_SCOPE'"
+  fi
+fi
+
 # Tableau de faits vivant du studio (audit cognitif L1) : régénère l'état factuel
 # depuis le disque et le stage, pour qu'il ne se périme jamais silencieusement.
 # FAIL-OPEN STRICT : l'audit sort 1 s'il détecte une dérive (ex. connecteurs
@@ -48,6 +87,20 @@ if command -v node >/dev/null 2>&1; then
       console.log('selfaudit: non disponible (' + e.message + ') — voir lab/reports/selfaudit_last.json');
     }
   " 2>/dev/null || echo "selfaudit: non disponible — voir lab/reports/selfaudit_last.json"
+fi
+
+# A4 (Paquet A, décision 4, ratifiée Pierre 2026-08-28) : les 51 `scripts/forge/**/*.test.mjs`
+# n'étaient exécutés par AUCUN runner (absents d'oracles.json, du pre-commit, de tout
+# package.json). Mesuré 2026-08-28 : `node --test "scripts/forge/**/*.test.mjs"` → 1029 tests,
+# 1028 pass, 0 fail, 1 skip (conditionnel, fixture absente du disque — pas un rouge), ~2.2s.
+# Tout vert et rapide => GATE BLOQUANTE (contrairement au selfaudit ci-dessus qui reste
+# fail-open par design). exit != 0 ⇒ commit refusé.
+if command -v node >/dev/null 2>&1; then
+  if ! node --test "scripts/forge/**/*.test.mjs"; then
+    echo "❌ node --test scripts/forge/**/*.test.mjs a échoué — corrige avant de commit."
+    exit 1
+  fi
+  echo "✅ node --test scripts/forge (51 fichiers) : vert"
 fi
 
 echo "✅ pre-commit OK"

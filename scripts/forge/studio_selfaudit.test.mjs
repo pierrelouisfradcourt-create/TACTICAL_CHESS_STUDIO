@@ -4,13 +4,18 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   auditDocClaims,
   auditConnectorDormancy,
+  auditMutationRegistry,
   runSelfAudit,
   evaluateDocClaims,
   generateStatusTable,
 } from './studio_selfaudit.mjs';
+
+const REPO_ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..', '..');
 
 function tmpRepo() {
   return mkdtempSync(join(tmpdir(), 'studioaudit-'));
@@ -181,6 +186,47 @@ test('generateStatusTable : markdown deterministe, sans horodatage, avec le bon 
   // deterministe : deux generations identiques (aucun horodatage -> zero bruit git)
   const md2 = generateStatusTable(root);
   assert.equal(md1, md2);
+});
+
+// --- A10 (Paquet A decision 10, ratifie Pierre 2026-08-28) : volet mutationRegistry ---
+
+test('auditMutationRegistry : DEPOT REEL — check_mutation_registry.mjs tourne et repond', () => {
+  const r = auditMutationRegistry(REPO_ROOT);
+  assert.ok(['ok', 'derive', 'non_evaluable'].includes(r.status), r.status);
+  // Le registre reel est ACCEPTED/VERSIONED discipline — s'il derive un jour, ce test doit
+  // le VOIR (probleme non vide), pas juste tolerer n'importe quel statut en silence.
+  if (r.status === 'derive') assert.ok(r.problems.length > 0, r.detail);
+  if (r.status === 'ok') assert.ok(r.stats && r.stats.mutations > 0, 'stats.mutations attendu > 0');
+});
+
+test('auditMutationRegistry : checker absent -> non_evaluable, jamais un throw', () => {
+  const root = tmpRepo(); // depot nu : scripts/forge/check_mutation_registry.mjs n'existe pas
+  const r = auditMutationRegistry(root);
+  assert.equal(r.status, 'non_evaluable');
+  assert.match(r.detail, /absent/);
+});
+
+test('runSelfAudit : mutationRegistry est RAPPORTE mais n entre PAS dans `ok` (advisory)', () => {
+  const root = tmpRepo();
+  touch(root, 'lab/forge_evidence/forge_telemetry.jsonl', 0);
+  touch(root, 'lab/reports/forge_ledger_proposals.jsonl', 1);
+  writeManifest(root, {
+    doc_claims: [{ path: 'scripts/forge/agents_ccgs', claimed: 'target', source: 'carte' }],
+    connectors: {
+      reference: 'lab/forge_evidence/forge_telemetry.jsonl',
+      watched: ['lab/reports/forge_ledger_proposals.jsonl'],
+      threshold_days: 3,
+    },
+  });
+  const pontVert = { status: 'ok', interpreter: 'stub', violations: [], anomalies: [] };
+  const pontRegistreEnDerive = { status: 'derive', problems: ['id duplique: X'], stats: null,
+    detail: '1 probleme' };
+  const r = runSelfAudit(root, { contractSync: () => pontVert,
+                                 solvabilityBudget: () => pontVert,
+                                 mutationRegistry: () => pontRegistreEnDerive });
+  assert.deepEqual(r.mutationRegistry, pontRegistreEnDerive);
+  // meme registre EN DERIVE, le studio reste aligne : le signal ne ratifie jamais.
+  assert.equal(r.ok, true);
 });
 
 test('runSelfAudit : studio aligne -> ok=true', () => {
