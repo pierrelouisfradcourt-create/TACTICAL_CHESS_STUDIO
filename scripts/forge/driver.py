@@ -1319,9 +1319,25 @@ class ForgeDriver:
           voit l'incomplétude sans avoir à parser run.log.
 
         `self.observer_runner` est injectable (constructeur, même patron que
-        `lessons_path`/`failure_events_path`) : les tests fournissent un runner
-        factice, aucun vrai sous-processus Observer n'est jamais lancé par la
-        suite de tests."""
+        `lessons_path`/`failure_events_path`). MÉCANISME RÉEL côté tests
+        (rectifié 2026-08-29 — la version précédente de cette docstring était
+        FAUSSE : elle affirmait que « les tests fournissent un runner factice »,
+        alors que 0/19 fichiers lourds en injectait un, et que la suite lançait
+        donc ~110 vrais sous-processus Observer par passe, 92 % de ses 76 min) :
+
+        - les tests du BRANCHEMENT (`test_observer_trigger.py`) injectent
+          explicitement leur runner — l'injection prime toujours sur le défaut ;
+        - tous les AUTRES tests de `scripts/forge/tests/` sont couverts par la
+          fixture autouse `_neutralise_observer_par_defaut` (conftest.py), qui
+          substitue `ForgeDriver._default_observer_runner` par un stub
+          `returncode=0` : `transition == "OK"` reste posé, aucun sous-processus
+          n'est lancé, et un `observer_runner=` explicite n'est jamais écrasé ;
+        - UN SEUL test lance le vrai `scripts/observer/cli.py` :
+          `test_observer_integration_real.py` (marqueurs `real_observer` +
+          `t1_integration`), qui prouve que ce branchement existe réellement.
+
+        Hors pytest, rien de tout cela ne s'applique : le défaut reste le
+        sous-processus Observer réel."""
         logger.info(
             "Observer: déclenchement project=%s run=%s", self.project, self.run_id,
         )

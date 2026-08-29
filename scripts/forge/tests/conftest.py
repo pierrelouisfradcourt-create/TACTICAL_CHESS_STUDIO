@@ -6,7 +6,10 @@ import pytest
 # scripts/forge/tests/conftest.py -> parents[2] == scripts/  (so `forge` is importable)
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+import subprocess  # noqa: E402
+
 from forge import learning_hook  # noqa: E402 — après sys.path.insert, volontairement
+from forge.driver import ForgeDriver  # noqa: E402
 
 # `forge.dispatch` est importé ICI, volontairement, et pas seulement patché s'il est déjà
 # chargé : `audit._resolve_audit_path` lit `sys.modules.get("forge.dispatch")` À CHAQUE
@@ -65,6 +68,66 @@ def _isolate_evidence_writes(request, tmp_path_factory, monkeypatch):
     monkeypatch.setattr(_repair_dispatch, "RESULTS_PATH", cible / "repair_results.jsonl")
     monkeypatch.setattr(_asset_dispatch, "RESULTS_PATH", cible / "asset_results.jsonl")
 
+
+
+# --- garde générique : aucun sous-processus Observer RÉEL par défaut (2026-08-29) -------
+# MESURE qui a motivé cette garde (audit du soir 2026-08-28, GO Pierre 2026-08-29) : chaque
+# `ForgeDriver.run()` de test qui atteint DONE appelle `_trigger_observer_best_effort`, qui
+# appelle `self.observer_runner` — lequel vaut `_default_observer_runner` DÈS QU'AUCUN runner
+# n'est injecté (driver.py : `observer_runner or self._default_observer_runner`). Ce défaut
+# lance le VRAI `scripts/observer/cli.py` en sous-processus (~30-40 s, re-parse de ~563 Mo de
+# transcripts). 0/19 fichiers lourds de la suite n'injectait de runner : ~110 spawns par
+# passe, 92 % des 76 min de la suite complète. La docstring de `_trigger_observer_best_effort`
+# affirmait le contraire (« les tests fournissent un runner factice ») — elle décrit désormais
+# le mécanisme réel, c'est-à-dire CETTE fixture.
+#
+# La substitution porte sur l'ATTRIBUT DE CLASSE `ForgeDriver._default_observer_runner`, pas
+# sur les instances : elle atteint donc TOUT driver de la suite, y compris ceux construits par
+# des tests qui ignorent l'existence de l'Observer — et elle laisse INTACT le `or` du
+# constructeur, donc un `observer_runner=` explicite continue de primer. C'est ce qui garde
+# `test_observer_trigger.py` (le fichier dédié au branchement, qui injecte TOUJOURS son
+# runner) valide et vert sans la moindre modification.
+#
+# Le stub rend la forme MINIMALE consommée par `_trigger_observer_best_effort` : un objet
+# porteur de `.returncode` (un `CompletedProcess` réel, comme celui que `run_oracle` rend en
+# production), returncode=0 — donc `state["transition"] = "OK"` reste posé exactement comme
+# avant. Aucune sémantique observable du run n'est dégradée, seul le sous-processus disparaît.
+#
+# OPT-OUT : `@pytest.mark.real_observer` — un test marqué retrouve le runner de PRODUCTION.
+# Un SEUL test l'utilise (`test_observer_integration_real.py`, marqué aussi `t1_integration`),
+# et c'est l'étage T1 qui prouve que le branchement Driver -> vrai Observer existe réellement.
+@pytest.fixture(autouse=True)
+def _neutralise_observer_par_defaut(request, monkeypatch):
+    """Neutralise le lancement du VRAI Observer pour tout test de scripts/forge/tests/ qui
+    n'injecte pas son propre `observer_runner` — sauf `@pytest.mark.real_observer`."""
+    if request.node.get_closest_marker("real_observer") is not None:
+        return
+
+    def _stub_observer_runner(self, project):
+        return subprocess.CompletedProcess(
+            args=["stub", "observer", "--project", str(project)], returncode=0,
+            stdout="", stderr="",
+        )
+
+    monkeypatch.setattr(ForgeDriver, "_default_observer_runner", _stub_observer_runner)
+
+
+def pytest_configure(config):
+    """Enregistre les marqueurs de la suite Forge (le dépôt n'a pas de pytest.ini/pyproject :
+    sans cet enregistrement, chaque marqueur émettrait un PytestUnknownMarkWarning)."""
+    config.addinivalue_line(
+        "markers",
+        "real_observer: laisse le VRAI scripts/observer/cli.py être lancé "
+        "(désactive la fixture _neutralise_observer_par_defaut)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "t1_integration: test d'intégration lent (sous-processus réel) — étage T1",
+    )
+    config.addinivalue_line(
+        "markers",
+        "gpu_window: exige un binaire Godot et une fenêtre GPU réelle",
+    )
 
 
 # --- garde générique : aucune écriture durable sur learning_curve.jsonl (2026-07-26) ---
