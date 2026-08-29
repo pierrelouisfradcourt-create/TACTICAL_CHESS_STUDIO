@@ -91,16 +91,18 @@ def test_scan_all_contracts_mesure_de_production():
             if f["kind"] == obs.DECLARATION_KIND_IDENTIFIER:
                 identifier_hits.append((r["etape"], f["field"], f["raw"]))
 
-    # Mesure figée le 2026-07-30 sur le dépôt réel (46 contrats d'étape, hors
-    # roles.yaml/SCHEMA.md/PLAYABLE_CONTRACT.md) : 92 champs (skill+plugin),
-    # dont 3 identifiants, 1 prose, 88 vides (cf. CLI `python -m
-    # forge.tool_observability scan-contracts`).
+    # Mesure figée le 2026-07-30 (46 contrats : 3 identifiants, 1 prose), RE-FIGÉE
+    # le 2026-08-28 après le Paquet A ratifié Pierre (décisions 1 et 7) : +2 contrats
+    # asset (s-asset-produce porte `skill: asset-generator`, 4e identifiant) et 25
+    # one-shot déplacés vers contracts/archive/ (hors scan, tous EMPTY — n'affectait
+    # pas ces comptes). Cf. CLI `python -m forge.tool_observability scan-contracts`.
     assert ("s4-archi", "plugin") in prose_hits
     assert len(prose_hits) == 1, prose_hits
     assert ("orchestrator", "skill", "forge") in identifier_hits
     assert ("s2-worldscan", "skill", "world-scan") in identifier_hits
     assert ("s4-archi", "skill", "architecture-review") in identifier_hits
-    assert len(identifier_hits) == 3, identifier_hits
+    assert ("s-asset-produce", "skill", "asset-generator") in identifier_hits
+    assert len(identifier_hits) == 4, identifier_hits
     # Le reste (empty) domine largement — le rapport chiffré exact vit dans le
     # rapport de mission (compte total dépendant du nombre de contrats présents).
     assert counts[obs.DECLARATION_KIND_EMPTY] > counts[obs.DECLARATION_KIND_IDENTIFIER]
