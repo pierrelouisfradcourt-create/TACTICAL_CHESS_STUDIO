@@ -18,6 +18,18 @@ Ordre chronologique, le plus récent en haut.
 
 ---
 
+## 2026-08-28 — Détail M · La vérité mesurée (audit architecture V0)
+
+Ajout d'un bloc « Détail M » en tête de VUE 1 (avant Détail A), sur demande Pierre : l'état
+actuel mesuré, distinct du plan (corps du document inchangé depuis la rev. 2026-08-05, soit
+23 jours de dérive constatée). Source : audit architecture Forge V0 du 2026-08-28 (lecture
+seule, HEAD `5feb1b5`, 6 sous-agents contre-vérifiés, rapport livré en résultat de session ;
+corrobore `docs/adr/ADR-003`, PROPOSED). Contenu en trois colonnes : ce qui tourne (prouvé) ·
+construit mais débranché (PASSIVE) · dit mais faux / bloqué. Advisory, NO_CLAIM_ALLOWED —
+aucune ratification portée par ce bloc.
+
+---
+
 ## 2026-07-30 — dégel + audit de vérité (tout re-vérifié par l'orchestrateur)
 
 **Verdict d'audit** : document globalement honnête, écarts **chronologiques**, aucune fausse affirmation trouvée.

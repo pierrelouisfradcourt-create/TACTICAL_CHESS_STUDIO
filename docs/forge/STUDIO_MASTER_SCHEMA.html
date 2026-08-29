@@ -29,7 +29,7 @@
 <div class="bp">
   <div class="cart">
     <div><div class="t">STUDIO FORGE — PLAN D'ARCHITECTURE AGENTIQUE · A / B / C</div>
-      <div class="m">rev. 2026-08-05 (Détail L — Execution Plane + Knowledge Runtime, deux couches distinctes des rôles) · document d'orientation (source : cartographie mécanique du repo — rien d'inventé, que de la synthèse) · historique des révisions : STUDIO_MASTER_SCHEMA_HISTORY.md · état V2 courant : VUE 3 · compagnons : STUDIO_ARCHITECTURE.md · STUDIO_AGENT_ATLAS.md</div></div>
+      <div class="m">rev. 2026-08-28 (Détail M — Vérité mesurée, audit architecture V0 ; corps du plan inchangé depuis rev. 2026-08-05) · document d'orientation (source : cartographie mécanique du repo — rien d'inventé, que de la synthèse) · historique des révisions : STUDIO_MASTER_SCHEMA_HISTORY.md · état V2 courant : VUE 3 · compagnons : STUDIO_ARCHITECTURE.md · STUDIO_AGENT_ATLAS.md</div></div>
     <div class="k">
       <span><i class="sq" style="background:#59cbff"></i> IMPLEMENTED</span>
       <span><i class="sq" style="background:#5fd39a"></i> TESTED</span>
@@ -61,6 +61,45 @@
     <b style="color:#b79cff">C — TROISIÈME CERVEAU / PILOTAGE</b> : mémoire active, décisions, analyse, planification, arbitrage préparatoire (Détail I). <b>C n'est PAS une couche d'exécution supplémentaire : c'est la couche de continuité cognitive du studio.</b><br>
     <span style="color:#83a6d6">Doctrine ratifiée 2026-07-26 : séparation observation / interprétation / décision · biais anti-création · mémoire avant code · correction avant construction · différé ⇒ condition de réveil · calendrier studio unique (Détail J).</span>
   </div>
+
+  <!-- ============================================================ M (vérité) == -->
+  <h3>Détail M · LA VÉRITÉ MESURÉE — audit architecture V0 (2026-08-28 · HEAD <code>5feb1b5</code>)</h3>
+  <div class="note" style="border:1px solid #ff8098;border-radius:6px;padding:10px 12px;margin-bottom:10px">
+    <b style="color:#fff">Ce bloc dit ce qui est VRAI AU 2026-08-28, mesuré par grep/artefacts — le reste du document est le PLAN (partiellement historique, corps figé au 2026-08-05).</b>
+    Source : audit architecture Forge V0, lecture seule, 6 sous-agents contre-vérifiés (rapport en résultat de session 2026-08-28) ; corrobore et prolonge <code>docs/adr/ADR-003</code> (2026-08-15, PROPOSED, 1 lot/6 appliqué).
+    <span style="color:#83a6d6">Advisory — NO_CLAIM_ALLOWED · aucune décision ratifiée par ce bloc.</span>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;font-size:10.5px;line-height:1.55">
+    <div style="flex:1;min-width:300px;border:1px solid #59cbff;border-radius:6px;padding:9px 11px;background:rgba(89,203,255,.06)">
+      <b style="color:#59cbff">CE QUI TOURNE (prouvé par exécution)</b><br>
+      · Chemin de production unique : <code>run_real.py → ForgeDriver</code> — <b>19 contrats câblés</b> via <code>dispatch.PROFILES</code> (18 profils)<br>
+      · <code>s2-worldscan</code> : 46 run_id, ~20 projets, consommé par 5 étapes + 2 oracles<br>
+      · <code>verify_run</code> <b>EST appelé</b> (<code>driver.py:3814/4624</code>), traces <code>AUTHENTIQUE</code> jusqu'au 2026-08-23 — la mention « jamais appelé » (07-2026) est périmée<br>
+      · Porte de contrat fail-closed + hook Task/Agent actifs ; preflight KB = gate dure réelle<br>
+      · 18 leçons validées (<code>pat-forge-*</code>) servies au preflight de chaque run — cette boucle-là est fermée<br>
+      · Boucle Art↔GM : 2 convergences bidirectionnelles réelles (runs 10d/10g kitten_clicker)
+    </div>
+    <div style="flex:1;min-width:300px;border:1px solid #a98cff;border-radius:6px;padding:9px 11px;background:rgba(169,140,255,.06)">
+      <b style="color:#a98cff">CONSTRUIT MAIS DÉBRANCHÉ (PASSIVE)</b><br>
+      · <b>Chaîne décision V2</b> (candidate_selector→…→execution_proof + search_usage) : <b>0 appelant production</b>, 1 seule exécution bout-en-bout (2026-08-04, sur la Forge, jamais un jeu)<br>
+      · <b>31 contrats orphelins / 50</b> (le skill en annonce 3) — dont <code>orchestrator.yaml</code> lui-même<br>
+      · Canal KB→prompt : <b>0 fiche servie sur 126 manifestes signés</b> (1 contrat/51 cite une identité de catalogue)<br>
+      · Panel Prisme ×5 lenses : flag <code>--charter</code> jamais passé par le driver<br>
+      · Gate <code>knowledge_trace</code> : dure en théorie, 1 producteur sur ~60 runs<br>
+      · 48 <code>.test.mjs</code> hors de toute gate (<code>oracles.json:forge</code> = pytest seul)<br>
+      · <code>observable_coverage</code>/<code>genre_coverage</code> : calculés puis exclus de <code>_CORE_FACETS</code> (un run a eu 3 volets rouges ET un verdict HUMANGATE_READY)
+    </div>
+    <div style="flex:1;min-width:300px;border:1px solid #ff8098;border-radius:6px;padding:9px 11px;background:rgba(255,128,152,.06)">
+      <b style="color:#ff8098">DIT MAIS FAUX / BLOQUÉ</b><br>
+      · <code>CLAUDE.md</code> présente la chaîne V2 comme dispositif actif de la lane — faux (île)<br>
+      · <code>skill.md</code> (figé 2026-08-03) : marqueur 2 champs (le code en rend 3 — la forme prescrite <b>casse le re-spawn</b>), 7 profils/18, prédicat DETERMINISTIC faux pour s10s<br>
+      · <code>gm_worldscan.json</code> : <b>0/8 artefacts réels conformes</b> aux Lots A/B/C.4 — le schéma game_master n'est validé que par ses propres fixtures ; chaîne aval (economy/art_response) : <b>0 donnée jamais transportée</b>, 3 gates de build fail-soft muettes<br>
+      · <code>games/kitten_clicker/</code> n'existe pas (24 runs ; 11 derniers HALTED/BLOCKED — 2 familles : CLI <code>claude -p rc=1</code> stderr vide sans retry · forme du canal design_questions) ; dernier run 2026-08-25<br>
+      · Boucle de ratification à l'arrêt : ~1 500 items en file, dernière décision humaine <b>2026-07-20</b>, catalog figé 2026-08-06 ; observer kitten_clicker moissonné au run 9 (aveugle sur la série HALTED), 4 gates EN_ATTENTE + 22 tâches proposées<br>
+      · « R1-R14 » n'existe pas comme invariants Forge (préfixe R surchargé ≥6 sens) · Tower Defense = NOT_FOUND (roadmap seule) · aucun jeu n'a traversé s1→s2.7→s9 en entier
+    </div>
+  </div>
+  <div class="note">Recommandation issue de l'audit (advisory, gate Pierre) : scinder s2.7 — <b>scan de genre</b> = capability advisory réutilisable (le profil dédié <code>gm_worldscan</code> existe et a tourné) · <b>Game Master</b> = station de conception normative du seul profil <code>full_godot_content</code>, renommée. <b>Préalable bloquant</b> : un run réel doit d'abord produire un <code>gm_worldscan.json</code> conforme (leçon <code>oracle_must_accept_reference</code>). Règle d'admission proposée pour tout nouveau module : <b>montrer son consommateur avant le commit</b> — c'est l'inverse du motif qui a produit l'île V2, propose_brick, search_usage et run_identity.</div>
 
   <!-- ============================================================ A ============ -->
   <h3>Détail A · Le PRISME — 2 des 4 sources d'exigence (EXPECTED, ADDITIONS) vers la RÉCONCILIATION D'EXIGENCES</h3>

@@ -1108,6 +1108,209 @@ est celle de la **branche par défaut** GitHub, geste manuel non fait.
 
 ---
 
+## 2026-08-21/22 — Quatre paliers d'autonomie de la Forge ratifiés sur Kitten Clicker (KITTEN_PALIERS_V1_V4)
+
+*(Entrée rédigée le 2026-08-23 en revue hebdomadaire de mémoire — les ratifications sont
+antérieures et ne vivaient que dans `00_CURRENT_CONTEXT.md` et les archives journal
+`…-kitten-clicker-runs1-3 / runs4-6 / v3-v4.md`. L'écart de journalisation est comblé ici, pas
+réécrit.)*
+
+**Décision (Pierre, 2026-08-21/22)** — quatre paliers ratifiés run par run sur `kitten_clicker` :
+**V1** mécanique prouvable (run 3) · **V2** intention → fichiers (run 5) · **V3** assemblage
+runtime réel (run 6 : la scène vit et réagit) · **V4** boucle joueur (run 7). Commits `ad6eff4`
+`bfe04fa` `4f8c245` `db8c79b` `e8e9b40` `6aa64bf` `3843d7b`.
+
+**Doctrines fixées en séance, et qui contraignent la suite** :
+- Le Prisme est un **PLAFOND** (non-invention à s3).
+- « Vérifiable » ≠ « vérifiable **par un bot** ». Ne pas transformer chaque dimension en oracle.
+- **Un oracle qui reconstruit son environnement peut prouver un jeu qui n'existe pas.**
+- La boucle n'a pas été perdue par le runtime : elle a été **transformée en effets sans sujet
+  joueur avant le Builder**.
+- `loop.json` = **projection déterministe** du Prisme. Jamais LLM → `loop.json`.
+- Le bot de preuve n'a que les **entrées d'un joueur** (`Economy` / `api_*` / `05_SYSTEMS` /
+  `runtime.gd` interdits).
+- **Critère logiciel ≠ HumanGate** — un palier V*n* franchi ne dit rien de la qualité du jeu.
+
+**Alternatives rejetées** :
+- Conclure « la Forge sait produire un jeu » à partir de V3 (runtime vivant) — le playtest du
+  run 6 a produit exactement le contre-exemple : « runtime vivant ≠ jeu jouable ».
+- Ajouter un oracle par dimension manquante — écarté explicitement (« ne pas transformer chaque
+  dimension en oracle »).
+
+**Critères de révision** : un palier se rouvre si une rupture mesurée montre qu'il passait vert
+par vacuité. C'est arrivé 9 fois sur cette campagne (ruptures 1-9, toutes localisées).
+
+---
+
+## 2026-08-23 — Le build run 9 échoue le HumanGate « jeu complet » et devient la BASELINE PRODUIT (KITTEN_HUMANGATE_BASELINE_V1)
+
+**Décision (Pierre, 2026-08-23)** — sur le build du run 9 (`kitten_clicker-20260823a`), dont
+tous les oracles logiciels sont verts (A→J 13/13, DÉCISION 6/6, mesurés par le driver) :
+**FAIL. « Prototype mécanique avec habillage. »**
+
+**Ce que le FAIL nomme, en quatre causes** :
+1. Les 6 chatons sont **décoratifs** — la récompense est visible avant d'être gagnée.
+2. Le prestige **n'est pas un 2ᵉ niveau** : pas de reset réel, pas de bonus permanent, pas de
+   nouvelle stratégie. C'est un bouton.
+3. L'espace est **trop pauvre** : le nombre de chatons est une variable, pas une colonie ; le
+   plafond de places est un mur arbitraire.
+4. Le guidage est **illisible** : la hiérarchie OBJECTIF → ACTION → CONSÉQUENCE → PROCHAINE
+   POSSIBILITÉ est absente.
+
+**Contexte, et c'est le point qui compte** : V4 et V5 **n'ont pas échoué**. Ils ont fait
+apparaître la vérité produit — c'est-à-dire qu'une chaîne d'oracles entièrement verte a livré un
+objet que son auteur ne veut pas jouer. Deux audits du même jour disent d'où ça vient :
+`docs/audit/2026-08-23-kitten-clicker-design-chain-audit.md` (**on a construit avant de
+spécifier** : aucune station n'écrit les nombres ni la causalité, `design_intent.md` n'est lu par
+aucune étape, 0/21 exigences citent le design) et
+`…-worldscan-artbible-gm-pipe.md` (l'Art Bible était produite **après** le GM).
+
+**Ce que la décision engage** : le prochain chantier est **PRODUIT/GAMEPLAY, pas
+infrastructure**. Explicitement : **pas de « V5 avec plus d'oracles »**. Plan
+`docs/superpowers/plans/2026-08-23-kitten-clicker-lot-produit.md` (P0 direction produit → P1
+boucle → P2 vrai prestige → P3 monde/placement → P4 guidage → P5 2ᵉ HumanGate « envie de
+continuer après le premier prestige ? »), réalisé **par la Forge** (intention / tâches /
+contrat), **mesure inchangée**.
+
+**Alternatives rejetées** :
+- Traiter le FAIL comme un bug d'oracle et durcir la mesure — le FAIL est produit, pas logiciel.
+- Rendre un verdict global sur le run — refusé : `software_verdict` et HumanGate restent séparés.
+
+**Critères de révision** : aucun sur le constat. La baseline produit est le build
+`_run9_20260823a/game_build9` ; tout run ultérieur se compare à elle.
+
+---
+
+## 2026-08-23 — Le jeu émerge de l'échange Art ↔ GM, et les Lots D/E sont stoppés (MUTUAL_COMPLETION_LOOP_V1)
+
+**Décision (Pierre, 2026-08-23, après les livrables C.1 / V2.1)** — **STOP des Lots D et E tels
+que prévus.** Motif énoncé : « **Assez de documentation économique, pas assez de conception de
+jeu.** »
+
+**Vision produit ratifiée** : construire un petit univers de chatons bienveillant où **chaque
+achat transforme VISIBLEMENT la scène**. Règle maîtresse : **UNLOCK = possibilité perceptible,
+jamais +X %.** La carte est un **système de progression** (états, saisons), pas un décor. Départ =
+panier + coussin + jardin fermé + album de silhouettes — plus de 6 chatons décoratifs.
+
+**Doctrine d'agents ratifiée le même jour** (mémoire `mutual_completion_loop_doctrine`) :
+- Le jeu **émerge de l'échange Art ↔ GM**, il n'est pas décidé par une station seule.
+- « **Un agent n'est pas obligé de savoir, il est obligé de savoir ce qu'il ne sait pas et de le
+  demander au bon agent.** »
+- **Pas de design freeze avec une question ouverte.** Le WireMap n'arrive **qu'à la convergence**.
+
+**Mesure qui motive le lot** : aucun alias d'étape n'existe, `steps` est un dict par id, et le
+seul échange entre agents est **inter-run**. Deux agents ne peuvent donc pas se compléter dans un
+même run — c'est structurel, pas un oubli.
+
+**GO Pierre le même jour** : **Lot F**, 2 rondes, ordre **F → D → run 10**, et **C.2 V1.1b
+RATIFIÉE**. Plan : `docs/superpowers/plans/2026-08-23-forge-lot-f-boucle-completion-mutuelle.md`
+(alias d'étape s2.5/s2.7 en 2 rondes, `design_questions.json` partagé, `design_state.json`, gate
+`design_freeze` avant s1 — **HALTED « design non convergé » est un résultat**, pas une panne).
+
+**Alternatives rejetées** :
+- Poursuivre D (fuites) et E (run 10) dans l'ordre initialement ratifié — repoussés derrière F.
+- Créer une station nouvelle pour porter la conception — refusé : l'architecture cible est une
+  **boucle** ART ↔ GM avant le WireMap + réconciliation après, pas un étage de plus.
+
+**Critères de révision** : si la boucle à 2 rondes ne converge pas (gate `design_freeze` HALTED
+de façon répétée), c'est le nombre de rondes ou le protocole de questions qui se rediscute — pas
+le principe de l'échange.
+
+---
+
+## 2026-08-28 — Invariant de gouvernance : provenance des preuves (AUTO_ATTESTED explicite)
+
+**Décision** : ratifié Pierre 2026-08-28 (GO décision-log, verbatim) : « Le système ne doit
+pas seulement produire une preuve ; il doit pouvoir démontrer que la preuve provient
+effectivement du mécanisme qui a réalisé l'action. Sinon la preuve est explicitement
+AUTO_ATTESTED. » Corollaires : driver dit « spawn executed » ≠ un témoin observe le spawn ·
+artefact présent ≠ artefact consommé · test vert ≠ chemin production branché · contrat
+présent ≠ contrat appliqué. Invariant de gouvernance — PAS une justification de refactor :
+R2-OBS mesure et ferme d'abord les flèches causales minimales.
+
+**Résultat attendu** : toute preuve nouvelle ou existante du périmètre Forge est soit
+produite par le mécanisme agissant, soit porte un marqueur AUTO_ATTESTED lisible dans le
+reçu/verdict ; les cas connus (spawn_authorized/executed écrits par le driver,
+`allowed_tools=()` signé, évidences s10b/c/s sans fichier) sont requalifiés ou marqués,
+jamais laissés implicites.
+
+**Preuve** : cette entrée (changement documentaire seul, aucune autre décision modifiée) ;
+cas d'application relevés dans la carte F0 du 2026-08-28 (session Fable 5, audit
+architecture V0) ; mémoire studio `proof_producer_invariant`.
+
+**Résultat observé** (2026-08-28 soir) : premiers marquages réels livrés le jour même —
+`spawn_links.jsonl` porte `attestation: "self"` par spawn (R2-OBS P4, commit 38262cf)
+et l'agrégat signé porte `execution_proof_attestation: "self"` + note dérivée (Paquet A
+#2, non commité), champs couverts par le HMAC, rétro-compatibles. Limite connue :
+le régime est déclaré par le producteur, pas encore confronté par verify_run.
+
+**Statut** : RESULTAT_CONFORME
+
+**Leçon candidate** : forme générale des leçons existantes preuve-sans-exécuteur ·
+déclaré≠exécuté · vert-sans-avoir-eu-lieu · artefact≠consommation.
+
+---
+
+## 2026-08-28 — Paquet A : 10 décisions architecturales Forge (séance HumanGate post-audit)
+
+**Décision** : ratifié Pierre 2026-08-28 (séance HumanGate, sur la base de l'audit
+architecture V0 + cartes F0/F1 du même jour). Principe directeur : « on ne construit
+que ce dont le consommateur et la preuve sont démontrés ». World Scan explicitement
+HORS PÉRIMÈTRE ; R8 reste BLOCKED.
+1. Étapes asset (96 spawns sans YAML) → **écrire les 2 contrats** `s-asset-produce`
+   / `s-asset-spec` (on ne ratifie pas une porte parallèle parce qu'elle existe).
+2. Preuves headless → **AUTO_ATTESTED explicitement marqué dans le verdict**
+   (application de l'invariant provenance ; pas de chantier témoin maintenant).
+3. `allowed_tools` → **signer le bornage réellement appliqué** (la signature ne doit
+   plus attester un champ vide pendant que le bornage réel vit ailleurs).
+4. 51 `.test.mjs` hors gate → **brancher `node --test` à une gate**.
+5. Île V2 (7 modules + `root_problems.json` + `agent_recipes.json`) → **GEL FORMEL**
+   (PASSIVE ≠ DEAD ; aucun branchement sans consommateur démontré).
+6. Panel Prisme (`panel.py`, `merge_prisme.mjs`, 3 contrats lens) → **GEL FORMEL**.
+7. 26 contrats one-shot exécutés-terminés → **archiver** (`contracts/archive/`) ;
+   profils `review`/`increment` (0 run) → **conserver PASSIVE**.
+8. Worktree `.claude/worktrees/nifty-carson-8bf418` (seul DEAD démontré) →
+   **suppression autorisée**.
+9. `s10d-oracle-visual` / `s9-build-godot` / `wm1-wiremap-tetris` → **conserver** ;
+   rapatrier l'exigence documentaire (10 lignes CORE de wm1-tetris) sans brancher.
+10. `commit_scope_guard` + `check_mutation_registry` → **brancher** (hooks git /
+    selfaudit) — consommateur identifiable, protègent la gouvernance des modifs.
+
+**Résultat attendu** : 2 YAML valides passant `validate_contract` et la porte ;
+verdicts headless portant un marquage AUTO_ATTESTED lisible ; ligne signée portant
+les outils réellement passés à la CLI ; `node --test` exécuté par une gate ; gels 5/6
+inscrits dans CLAUDE.md (lane FORGE) ; 26 fichiers déplacés sans casser tests ni
+selfaudit ; worktree supprimé ; 2 contrôles branchés et déclenchables.
+
+**Preuve** : diffs de la session du 2026-08-28 soir (non commités, gate commit
+séparée) + rapport d'application par geste + suites de tests ciblées vertes.
+
+**Résultat observé** (2026-08-28 soir, gestes appliqués le jour même, contre-vérifiés
+par l'orchestrateur, NON COMMITÉS — gate commit Pierre séparée) : les 10 décisions
+appliquées, avec 2 amendements documentés. (1) 2 YAML créés, `validate_contract` vert,
+18 tests — MAIS `asset_producer` absent de `models[].roles` (RoleUnresolved) et
+`asset_dispatch.py` ne charge toujours pas les contrats : câblage = décision séparée.
+(2) `execution_proof_attestation: "self"` dans l'agrégat SIGNÉ + rapport final, 6 tests,
+rétro-compatible. (3) option « signer à l'application » : `tools_effective_signed` +
+`tools_disallowed_count` dans spawn_authorized/executed signés, 7 tests, lignes
+historiques toujours valides. (4) `node --test` BLOQUANT au pre-commit (1 028 verts,
+~2,5 s). (5/6) gels inscrits CLAUDE.md. (7) **25/26 archivés** — `wm1-wiremap-breakout`
+RETENU : consommé par du code exécutable (`scripts/observer/pedagogy.py:420`), amendement
+conforme au principe directeur. (8) worktree supprimé, `git worktree list` propre.
+(9) conservés, exigence wm1-tetris notée au README d'archive. (10) `commit_scope_guard`
+bloquant au pre-commit (détection de périmètre) + volet `mutationRegistry` advisory au
+selfaudit (25 mutations, registre valide). Suites ciblées : ~470 tests verts cumulés ;
+suite complète post-gestes en cours de mesure au moment de cette écriture.
+
+**Statut** : RESULTAT_CONFORME (avec les 2 amendements ci-dessus)
+
+**Leçon candidate** : aucune (application de principes déjà ratifiés). Note : la règle
+« code exécutable ⇒ pas d'archivage » a attrapé un consommateur que la classification
+F1 avait manqué (grep hors périmètre observer) — la vérification par l'exécutant reste
+nécessaire même après un audit.
+
+---
+
 ## Template pour nouvelles entrées
 
 ```

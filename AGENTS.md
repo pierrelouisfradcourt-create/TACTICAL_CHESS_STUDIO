@@ -1,5 +1,11 @@
 # TacticalChessPureLab Agent Doctrine
 
+> **LEGACY PRE-FORGE — FROZEN 2026-08-28 (HumanGate decision: Pierre).**
+> Pre-Forge Codex/GPT-Navigator control plane (last substantive update 2026-05,
+> scoped to TacticalChessPureLab). NOT current studio truth — do not use as a
+> source anchor for Forge-lane work. Current truth: `docs/forge/STUDIO_MASTER_SCHEMA.html`
+> (Détail M, 2026-08-28) + `docs/adr/ADR-003-forge-workflow-coherence-audit.md`.
+
 Codex implements bounded tasks in this repository. Scripts and CI verify mechanical behavior. GPT critiques and routes work only. The human decides merge, reject, freeze, promotion, and claim status.
 
 Always separate final judgment into:

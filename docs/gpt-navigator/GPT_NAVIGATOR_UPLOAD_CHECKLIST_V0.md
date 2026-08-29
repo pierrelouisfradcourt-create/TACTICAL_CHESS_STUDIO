@@ -1,5 +1,11 @@
 # GPT Navigator Upload Checklist V0
 
+> **LEGACY PRE-FORGE — FROZEN 2026-08-28 (HumanGate decision: Pierre).**
+> Pre-Forge Codex/GPT-Navigator control plane (last substantive update 2026-05,
+> scoped to TacticalChessPureLab). NOT current studio truth — do not use as a
+> source anchor for Forge-lane work. Current truth: `docs/forge/STUDIO_MASTER_SCHEMA.html`
+> (Détail M, 2026-08-28) + `docs/adr/ADR-003-forge-workflow-coherence-audit.md`.
+
 ## Setup
 - Create a ChatGPT Project named TacticalChessPureLab / Rocky Studio.
 - Add project instructions from docs/gpt-navigator/GPT_NAVIGATOR_PROJECT_INSTRUCTIONS_V0.md.

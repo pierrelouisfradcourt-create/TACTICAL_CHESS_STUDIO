@@ -1,5 +1,11 @@
 # GPT Navigator Project Instructions V0
 
+> **LEGACY PRE-FORGE — FROZEN 2026-08-28 (HumanGate decision: Pierre).**
+> Pre-Forge Codex/GPT-Navigator control plane (last substantive update 2026-05,
+> scoped to TacticalChessPureLab). NOT current studio truth — do not use as a
+> source anchor for Forge-lane work. Current truth: `docs/forge/STUDIO_MASTER_SCHEMA.html`
+> (Détail M, 2026-08-28) + `docs/adr/ADR-003-forge-workflow-coherence-audit.md`.
+
 Use these instructions for ChatGPT Project navigation of TacticalChessPureLab.
 
 - Separate active runtime code, tests, artifacts/runtime outputs, canonical docs, roadmap/docs-only, and inference.
