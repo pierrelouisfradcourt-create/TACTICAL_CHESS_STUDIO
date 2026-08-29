@@ -1,0 +1,199 @@
+Everything needed is in hand. `knowledge_packet.json` is **absent** (advisory-only — noted in SKIPPED_VALIDATION), the project is greenfield (`games/tower_defense_sonde` to be created — no existing blueprint), and I've read both oracles' source (`check_blueprint_contract.mjs` + `upstream_schema.mjs`) so I can design to their exact rules. I have `run:` aucun and Bash is disabled, so I cannot execute the oracle myself — the executor runs it after materializing `blueprint.json`; I designed against the verified source and did the coverage arithmetic by hand.
+
+---
+
+# RAPPORT FINAL — s4-archi / tower_defense_sonde
+
+## Décision d'architecture (résumé)
+
+Découpage par **responsabilité**, en couches strictement orientées pour garder le noyau logique pur (DOM-free, exécutable sous `node --test`) — c'est la contrainte structurante du charter (`plateforme_cible_detail` : « aucun module logique ne touche `document/window/canvas/Date/performance/Math.random` »).
+
+```
+index.html ──▶ main.mjs ──▶ { render, input } ──▶ { sim, actions } ──▶ config
+   (DOM shell)  (compo root)   (DOM adapters)        (noyau pur)      (données figées)
+                                    bots ──▶ { sim, actions, config }   (drivers headless)
+                                    tests ──▶ { sim, actions, bots, config }
+```
+
+- **`config`** (feuille, 0 dép) : tables figées — géométrie 20×12 + chemin en épingle, stats tours/ennemis, calendrier 10 vagues, tables de coût d'upgrade, `TICK_MS`. Contenu, jamais comportement.
+- **`sim`** : noyau de simulation déterministe pur (rng seedé porté dans l'état, `step(state,dt)`, mouvement/chemin, ciblage `first`, combat/armure, économie, vagues, upgrades, fin de partie, hash d'état). Dépend seulement de `config`.
+- **`actions`** : API d'écriture UNIQUE — valide puis applique chaque intent joueur (place/upgrade/select/call-wave/restart) et refuse en UN point les actions invalides (R41). Consommée par `input` ET `bots`.
+- **`render`** : dessin canvas 2D, **lecture seule** de l'état.
+- **`input`** : DOM → intents (via `actions` uniquement, jamais `sim` directement).
+- **`bots`** : politiques scriptées headless (compétent/naïf/tall/wide/mixte/tempo) qui pilotent `actions` — instrument des preuves de solvabilité et de variance.
+- **`main.mjs`** : racine de composition — boucle rAF qui accumule le temps réel et n'avance `sim.step` que par pas fixe (frontière temps-réel→pas-fixe, R31), expose `window.__game` en lecture seule.
+- **`index.html`** : page unique, ancrages DOM (canvas 640×384, boutons, `#overlay`, `#restart`), zéro dépendance externe.
+
+**God-objects tués avant naissance** : le contenu (`config`) est séparé du moteur ; l'écriture d'état passe par un seul point (`actions`), donc ni `input` ni `bots` ne pokent le noyau ; `render` est read-only.
+
+## Verdicts
+
+- **software_verdict: OK** — pour ce qui est adossé à une ancre mécanique que j'ai vérifiée par lecture de source :
+  - Couverture featuremap : les **24** features `FEAT-*` (extraites par `featureIds()` = `systemes[].features[].id`, source lue `upstream_schema.mjs:497`) sont chacune couverte par ≥1 module (arithmétique faite à la main).
+  - Graphe **acyclique** (ordre topologique `config < sim < {actions,render} < {input,bots} < {tests,main} < index.html`), vérifié contre `detecterCycles` (`check_blueprint_contract.mjs:52`).
+  - `deps_interdites` **non vide (16 paires)**, aucune ne contredit une dépendance déclarée (règle `check_blueprint_contract.mjs:222`), inclut explicitement `logique→rendu` et `logique→input` (`[sim,render]`, `[sim,input]`, `[actions,render]`, `[actions,input]`).
+  - Un `responsabilite`/`preuve_attendue{kind∈PROOF_KINDS}` par module, chaque module listé porte une entrée (règle `check_blueprint_contract.mjs:207`).
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — l'ancre est la **lecture du code des oracles**, pas leur exécution (interdite : `run: aucun`, Bash off). Le reçu d'exécution de `check_blueprint_contract.mjs <run_dir>/blueprint.json --featuremap <run_dir>/featuremap.json` est produit par l'exécuteur APRÈS matérialisation.
+- **claim_verdict: NO_CLAIM_ALLOWED**.
+
+## Reçu d'oracle cité
+
+- `check_blueprint_contract.mjs` (oracle AVANT-build) : **non exécuté par moi** (permission `run: aucun`). Blueprint conçu conforme à sa spec lue ligne à ligne. Le VERDICT réel appartient à l'exécuteur.
+- `forge.static_oracles.check_architecture` (oracle APRÈS-build, s10b) : hors de mon moment — vacuement vert sur un `src` vide, ce n'est pas mon oracle (confirmé par l'en-tête du script lu).
+
+## Features non couvertes / couvertures fantômes
+
+- **Features non couvertes : aucune** (24/24).
+- **Couvertures fantômes : aucune** — tous les ids de `couvre` sont des `FEAT-*` exacts de la featuremap.
+
+## FOG → HumanGate (Pierre)
+
+**Tension doc↔structure `repo_map.yaml` (mesurée, non tranchée par oracle).** `repo_map.yaml` fige des racines de GAME_PROJECT numérotées (`00_CHARTER`…`10_FORGE`). Le charter, lui, impose une structure de **sonde web plate** (`index.html` unique + modules `.mjs`, rendu canvas) — catégoriquement hors de ce schéma numéroté. Les deux oracles de cette étape (`check_blueprint_contract`, `check_architecture`) ne consultent PAS `repo_map` ; mais un `check_index`/`check_placement` en aval le ferait, et classerait `config/`, `sim/`, `render/`… en `dossiers_hors_structure`. J'ai **suivi le charter** (INTENT LINEAGE, autorité supérieure) + la définition explicite de « module = top-level sous la racine du code » de la tâche, plutôt que d'inventer/contorsionner — mais c'est exactement le motif de l'incident `racine 04_CONTENT inventée / 232 019 tokens`. **Décision requise de Pierre** : (a) la sonde web est légitimement exemptée du schéma numéroté, ou (b) `repo_map` doit gagner une catégorie « sonde web » avant s5-wiremap. Jugement humain, pas oracle.
+
+## SKIPPED_VALIDATION
+
+- **item** : exécution réelle de `check_blueprint_contract.mjs` · **où** : ce blueprint · **statut** : non fait · **raison** : permission `run: aucun` + Bash désactivé pour ce sous-agent ; l'exécuteur le lance après matérialisation.
+- **item** : lecture de `knowledge_packet.json` · **où** : `lab/forge_runs/tower_defense_sonde/` · **statut** : non fait · **raison** : fichier **absent** (advisory-only, aucune prescription perdue).
+- **item** : diff contre un blueprint existant · **où** : `games/tower_defense_sonde/` · **statut** : sans objet · **raison** : projet greenfield, aucun blueprint antérieur.
+- **item** : réconciliation `repo_map.yaml` · **où** : structure physique du code · **statut** : partiel · **raison** : conflit charter↔repo_map remonté en fog ci-dessus (relève de HumanGate, pas d'un oracle de cette étape).
+
+## RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2 §3)
+
+- **why_task_existed** :
+  - `problem` : le projet `tower_defense_sonde` a une featuremap (s3) mais aucune architecture gelée — sans blueprint, la structure physique se déciderait « au feeling » au build.
+  - `oracle` : aucun (activation par la séquence de pipeline Forge / décision humaine, marqueur `FORGE_DISPATCH:s4-archi`).
+  - `root_cause` : non établie (activation nominale de l'étape 4, pas une réparation de défaut).
+  - `action_reason` : produire le découpage modules + graphe de dépendances autorisées/interdites qui rend chaque feature adressable et le noyau logique testable hors DOM.
+- **result** : blueprint conçu — 9 modules, 16 paires interdites, 24/24 features couvertes, graphe acyclique, conforme à la spec lue des deux oracles. Bloc `json` terminal fourni pour matérialisation par l'exécuteur.
+- **proof** : lecture de source (ancre mécanique) — `check_blueprint_contract.mjs` (règles modules/deps/couverture/cycles/contradiction) + `upstream_schema.mjs:497 featureIds` + `:310 validateExpectedProof`. Exécution : non (run interdit).
+- **learning** : `couvre[]` cible les ids `FEAT-*` (features), jamais les `R*` (capacités) — piège de granularité qui aurait produit 55 couvertures fantômes ; et les oracles d'archi n'adressent pas `repo_map`, d'où la nécessité de remonter la tension web↔GAME_PROJECT en fog plutôt que de la « faire passer ».
+- **next_reason** : la chaîne ne se ferme PAS ici — s5-wiremap doit consommer ce blueprint, et surtout la tension `repo_map` (fog) reste non résolue et bloquera potentiellement la réconciliation d'index en aval : décision Pierre requise avant que la structure physique ne soit gravée.
+
+```json
+{
+  "modules": ["index.html", "main.mjs", "config", "sim", "actions", "render", "input", "bots", "tests"],
+  "deps_interdites": [
+    ["sim", "render"],
+    ["sim", "input"],
+    ["actions", "render"],
+    ["actions", "input"],
+    ["config", "sim"],
+    ["config", "actions"],
+    ["config", "render"],
+    ["config", "input"],
+    ["input", "sim"],
+    ["input", "render"],
+    ["render", "actions"],
+    ["render", "input"],
+    ["bots", "render"],
+    ["bots", "input"],
+    ["sim", "main.mjs"],
+    ["actions", "main.mjs"]
+  ],
+  "ownership": {
+    "index.html": "shell-dom",
+    "main.mjs": "composition-root",
+    "config": "content-balance",
+    "sim": "simulation-core",
+    "actions": "intent-write-api",
+    "render": "canvas-view",
+    "input": "dom-input-adapter",
+    "bots": "headless-policies",
+    "tests": "proof-discipline"
+  },
+  "responsabilites": [
+    {
+      "module": "config",
+      "responsabilite": "Tables figees et donnees pures : geometrie (grille 20x12, chemin en epingle code en dur, cases constructibles), stats tours/ennemis, calendrier 10 vagues a composition fixe sans scaling, tables de cout d'upgrade. Aucun comportement.",
+      "couvre": ["FEAT-MAP-GEO", "FEAT-UP-COSTS", "FEAT-WAVE-CAL"],
+      "dependances": [],
+      "preuve_attendue": {
+        "kind": "oracle",
+        "statement": "node --test STRICT sur les donnees figees : exactement 6 cases voient >=3 segments de chemin (R3, egalite), toute case hors-chemin constructible (R2), cout L2=0.8x/L3=1.6x base avec Gun L3 total=170 (R21), composition V1..V10 fixe et PV Grunt V10==40==V1 sans scaling (R25/R26) verifies a l'egalite."
+      }
+    },
+    {
+      "module": "sim",
+      "responsabilite": "Noyau de simulation deterministe pur (DOM-free) : rng seede porte dans l'etat, step(state,dt) a pas fixe, mouvement le long du chemin, ciblage 'first', combat avec armure plate/plancher, economie a trois robinets, machine de vagues (preparation/spawn/tempo), effets d'upgrade et capacites L3, conditions de fin, hash d'etat.",
+      "couvre": ["FEAT-MAP-SPATIAL", "FEAT-GUN", "FEAT-FROST", "FEAT-CANNON", "FEAT-TARGETING", "FEAT-GRUNT", "FEAT-RUNNER", "FEAT-BRUTE", "FEAT-ECO-SOURCES", "FEAT-ECO-INVARIANT", "FEAT-UP-CAPS", "FEAT-WAVE-PHASE", "FEAT-TICK", "FEAT-END"],
+      "dependances": ["config"],
+      "preuve_attendue": {
+        "kind": "oracle",
+        "statement": "node --test STRICT sur le noyau pur : Gun L1 sur Brute retire exactement 2 PV et Cannon 18 PV, Frost fait passer 2.2 a exactement 1.21 cases/s (epsilon nomme), splash touche 4 cibles a 22 PV chacune, ciblage 'first' deterministe, invariant comptable de l'or a chaque tick, hash d'etat STRICTEMENT egal sur 2 executions de la meme seed (R32), et grep AST prouvant zero Math.random/Date.now/performance.now (R33)."
+      }
+    },
+    {
+      "module": "actions",
+      "responsabilite": "API d'ecriture UNIQUE de l'etat : valide puis applique chaque intent joueur (selectionner/poser/upgrader une tour, appeler la vague, restart) et refuse en un seul point toute action invalide en laissant l'etat inchange.",
+      "couvre": ["FEAT-PLAYER-ACTIONS", "FEAT-INVALID"],
+      "dependances": ["config", "sim"],
+      "preuve_attendue": {
+        "kind": "oracle",
+        "statement": "node --test STRICT : chaque intent applique une mutation exacte (l'or diminue du cout exact a la pose) ; chaque action invalide (pose sur chemin, case occupee, or insuffisant, upgrade d'une tour L3, appel pendant une vague) laisse l'etat STRICTEMENT egal avant/apres (R41), zero exception levee."
+      }
+    },
+    {
+      "module": "render",
+      "responsabilite": "Rendu canvas 2D en lecture seule : dessine la map, les tours, les ennemis avec barres de vie, les projectiles, les effets Frost/Cannon et l'overlay de fin a partir de l'etat, sans jamais le muter.",
+      "couvre": ["FEAT-VISUAL"],
+      "dependances": ["config", "sim"],
+      "preuve_attendue": {
+        "kind": "visual",
+        "statement": "Captures d'un rendu navigateur REEL de la page finale (une partie VICTORY et une DEFEAT) : ennemi suivable de l'entree a la sortie, projectile puis barre de vie qui raccourcit a l'impact, ennemi Frost visiblement recolore et ralenti, tir Cannon raccourcissant plusieurs barres au meme instant, #overlay VICTORY/DEFEAT visible ; jamais un rendu de fixture ou de composant isole."
+      }
+    },
+    {
+      "module": "input",
+      "responsabilite": "Adaptateur DOM->intent : traduit clics canvas (pixel->case) et boutons en appels a l'API actions, sans jamais poker le noyau sim directement.",
+      "couvre": ["FEAT-PLAYER-ACTIONS", "FEAT-WAVE-PHASE", "FEAT-END"],
+      "dependances": ["config", "actions"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Un bot pilote une partie par le DOM SEUL : #btn-gun/#btn-frost/#btn-cannon, clic sur une case libre du canvas, #btn-upgrade, #btn-call-wave (interrompt le decompte, R29) et #restart, sans aucun appel de fonction JS interne."
+      }
+    },
+    {
+      "module": "bots",
+      "responsabilite": "Politiques scriptees headless pilotant l'API actions sur le noyau pur : bot competent, bot naif, et panel tall/wide/mixte/tempo, servant d'instrument aux preuves de solvabilite et de variance des metriques.",
+      "couvre": ["FEAT-METRIC", "FEAT-END"],
+      "dependances": ["config", "sim", "actions"],
+      "preuve_attendue": {
+        "kind": "oracle",
+        "statement": "Execution scriptee seed 1337 sans LLM : le bot competent atteint result=='VICTORY' avec lives>0 exact fige (R34), le bot naif atteint result=='DEFEAT' avec lives==0 avant la vague 10 (R35) ; le panel emet des vecteurs de resultat (lives_final, wave_reached, leaks_total, gold_spent) portant >=2 valeurs distinctes non triviales par metrique (regle de variance Pierre 2026-07-21)."
+      }
+    },
+    {
+      "module": "tests",
+      "responsabilite": "Discipline de preuve : suite node --test a assertions strictes sur les modules logiques, tests jumeaux de falsification, harnais de mutation, et verification que chaque recu porte un evidence_path pointant un artefact reellement ecrit.",
+      "couvre": ["FEAT-TEST-RIGOR", "FEAT-EVIDENCE", "FEAT-METRIC"],
+      "dependances": ["config", "sim", "actions", "bots"],
+      "preuve_attendue": {
+        "kind": "mutation",
+        "statement": "La suite node --test est soumise a mutation sur les modules logiques : score de survivants rapporte avec denominateur exact, tout mutant inversant une condition de mort/fuite/depense d'or DOIT etre tue (R51) ; chaque test de comportement possede son jumeau de falsification (R52) et tout recu porte un evidence_path verifiable (R53)."
+      }
+    },
+    {
+      "module": "main.mjs",
+      "responsabilite": "Racine de composition : boucle rAF qui accumule le temps reel et n'avance sim.step QUE par pas fixe TICK_MS (frontiere temps-reel->pas-fixe), cable render+input, et expose window.__game en lecture seule.",
+      "couvre": ["FEAT-STATE-READ", "FEAT-TICK"],
+      "dependances": ["config", "sim", "actions", "render", "input"],
+      "preuve_attendue": {
+        "kind": "oracle",
+        "statement": "Playwright evaluate lit window.__game (tick, seed, phase, wave, gold, lives, towers[], enemies[], leaks, result) SANS appel de fonction, aucun setter ni triche expose (R40) ; l'avance sim ne se produit que par increments TICK_MS et jamais par le delta variable (R31, frontiere assuree par la racine de composition)."
+      }
+    },
+    {
+      "module": "index.html",
+      "responsabilite": "Page unique : structure DOM (canvas 640x384, boutons de tour/upgrade/appel-vague, #overlay, #restart) que input et render consomment, boot de main.mjs, zero dependance externe/CDN/reseau, ouvrable en file://.",
+      "couvre": ["FEAT-VISUAL", "FEAT-PLAYER-ACTIONS"],
+      "dependances": ["main.mjs"],
+      "preuve_attendue": {
+        "kind": "visual",
+        "statement": "La page unique ouverte en file:// affiche le canvas 640x384, les boutons #btn-gun/#btn-frost/#btn-cannon/#btn-upgrade/#btn-call-wave, #overlay et #restart, sans aucune requete reseau ni CDN ; les ancrages DOM que input et render referencent sont tous presents au boot."
+      }
+    }
+  ]
+}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le charter impose une structure de sonde web plate (index.html unique + modules .mjp) categoriquement hors des racines numerotees figees de repo_map.yaml (00_CHARTER..10_FORGE) ; les oracles de s4 ne consultent pas repo_map mais un check_index/check_placement aval classerait ces modules en dossiers_hors_structure", "root_cause": "repo_map.yaml ne porte aucune categorie pour une sonde web single-page ; le schema numerote vise le GAME_PROJECT lourd, pas un instrument de mesure page-unique"}

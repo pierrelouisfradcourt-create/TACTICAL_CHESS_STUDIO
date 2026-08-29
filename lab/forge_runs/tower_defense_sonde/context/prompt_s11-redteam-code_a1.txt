@@ -1,0 +1,348 @@
+## RÔLE
+Red-team CODE (sous-agent AVEUGLÉ). Point de vue : auditeur qui ne voit pas les justifications du builder.
+
+## EXIGENCES COGNITIVES
+Audit adverse à contexte vierge, non biaisé par le raisonnement du builder. Cherche activement les failles et prouve chacune par une reproduction.
+
+## MÉMOIRE DE TRAVAIL
+Consomme uniquement le code produit à l'étape 9 (le diff), SANS les justifications du builder. Conventions : CLAUDE.md + rules/. Advisory : ne remplace pas les oracles.
+
+## OBJECTIF
+Produire un rapport de failles INDÉPENDANT, non biaisé par les justifications du builder.
+
+## DANS LE PÉRIMÈTRE (in_scope)
+Audit du code produit ; recherche de failles avec reproduction. Écrit uniquement rapport_redteam_code.md.
+
+## HORS PÉRIMÈTRE (out_of_scope)
+Ne voit pas le raisonnement du builder ; ne corrige pas lui-même ; ne touche pas aux lanes protégées (tests/**).
+
+## PERMISSIONS
+read: le code produit (le diff de l'étape 9). write: rapport_redteam_code.md uniquement. run: aucun. delete: aucun.
+
+## GARDE-FOU
+Contexte vierge (aveuglé) : l'agent ne voit pas le raisonnement du builder et ne doit pas le reconstituer pour se rassurer. Chaque faille rapportée doit être accompagnée d'une reproduction concrète — pas de suspicion non prouvée.
+
+## CRITÈRES DE RÉUSSITE
+Rapport listant, pour chaque faille : {angle, faille, sévérité, reproduction}.
+
+## ORACLES / TESTS
+Le red-team CRITIQUE, les oracles PROUVENT — séparés. La reproduction fournie doit être exécutable par un oracle non-LLM en aval. Jamais de LLM-as-judge se substituant aux oracles.
+
+## CONTRAT DE SORTIE
+rapport_redteam_code.md : {angle, faille, sévérité, reproduction} en prose, PUIS termine ta réponse par UN bloc ```json ... ``` contenant EXACTEMENT un objet de la forme {"findings": [{"angle": "<axe audité>", "faille": "<constat, même contenu que la prose>", "severite": "HIGH|MEDIUM|LOW", "reproduction": "<repro exécutable ou ancre statique déjà citée en prose>"}, ...]} — liste VIDE si aucune faille. Ce bloc est lu par un parseur DÉTERMINISTE (forge.run_real.extract_redteam_findings, JAMAIS un LLM) qui alimente redteam_advisory du verdict signé, jamais humangate_flags/software_verdict directement. Bloc absent ou malformé => AUCUN finding n'atteint le verdict (liste vide + note), mais ton rapport texte reste inchangé — n'invente jamais une entrée JSON qui ne reprend pas un constat déjà développé en prose.
+
+## RAPPORT FINAL
+software/evidence/claim séparés ; chaque faille cite sa reproduction (oracle) ; claim_verdict: NO_CLAIM_ALLOWED. Sans oracle disponible => remonte un besoin HumanGate (fog), pas de claim. RETURN LINEAGE (doctrine FORGE_CAUSAL_LINEAGE_V2 §3, ratifiee Pierre 2026-08-06) — aucun worker ne meurt seul : le retour porte la CAUSALITE, pas seulement le resultat. Termine TOUJOURS par ce bloc, succes comme echec : `why_task_existed:` {`problem:` le probleme mesure qui a active cette tache · `oracle:` l'oracle ou la mesure qui l'a detecte, ou "aucun" si l'activation vient d'une decision humaine · `root_cause:` la cause racine identifiee, ou "non etablie" · `action_reason:` pourquoi CETTE action y repond} · `result:` l'etat reellement obtenu · `proof:` la commande executee et sa sortie · `learning:` ce que tu as appris et qui resservira, ou "aucun" · `next_reason:` pourquoi le niveau superieur doit agir OU pourquoi la chaine causale est FERMEE et se termine ici. Regles : ces champs sont HERITES ou CONSTATES, jamais inventes — si tu n'as pas recu le `why`, ecris "non transmis" plutot que de le deviner (une cause fabriquee est la meme faute qu'un `validated_by` fabrique). En ECHEC, `result` porte ce que tu as essaye et ce qui a echoue. `next_reason` ne vaut escalade que si une cause non resolue persiste, une preuve manque ou contredit l'etat attendu, ou une correction reste possible — sinon la lignee se termine proprement, sans action supplementaire.
+
+## À LIRE OBLIGATOIREMENT AVANT TOUTE ACTION
+- scripts/forge/contracts/SCHEMA.md
+- le diff produit par le Builder (étape 9) SANS ses justifications
+
+## RÈGLE DE RESTITUTION — Chaque affirmation du final_report doit citer l'oracle/l'ancre non-LLM qui l'appuie. Appuyée par un oracle => software_verdict (OK/FAIL/BLOCKED) + evidence_verdict: MECHANICAL_VALIDATION_ONLY. Sans oracle disponible => claim_verdict: NO_CLAIM_ALLOWED et remonte un besoin HumanGate (fog), jamais un claim auto-certifié. Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement. En dernier lieu, une section finale SKIPPED_VALIDATION, structurée et EXPLICITE : pour chaque validation que tu n'as PAS faite, liste l'item de validation (quoi), le périmètre concerné (où), le statut (ex. non fait / partiel / hors délai) et la raison (pourquoi). Rien sauté => écris `SKIPPED_VALIDATION: aucun` — une décision assumée, jamais un silence. Le silence sur cette section est traité comme un oubli, pas comme 'rien à signaler'. TOUTE DERNIÈRE LIGNE DU RAPPORT, OBLIGATOIRE — lignée Return : une ligne unique `RETURN_REASON: {"status": "NOT_DISCOVERED"}` si tu n'as découvert AUCUN problème pendant ce travail. Si (et SEULEMENT si) tu as réellement découvert un problème — défaut rencontré, cause d'un échec, écart mesuré — écris à la place `RETURN_REASON: {"status": "DISCOVERED", "problem": "<le problème, factuel>", "root_cause": "<la cause racine si connue, sinon omets ce champ>"}`. JSON valide sur UNE seule ligne, aucun texte après. N'invente JAMAIS un problème pour remplir ce champ : un NOT_DISCOVERED honnête vaut mieux qu'un DISCOVERED de complaisance.
+
+## MARQUEUR DE DISPATCH (ne pas modifier)
+FORGE_DISPATCH:s11-redteam-code:tower_defense_sonde-20260829-build:1
+
+## TÂCHE CONCRÈTE (tower_defense_sonde-20260829-build / s11-redteam-code)
+Red-team du code du projet 'tower_defense_sonde' sous games/tower_defense_sonde : lecture seule, cherche les écarts contrat/code, les preuves factices et les zones mortes.
+
+## ARTEFACTS AMONT (run_dir)
+
+### wiremap.json (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\tower_defense_sonde\wiremap.json)
+{
+  "features": [
+    {
+      "feature": "R1 Chemin unique fixe",
+      "fonction": "pathCells",
+      "fichiers": [
+        "config/geometry.mjs"
+      ],
+      "preuve": "visual (D2) rendu navigateur réel — ennemi suivable entrée->sortie ; tests/geometry.test.mjs assert continuité de la polyligne",
+      "couvre": [
+        "pathCells"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/geometry.test.mjs + tests/movement.test.mjs + tests/render.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'entree scelle(s) tests/combat.test.mjs + tests/geometry.test.mjs (volet [1/6], exit 0). Modules portes au gate mutation du driver (166 mutants, 160 tues, 6 survivants tous tries — voir R51)."
+    },
+    {
+      "feature": "R2 Cases constructibles",
+      "fonction": "isBuildable",
+      "fichiers": [
+        "config/geometry.mjs"
+      ],
+      "preuve": "tests/geometry.test.mjs — toute case hors-chemin constructible, une seule tour par case (grille 20x12)",
+      "couvre": [
+        "isBuildable"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/geometry.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'entree scelle(s) tests/geometry.test.mjs (volet [1/6], exit 0). Modules portes au gate mutation du driver (166 mutants, 160 tues, 6 survivants tous tries — voir R51)."
+    },
+    {
+      "feature": "R3 Epingle triple couverture",
+      "fonction": "tripleCoverageCells",
+      "fichiers": [
+        "config/geometry.mjs"
+      ],
+      "preuve": "tests/geometry.test.mjs — nombre de cases voyant >=3 segments === 6 (egalite stricte)",
+      "couvre": [
+        "capacity1",
+        "capacity2",
+        "capacity3"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/geometry.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'entree scelle(s) tests/geometry.test.mjs (volet [1/6], exit 0). Modules portes au gate mutation du driver (166 mutants, 160 tues, 6 survivants tous tries — voir R51)."
+    },
+    {
+      "feature": "R4 Decision spatiale",
+      "fonction": "acquireTarget",
+      "fichiers": [
+        "sim/targeting.mjs"
+      ],
+      "preuve": "(aucun test dedie sur disque — voir statut) — deux parcs identiques differant seulement par le placement divergent strictement sur fuites et vies finales",
+      "couvre": [
+        "acquireTarget"
+      ],
+      "version": 1,
+      "statut": "NON COUVERT — aucun test ne porte le tag R4 sur disque (mesure: grep des tags R<n> sur tests/*.mjs, 2026-08-29). L'experience CONTROLEE que R4 enonce (deux parcs IDENTIQUES ne differant QUE par le placement, divergence stricte sur fuites et vies finales) n'existe pas. Le plus proche mesure autre chose : tests/solvability.test.mjs R24/R27 fait diverger des parcs de TYPES differents (tall DEFEAT lives=0 vs wide VICTORY lives=9, proofs/solvability-evidence.json). sim/targeting.mjs est bien dans le perimetre du gate mutation. Ecart remonte HumanGate, non comble (tests/** hors perimetre de ce dispatch)."
+    },
+    {
+      "feature": "R5 Statistiques Gun",
+      "fonction": "towerStats",
+      "fichiers": [
+        "config/towers.mjs"
+      ],
+      "preuve": "tests/towers.test.mjs — table figee: cout 50, degats 6, cadence 2.0/s, portee 2.5, percee 0 (egalites)",
+      "couvre": [
+        "towerStats"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/towers.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'entree scelle(s) tests/towers.test.mjs (volet [1/6], exit 0). Modules portes au gate mutation du driver (166 mutants, 160 tues, 6 survivants tous tries — voir R51)."
+    },
+    {
+      "feature": "R6 Gun face a l'armure",
+      "fonction": "applyDamage",
+      "fichiers": [
+        "sim/combat.mjs"
+      ],
+      "preuve": "tests/combat.test.mjs — Gun L1 sur Brute (armure 4) retire exactement 2 PV",
+      "couvre": [
+        "applyDamage"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/combat.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'entree scelle(s) tests/combat.test.mjs (volet [1/6], exit 0). Modules portes au gate mutation du driver (166 mutants, 160 tues, 6 survivants tous tries — voir R51)."
+    },
+    {
+      "feature": "R7 Ralentissement Frost",
+      "fonction": "effectiveSpeed",
+      "fichiers": [
+        "sim/movement.mjs"
+      ],
+      "preuve": "tests/combat.test.mjs + tests/movement.test.mjs + tests/step.test.mjs — ennemi 2.2 cases/s sous Frost avance exactement 1.21 cases/s (epsilon nomme)",
+      "couvre": [
+        "effectiveSpeed"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/combat.test.mjs + tests/movement.test.mjs + tests/step.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'entree scelle(s) tests/combat.test.mjs (volet [1/6], exit 0). Modules portes au gate mutation du driver (166 mutants, 160 tues, 6 survivants tous tries — voir R51)."
+    },
+    {
+      "feature": "R8 Valeur du Frost",
+      "fonction": "applyFrostSlow",
+      "fichiers": [
+        "sim/combat.mjs"
+      ],
+      "preuve": "(aucun test dedie sur disque — voir statut) — meme parc Gun avec vs sans Frost a l'epingle: totaux de fuites strictement differents sur V6",
+      "couvre": [
+        "applyFrostSlow"
+      ],
+      "version": 1,
+      "statut": "NON COUVERT — aucun test ne porte le tag R8 sur disque (mesure: grep des tags, 2026-08-29). L'experience que R8 enonce (meme parc Gun AVEC vs SANS Frost a l'epingle, totaux de fuites strictement differents sur V6) n'existe pas. Ce qui EST mesure : l'effet Frost lui-meme (R7, tests/combat.test.mjs + step.test.mjs, verts) et sa falsification (tests/falsification.test.mjs R7xR52) — l'effet est prouve, sa VALEUR strategique ne l'est pas. Ecart remonte HumanGate, non comble (tests/** hors perimetre de ce dispatch)."
+    },
+    {
+      "feature": "R9 Statistiques Cannon",
+      "fonction": "towerStats",
+      "fichiers": [
+        "config/towers.mjs"
+      ],
+      "preuve": "tests/towers.test.mjs — table figee: cout 100, degats 22, cadence 0.5/s, portee 3.0, splash 1.2, percee 0 (egalites)",
+      "couvre": [
+        "towerStats"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/towers.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'entree scelle(s) tests/towers.test.mjs (volet [1/6], exit 0). Modules portes au gate mutation du driver (166 mutants, 160 tues, 6 survivants tous tries — voir R51)."
+    },
+    {
+      "feature": "R10 Splash Cannon",
+      "fonction": "applySplashDamage",
+      "fichiers": [
+        "sim/combat.mjs"
+      ],
+      "preuve": "tests/combat.test.mjs — tir Cannon touchant 4 Grunts groupes retire exactement 22 PV a chacun (comptage exact des cibles)",
+      "couvre": [
+        "applySplashDamage"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/combat.test.mjs + tests/step.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'entree scelle(s) tests/combat.test.mjs (volet [1/6], exit 0). Modules portes au gate mutation du driver (166 mutants, 160 tues, 6 survivants tous tries — voir R51)."
+    },
+    {
+      "feature": "R11 Cannon face a l'armure",
+      "fonction": "applyDamage",
+      "fichiers": [
+        "sim/combat.mjs"
+      ],
+      "preuve": "tests/combat.test.mjs — tir Cannon sur Brute retire exactement 18 PV (22-4)",
+      "couvre": [
+        "applyDamage"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/combat.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'entree scelle(s) tests/combat.test.mjs (volet [1/6], exit 0). Modules portes au gate mutation du driver (166 mutants, 160 tues, 6 survivants tous tries — voir R51)."
+    },
+    {
+      "feature": "R12 Ciblage first",
+      "fonction": "acquireTarget",
+      "fichiers": [
+        "sim/targeting.mjs"
+      ],
+      "preuve": "tests/targeting.test.mjs — cible vivante la plus avancee dans le rayon, departage d'egalite deterministe et rejouable",
+      "couvre": [
+        "acquireTarget"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/combat.test.mjs + tests/targeting.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'entree scelle(s) tests/combat.test.mjs (volet [1/6], exit 0). Modules portes au gate mutation du driver (166 mutants, 160 tues, 6 survivants tous tries — voir R51)."
+    },
+    {
+      "feature": "R13 Grunt etalon",
+      "fonction": "killEnemy",
+      "fichiers": [
+        "sim/combat.mjs"
+      ],
+      "preuve": "tests/economy.test.mjs — tuer un Grunt: or G->G+8 exact et compteur vivants n->n-1 exact",
+      "couvre": [
+        "killEnemy"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/combat.test.mjs + tests/step.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'entree scelle(s) tests/combat.test.mjs (volet [1/6], exit 0). Modules portes au gate mutation du driver (166 mutants, 160 tues, 6 survivants tous tries — voir R51)."
+    },
+    {
+      "feature": "R14 Runner punit la lenteur",
+      "fonction": "resolveCombat",
+      "fichiers": [
+        "sim/combat.mjs"
+      ],
+      "preuve": "tests/combat.test.mjs + tests/step.test.mjs — sur V6 un parc Cannon-only laisse fuir un nombre exact non nul de Runners, Gun+Frost au meme budget en laisse fuir 0",
+      "couvre": [
+        "resolveCombat"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/combat.test.mjs + tests/step.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'entree scelle(s) tests/combat.test.mjs (volet [1/6], exit 0). Modules portes au gate mutation du driver (166 mutants, 160 tues, 6 survivants tous tries — voir R51)."
+    },
+    {
+      "feature": "R15 Armure Brute",
+      "fonction": "applyDamage",
+      "fichiers": [
+        "sim/combat.mjs"
+      ],
+      "preuve": "tests/combat.test.mjs — table doree: soustraction plate, plancher 1 ; Gun L1->2, Gun L3 percee3->valeur figee, Cannon L1->18",
+      "couvre": [
+        "applyDamage"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/combat.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'entree scelle(s) tests/combat.test.mjs (volet [1/6], exit 0). Modules portes au gate mutation du driver (166 mutants, 160 tues, 6 survivants tous tries — voir R51)."
+    },
+    {
+      "feature": "R16 Cout de fuite Brute",
+      "fonction": "processLeak",
+      "fichiers": [
+        "sim/movement.mjs"
+      ],
+      "preuve": "tests/movement.test.mjs + tests/step.test.mjs + tests/waves.test.mjs — une fuite de Brute fait passer les vies L->L-5 exactement",
+      "couvre": [
+        "processLeak"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/movement.test.mjs + tests/step.test.mjs + tests/waves.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'entree scelle(s) tests/combat.test.mjs + tests/towers.test.mjs (volet [1/6], exit 0). Modules portes au gate mutation du driver (166 mutants, 160 tues, 6 survivants tous tries — voir R51)."
+    },
+    {
+      "feature": "R17 Bounty par kill",
+      "fonction": "awardBounty",
+      "fichiers": [
+        "sim/economy.mjs"
+      ],
+      "preuve": "tests/economy.test.mjs — bounty verse exactement a la mort: 8 Grunt / 6 Runner / 25 Brute",
+      "couvre": [
+        "awardBounty"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/economy.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'entree scelle(s) tests/combat.test.mjs (volet [1/6], exit 0). Modules portes au gate mutation du driver (166 mutants, 160 tues, 6 survivants tous tries — voir R51)."
+    },
+    {
+      "feature": "R18 Bonus de fin de vague",
+      "fonction": "waveClearBonus",
+      "fichiers": [
+        "sim/economy.mjs"
+      ],
+      "preuve": "tests/economy.test.mjs — bonus = 20 + 5 x numero_de_vague, egalite exacte a chaque nettoyage",
+      "couvre": [
+        "waveClearBonus"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/economy.test.mjs + tests/step.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'entree scelle(s) tests/combat.test.mjs (volet [1/6], exit 0). Modules portes au gate mutation du driver (166 mutants, 160 tues, 6 survivants tous tries — voir R51)."
+    },
+    {
+      "feature": "R19 Bonus d'appel anticipe",
+      "fonction": "earlyCallBonus",
+      "fichiers": [
+        "sim/economy.mjs"
+      ],
+      "preuve": "tests/economy.test.mjs — 2 or x secondes restantes, plafond 30 ; deux bots differant sur cet usage ont un or cumule strictement different a V5",
+      "couvre": [
+        "earlyCallBonus"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/economy.test.mjs + tests/waves_phase.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'entree scelle(s) tests/combat.test.mjs (volet [1/6], exit 0). Modules portes au gate mutation du driver (166 mutants, 160 tues, 6 survivants tous tries — voir R51)."
+    },
+    {
+      "feature": "R20 Invariant comptable de l'or",
+      "fonction": "applyGoldDelta",
+      "fichiers": [
+        "sim/economy.mjs"
+      ],
+      "preuve": "tests/economy.test.mjs — a chaque tick or == 100 + Sum(bounties) + Sum(bonus_vague) + Sum(bonus_anticipation) - Sum(depenses), egalite exacte",
+      "couvre": [
+        "applyGoldDelta"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/economy.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'entree scelle(s) tests/combat.test.mjs (volet [1/6], exit 0). Modules portes au gate mutation du driver (166 mutants, 160 tues, 6 survivants tous tries — voir R51)."
+    },
+    {
+      "feature": "R21 Couts d'upgrade",
+      "fonction": "upgradeCost",
+      "fichiers": [
+        "config/upgrades.mjs"
+      ],
+      "preuve": "tests/upgrades.test.mjs — L2=0.8x base, L3=1.6x base ; Gun L3 total = 50+40+80 = 170",
+      "couvre": [
+        "upgradeCost"
+      ],
+      "version": 1,
+      "statut": "VERT — tests/towers.test.mjs + tests/upgrades.test.mjs, execute(s) par run-oracle.mjs 2026-08-29 (verdict PASS, exit 0, proofs/oracle-evidence.json) via le(s) point(s) d'
+[tronqué]
+
+## PRÉ-MORTEM (erreurs des runs passés)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [s9-build] échec d'une tentative précédente à s9-build → ✅ RÉPARÉ: réparé à la tentative 5 (tier sonnet)
+- [s10a-oracle-code] returncode=0; e2e non passé; solvability non passé; mutation=FAIL
+- [s10c-oracle-wiremap] FAIL
+- [s9-build] exécuteur LLM en échec à s9-build: claude -p returncode=1: 
+- [s9-build] exécuteur LLM en échec à s9-build: claude -p timeout (3600s) — arbre de process tué (FIR-01), coût borné — ARTEFACTS SALVAGEABLES sur disque (run-oracle.mjs, e2e.mjs, solvability.mjs), consignés dans salvage_s9-build.json : à RE-JUGER (reprise/oracle sur la sortie produite), PAS BLOCKED sec (FIR-02)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [manifest-270d7864e35c6231] echec de la tentative 6 a s9-build — cause: returncode=0; e2e non passé; solvability non passé; mutation=FAIL (volets rouges: e2e, harness_no_hardcoded_flags, reuse_ratio_wired, runtime_alive, solvability) -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-01ec5d40e462bd28] proofs/e2e.mjs defines runE2ETest() but never invokes it, so run-oracle.mjs's E2E gate has always silently passed without opening a real browser page — cause: missing top-level call to runE2ETest() in proofs/e2e.mjs — a module-load-only script that exits 0 by default -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-91317b4dabe432ce] proofs/e2e.mjs ne passe pas --allow-file-access-from-files et n'appelle jamais runE2ETest() — le gate E2E de run-oracle.mjs a toujours été un PASS silencieux sans jamais ouvrir la page — cause: fonction async définie mais jamais invoquée, combiné à l'absence du flag Chromium requis pour charger des modules ES depuis file:// -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-d57fe6fe2aa587ab] echec de la tentative 5 a s9-build — cause: returncode=0; e2e non passé; solvability non passé; mutation=FAIL (volets rouges: e2e, harness_no_hardcoded_flags, reuse_ratio_wired, runtime_alive, solvability) -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-f1f3017de807719f] echec de la tentative 4 a s9-build — cause: returncode=0; e2e non passé; solvability non passé; mutation=FAIL (volets rouges: e2e, harness_no_hardcoded_flags, reuse_ratio_wired, runtime_alive, solvability) -- GENERATION_DIFFERENTE_A_REEXAMINER
+
+FORGE_DISPATCH:s11-redteam-code:tower_defense_sonde-20260829-build:1

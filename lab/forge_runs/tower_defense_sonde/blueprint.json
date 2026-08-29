@@ -1,0 +1,251 @@
+{
+ "modules": [
+  "index.html",
+  "main.mjs",
+  "config",
+  "sim",
+  "actions",
+  "render",
+  "input",
+  "bots",
+  "tests"
+ ],
+ "deps_interdites": [
+  [
+   "sim",
+   "render"
+  ],
+  [
+   "sim",
+   "input"
+  ],
+  [
+   "actions",
+   "render"
+  ],
+  [
+   "actions",
+   "input"
+  ],
+  [
+   "config",
+   "sim"
+  ],
+  [
+   "config",
+   "actions"
+  ],
+  [
+   "config",
+   "render"
+  ],
+  [
+   "config",
+   "input"
+  ],
+  [
+   "input",
+   "sim"
+  ],
+  [
+   "input",
+   "render"
+  ],
+  [
+   "render",
+   "actions"
+  ],
+  [
+   "render",
+   "input"
+  ],
+  [
+   "bots",
+   "render"
+  ],
+  [
+   "bots",
+   "input"
+  ],
+  [
+   "sim",
+   "main.mjs"
+  ],
+  [
+   "actions",
+   "main.mjs"
+  ]
+ ],
+ "ownership": {
+  "index.html": "shell-dom",
+  "main.mjs": "composition-root",
+  "config": "content-balance",
+  "sim": "simulation-core",
+  "actions": "intent-write-api",
+  "render": "canvas-view",
+  "input": "dom-input-adapter",
+  "bots": "headless-policies",
+  "tests": "proof-discipline"
+ },
+ "responsabilites": [
+  {
+   "module": "config",
+   "responsabilite": "Tables figees et donnees pures : geometrie (grille 20x12, chemin en epingle code en dur, cases constructibles), stats tours/ennemis, calendrier 10 vagues a composition fixe sans scaling, tables de cout d'upgrade. Aucun comportement.",
+   "couvre": [
+    "FEAT-MAP-GEO",
+    "FEAT-UP-COSTS",
+    "FEAT-WAVE-CAL"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "node --test STRICT sur les donnees figees : exactement 6 cases voient >=3 segments de chemin (R3, egalite), toute case hors-chemin constructible (R2), cout L2=0.8x/L3=1.6x base avec Gun L3 total=170 (R21), composition V1..V10 fixe et PV Grunt V10==40==V1 sans scaling (R25/R26) verifies a l'egalite."
+   }
+  },
+  {
+   "module": "sim",
+   "responsabilite": "Noyau de simulation deterministe pur (DOM-free) : rng seede porte dans l'etat, step(state,dt) a pas fixe, mouvement le long du chemin, ciblage 'first', combat avec armure plate/plancher, economie a trois robinets, machine de vagues (preparation/spawn/tempo), effets d'upgrade et capacites L3, conditions de fin, hash d'etat.",
+   "couvre": [
+    "FEAT-MAP-SPATIAL",
+    "FEAT-GUN",
+    "FEAT-FROST",
+    "FEAT-CANNON",
+    "FEAT-TARGETING",
+    "FEAT-GRUNT",
+    "FEAT-RUNNER",
+    "FEAT-BRUTE",
+    "FEAT-ECO-SOURCES",
+    "FEAT-ECO-INVARIANT",
+    "FEAT-UP-CAPS",
+    "FEAT-WAVE-PHASE",
+    "FEAT-TICK",
+    "FEAT-END"
+   ],
+   "dependances": [
+    "config"
+   ],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "node --test STRICT sur le noyau pur : Gun L1 sur Brute retire exactement 2 PV et Cannon 18 PV, Frost fait passer 2.2 a exactement 1.21 cases/s (epsilon nomme), splash touche 4 cibles a 22 PV chacune, ciblage 'first' deterministe, invariant comptable de l'or a chaque tick, hash d'etat STRICTEMENT egal sur 2 executions de la meme seed (R32), et grep AST prouvant zero Math.random/Date.now/performance.now (R33)."
+   }
+  },
+  {
+   "module": "actions",
+   "responsabilite": "API d'ecriture UNIQUE de l'etat : valide puis applique chaque intent joueur (selectionner/poser/upgrader une tour, appeler la vague, restart) et refuse en un seul point toute action invalide en laissant l'etat inchange.",
+   "couvre": [
+    "FEAT-PLAYER-ACTIONS",
+    "FEAT-INVALID"
+   ],
+   "dependances": [
+    "config",
+    "sim"
+   ],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "node --test STRICT : chaque intent applique une mutation exacte (l'or diminue du cout exact a la pose) ; chaque action invalide (pose sur chemin, case occupee, or insuffisant, upgrade d'une tour L3, appel pendant une vague) laisse l'etat STRICTEMENT egal avant/apres (R41), zero exception levee."
+   }
+  },
+  {
+   "module": "render",
+   "responsabilite": "Rendu canvas 2D en lecture seule : dessine la map, les tours, les ennemis avec barres de vie, les projectiles, les effets Frost/Cannon et l'overlay de fin a partir de l'etat, sans jamais le muter.",
+   "couvre": [
+    "FEAT-VISUAL"
+   ],
+   "dependances": [
+    "config",
+    "sim"
+   ],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "Captures d'un rendu navigateur REEL de la page finale (une partie VICTORY et une DEFEAT) : ennemi suivable de l'entree a la sortie, projectile puis barre de vie qui raccourcit a l'impact, ennemi Frost visiblement recolore et ralenti, tir Cannon raccourcissant plusieurs barres au meme instant, #overlay VICTORY/DEFEAT visible ; jamais un rendu de fixture ou de composant isole."
+   }
+  },
+  {
+   "module": "input",
+   "responsabilite": "Adaptateur DOM->intent : traduit clics canvas (pixel->case) et boutons en appels a l'API actions, sans jamais poker le noyau sim directement.",
+   "couvre": [
+    "FEAT-PLAYER-ACTIONS",
+    "FEAT-WAVE-PHASE",
+    "FEAT-END"
+   ],
+   "dependances": [
+    "config",
+    "actions"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot pilote une partie par le DOM SEUL : #btn-gun/#btn-frost/#btn-cannon, clic sur une case libre du canvas, #btn-upgrade, #btn-call-wave (interrompt le decompte, R29) et #restart, sans aucun appel de fonction JS interne."
+   }
+  },
+  {
+   "module": "bots",
+   "responsabilite": "Politiques scriptees headless pilotant l'API actions sur le noyau pur : bot competent, bot naif, et panel tall/wide/mixte/tempo, servant d'instrument aux preuves de solvabilite et de variance des metriques.",
+   "couvre": [
+    "FEAT-METRIC",
+    "FEAT-END"
+   ],
+   "dependances": [
+    "config",
+    "sim",
+    "actions"
+   ],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "Execution scriptee seed 1337 sans LLM : le bot competent atteint result=='VICTORY' avec lives>0 exact fige (R34), le bot naif atteint result=='DEFEAT' avec lives==0 avant la vague 10 (R35) ; le panel emet des vecteurs de resultat (lives_final, wave_reached, leaks_total, gold_spent) portant >=2 valeurs distinctes non triviales par metrique (regle de variance Pierre 2026-07-21)."
+   }
+  },
+  {
+   "module": "tests",
+   "responsabilite": "Discipline de preuve : suite node --test a assertions strictes sur les modules logiques, tests jumeaux de falsification, harnais de mutation, et verification que chaque recu porte un evidence_path pointant un artefact reellement ecrit.",
+   "couvre": [
+    "FEAT-TEST-RIGOR",
+    "FEAT-EVIDENCE",
+    "FEAT-METRIC"
+   ],
+   "dependances": [
+    "config",
+    "sim",
+    "actions",
+    "bots"
+   ],
+   "preuve_attendue": {
+    "kind": "mutation",
+    "statement": "La suite node --test est soumise a mutation sur les modules logiques : score de survivants rapporte avec denominateur exact, tout mutant inversant une condition de mort/fuite/depense d'or DOIT etre tue (R51) ; chaque test de comportement possede son jumeau de falsification (R52) et tout recu porte un evidence_path verifiable (R53)."
+   }
+  },
+  {
+   "module": "main.mjs",
+   "responsabilite": "Racine de composition : boucle rAF qui accumule le temps reel et n'avance sim.step QUE par pas fixe TICK_MS (frontiere temps-reel->pas-fixe), cable render+input, et expose window.__game en lecture seule.",
+   "couvre": [
+    "FEAT-STATE-READ",
+    "FEAT-TICK"
+   ],
+   "dependances": [
+    "config",
+    "sim",
+    "actions",
+    "render",
+    "input"
+   ],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "Playwright evaluate lit window.__game (tick, seed, phase, wave, gold, lives, towers[], enemies[], leaks, result) SANS appel de fonction, aucun setter ni triche expose (R40) ; l'avance sim ne se produit que par increments TICK_MS et jamais par le delta variable (R31, frontiere assuree par la racine de composition)."
+   }
+  },
+  {
+   "module": "index.html",
+   "responsabilite": "Page unique : structure DOM (canvas 640x384, boutons de tour/upgrade/appel-vague, #overlay, #restart) que input et render consomment, boot de main.mjs, zero dependance externe/CDN/reseau, ouvrable en file://.",
+   "couvre": [
+    "FEAT-VISUAL",
+    "FEAT-PLAYER-ACTIONS"
+   ],
+   "dependances": [
+    "main.mjs"
+   ],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "La page unique ouverte en file:// affiche le canvas 640x384, les boutons #btn-gun/#btn-frost/#btn-cannon/#btn-upgrade/#btn-call-wave, #overlay et #restart, sans aucune requete reseau ni CDN ; les ancrages DOM que input et render referencent sont tous presents au boot."
+   }
+  }
+ ]
+}

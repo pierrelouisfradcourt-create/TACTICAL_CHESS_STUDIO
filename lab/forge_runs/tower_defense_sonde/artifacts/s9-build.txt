@@ -1,0 +1,98 @@
+# RAPPORT FINAL — s9-build (reprise de constat)
+
+## 1. Oracle code — exécuté
+
+`node run-oracle.mjs` (cwd `games/tower_defense_sonde`, résolu par `scripts/forge/oracles.json`) → **exit 0, verdict PASS**, 6 volets, evidence `proofs/oracle-evidence.json` (2026-08-29 17:58, re-exécuté en fin de tâche).
+
+| Volet | Mesure réelle |
+|---|---|
+| [1/6] suites unitaires | 4 racines scellées, 156 tests, 0 fail (24+16+67+49) |
+| [2/6] purity | grep AST exit 2 = aucune occurrence `Math.random/Date.now/performance.now/rAF` |
+| [3/6] solvabilité | `solvability.mjs` exit 0 — 5 bots, variance réelle, **inversion de classement** (`lives_final` : competent > tempo > wide > naive > tall ; `leaks_total` : tall > naive > wide > tempo > competent) |
+| [4/6] E2E | `e2e.mjs` exit 0 — **34 checks / 34 satisfaits**, Chromium réel |
+| [5/6] discipline de preuve | `lint_assertions.mjs` exit 0 (**0** assertion tautologique) ; `tests/evidence.mjs` exit 0 |
+| [6/6] reuse + mutation | reuse mesuré non gaté ; mutation déléguée au driver |
+
+**Rien réécrit** dans le code du jeu. Aucun fichier de `games/tower_defense_sonde/` modifié (empreinte SHA-256 des 20 modules + 4 tests + harnais identique avant/après la campagne de mutation → aucun fichier laissé muté).
+
+## 2. Volet mutation — re-mesuré, aucun survivant à tuer
+
+Le reçu scellé `lab/forge_runs/.../evidence/mutation_*.json` était **périmé** (5 fichiers modifiés sur disque après le sceau : `main.mjs`, `render/render.mjs`, `sim/combat.mjs`, `sim/step.mjs`, `tests/combat.test.mjs`). Je l'ai donc re-mesuré sur l'état courant, même périmètre (`mutation_scope_from_wiremap`, 20 modules) et même argv scellé :
+
+```
+total=166  killed=160  survived=6  baseline_ok=true
+gate.passed=true  survivants_non_tries=[]  triage_perimes=[]  gate.exception=true
+```
+
+Les 6 survivants sont **exactement** ceux déjà triés dans `mutation_triage.json` (`ge->gt@L65`, `le->lt@L37`, `le->lt@L38`, `and->or@L38`, `false->true@L13`, `or->and@L11`), chacun justifié équivalent avec preuve mécanique. **Zéro survivant non justifié ⇒ rien à tuer, aucun test écrit, aucun oracle affaibli.**
+
+## 3. WireMap — colonnes mises à jour
+
+`lab/forge_runs/tower_defense_sonde/wiremap.json` (55 features). `wiremap_frozen.json` **non touché** (mtime inchangé).
+
+- **`fichiers`** : vérifiée, 0 correction — les 55 features citent des fichiers qui existent tous.
+- **`preuve`** : **20 corrections**. La colonne citait 20 fichiers de test qui n'existent pas (`tests/frost.test.mjs`, `tests/tick.test.mjs`, `tests/variance.test.mjs`, `tests/determinism.test.mjs`…). Chaque citation morte est repointée sur le fichier qui porte réellement le tag (mesure : grep des tags `R<n>` sur `tests/*.mjs`), ou marquée explicitement « aucun test dédié sur disque » quand il n'y en a pas.
+- **`version`** : 1 sur les 55 (aucune seconde génération d'implémentation documentée ; je n'invente pas de bump).
+- **`statut`** : 55/55 renseignés (contre 7 avant), chacun citant le volet ou le reçu qui l'appuie. Deux statuts antérieurs étaient **périmés et contredits par la mesure** — corrigés : R50 annonçait « 11 violations, FAIL exit 1 » (mesuré ce jour : 0, exit 0) ; R51 annonçait « 14/36 tués, 39%, FAIL » (c'était le harnais local 8 modules, pas le gate driver : 160/166 avec 6 triés).
+
+**3 écarts réels consignés au statut, non comblés** (hors périmètre — `tests/**` interdit à ce contrat) :
+- **R4** et **R8** : `NON COUVERT`. Aucun test ne porte ces tags. R4 (deux parcs identiques ne différant *que* par le placement) et R8 (même parc Gun avec vs sans Frost) sont des expériences contrôlées absentes. Ce qui existe mesure autre chose (R24/R27 font diverger des parcs de *types* différents).
+- **R52 / R54 / R55** : harnais `falsification.test.mjs`, `visual_capture.mjs`, `console.test.mjs` présents sur disque mais **importés par aucune des 4 racines scellées** ⇒ non exécutés par l'oracle. La substance de R55 est néanmoins couverte à chaque oracle par le check console de `e2e.mjs`.
+
+Note fermée au passage : la « coquille silencieuse » de `proofs/e2e.mjs` (pré-mortem, 3 occurrences) est bien **fermée** — `e2e.mjs` vit à la racine, est invoqué par le volet [4/6] et pilote un vrai navigateur.
+
+## 4. Reçu reuse_ratio
+
+`node scripts/forge/reuse_ratio.mjs games/tower_defense_sonde` → exit 0.
+`reuse_ratio = 0 / (27 + 0) = 0.000` · `cross_game_reuse = 0 / (27 + 0) = 0.000`.
+`reuse_ratio.mjs` **n'écrit pas de fichier d'évidence propre** (aucune écriture dans le script) ; sa sortie est captée et scellée dans le volet [6/6] de `proofs/oracle-evidence.json`.
+**evidence_path** : `C:\TACTICAL_CHESS_STUDIO\games\tower_defense_sonde\proofs\oracle-evidence.json`
+
+## 5. Fichiers touchés vs ownership
+
+| Fichier écrit | Autorisé |
+|---|---|
+| `lab/forge_runs/tower_defense_sonde/wiremap.json` | ✅ WireMap (in_scope explicite) |
+
+**Aucun autre fichier écrit.** Aucun fichier de `games/tower_defense_sonde/` modifié, aucun `tests/**` touché, `wiremap_frozen.json` intact, **aucun commit**.
+
+## 6. Requêtes SEARCH (§2bis)
+
+**Aucune** — tâche de constat et de mise à jour de colonnes, zéro pièce de logique réutilisable écrite. `knowledge_base/search.mjs` non consulté, sans objet.
+
+---
+
+```
+software_verdict: OK
+evidence_verdict: MECHANICAL_VALIDATION_ONLY
+claim_verdict: NO_CLAIM_ALLOWED
+```
+
+`software_verdict: OK` s'appuie sur : `run-oracle.mjs` exit 0 / verdict PASS (6 volets, `proofs/oracle-evidence.json`) et le gate mutation `forge.mutation_proof` re-mesuré `gate.passed=true, survivants_non_tries=[]`. Il porte sur la **conformité mécanique**, pas sur la qualité de jeu — `gate.exception=true` (6 survivants triés) reste une exception tracée que le verdict doit propager à HumanGate.
+
+## SKIPPED_VALIDATION
+
+| Item | Périmètre | Statut | Raison |
+|---|---|---|---|
+| Test dédié R4 (divergence par placement seul) | `sim/targeting.mjs`, `tests/**` | non fait | `tests/**` interdit au contrat ; la tâche borne à « tuer les survivants de mutation », il n'y en a aucun |
+| Test dédié R8 (valeur stratégique du Frost) | `sim/combat.mjs`, `tests/**` | non fait | idem |
+| Câblage de `falsification.test.mjs` / `console.test.mjs` / `visual_capture.mjs` dans l'oracle | `run-oracle.mjs` | non fait | modifier l'oracle sort de « ne réécris rien de ce qui est vert » ; risque d'affaiblissement non arbitrable ici |
+| `tests/meta.test.mjs` (preuve du linter) et `tests/evidence.test.mjs` (preuve du checker) | `tests/**` | absents | interdits au contrat, écart déjà consigné au statut R50/R53 |
+| Re-signature HMAC du reçu mutation périmé | `lab/forge_runs/.../evidence/` | non fait | l'émission du reçu signé appartient au driver (`emit_mutation_receipt`), pas au builder ; j'ai mesuré, pas scellé |
+| Vérification `git status` du périmètre | repo | refusée | permission Bash refusée ; contourné par comparaison d'empreintes SHA-256 (drift identique avant/après mutation) |
+
+---
+
+**RETURN LINEAGE**
+
+- `why_task_existed:`
+  - `problem:` sept tentatives antérieures de s9-build rendues rouges sur `e2e` / `solvability` / `mutation` ; l'état sur disque était devenu vert sans qu'un constat le certifie, et la WireMap décrivait encore un état d'échec.
+  - `oracle:` `run-oracle.mjs` (volets e2e/solvability) et le gate `forge.mutation_proof` du driver, rouges aux tentatives 4, 5 et 6.
+  - `root_cause:` **non transmise** pour l'activation de cette reprise. Cause racine que j'ai *constatée* moi-même : le reçu mutation scellé était périmé (5 fichiers réécrits après le sceau), donc l'état de preuve du run ne correspondait plus au code livré.
+  - `action_reason:` seule une re-exécution réelle de l'oracle et une re-mesure de la mutation sur l'état courant peuvent distinguer « vert » de « vert au moment du sceau » ; la WireMap est le seul artefact où ce constat devient lisible.
+- `result:` oracle 6 volets vert (exit 0) ; mutation re-mesurée 166/160/6, tous triés, `gate.passed=true` ; WireMap à 55/55 statuts, 20 citations de preuve mortes corrigées, 3 écarts réels nommés (R4, R8, harnais non câblés). Aucun code de jeu modifié.
+- `proof:` `node run-oracle.mjs` → `=== ORACLE VERDICT: PASS ===` ; `run_mutation_for_game` + `check_mutation_gate` → `{"total":166,"killed":160,"survived":6,"baseline_ok":true,"gate":{"passed":true,"survivants_non_tries":[],"triage_perimes":[]}}` ; `node scripts/forge/reuse_ratio.mjs games/tower_defense_sonde` → `reuse_ratio = 0.000`.
+- `learning:` un reçu de mutation signé n'est une preuve que tant que son empreinte correspond au disque — le sceau ne périme pas bruyamment. Comparer `code_sha256` du reçu à `fingerprint()` du disque coûte quelques secondes et distingue « prouvé » de « prouvé avant la dernière édition ». Second constat : la colonne `preuve` d'une WireMap peut citer 20 fichiers inexistants tout en laissant l'oracle vert — la WireMap et l'oracle ne se contrôlent pas mutuellement.
+- `next_reason:` la chaîne causale du **build** est FERMÉE ici : rien de rouge, rien à réparer dans mon périmètre. Deux causes non résolues persistent en dehors : (a) R4 et R8 sont des exigences du charter sans aucune preuve sur disque — un jeu peut être vert à 6 volets avec deux règles non mesurées ; (b) trois harnais de preuve existent sans être exécutés par l'oracle. Les deux exigent `tests/**` ou `run-oracle.mjs`, interdits à ce contrat ⇒ **décision HumanGate**, pas une escalade de build.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le recu mutation signe du run etait perime : 5 fichiers (main.mjs, render/render.mjs, sim/combat.mjs, sim/step.mjs, tests/combat.test.mjs) ont ete reecrits apres le sceau, donc le recu ne couvrait plus le code livre. Par ailleurs 20 des 55 lignes de la WireMap citaient en colonne preuve des fichiers de test inexistants, et 2 exigences du charter (R4 divergence par placement, R8 valeur du Frost) n'ont aucun test sur disque.", "root_cause": "Rien ne compare l'empreinte code_sha256 d'un recu mutation a l'etat courant du disque : un sceau valide reste affiche comme preuve apres modification du code, sans peremption bruyante."}

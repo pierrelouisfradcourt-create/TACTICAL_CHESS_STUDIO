@@ -1,0 +1,251 @@
+Je n'ai pas d'outil d'écriture ni d'exécution dans ce dispatch (Read seul ; Bash désactivé). Je rends donc le rapport intégralement ici — le bloc JSON final est le canal lu par le parseur déterministe. L'impossibilité d'écrire `rapport_redteam_code.md` sur disque est consignée en `SKIPPED_VALIDATION`.
+
+---
+
+# rapport_redteam_code.md — Red-team CODE (aveuglé) · tower_defense_sonde
+
+Périmètre lu : `games/tower_defense_sonde/**` (21 modules de production + oracle + reçus), `lab/forge_runs/tower_defense_sonde/wiremap.json`, `scripts/forge/contracts/SCHEMA.md`. Aucune exécution : toutes les reproductions ci-dessous sont soit **statiques** (fichier:ligne + arithmétique vérifiable), soit **exécutables par un oracle non-LLM en aval** (script fourni). Le red-team critique ; il ne prouve pas.
+
+---
+
+## HIGH
+
+### H1 — Le volet `purity` de l'oracle est *fail-open*, et le reçu prouve qu'il n'a rien scanné
+**Angle** : intégrité de l'oracle · preuve factice.
+`run-oracle.mjs:64-75` lance `spawnSync('grep', …)` puis pose `purityGreen = purity.status !== 0`. GNU grep rend **0 = trouvé, 1 = rien trouvé, 2 = erreur**. Le code confond « rien trouvé » et « erreur » : toute panne du scan (grep absent du PATH sur ce poste Windows, motif ERE rejeté, dossier manquant) est comptée **PASS**. Le champ `executed: true` est en outre écrit **en dur** (`run-oracle.mjs:74`), et `stderr` est jeté (`String(purity.stdout || '')`, ligne 74), donc le message d'erreur disparaît.
+Ce n'est pas hypothétique : `proofs/oracle-evidence.json:60` enregistre `"exit_code": 2` avec `"green": true` et `"output_tail": ""`. **Le scan a échoué et a été compté vert.** R33 (RNG déterministe) n'a pas d'autre preuve que ce volet — son statut VERT au wiremap repose sur une mesure qui n'a pas eu lieu.
+
+**Reproduction** : statique — `run-oracle.mjs:69` vs `proofs/oracle-evidence.json:55-64`. Exécutable : `grep -r -E "^[^/]*(Math\.random|Date\.now)\(" sim/ actions/ config/ bots/ ; echo $?` depuis `games/tower_defense_sonde` → si ≠ 1, le volet ne mesure rien. Contre-épreuve : insérer `const x = Math.random();` dans `sim/step.mjs`, relancer `node run-oracle.mjs` → le volet purity reste vert tant que grep sort en 2.
+
+### H2 — R13 / R14 / R16 / R27 nomment des fonctions que le jeu livré n'appelle jamais
+**Angle** : zone morte · preuve qui ne traverse pas la frontière.
+Le wiremap déclare VERT : R14/R27 `fonction: resolveCombat`, R13 `fonction: killEnemy` (`sim/combat.mjs`), R16 `fonction: processLeak` (`sim/movement.mjs`). Or le chemin de production (`index.html` → `main.mjs` → `sim/step.mjs`) n'importe aucune des trois :
+- `sim/step.mjs:1-7` importe `updateEnemyPosition` mais **pas** `processLeak` — et réimplémente la fuite en ligne (`step.mjs:33-38`).
+- `sim/step.mjs:2` importe `awardBounty, acquireTarget, applyDamage, …` mais **pas** `resolveCombat` ni `killEnemy` — et réimplémente le tir en ligne (`step.mjs:46-70`), version qui diverge du modèle testé (littéraux `'frost'`/`'cannon'` au lieu de `TOWER_TYPES`, garde `target.hp > 0` en plus, `awardBounty` appelé directement au lieu de `killEnemy`).
+Conséquence : `tests/combat.test.mjs` prouve un **second exemplaire** de la règle de combat, pendant que `solvability.mjs` et `e2e.mjs` exercent l'exemplaire livré. Deux implémentations de la même règle, dont la testée n'est pas l'expédiée.
+
+**Reproduction** : statique — `sim/step.mjs:1-2` (liste d'imports) vs `sim/combat.mjs:104,114` et `sim/movement.mjs:50`. Exécutable et décisive : remplacer le corps de `resolveCombat`, `killEnemy` et `processLeak` par `throw new Error('dead');`, puis `node solvability.mjs && node e2e.mjs` → **les deux sortent 0**. Un mutant qui détruit trois fonctions déclarées VERTES survit intégralement aux portes de solvabilité et E2E.
+
+### H3 — Le bouton Upgrade n'améliore que `towers[0]` : R39 est faux et la ligne gagnante « competent » n'est pas jouable
+**Angle** : écart contrat/code · la preuve de solvabilité ne franchit pas la frontière UI.
+`input/input.mjs:37-42` : `validateAndApply(state, { type: 'UPGRADE_TOWER', towerId: state.towers[0].id })` — commentaire assumé « Upgrade first selected tower (simplified) ». Il n'existe **aucun mécanisme de sélection de tour** dans le build : `actions/actions.mjs` ne porte que `selectedTowerType` (le *type* à poser), et le clic canvas envoie toujours `PLACE_TOWER` (`input.mjs:33`). R39 déclare pourtant « #btn-upgrade sur tour **sélectionnée** », statut VERT.
+Deux conséquences dures :
+1. Une seule tour de toute la partie peut monter en niveau ; dès que `towers[0]` atteint L3, `upgradeTower` rend `false` (`actions.mjs:38`) et le bouton est **définitivement inerte**.
+2. `bots/bots.mjs:17-24` (`upgradeAllGuns`) améliore **toutes** les tours par `tower.id`. La victoire prouvée par `solvability.mjs` pour `competent` (7 tours, montée L3, `lives_final: 11`) n'est donc **pas reproductible par un joueur via le DOM**. Seule la ligne `wide` (7 Gun L1, aucune amélioration) est exprimable à la souris.
+
+**Reproduction** : statique — `input/input.mjs:40` + absence de tout `selectedTowerId` dans `actions/actions.mjs` et `sim/state.mjs:5-24`. Exécutable dans le harnais E2E existant : poser un Gun en (1,1) puis un en (2,1), cliquer 6× `#btn-upgrade`, lire `window.__game.towers.map(t => t.level)` → attendu par R39 `[3,3]` ou `[1,3]`, obtenu `[3,1]`, puis invariant sous tout clic supplémentaire.
+
+### H4 — Un type de tour inconnu transforme l'or en NaN et désarme toutes les gardes de coût suivantes
+**Angle** : R41 (« refus d'action invalide, état strictement égal ») · R20 (invariant comptable).
+`config/towers.mjs:12-14` : `towerStats(type, 1)` fait `{ ...BASE[type] }`. Pour un type absent, `BASE[type]` vaut `undefined` et **le spread d'`undefined` ne lève pas** — il rend `{}`. Donc `cost === undefined`. Ensuite `actions/actions.mjs:26` : `if (state.gold < undefined)` → comparaison NaN → **false** → la garde ne se déclenche pas. Suivent `state.goldLedger.spend += undefined` (`:28`) et `state.gold -= undefined` (`:29`) : les deux deviennent `NaN`, la tour est poussée, et `placeTower` rend `true`.
+`validateAndApply` ne rattrape rien : aucune exception n'est levée, son `try/catch` (`actions.mjs:90-94`) reste inerte. Cascade : `state.gold` étant NaN, **toute** vérification ultérieure `state.gold < cost` est fausse → tous les achats deviennent gratuits ; `expectedGold(ledger)` est NaN, l'invariant R20 est irrécupérable ; `syncDom` affiche `NaN` (`main.mjs:19`). Même cascade sur `upgradeTower` avec un type inconnu (`config/upgrades.mjs:13-18` → `costs[toLevel]` = NaN).
+Non atteignable par le DOM d'aujourd'hui (`input.mjs` n'émet que `gun|frost|cannon`), mais atteignable par le point d'entrée que le code désigne lui-même comme « single validation/apply point for all player actions (R41) » — donc par les bots, les tests, et toute UI future. Le triage de mutation le confirme indirectement : `mutation_triage.json[4]` excuse un survivant en établissant que `selectTowerType` « retourne `true` inconditionnellement, aucune branche de refus » — la garde manquante est documentée comme équivalence.
+
+**Reproduction** (exécutable, déterministe) :
+```js
+import { initGameState } from './sim/state.mjs';
+import { validateAndApply } from './actions/actions.mjs';
+const s = initGameState(1337);
+const ok = validateAndApply(s, { type: 'PLACE_TOWER', x: 1, y: 1, towerType: 'BOGUS' });
+// attendu R41 : ok === false, s.gold === 100, s.towers.length === 0
+// obtenu     : ok === true,  s.gold === NaN, s.towers.length === 1
+validateAndApply(s, { type: 'PLACE_TOWER', x: 2, y: 2, towerType: 'cannon' }); // passe sans or
+```
+
+### H5 — `tests/evidence.mjs` bénit un reçu de mutation ROUGE et rend PASS quand les reçus sont absents
+**Angle** : preuve factice · assertion qui ne peut pas échouer.
+Trois défauts cumulés dans `tests/evidence.mjs` :
+1. **Reçu manquant = PASS silencieux.** `:50-53` — si le fichier n'existe pas : `console.log(SKIP)` puis `continue`, **sans toucher `allOk`**. Les trois reçus absents ⇒ `results: []`, `exitCode 0`. R53 promet « reçu sans evidence_path vérifiable ⇒ BLOCKED » ; l'absence totale de reçu est le seul cas qui passe.
+2. **Le contrôle est tautologique.** `assertEvidencePath` (`:27`) fait `existsSync(receipt.evidence_path)` sur un reçu obtenu par `readFileSync(file)` (`:54`), où `evidence_path` est par construction ce même chemin (`run-oracle.mjs:110-112`, `solvability.mjs:97`, `lint_assertions.mjs:92`). La branche d'échec est inatteignable : on vérifie que le fichier qu'on vient de lire existe.
+3. **Le verdict du reçu n'est jamais lu.** `proofs/mutation-harness-evidence.json` porte `"total": 36, "killed": 14` et 22 survivants dans `sim/combat.mjs`, `sim/movement.mjs`, `sim/economy.mjs` — un reçu **rouge à 39 %** — et `tests/evidence.mjs` le classe `OK` (`proofs/oracle-evidence.json:107`). Le volet [5/6] de l'oracle est donc vert *au-dessus* d'un artefact rouge.
+S'y ajoute un défaut d'ordre : `run-oracle.mjs` exécute `tests/evidence.mjs` au volet [5/6] (`:87`) mais n'écrit `proofs/oracle-evidence.json` qu'à la ligne `:112`. Le reçu validé est donc **toujours celui du run précédent**, jamais celui en cours ; au tout premier run il n'existe pas et le contrôle SKIP.
+
+**Reproduction** : statique — `tests/evidence.mjs:50-53` (`continue` sans `allOk = false`) ; `proofs/mutation-harness-evidence.json:3-4` (`total: 36`, `killed: 14`) confronté à `proofs/oracle-evidence.json:99-107` (`green: true`). Exécutable : renommer les trois `proofs/*.json` puis `node tests/evidence.mjs ; echo $?` → `0` attendu-faux.
+
+### H6 — R24 « Deux voies gagnantes » ne décrit aucun bot du panel ; Frost et Cannon n'ont aucune ligne gagnante
+**Angle** : écart contrat/code sur une feature VERTE.
+R24 (statut VERT, preuve annoncée `tests/solvability.test.mjs`) énonce : « bot **tall** (Gun L3 percée) et bot **wide** (Cannon L2 nombreux), même budget, **gagnent tous deux** ». Le code dit autre chose :
+- `bots/bots.mjs:69-76` — `botTall` construit **une** tour Gun L1 en `[3,3]` et ne l'améliore jamais ; son vecteur figé est `DEFEAT, lives_final: 0` (`solvability.mjs:25`). Il ne gagne pas et n'a pas de percée L3.
+- `bots/bots.mjs:80-90` — `botWide` construit **7 Gun L1**, zéro Cannon, zéro amélioration (`solvability.mjs:26`, `gold_spent_total: -350` = 7 × 50).
+- Aucun bot du panel ne construit de **Frost** (`grep "'frost'"` sur `bots/bots.mjs` : 0 appel `build`). Le seul Cannon du panel est celui de `botNaive`, dont la fonction est de **perdre**.
+Les « deux voies gagnantes » réellement mesurées sont donc *Gun en largeur* et *Gun en largeur + améliorations* — une seule famille de tour. R8 (Valeur du Frost) est déjà déclarée NON COUVERTE au wiremap ; le même trou existe côté Cannon (R9/R10/R23 splash L3) sans être signalé : ces mécaniques sont testées en isolation et n'ont **aucune preuve d'utilité stratégique**.
+
+**Reproduction** : statique — `bots/bots.mjs:69-90` vs `wiremap.json` feature R24 ; `solvability.mjs:22-28` (vecteurs figés : `tall: DEFEAT`). Exécutable : `node solvability.mjs` imprime `tall DEFEAT {...}` — contradiction directe avec le texte de preuve de R24.
+
+---
+
+## MEDIUM
+
+### M1 — Les ennemis sont dessinés à une demi-case du chemin ; leurs barres de vie sortent du canvas sur toute la voie d'entrée
+**Angle** : R42/R43/R1 (preuve visuelle).
+`render/render.mjs:26-27` dessine la polyligne du chemin aux **centres** de case : `(cell[0] + 0.5) * CELL_WIDTH`. `render/render.mjs:55-56` dessine l'ennemi au **coin** : `enemy.x * CELL_WIDTH`. Les tours, elles, sont au centre (`:36-37`). L'ennemi est donc décalé de (16 px, 16 px) par rapport à la ligne qu'il est censé suivre, avec `CELL = 32 px`.
+Pire : la voie d'entrée est toute la rangée `y = 0` (`PATH_GOLDEN`, 20 cases sur 47). Pour `y = 0` : centre du disque à `y = 0` (moitié hors cadre) et barre de vie à `fillRect(x-10, y-15, …)` soit **y = −15, entièrement hors canvas** (`render.mjs:70-72`). Sur les 20 premières cases du parcours — 43 % du chemin — la barre de vie que R43 désigne comme la preuve visible de l'impact n'est pas rendue.
+
+**Reproduction** : arithmétique statique — `render.mjs:26` (`+0.5`) vs `:55` (sans `+0.5`) ; `render.mjs:70` avec `y = 0` ⇒ `fillRect(x-10, -15, 20, 2)`. Exécutable : dans `tests/render.test.mjs`, un `ctx` espion sur un ennemi à `{x:19,y:0}` doit enregistrer un `fillRect` de `y` négatif. Ou capture navigateur (`tests/visual_capture.mjs`) au tick de spawn.
+
+### M2 — La boucle de rendu ignore l'horloge réelle : la vitesse de jeu suit la fréquence d'écran
+**Angle** : R31 « pas de simulation fixe ».
+`main.mjs:63-73` : `const loop = (currentTime) => { const dt = Math.min(50, TICK_MS); … }`. Le paramètre `currentTime` **n'est jamais lu**, et `dt` est la constante 16. L'accumulateur reçoit donc exactement un tick par *frame*, pas par 16 ms réelles. Ce n'est pas un pas fixe piloté par le temps : c'est `tick = frame`. Sur un écran 144 Hz la simulation tourne 2,4× plus vite qu'à 60 Hz ; en onglet d'arrière-plan (rAF throttlé) elle ralentit d'autant. R31 affirme « aucune dépendance au delta variable » — vrai par accident, en supprimant toute dépendance au temps.
+Défaut jumeau dans `sim/step.mjs:29` : la porte de spawn utilise `state.tick * TICK_MS` (constante de module) alors que le reste du tick honore `dt` — deux horloges incohérentes dans la même fonction.
+
+**Reproduction** : statique — `main.mjs:63` (`currentTime` inutilisé), `main.mjs:66` (`dt` constant). Exécutable : doubler `requestAnimationFrame` pour cadencer 60 puis 144 appels par seconde simulée et comparer `window.__game.tick` après 1 s ⇒ 60 vs 144. Sur `step` : `step(s,16); step(s,16)` vs `step(s,32)` divergent sur `e.spawnTime`-vs-position.
+
+### M3 — `spawnWave` produit des spawns simultanés et un ordre de groupes faux
+**Angle** : R25 · règle déclarée « Enemies spawn 200ms apart ».
+`sim/waves.mjs:46` : `const delay = (groupIdx * group.count + i) * spawnDelay;` — l'offset du groupe est multiplié par le `count` **du groupe courant**, pas par le cumul des groupes précédents. Sur la vague 6 (`config/waves.mjs:11` : 5 grunt, 4 runner, 1 brute) :
+- grunts : 0 · 0,2 · 0,4 · 0,6 · **0,8**
+- runners : (1×4+i)×0,2 = **0,8** · 1,0 · 1,2 · 1,4
+- brute : (2×1+0)×0,2 = **0,4** — le Brute apparaît en 3ᵉ position, avant trois grunts.
+Deux ennemis partagent l'instant 0,8 s, et le commentaire ligne 42 est démenti par la ligne 46. R25 ne teste que la *composition*, jamais l'ordonnancement : rien ne le voit.
+
+**Reproduction** (exécutable) :
+```js
+import { initGameState } from './sim/state.mjs';
+import { spawnWave } from './sim/waves.mjs';
+const s = initGameState(1337); s.wave = 6; spawnWave(s);
+const d = s.enemies.map(e => e.spawnDelay);
+// new Set(d).size === d.length  → attendu true, obtenu false (0.8 en double)
+// s.enemies.find(e => e.type === 'brute').spawnDelay === 0.4, pas le dernier
+```
+
+### M4 — R7 énonce 2,2 → 1,21 cases/s : aucune valeur atteignable avec la table d'ennemis livrée
+**Angle** : écart contrat/code sur une feature VERTE.
+`config/enemies.mjs:10-12` donne les seules vitesses du jeu : grunt 2.0, runner 2.8, brute 1.0. Le multiplicateur Frost L1/L2 est 0.55 (`config/upgrades.mjs:46`). **Aucune combinaison ne produit 2,2 → 1,21** ; le grunt ralenti fait 2.0 × 0.55 = **1.1**. Le commentaire `config/upgrades.mjs:43-44` répète pourtant le chiffre erroné (« R7: 2.2 cases/s -> exactly 1.21 cases/s »), tandis que le propre test de falsification du build écrit la bonne valeur : `tests/falsification.test.mjs:28-29` (« baseSpeed 2.0 », « slowedSpeed 1.1, exact »). Le contrat, le commentaire et le test se contredisent sur le même nombre — la table de vitesses a bougé sans que R7 suive.
+
+**Reproduction** : statique — `config/enemies.mjs:10-12` vs `wiremap.json` R7 vs `config/upgrades.mjs:43`. Exécutable : `effectiveSpeed({type:'grunt'}, 0.55) === 1.1` (et non 1.21) ; aucune entrée de `enemyBaseStats` n'a `speed === 2.2`.
+
+### M5 — `window.__game` publie les tableaux vivants par référence : R40 « aucun setter/triche exposé » est faux
+**Angle** : intégrité de l'observateur (base de la preuve E2E).
+`main.mjs:41-54` recopie les scalaires dans un objet neuf à chaque frame — mais `towers: state.towers` et `enemies: state.enemies` sont **les tableaux réels de la simulation**. Écrire `window.__game.gold = 9999` est bien sans effet (écrasé au frame suivant), mais `window.__game.enemies.length = 0` **vide la vague en cours** : `isWaveCleared` (`sim/waves.mjs:65-70`) devient vrai, le bonus de vague est versé et la partie avance. Le commentaire « no setter, no debug hook, no way to move the state from outside … it can never play through it » est donc faux, et la garantie qui rend la preuve E2E significative (l'observateur ne peut pas tricher) n'est pas mécaniquement tenue. `main.mjs:87-90` exporte en outre `getGameState` / `setGameState`.
+
+**Reproduction** (exécutable dans `e2e.mjs`) : après l'appel de vague, `await page.evaluate(() => { window.__game.enemies.length = 0; })` puis `readState(page)` → `wave` incrémentée et `gold` augmenté du bonus, sans qu'aucune tour ait tiré.
+
+### M6 — `hashState` ignore les champs qui décident de la suite : R32 est aveugle à une divergence réelle
+**Angle** : assertion qui ne peut pas échouer.
+`sim/hash.mjs:3-13` ne hache que `tick, wave, phase, gold, lives, leaks, towers[x,y,type,level], enemies[id,progress,hp], result`. Sont **omis** : `wavePhaseTime` (qui déclenche le départ automatique de vague), `goldLedger` (support de l'invariant R20), `waveSpawned`, `cooldownMs` des tours (la cadence), `frosts` des ennemis (le ralentissement), `projectiles`, `seed`. Deux états qui diffèrent sur la cadence de toutes les tours, sur tous les ralentissements actifs et sur tout le grand-livre d'or rendent **le même hash**. R32 (« deux exécutions … hash strictement égal ») peut donc passer au-dessus d'une divergence de simulation réelle.
+
+**Reproduction** (exécutable) :
+```js
+import { initGameState } from './sim/state.mjs';
+import { hashState } from './sim/hash.mjs';
+const s = initGameState(1337); const h1 = hashState(s);
+s.wavePhaseTime += 14000; s.goldLedger.bounty += 999; s.waveSpawned = true;
+hashState(s) === h1;  // obtenu true — l'oracle de déterminisme ne voit rien
+```
+
+### M7 — R33 : le RNG a un producteur et zéro consommateur
+**Angle** : zone morte · validateur sans producteur (inversé).
+`sim/rng.mjs` (`mulberry32`, `seedRNG`) est déclaré au wiremap comme feature R33, statut VERT. `seedRNG` n'est appelé qu'à deux endroits, tous deux dans `sim/state.mjs` (`:6` à l'init, `:29` dans `copyState`), et **`state.rng.next()` n'est appelé nulle part** : ni `step`, ni `waves`, ni `combat`, ni `movement`, ni `targeting`, ni `economy`, ni `end`, ni `bots`, ni `actions`, ni `geometry`. La simulation est entièrement déterministe *sans* RNG ; la seed ne pilote rien d'autre qu'elle-même. La « preuve » de R33 (le grep de pureté) ne prouve d'ailleurs pas l'usage du RNG — et ce grep a échoué (voir H1).
+
+**Reproduction** : statique — unique site d'appel `sim/state.mjs:6,29` ; `grep -rn "\.next(" sim/ actions/ bots/ config/ render/ input/ main.mjs` → 0 occurrence. Exécutable : remplacer le corps de `mulberry32` par `throw new Error('dead')` ; `node solvability.mjs` et `node --test tests/*.test.mjs` restent verts (l'appel n'a jamais lieu — seule la construction de la fermeture est faite).
+
+### M8 — Deux références de preuve fantômes dans le code de production
+**Angle** : preuve factice · « déclaré ≠ exécuté ».
+- `sim/economy.mjs:6-7` : « see **tests/economy_invariant.test.mjs**, which replays a real match and checks the equality at every single tick, not just at the end ». **Ce fichier n'existe pas** sur disque.
+- `bots/bots.mjs:126-127` : « Two metrics that reorder the SAME set of bots differently (see **tests/variance.test.mjs**) ». **Ce fichier n'existe pas** non plus.
+Deux commentaires de production affirment l'existence d'une preuve nommée, plus forte que celle réellement câblée (le wiremap cite `tests/economy.test.mjs` et `tests/solvability.test.mjs`). C'est exactement la classe de défaut que la règle « aucune décision dans un commentaire » vise.
+
+**Reproduction** : `Read games/tower_defense_sonde/tests/economy_invariant.test.mjs` → ENOENT ; idem `tests/variance.test.mjs`. Ancres : `sim/economy.mjs:6`, `bots/bots.mjs:127`.
+
+### M9 — Deux des trois jumeaux de falsification neutralisent un double écrit à la main, pas le module sous test
+**Angle** : assertion qui ne peut pas échouer (R52).
+`tests/falsification.test.mjs` :
+- Jumeau **R6** (`:55-65`) : `neutralized` appelle `neutralizedApplyDamage`, une fonction **locale** qui rend `stats.dmg` sans armure, puis assert `=== 2`. Cette assertion échoue par construction arithmétique (6 ≠ 2), **quoi que fasse `sim/combat.mjs#applyDamage`**. Elle ne prouve pas que le test réel est porteur.
+- Jumeau **R20** (`:79-84`) : même schéma avec `neutralizedGoldDelta`, un double local.
+- Seul le jumeau **R7** (`:31-38`) appelle la vraie `effectiveSpeed` avec un multiplicateur neutralisé — c'est le seul des trois qui mesure le module réel.
+R52 promet « chaque test de comportement a un jumeau **rouge si la mécanique est neutralisée** » ; deux jumeaux sur trois sont rouges parce qu'un stub écrit exprès rend une autre valeur. Le fichier n'est de toute façon importé par aucune des 4 racines scellées (`tests/{geometry,towers,combat,solvability}.test.mjs`, imports lus lignes 17-19 / 10-11 / 15-19 / 13-15) — déjà signalé au wiremap, confirmé ici côté code.
+
+**Reproduction** : statique — `tests/falsification.test.mjs:55-65` et `:79-84` (le double local est défini dans le test) ; contre-épreuve : supprimer la soustraction d'armure dans `sim/combat.mjs:21` et relancer `node --test tests/falsification.test.mjs` → le jumeau R6 reste vert (il ne touche pas le module).
+
+### M10 — Le harnais de preuve n'est pas autoportant
+**Angle** : reproductibilité de l'oracle.
+`games/tower_defense_sonde/` ne contient **aucun `package.json`**. `e2e.mjs:17` fait `import { chromium } from 'playwright'` : la résolution remonte vers un `node_modules` extérieur au jeu. `run-oracle.mjs:92` sort explicitement du jeu : `resolve(REPO_ROOT, 'scripts/forge/reuse_ratio.mjs')` avec `REPO_ROOT = ../..`. Un clone du seul dossier `games/tower_defense_sonde/` ne peut donc pas exécuter son propre oracle, et le volet [4/6] (E2E, l'unique preuve navigateur réelle) dépend d'une installation ambiante non déclarée. Le volet est heureusement *fail-closed* sur ce point (`run-oracle.mjs:81-83` : `run()` traite `status === null` comme rouge) — c'est la reproductibilité, pas la sécurité du gate, qui est en cause.
+
+**Reproduction** : statique — absence de `games/tower_defense_sonde/package.json` ; `e2e.mjs:17` ; `run-oracle.mjs:22,92`.
+
+---
+
+## LOW
+
+### L1 — Le bot « naïf » n'est pas le contrôle qu'il prétend être
+`bots/bots.mjs:51-53` annonce des Cannons « far from any lane … effectively zero real coverage ». Or `[15,3]` est à distance exactement **3.0** de la case de chemin `[15,0]` (voie d'entrée), et `towerStats('cannon',1).range === 3.0` avec un test `dist <= range` (`sim/targeting.mjs:13`). Ce Cannon **tire réellement**. Le bot perd quand même, donc aucun test ne le voit ; mais le « contrôle négatif » de R35/R27 n'est pas le contrôle décrit.
+**Reproduction** : arithmétique — `bots/bots.mjs:56` `[15,3]` vs `PATH_GOLDEN` `[15,0]` ⇒ `dist = 3.0` ; `sim/targeting.mjs:13` `dist <= 3.0` vrai.
+
+### L2 — La table des coûts de base existe en deux exemplaires, plus une copie en dur dans les bots
+`config/towers.mjs:6-10` (`BASE[...].cost` = 50/60/100) et `config/upgrades.mjs:6-10` (`base` = 50/60/100) sont deux sources indépendantes du même prix ; `config/towers.mjs:20-27` (`towerCost`) reprend une troisième fois la grille 0.8/1.6 ; `bots/bots.mjs:21` code en dur `tower.level === 1 ? 40 : 80`. Modifier un prix dans `config/towers.mjs` laisse `upgradeCost` et les bots sur l'ancienne grille, en silence.
+**Reproduction** : statique — comparer `config/towers.mjs:7-9` et `config/upgrades.mjs:7-9` ; muter `BASE[GUN].cost` de 50 à 60 ⇒ `upgradeCost('gun',2)` rend toujours 40 pendant que `placeTower` facture 60.
+
+### L3 — Un commentaire d'invariant affirme un fait que le chemin de production dément
+`sim/economy.mjs:36-37` : « sim/combat.mjs#killEnemy is **the only caller** [of awardBounty], so a bounty is never paid without a real kill ». `sim/step.mjs:67` appelle `awardBounty(state, e)` directement, sans passer par `killEnemy`. Le même fichier (`:4-5`) affirme « Every gold-moving call in the codebase MUST go through `applyGoldDelta` » alors que `actions/actions.mjs:28-29` et `:43-44` écrivent `state.gold` et `state.goldLedger.spend` à la main.
+**Reproduction** : statique — `sim/economy.mjs:4,36` vs `sim/step.mjs:67` et `actions/actions.mjs:28-29`.
+
+### L4 — Du code est écrit pour façonner la sortie du moteur de mutation
+`actions/actions.mjs:17-18` : « le commentaire ci-dessous évite délibérément les mots "or"/"and" — le moteur de mutation réécrit ces tokens … produisant un mutant commentaire-seul inkillable ». `config/geometry.mjs:34-38` : les deux clauses de la boucle sont scindées sur deux lignes « parce que la clé de triage est (règle, LIGNE) ». Ces choix sont déclarés honnêtement, mais ils font du **dénominateur de mutation une variable d'auteur** : le score 160/166 est en partie le produit d'une mise en forme choisie pour la mesure. À signaler à HumanGate, pas à corriger.
+**Reproduction** : statique — `actions/actions.mjs:17-18`, `config/geometry.mjs:34-38`.
+
+### L5 — `copyState` remet le RNG à sa position initiale et est payé à chaque action
+`sim/state.mjs:29` : `rng: seedRNG(state.seed)` — le « snapshot » de rollback **rembobine** le générateur au lieu de le préserver. `actions/actions.mjs:74` construit ce snapshot (copie profonde de toutes les tours, ennemis et projectiles) à **chaque** intention, y compris celles qui ne peuvent pas lever. Sans conséquence observable aujourd'hui (le RNG n'est jamais tiré — cf. M7), mais le jour où il le sera, un rollback recalera silencieusement la séquence.
+**Reproduction** : statique — `sim/state.mjs:29` vs `sim/state.mjs:10`.
+
+### L6 — Exports sans consommateur en production
+`main.mjs:87-90` (`getGameState`, `setGameState`), `sim/movement.mjs:8` (`initEnemyProgress`), `sim/movement.mjs:57-60` (`progressToWave`), `config/geometry.mjs:94-95` (`distToPath`), `config/towers.mjs:20-27` (`towerCost`, doublé par `upgradeCost`) : aucun appel depuis le graphe `index.html → main.mjs`. Certains sont des instruments de test légitimes ; `setGameState` est en revanche un point de mutation d'état exporté qui contredit l'esprit de R40 (et serait inopérant s'il était utilisé — `input/input.mjs` capture l'objet d'état une seule fois, `main.mjs:60`).
+**Reproduction** : statique — clôture d'imports depuis `main.mjs` (`sim/state`, `sim/step`, `render/render`, `input/input`) ; aucun de ces symboles n'y apparaît.
+
+---
+
+## Vérifications que j'ai faites et qui n'ont PAS produit de faille
+
+Consigné pour que l'absence de finding soit une mesure, pas un silence :
+- **`mutation_triage.json` — les 6 survivants « ÉQUIVALENTS » sont correctement triés.** J'ai rejoué à la main la génération de la spirale (`config/geometry.mjs:30-83`) : bornes `(top,bottom,left,right)` = (0,6) → (2,4) → (4,2), l'égalité n'est jamais atteinte (justifications `le->lt` L37/L38 exactes) ; les deux clauses sont toujours de même valeur de vérité (`and->or` L38 exacte) ; le mutant `ge->gt` L65 est bien re-comblé par `bridgeSteps([8,0] → [6,0])` qui réinsère `[7,0]` (justification exacte) ; la garde `bots.mjs:13` est bien inatteignable car `selectTowerType` rend `true` sans branche ; la garde `waves.mjs:11` est bien redondante avec `if (phase === 'PREPARATION')`. **Aucun mutant réel n'est blanchi en équivalent.**
+- **La polyligne générée correspond cellule par cellule à `PATH_GOLDEN`** (47 cases, tracé à la main depuis `buildSpiralSegments` + `flattenSegments`).
+- **`e2e.mjs` est fail-closed** : `check()` lève à la première divergence, le `.catch` force `exitCode 1`, l'absence de fin de partie fait échouer `ended.result === 'DEFEAT'`, et une panne d'import Playwright donne `status !== 0` donc rouge. Le défaut du pré-mortem (fonction définie jamais appelée, absence de `--allow-file-access-from-files`) est réellement fermé (`:66`, `:167`).
+- **`acquireTarget` filtre bien les cadavres** (`sim/targeting.mjs:11`) : ma piste « les corps bloquent les tours » est infirmée.
+- **`isWaveCleared` ne peut pas payer le bonus en boucle** : `step.mjs:79` remet `waveSpawned = false` à la transition.
+
+---
+
+## RAPPORT FINAL
+
+**software_verdict: BLOCKED** — je n'ai exécuté aucun oracle : ce dispatch m'accorde `run: aucun` et l'outil Bash est désactivé dans la session. Aucune de mes reproductions n'a été *jouée* ; elles sont fournies pour qu'un oracle non-LLM en aval les exécute. Le red-team critique, il ne prouve pas.
+
+**evidence_verdict: MECHANICAL_VALIDATION_ONLY** — strictement limité aux deux artefacts mécaniques que j'ai lus sur disque et qui portent leur propre mesure : `proofs/oracle-evidence.json:60` (`purity`, `exit_code: 2`, `green: true`) et `proofs/mutation-harness-evidence.json:3-4` (`total: 36`, `killed: 14`). H1 et H5 sont adossés à ces reçus. Toutes les autres failles sont adossées à des **ancres statiques fichier:ligne** re-vérifiables par un oracle AST/grep, pas à une exécution.
+
+**claim_verdict: NO_CLAIM_ALLOWED**
+
+**fog → HumanGate (Pierre)** — ce qui relève du jugement, pas de l'oracle :
+1. **H2 / H3 / H6 attaquent des features marquées VERTES au wiremap.** Corriger le code, corriger le wiremap, ou requalifier honnêtement la promesse est une décision de charter, pas une correction de test.
+2. **H3** pose la question de fond : la solvabilité prouvée doit-elle être *jouable au DOM* ? Aujourd'hui la ligne `wide` l'est, `competent` ne l'est pas. C'est un critère de sortie, pas un bug.
+3. **L4** : le dénominateur de mutation est partiellement façonné par la mise en forme du code. Le score 160/166 reste-t-il recevable sous cette réserve ?
+4. **H5** : le build livre un reçu de mutation rouge (39 %) qu'un volet vert de l'oracle certifie. Le supprimer effacerait la trace ; le garder maintient un artefact contradictoire au dossier.
+5. Les correctifs de tous ces points touchent `tests/**` — **zone protégée** (`.claude/rules/tests.md`) — donc gate Pierre obligatoire.
+
+---
+
+## SKIPPED_VALIDATION
+
+| Item de validation | Périmètre | Statut | Raison |
+|---|---|---|---|
+| Écriture du livrable `rapport_redteam_code.md` sur disque | `lab/forge_runs/tower_defense_sonde/` | **non fait** | Aucun outil d'écriture (Write/Edit/Bash) disponible dans ce dispatch. Rapport rendu intégralement en réponse + bloc JSON pour `forge.run_real.extract_redteam_findings`. |
+| Exécution de la moindre reproduction | toutes les failles H1-H6, M1-M10, L1-L6 | **non fait** | `permissions.run: aucun` + Bash désactivé. Chaque repro est fournie sous forme exécutable par un oracle aval. |
+| Relecture exhaustive des 20 fichiers `tests/*.test.mjs` | `tests/` | **partiel** | Lus : en-têtes/imports des 4 racines scellées, `falsification.test.mjs` intégral, `lint_assertions.mjs`, `evidence.mjs`, `geometry.test.mjs` (60 l.), `combat/solvability/towers.test.mjs` (40/40/30 l.). Non lus : `render`, `main`, `input`, `actions`, `bots`, `step`, `movement`, `economy`, `targeting`, `upgrades`, `waves`, `waves_phase`, `console`, `visual_capture`, `mutation_harness`, `_playthrough_driver`. Périmètre `tests/**` hors scope de correction et budget de lecture borné. |
+| Vérification du harnais local `tests/mutation_harness.mjs` | mutation locale | **non fait** | Non exécuté par l'oracle (déclaré au wiremap R51) ; seul son reçu rouge a été lu. Le gate faisant autorité est celui du driver, que je ne peux pas rejouer. |
+| Contrôle des captures visuelles `proofs/visual-*.png` | R54 | **non fait** | Pas d'exécution possible ; je n'ai pas ouvert les PNG et ne peux pas dire s'ils reflètent l'état courant du disque. Le décalage de rendu M1 devrait y être visible — à vérifier. |
+| Recensement complet des zones mortes | tout le jeu | **partiel** | Établi par lecture manuelle du graphe d'imports depuis `main.mjs` (21 modules), sans outil `grep`/AST. Un oracle de call-graph doit confirmer L6 et M7. |
+| Re-mesure du gate mutation du driver (166 mutants) | `forge.mutation_proof` | **hors périmètre** | Appartient au driver, pas à ce dispatch. J'ai en revanche audité `mutation_triage.json` en entier : les 6 justifications d'équivalence sont exactes (section « vérifications sans faille »). |
+| Audit `scripts/forge/reuse_ratio.mjs` | hors dossier du jeu | **non fait** | Hors `in_scope` (le contrat borne l'audit au code produit sous `games/tower_defense_sonde`). |
+
+---
+
+## RETURN LINEAGE
+
+- **why_task_existed** :
+  - `problem:` **non transmis** en tant que problème *mesuré* ; l'activation constatée est l'étape `s11-redteam-code` de la boucle Forge, dont la fonction structurelle est de produire un rapport de failles indépendant, non biaisé par les justifications du builder (contexte aveuglé). Le pré-mortem transmis signale par ailleurs 6 tentatives antérieures en échec à `s9-build` (e2e / solvability / mutation rouges).
+  - `oracle:` `run-oracle.mjs` (verdict PASS, `proofs/oracle-evidence.json`, 2026-08-29) et le gate mutation du driver ont précédé cette étape ; aucun oracle n'a *déclenché* ce red-team — l'activation vient de la séquence contractuelle du run.
+  - `root_cause:` **établie pour le run précédent** (pré-mortem : `proofs/e2e.mjs` définissait `runE2ETest()` sans jamais l'appeler, et il manquait `--allow-file-access-from-files`) — j'ai vérifié que cette cause est **fermée** dans le code courant (`e2e.mjs:66,167`). La cause racine des failles que je rapporte aujourd'hui est distincte et récurrente : **plusieurs portes de preuve confondent « n'a rien trouvé » avec « n'a pas pu mesurer »** (H1, H5).
+  - `action_reason:` un audit adverse à contexte vierge est le seul dispositif capable de voir un volet vert *parce qu'il a échoué* — le builder, qui connaît son intention, lit le vert comme une confirmation.
+- **result:** 20 failles rapportées (6 HIGH, 10 MEDIUM, 6 LOW → 22 entrées consolidées en 20 constats), chacune avec une ancre statique ou une reproduction exécutable. 5 pistes explorées et **infirmées** (triage de mutation, polyligne, fail-closed de l'E2E, filtrage des cadavres, double paiement du bonus de vague). Livrable non écrit sur disque, faute d'outil d'écriture.
+- **proof:** aucune commande exécutée (Bash désactivé, `run: aucun`). Les deux seules preuves mécaniques citées sont des artefacts lus : `proofs/oracle-evidence.json:55-64` (`"label": "purity"`, `"exit_code": 2`, `"green": true`, `"output_tail": ""`) et `proofs/mutation-harness-evidence.json:1-4` (`"total": 36, "killed": 14`). Tout le reste est une lecture de source, citée fichier:ligne.
+- **learning:** deux motifs réutilisables. (1) **Un oracle qui interprète un code de sortie doit distinguer les trois états** — trouvé / rien trouvé / n'a pas pu mesurer ; `status !== 0` collapse les deux derniers et rend le gate structurellement incapable de rougir. Le reçu conservait la preuve de l'échec (`exit_code: 2`) sans que personne ne la lise. (2) **Un vérificateur d'evidence_path qui lit le reçu puis vérifie que le fichier lu existe ne peut pas échouer** ; pour avoir des dents il doit lire le **verdict** du reçu et sa fraîcheur, et traiter l'absence comme BLOCKED plutôt que comme SKIP.
+- **next_reason:** le niveau supérieur doit agir : (a) H1 et H5 sont des **portes de preuve inertes**, pas des défauts de jeu — tant qu'elles le restent, tout verdict signé les intègre comme volets verts ; (b) H2, H3 et H6 contredisent des features marquées VERTES au wiremap, ce qui est une décision HumanGate (corriger le code, ou requalifier la promesse), pas une correction de test ; (c) tous les correctifs de test touchent `tests/**`, zone protégée. La chaîne causale **reste ouverte** et remonte à Pierre.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le volet purity de run-oracle.mjs a ete compte PASS alors que grep a echoue (proofs/oracle-evidence.json: exit_code 2, green true, sortie vide), et tests/evidence.mjs certifie OK un recu de mutation rouge (14/36) tout en rendant PASS quand un recu est absent ; par ailleurs les features R13/R14/R16/R27 nomment des fonctions (resolveCombat, killEnemy, processLeak) que le jeu livre n'appelle jamais", "root_cause": "Les portes de preuve confondent 'rien trouve' avec 'n'a pas pu mesurer' : purity teste status !== 0 (2 = erreur grep compte comme succes) et evidence.mjs fait continue sans invalider allOk sur recu manquant, et ne lit jamais le verdict du recu"}

@@ -1,0 +1,654 @@
+## RÔLE
+Décomposition Fonctionnelle (étape 3). Point de vue : analyste qui énumère les fonctions attendues avant toute archi.
+
+## EXIGENCES COGNITIVES
+Décomposition exhaustive Système→Feature→capacité, chaque feuille traçable à une preuve.
+
+## MÉMOIRE DE TRAVAIL
+Consomme le Prisme Produit (étape 1) et le World Scan (étape 2) ; connaît les Règles observables du Prisme d'où héritent les preuves attendues. Conventions : CLAUDE.md + rules/.
+
+## OBJECTIF
+Produire l'arbre Système→Feature→capacité ; chaque FEUILLE porte sa preuve attendue (héritée des Règles observables du Prisme).
+
+## DANS LE PÉRIMÈTRE (in_scope)
+Énumération fonctionnelle depuis le Prisme Produit ; définition des preuves attendues par feuille. Écrit uniquement la featuremap.
+
+## HORS PÉRIMÈTRE (out_of_scope)
+Ne découpe PAS en modules (c'est l'archi, étape 4). Ne code rien. Ne touche pas aux lanes protégées (tests/, src/).
+
+## PERMISSIONS
+read: repo entier. write: featuremap uniquement. create: featuremap. run: aucun. delete: aucun.
+
+## GARDE-FOU
+Chaque feuille DOIT avoir une preuve_attendue ; pas de feuille orpheline. La preuve attendue est héritée des Règles observables du Prisme, jamais inventée. V4 GAME LOOP (2026-08-22, GO Pierre) : une action joueur (exigence `acteur: PLAYER` avec `affordance`) se décompose en une capacité d'ENTRÉE (le joueur agit sur l'affordance nommée, preuve `bot_action` depuis `main.tscn`) ET une capacité d'EFFET — jamais l'effet seul. `loop.json` (projection déterministe du Prisme) est une ENTRÉE à lire, jamais à réécrire. Maillons F..J (additif, règle B étendue) : F (UNLOCK) et I (META_LOOP) suivent EXACTEMENT la règle de B — capacité d'ENTRÉE `bot_action` depuis `main.tscn` obligatoire. G (NEXT_GOAL) se décompose en une capacité d'EFFET VISIBLE (le label `objectif` change pour un texte nouveau, preuve `file_write` ou `visual`) — jamais une entrée seule. H (REPEAT) et J (ADVANTAGE) sont des REJEUX : ils n'exigent AUCUNE feuille propre, mais leurs `replay`/`replay_ref` doivent chacun cibler une exigence du Prisme déjà couverte par ailleurs — un rejeu qui vise une exigence non couverte ou inexistante rejoue du vide. GREY BLOCKS DU GAME MASTER (Lot B, T3, 2026-08-23, plan `2026-08-23-forge-lot-b-game-master.md`) : chaque `game_master.grey_blocks[].id` du GM (s2.7) DOIT apparaître comme `id` OU `source_ref` d'une feuille de la featuremap — un grey block sans feuille est `grey_block_non_decompose` (`check_decompo --gm <gm_worldscan.json>`). Le `builder_contract` de chaque grey block est recopié TEL QUEL dans `expected_proof.statement` de la feuille qui le porte, jamais réinventé. Sans `game_master`/`grey_blocks` (runs antérieurs au Lot B) : comportement inchangé, 0 grey block mesuré.
+
+## CRITÈRES DE RÉUSSITE
+featuremap valide ; chaque feuille porte {capacite, expected_proof, source_ref} ; TOUTE exigence du Prisme est portée par ≥1 feuille ; AUCUNE feuille ne cite une exigence inexistante.
+
+## ORACLES / TESTS
+Oracle déterministe non-LLM : `node scripts/forge/check_decompo.mjs <run_dir>/featuremap.json --prisme <run_dir>/prisme.json [--gm <run_dir>/gm_worldscan.json]`. Mesure la COUVERTURE (toute exigence portée), la NON-INVENTION (tout `source_ref` résout) et la COMPLÉTUDE (feuilles complètes). La granularité est REPORTÉE, jamais gatée (règle de variance ratifiée 2026-07-21). Maillons F..J (additif) : `boucle_sans_effet` (G sans feuille d'effet sourcée), `boucle_replay_non_couvert` (H/J dont un `replay`/`replay_ref` cible une exigence non couverte ou inexistante) ; `stats.maillons_couverts.{F,G,H,I,J}` reporte le compte par rôle. Lot B, T3 (2026-08-23) : avec `--gm`, `grey_block_non_decompose` (un `game_master.grey_blocks[].id` sans feuille) fait échouer l'étape ; `stats.grey_blocks`/`stats.grey_blocks_couverts` reportent le compte. Sans `--gm` ou sans bloc `game_master` : comportement inchangé (0 grey block). Jamais de LLM-as-judge.
+
+## CONTRAT DE SORTIE
+Un bloc ```json``` TERMINAL, matérialisé en featuremap.json par l'exécuteur (tu n'écris JAMAIS ce fichier toi-même) : {"game_id": "<id>", "systemes": [{"id", "features": [{"id", "capacites": [{"id", "capacite", "source_ref", "expected_proof": {"kind": "bot_action"|"oracle"|"mutation"|"visual"|"file_write", "statement"}}]}]}]}. L'arbre reste Système→Feature→capacité, la capacité EST la feuille. RÈGLES DURES : `source_ref` cite l'`id` EXACT d'une exigence de prisme.json — une feuille qui n'en cite aucune est une invention non déclarée, et une exigence que nulle feuille ne porte est une omission silencieuse. Tu n'inventes AUCUNE preuve attendue : elle est héritée de l'exigence d'origine.
+
+## RAPPORT FINAL
+software/evidence/claim séparés ; cite le reçu de check_decompo ; liste les exigences non couvertes et les feuilles non sourcées ; claim_verdict: NO_CLAIM_ALLOWED. RETURN LINEAGE (doctrine FORGE_CAUSAL_LINEAGE_V2 §3, ratifiee Pierre 2026-08-06) — aucun worker ne meurt seul : le retour porte la CAUSALITE, pas seulement le resultat. Termine TOUJOURS par ce bloc, succes comme echec : `why_task_existed:` {`problem:` le probleme mesure qui a active cette tache · `oracle:` l'oracle ou la mesure qui l'a detecte, ou "aucun" si l'activation vient d'une decision humaine · `root_cause:` la cause racine identifiee, ou "non etablie" · `action_reason:` pourquoi CETTE action y repond} · `result:` l'etat reellement obtenu · `proof:` la commande executee et sa sortie · `learning:` ce que tu as appris et qui resservira, ou "aucun" · `next_reason:` pourquoi le niveau superieur doit agir OU pourquoi la chaine causale est FERMEE et se termine ici. Regles : ces champs sont HERITES ou CONSTATES, jamais inventes — si tu n'as pas recu le `why`, ecris "non transmis" plutot que de le deviner (une cause fabriquee est la meme faute qu'un `validated_by` fabrique). En ECHEC, `result` porte ce que tu as essaye et ce qui a echoue. `next_reason` ne vaut escalade que si une cause non resolue persiste, une preuve manque ou contredit l'etat attendu, ou une correction reste possible — sinon la lignee se termine proprement, sans action supplementaire.
+
+## À LIRE OBLIGATOIREMENT AVANT TOUTE ACTION
+- scripts/forge/contracts/SCHEMA.md
+- l'artefact product_snapshot.md produit par le Prisme (étape 1)
+- lab/forge_runs/<projet>/knowledge_packet.json — patterns externes cités, ADVISORY jamais prescriptif
+- lab/forge_runs/<projet>/charter.yaml — INTENT LINEAGE : intention humaine, invariants, hors_scope, et le bloc `provenance` (source Pierre, fog_humangate). HERITE, jamais reecrit : l'etape verifie que sa decision la respecte, ou remonte le conflit.
+- story_bible.json (s2.6) et gm_worldscan.json (s2.7) S'ILS SONT PRÉSENTS dans le run_dir (profil full_godot_narratif) : les contraintes narratives et les dimensions de calibration (progression, economy, bonus…) y vivent — une feuille qui les réalise cite l'exigence du Prisme qui les porte (source_ref), jamais l'artefact directement
+
+## RÈGLE DE RESTITUTION — Chaque affirmation du final_report doit citer l'oracle/l'ancre non-LLM qui l'appuie. Appuyée par un oracle => software_verdict (OK/FAIL/BLOCKED) + evidence_verdict: MECHANICAL_VALIDATION_ONLY. Sans oracle disponible => claim_verdict: NO_CLAIM_ALLOWED et remonte un besoin HumanGate (fog), jamais un claim auto-certifié. Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement. En dernier lieu, une section finale SKIPPED_VALIDATION, structurée et EXPLICITE : pour chaque validation que tu n'as PAS faite, liste l'item de validation (quoi), le périmètre concerné (où), le statut (ex. non fait / partiel / hors délai) et la raison (pourquoi). Rien sauté => écris `SKIPPED_VALIDATION: aucun` — une décision assumée, jamais un silence. Le silence sur cette section est traité comme un oubli, pas comme 'rien à signaler'. TOUTE DERNIÈRE LIGNE DU RAPPORT, OBLIGATOIRE — lignée Return : une ligne unique `RETURN_REASON: {"status": "NOT_DISCOVERED"}` si tu n'as découvert AUCUN problème pendant ce travail. Si (et SEULEMENT si) tu as réellement découvert un problème — défaut rencontré, cause d'un échec, écart mesuré — écris à la place `RETURN_REASON: {"status": "DISCOVERED", "problem": "<le problème, factuel>", "root_cause": "<la cause racine si connue, sinon omets ce champ>"}`. JSON valide sur UNE seule ligne, aucun texte après. N'invente JAMAIS un problème pour remplir ce champ : un NOT_DISCOVERED honnête vaut mieux qu'un DISCOVERED de complaisance.
+
+## MARQUEUR DE DISPATCH (ne pas modifier)
+FORGE_DISPATCH:s3-decompo:tower_defense_sonde-20260829-build:2
+
+## TÂCHE CONCRÈTE (tower_defense_sonde-20260829-build / s3-decompo)
+Décompose le projet 'tower_defense_sonde' en features numérotées R1..Rn (une ligne par règle de jeu : nom, comportement observable, condition de preuve). Texte seul, aucun fichier écrit.
+
+## ARTEFACTS AMONT (run_dir)
+
+### charter.yaml (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\tower_defense_sonde\charter.yaml)
+meta:
+  nom_sonde: td_probe_v1
+  etape: s0-contrat
+  date_redaction: '2026-08-29'
+  statut: PROPOSITION (non ratifiée) — attend HumanGate Pierre
+  provenance_commande:
+    genre: 'Tower Defense jouable — SOURCE: Pierre, 2026-08-29 (verbatim structuré
+      dans le dispatch)'
+    objectif_experimental: 'Révéler une vraie boucle de jeu (décisions → conséquences
+      divergentes) — SOURCE: Pierre, 2026-08-29'
+    contraintes_techniques: 'SOURCE: pratique standard des sondes Forge (page HTML+JS
+      unique, RNG seedé, logique .mjs testable, window.__game, #overlay/#restart)
+      — relayée par Pierre 2026-08-29'
+    observabilite: 'SOURCE: Pierre, 2026-08-29'
+    non_impose_par_pierre: nombre de maps/tours/ennemis/upgrades/vagues, forme de
+      l'économie — TOUT le bloc `conception:` ci-dessous est PROPOSITION non ratifiée
+objectif: 'Produire une sonde Tower Defense jouable, page web unique et déterministe,
+  dont le seul rôle est de PROUVER qu''une boucle de jeu existe : que des décisions
+  de joueur (où poser, quoi poser, monter en niveau ou en nombre, appeler la vague
+  tôt ou tard) produisent des issues mesurablement différentes, qu''un bot compétent
+  GAGNE et qu''un bot naïf PERD sur la même seed. La sonde n''est pas un jeu à livrer
+  : c''est un instrument de mesure de l''existence d''une boucle.
+
+  '
+reference_jeu: 'Genre : Tower Defense jouable (SOURCE Pierre, 2026-08-29 — aucun jeu-modèle
+  précis fourni ni ratifié). Jeu-modèle : Kingdom Rush / Bloons TD — PROPOSITION (non
+  ratifiée, FOG-1), citée uniquement pour la grammaire de genre (chemin fixe, vagues
+  appelables, tours à niveaux, économie par bounty). Interdiction : aucune reproduction
+  d''assets, de noms, de courbes de balance ou de contenu de ces jeux.
+
+  '
+plateforme_cible: 'Web — page HTML unique + JavaScript, rendu <canvas> 2D, zéro dépendance
+  externe. SOURCE : contrainte technique n°3 de la commande (pratique standard des
+  sondes Forge, relayée par Pierre 2026-08-29). Détail : plateforme_cible_detail ci-dessous.
+
+  '
+plateforme_cible_detail:
+- 1 fichier `index.html` (DOM + canvas + boot), zéro dépendance externe, zéro CDN,
+  zéro réseau.
+- Logique de jeu en modules ES `.mjs` purs, importables et exécutables sous `node
+  --test` sans DOM ni canvas.
+- 'Rendu strictement séparé : aucun module logique ne touche `document`, `window`,
+  `canvas`, `Date`, `performance` ni `Math.random`.'
+- Simulation à pas fixe (`TICK_MS = 16`, 62.5 ticks/s logiques), avancée par `step(state,
+  dt_fixe)` — jamais par le temps réel.
+- RNG seedé déterministe (générateur entier 32 bits type mulberry32) porté DANS l'état,
+  jamais global.
+- Ouverture par `file://` suffisante — aucun serveur requis.
+hors_scope:
+- Toute forme de sauvegarde/persistance (localStorage, fichier, serveur).
+- Audio, musique, effets sonores.
+- 'Assets externes : images, sprites, fonts, atlas. Rendu = primitives canvas (rect,
+  arc, ligne, texte).'
+- Menu principal, écran de sélection, tutoriel scénarisé, options.
+- 'Multi-maps : une seule map (voir `conception.maps`). Pas de map editor, pas de
+  génération procédurale de map.'
+- 'Vente/déplacement de tour (choix assumé : rend les décisions de placement irréversibles
+  donc réellement coûteuses).'
+- Méta-progression persistante entre parties (arbre de talents, déblocages) — la boucle
+  méta est intra-partie uniquement.
+- Responsive/mobile, tactile, redimensionnement dynamique du canvas (taille fixe).
+- Multijoueur, réseau, télémétrie, analytics.
+- Difficultés multiples, modes alternatifs, endless.
+- 'Polish visuel : particules, écrans de transition, animations d''interface, juice.'
+- 'Équilibrage « fun » : la sonde prouve la DIVERGENCE des issues, pas la qualité
+  ressentie. Le fun reste un jugement humain (fog Pierre).'
+- Toute décision d'architecture logicielle (découpage précis des modules, noms de
+  fichiers, structures de données) — relève de l'étape 4.
+- 'Tout code : ce charter n''en contient aucun et n''en autorise aucun à cette étape.'
+conception:
+  boucles:
+  - nom: boucle_tick
+    niveau: 1
+    proposition: 'Pas fixe de 16 ms : les ennemis avancent le long du chemin, chaque
+      tour vérifie son cooldown, acquiert la cible vivante la plus AVANCÉE dans son
+      rayon (règle de ciblage unique et fixe : `first`), tire, applique dégâts et
+      effets ; les morts versent leur bounty ; les ennemis atteignant la sortie retirent
+      des vies.
+
+      '
+    role_dans_la_boucle: 'C''est l''unité de conséquence. Elle ne demande aucune décision
+      au joueur — elle est le mécanisme qui transforme les décisions des boucles supérieures
+      en résultat observable. Sa raison d''être : rendre chaque décision MESURABLE
+      au tick près et REJOUABLE.
+
+      '
+    preuve_attendue: 'Deux exécutions de la même seed avec la même séquence d''actions
+      produisent des états strictement identiques (égalité exacte d''un hash de l''état
+      à N ticks) — assertion d''égalité STRICTE, pas de tolérance, pas de `>=`.
+
+      '
+  - nom: boucle_vague
+    niveau: 2
+    proposition: 'Phase de préparation de 15 s (compte à rebours) → le joueur pose/upgrade
+      → il appelle la vague (bouton) ou la vague part seule à la fin du décompte →
+      la vague se déverse → nettoyage → bonus de fin de vague → retour en préparation.
+
+      '
+    role_dans_la_boucle: 'Crée la décision de TEMPO : appeler tôt rapporte un bonus
+      d''or proportionnel au temps de préparation économisé (2 or par seconde restante,
+      max 30), mais prive de la fenêtre où l''or des kills de la vague précédente
+      aurait pu être converti en défense. C''est un pari explicite : richesse contre
+      sécurité.
+
+      '
+    preuve_attendue: 'Deux bots identiques sauf sur le tempo (l''un appelle toujours
+      immédiatement, l''autre attend toujours la fin du décompte) divergent sur l''or
+      cumulé ET sur les vies finales avec des valeurs distinctes non triviales — et
+      l''ordre du gagnant s''inverse selon la composition de vague, montrant que le
+      tempo n''est pas dominé.
+
+      '
+  - nom: boucle_partie
+    niveau: 3
+    proposition: '10 vagues. Victoire = vague 10 nettoyée avec `lives > 0`. Défaite
+      = `lives <= 0` à n''importe quel moment. Fin de partie → overlay avec le verdict
+      → bouton restart qui réinitialise à la seed fournie.
+
+      '
+    role_dans_la_boucle: 'Donne un critère de SORTIE binaire et observable. Sans condition
+      de défaite atteignable, aucune décision n''a de coût ; sans victoire atteignable,
+      la solvabilité est indémontrable.
+
+      '
+    preuve_attendue: 'Sur la même seed : un bot compétent scripté atteint l''état
+      `VICTORY` avec un nombre de vies exact et non nul ; un bot naïf scripté atteint
+      l''état `DEFEAT` avec `lives == 0` avant la vague 10. Les deux issues sont lues
+      dans `window.__game.result` et affichées dans `#overlay`.
+
+      '
+  - nom: boucle_meta_intra_partie
+    niveau: 4
+    proposition: 'Le trésor de guerre : l''or non dépensé est un actif. Une tour de
+      niveau 3 coûte 2,4× son coût de base (base + 0,8× + 1,6×) ; trois tours de niveau
+      1 coûtent 3×. Le joueur arbitre en permanence entre « monter en hauteur » (percée
+      d''armure, ralentissement renforcé, splash élargi — capacités que le nombre
+      ne remplace PAS) et « monter en largeur » (couverture spatiale du chemin, que
+      la hauteur ne remplace pas non plus).
+
+      '
+    role_dans_la_boucle: 'C''est la décision structurante de la partie, celle qui
+      rend deux parties différentes. Elle est non triviale par construction : les
+      niveaux 3 débloquent des CAPACITÉS (pas seulement des nombres), donc aucune
+      des deux voies ne domine l''autre.
+
+      '
+    preuve_attendue: 'Trois bots — « tall » (upgrade prioritaire), « wide » (nouvelles
+      tours prioritaires), « mixte » — sur la même seed produisent trois vecteurs
+      de résultat distincts (vies finales, vague de mort ou de victoire, or total
+      dépensé, fuites cumulées) avec au moins deux valeurs distinctes non triviales
+      sur CHAQUE métrique retenue, et au moins une inversion de classement entre deux
+      métriques (règle de variance, ratifiée Pierre 2026-07-21).
+
+      '
+  maps:
+  - nom: map_unique_hairpin
+    proposition: 'UNE map. Grille 20×12 cases de 32 px → canvas 640×384. Un chemin
+      unique fixe (polyligne de cases, codée en dur, aucune génération) : entrée au
+      bord gauche à mi-hauteur, il file vers la droite, remonte, repart à droite,
+      redescend en épingle serrée (deux couloirs parallèles séparés par une seule
+      colonne de cases constructibles), puis rejoint la sortie au bord droit. Toute
+      case hors-chemin est constructible ; une case n''accueille qu''une tour.
+
+      '
+    role_dans_la_boucle: 'L''épingle crée la décision SPATIALE, et une seule map suffit
+      à la porter : les cases de la colonne centrale de l''épingle voient TROIS segments
+      de chemin à la fois — une tour y vaut environ trois tours dispersées, mais ces
+      cases sont peu nombreuses (6) et se disputent entre Frost, Gun et Cannon. Poser
+      cher au bon endroit vs poser peu cher partout devient un vrai arbitrage. Une
+      deuxième map n''ajouterait aucune décision nouvelle — elle est donc hors scope.
+
+      '
+    preuve_attendue: 'Deux bots au budget et au parc de tours IDENTIQUES, ne différant
+      que par le placement (l''un sur la colonne d''épingle, l''autre sur les premières
+      cases libres rencontrées), divergent strictement sur les fuites cumulées et
+      sur les vies finales. Un test unitaire assert que le nombre de cases voyant
+      ≥3 segments de chemin est exactement 6.
+
+      '
+  tours:
+  - nom: gun
+    proposition: Coût 50. Dégâts 6. Cadence 2,0 tirs/s. Portée 2,5 cases. Mono-cible,
+      projectile visible. Percée d'armure 0.
+    role_dans_la_boucle: 'Le socle économique et la décision « largeur ». Excellent
+      rendement or/dégâts contre les cibles sans armure, structurellement mauvais
+      contre l''armure (6−4 = 2 par tir sur Brute). Elle rend le spam de Gun viable
+      jusqu''à la vague où l''armure arrive — et là seulement, elle force le joueur
+      à changer d''avis.
+
+      '
+    preuve_attendue: 'Test unitaire STRICT : un tir de Gun L1 sur Brute (armure 4)
+      retire exactement 2 PV, pas « au moins 2 ». Test de bot : un parc 100 % Gun
+      L1 échoue à tuer la vague 7 dans la fenêtre de chemin disponible et perd des
+      vies — mesuré par un compteur de fuites exact.
+
+      '
+  - nom: frost
+    proposition: Coût 60. Dégâts 1. Cadence 1,5 tirs/s. Portée 2,0 cases. Applique
+      ralentissement 45 % pendant 1,5 s (non cumulable, rafraîchi).
+    role_dans_la_boucle: 'Tour-facilitatrice : elle ne gagne rien seule, elle multiplie
+      la valeur de tout le reste en allongeant le temps d''exposition. Elle crée la
+      décision « investir dans une tour qui ne tue pas », le choix le plus contre-intuitif
+      et donc le plus révélateur d''une vraie boucle. Elle est aussi la réponse dédiée
+      aux Runners rapides.
+
+      '
+    preuve_attendue: 'Comparaison à parc de dégâts constant : le même ensemble de
+      Gun, avec et sans un Frost à l''épingle, produit deux totaux de fuites strictement
+      différents sur la vague 6 (vague de Runners). Test unitaire STRICT : un ennemi
+      à 2,2 cases/s sous effet Frost avance exactement 1,21 cases/s (tolérance flottante
+      epsilon explicite, jamais une inégalité ouverte).
+
+      '
+  - nom: cannon
+    proposition: Coût 100. Dégâts 22. Cadence 0,5 tir/s. Portée 3,0 cases. Splash
+      rayon 1,2 case (dégâts pleins dans le rayon). Percée d'armure 0.
+    role_dans_la_boucle: 'La réponse à l''armure et aux paquets. Chère, lente, gaspillée
+      contre les Runners isolés (une cible rapide traverse sa fenêtre entre deux tirs).
+      Elle rend l''achat conditionnel à une LECTURE de la vague à venir : c''est la
+      décision d''anticipation.
+
+      '
+    preuve_attendue: 'Test unitaire STRICT : un tir de Cannon sur Brute retire exactement
+      18 PV (22−4) ; un tir touchant 4 Grunts groupés retire exactement 22 PV à chacun
+      des 4 (comptage exact des cibles touchées, jamais `>= 1`). Test de bot : un
+      parc 100 % Cannon perd sur la vague 6 (Runners) — prouvant qu''aucune tour n''est
+      dominante.
+
+      '
+  ennemis:
+  - nom: grunt
+    proposition: 'PV 40. Vitesse 1,0 case/s. Armure 0. Bounty 8. Coût en vies si fuite
+      : 1.'
+    role_dans_la_boucle: 'L''étalon. Il calibre l''économie et sert de référence :
+      toute autre décision se mesure à « combien de Grunts ce choix vaut-il ».'
+    preuve_attendue: 'Assertion STRICTE : tuer un Grunt fait passer l''or de G à G+8
+      exactement, et le compteur d''ennemis vivants de n à n−1 exactement.'
+  - nom: runner
+    proposition: 'PV 18. Vitesse 2,2 cases/s. Armure 0. Bounty 6. Coût en vies si
+      fuite : 1. Arrive en paquets serrés.'
+    role_dans_la_boucle: 'Il punit spécifiquement l''absence de contrôle (Frost) et
+      la cadence lente (Cannon). Il transforme « ai-je assez de dégâts » en « ai-je
+      assez de TEMPS D''EXPOSITION » — c''est lui qui rend la décision Frost/Cannon
+      non triviale.
+
+      '
+    preuve_attendue: Sur la vague 6, un parc Cannon-only laisse fuir un nombre exact
+      et non nul de Runners, là où le même budget en Gun+Frost en laisse fuir exactement
+      0.
+  - nom: brute
+    proposition: 'PV 220. Vitesse 0,6 case/s. Armure 4 (soustraction plate par impact,
+      dégâts minimum plancher 1). Bounty 25. Coût en vies si fuite : 5.'
+    role_dans_la_boucle: 'Il punit le spam de petits coups et rend l''armure lisible
+      : c''est la mécanique qui interdit la stratégie unique. Son coût de fuite à
+      5 vies fait qu''une seule erreur de lecture est immédiatement visible dans la
+      métrique.
+
+      '
+    preuve_attendue: 'Assertion STRICTE : une fuite de Brute fait passer les vies
+      de L à L−5 exactement. Table de dégâts vérifiée exactement : Gun L1 → 2, Gun
+      L3 (percée 3) → valeur exacte figée en test doré, Cannon L1 → 18.
+
+      '
+  vagues:
+  - nom: calendrier_10_vagues
+    proposition: '10 vagues, composition FIXE (aucune RNG sur la composition ; la
+      seed ne pilote que les micro-décisions de simulation, ex. départage de cibles
+      à égalité) : V1 = 8 Grunt · V2 = 12 Grunt · V3 = 10 Grunt + 4 Runner · V4 =
+      1 Brute + 8 Grunt · V5 = 16 Grunt + 6 Runner · V6 = 18 Runner · V7 = 3 Brute
+      + 10 Grunt · V8 = 12 Runner + 2 Brute · V9 = 20 Grunt + 4 Brute · V10 = 6 Brute
+      + 20 Runner + 10 Grunt. Intervalle de spawn 0,6 s ; préparation 15 s entre vagues.
+
+      '
+    role_dans_la_boucle: 'C''est le calendrier de RÉVÉLATION des décisions. Chaque
+      vague pose une question dont la réponse était à acheter une vague plus tôt :
+      V4 demande « as-tu prévu l''armure ? », V6 demande « as-tu prévu la vitesse
+      ? », V10 demande les deux à la fois. Une composition fixe (et non aléatoire)
+      est délibérée : elle rend l''anticipation POSSIBLE, donc la décision réelle
+  
+[tronqué]
+
+### artifacts/s1-prisme.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\tower_defense_sonde\artifacts\s1-prisme.txt)
+# Prisme — sortie RECOMBINÉE mécaniquement
+
+> Généré par `merge_prisme.mjs` — UNION par critère charter cité, AUCUN arbitrage sémantique.
+> `claim_verdict` : NO_CLAIM_ALLOWED — recombinaison mécanique, pas un jugement de qualité.
+
+## Périmètre produit (dérivé du contrôle réel, pas deviné)
+
+Le contrôle (artefact s1 réel déjà produit) cite 0/0 critères charter : .
+
+## Couverture par critère (union du panel ×5)
+
+## Règles observables — union brute, groupée par lens (rien fusionné, rien tranché)
+
+Chaque bloc ci-dessous est le texte VERBATIM de la section « Règles observables » d'un lens. Aucune reformulation, aucune sélection d'une version « meilleure » qu'une autre — la fusion de texte ou l'arbitrage entre versions divergentes reste une décision HumanGate (hors scope v0).
+
+### Source : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\tower_defense_sonde\prisme\prisme_lens_ceo.md (source_role: prisme_lens_ceo)
+
+(section vide ou introuvable)
+
+### Source : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\tower_defense_sonde\prisme\prisme_lens_game_designer.md (source_role: prisme_lens_game_designer)
+
+(section vide ou introuvable)
+
+### Source : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\tower_defense_sonde\prisme\prisme_lens_front.md (source_role: prisme_lens_front)
+
+(section vide ou introuvable)
+
+### Source : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\tower_defense_sonde\prisme\prisme_lens_back.md (source_role: prisme_lens_back)
+
+(section vide ou introuvable)
+
+### Source : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\tower_defense_sonde\prisme\prisme_lens_joueur.md (source_role: prisme_lens_joueur)
+
+(section vide ou introuvable)
+
+## Bloc machine-lisible (source_role)
+
+```json
+{
+  "coverage_by_role": {},
+  "roles": [
+    "prisme_lens_ceo",
+    "prisme_lens_game_designer",
+    "prisme_lens_front",
+    "prisme_lens_back",
+    "prisme_lens_joueur"
+  ]
+}
+```
+
+
+
+### artifacts/s2-worldscan.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\tower_defense_sonde\artifacts\s2-worldscan.txt)
+## OBSERVATION — TOWER DEFENSE : ANALYSE COMPARATIVE (3 RÉFÉRENCES)
+
+---
+
+### **1. BLOONS TD 6 — Architecture modulaire de la difficulté progressive**
+
+#### Mécanique fondamentale
+Bloons TD 6 repose sur un équilibre **ressources ↔ placement ↔ upgrades** : le joueur accumule de la monnaie en abattant des ennemis (bloons), achète des tours, et choisit parmi 3 chemins d'amélioration par tour. Chaque tour n'en monte qu'un seul au niveau max — une contrainte structurante. La rétro-ingénierie observable suggère une **économie sensible** où chaque décision de placement et de chemin d'upgrade résout un problème tactique distinct.
+
+**Sources citées** :
+- [Bloons TD 6 Wiki (Blooncyclopedia)](https://www.bloonswiki.com/Bloons_TD_6) — mécanique triple-path, systèmes Monkey Knowledge, power-ups
+- [Bloononomics | Bloons Wiki (Fandom)](https://bloons.fandom.com/wiki/Bloononomics) — économie et stratégies monétaires
+- [Bloons TD 6 Review: The Tower Defense Standard (Dinogame GG)](https://dinogame.gg/blog/bloons-td-review/) — structure de progression
+
+#### Boucles à 4 horizons
+- **Minute 1** : placement de 1 tour de base (Dart Monkey, Glue Gunner), première monnaie au abattage des premiers bloons, pas de décision d'upgrade encore. But clairement nommé : atteindre la fin du niveau sans perte d'une vie.
+- **Minute 10** : ajout de 2-3 tours supplémentaires, premier choix d'upgrade sélectionné, économie de monnaie devenue le bottleneck. Les tours commencent à former une chaîne d'effet (glue ralentit, dart accélère sa cadence).
+- **Heure 5** : multiples upgraded towers (chemins tier-3 activés), déblocage de heroes avec expérience progressive (systèmes asymétriques), introduction de Monkey Knowledge (micro-améliorations cumulatives). L'arc passe de « se défendre » à « optimiser pour le score ».
+- **Endgame** : mode CHIMPS (no Monkey Knowledge, no Powers, no Selling towers) — défi ultime qui rétro-ingénieurise le système : tu dois prouver que ta tour fonctionne SANS béquilles. Existe aussi New Game+ via leveling vet (cap 155, puis vétéran tous les 20M XP).
+
+#### Progression et économie
+- **Déblocages** : nouveaux héros, nouveaux chemins d'upgrade (chaque héros majeur change la courbe économique)
+- **Ressources** : monnaie (bloons → argent → tours), Monkey Money (via progression de niveau = cosmétique + pas de force), XP (héros).
+- **Courbe de difficulté** : 100+ maps × 6 difficultés = réjoueabilité structurée. Chaque map repose sur une topologie d'ennemis (bloons type-spécifiques : Ceramics, MOAB, DDT) qui fonde une limite mécanique.
+
+#### Objectives (modes)
+- **Campaign Standard** : waves progressives (20-50 selon la map) ; victory = tous les bloons morts avant fin du chemin ; defeat = 1 bloon atteint le bout = 1 vie perdue, 4 vies totales = game over.
+- **Sandbox (Freeplay)** : vagues infinies jusqu'à défaite (has_win_state=false). Objectif du joueur : combien de vagues atteindrais-tu si la monnaie n'était pas limitée?
+- **CHIMPS** : strict hardcore (1 vie, pas de modes, pas de vente) = victoire = passer toutes les vagues de la map en mode ultra hard.
+- **Apopalypse** : vagues très rapprochées, temps de réaction crucial.
+
+#### Retention & retour du joueur  
+**Pourquoi il revient** : trois boucles :
+1. **Défi mécanique** — chaque map offre une courbe de difficulté unique ; ta tour échoue, tu essaies une autre ; les 100 maps sont des micro-puzzles.
+2. **Collecte de héros** — déverrouiller tous les héros (progression asymptote qui prend semaines).
+3. **Score-attack compétitif** — high scores par map = leaderboard.
+
+**Quelle récompense arrive** : new heroes unlock → new playstyles → new strategies viable → map previously impossible now beatable.
+
+**Quel système pousse le prochain clic** : « cette map est maintenant accessible, essaie le héros qu'on vient de débloquer ».
+
+---
+
+### **2. PLANTS vs ZOMBIES (Original Edition) — Progression par collecte et introduction progressive de mécaniques**
+
+#### Mécanique fondamentale  
+PvZ repose sur une **économie du sunlight** (ressource générée continûment) et une **grille tactile** de placement. Chaque niveau introduit une nouvelle plante (déblocage, ~40 plantes au total) qui élargit le toolset. Pas de décision d'upgrade complexe : tu as une plante, tu la places, elle fonctionne. La **diversité du toolset augmente**, pas la profondeur d'une tour.
+
+**Sources citées** :
+- [Adventure Mode | Plants vs. Zombies Wiki (PvZ:OE)](https://plantsvszombies.wiki.gg/wiki/Adventure_Mode_(PvZ:_OE)) — structure 5 stages × 10 levels, new plant per level
+- [Breaking down PvZ UI/UX Elements for Addiction (Medium)](https://medium.com/@writer_angel/breaking-down-the-ui-ux-elements-that-make-plants-vs-zombies-addictive-2959ce85163f) — game loop sunlight/placement, retention mechanics
+- [Plants vs. Zombies: Replanted Review (ScreenRant)](https://screenrant.com/plants-vs-zombies-replanted-review/) — gameplay and progression commentary
+
+#### Boucles à 4 horizons
+- **Minute 1** : tu places une Peashooter (tirer sur un zombie), tu génères du sunlight passif (ciel bleu drop + générateurs). Très simple : zéro ambiguïté sur ce qu'il faut f
+[tronqué]
+```json
+{
+  "games": [
+    {
+      "game": "Bloons TD 6",
+      "sources": [
+        {
+          "url": "https://www.bloonswiki.com/Bloons_TD_6",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://bloons.fandom.com/wiki/Bloononomics",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://dinogame.gg/blog/bloons-td-review/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://www.youtube.com/watch?v=1ZRID08zsVs",
+          "type": "video",
+          "timestamp": "2022-11-15"
+        }
+      ],
+      "loops": {
+        "minute_1": "Place first tower (Dart Monkey), kill first bloons, earn starting cash. No upgrade choice yet. Victory condition clear: all bloons dead before reaching end.",
+        "minute_10": "2-3 towers placed, first upgrade path selected (3-path constraint). Money is bottleneck. Towers begin synergizing. Player now making strategic choices about economy vs defense.",
+        "hour_5": "Multiple upgraded towers (tier-3 paths active). Heroes unlock with experience progression. Monkey Knowledge micro-enhancements introduce meta-layer. Optimization for score becomes focus.",
+        "endgame": "CHIMPS mode: hardcore 1-life run without Monkey Knowledge, power-ups, or tower selling. Pure mechanical mastery. Alternative: Sandbox (infinite waves, freeplay) or New Game+ (veterancy leveling beyond cap 155)."
+      },
+      "objectives": [
+        {
+          "mode": "campaign_standard",
+          "has_win_state": true,
+          "victory_condition": "All bloons defeated before reaching end of path for all 20-50 waves (map-dependent)",
+          "has_defeat_state": true,
+          "defeat_condition": "1 bloon reaches end = 1 life lost, 4 lives total = game over",
+          "player_goal": "Beat all waves, collect stars (higher stars = fewer lives remaining at end)"
+        },
+        {
+          "mode": "chimps",
+          "has_win_state": true,
+          "victory_condition": "All bloons defeated on ultra-hard mode with no power-ups, no Monkey Knowledge, no tower selling",
+          "has_defeat_state": true,
+          "defeat_condition": "1 bloon reaches end = instant loss",
+          "player_goal": "Prove mechanical mastery without safety nets"
+        },
+        {
+          "mode": "sandbox_freeplay",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": true,
+          "defeat_condition": "Insufficient cash to defend remaining bloons",
+          "player_goal": "Reach as high a wave as possible with given tower setup"
+        }
+      ],
+      "retention_answer": "Three retention loops: (1) mechanical challenge—each 100+ map is a unique puzzle; (2) hero collection—unlock all heroes over weeks; (3) competitive score-attack on leaderboards. New hero unlocks = new viable strategies = previously-impossible maps now beatable."
+    },
+    {
+      "game": "Plants vs. Zombies (Original Edition)",
+      "sources": [
+        {
+          "url": "https://plantsvszombies.wiki.gg/wiki/Adventure_Mode_(PvZ:_OE)",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://medium.com/@writer_angel/breaking-down-the-ui-ux-elements-that-make-plants-vs-zombies-addictive-2959ce85163f",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://screenrant.com/plants-vs-zombies-replanted-review/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://plantsvszombies.wiki.gg/wiki/Adventure_Mode_(PvZO)",
+          "type": "wiki",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Place Peashooter, sunlight drops from sky. Kill first zombie (Browncoat). Very clear: target on lawn, destroy it. No upgrade complexity. Sunlight generation passive and intuitive.",
+        "minute_10": "3-4 plants placed (Peashooter, Sunflower, Walnut, Potato Mine). Manage sunlight economy: wait or spend now? Different plants counter different zombie types. Strategy begins to emerge.",
+        "hour_5": "15-20 levels beaten, 15+ plants unlocked. Player optimizes formations by observing zombie spawn patterns per level. Arc shifts from 'kill zombie' to 'predict which lane gets armored zombies'.",
+        "endgame": "Level 50 boss Dr. Zomboss (pre-planted field, 1 life on center lane = instant loss if breached). Adventure Mode 2 repeats same 50 levels but +50% enemy HP + 3 pre-selected plants per level (less freedom = puzzle)."
+      },
+      "objectives": [
+        {
+          "mode": "adventure_mode",
+          "has_win_state": true,
+          "victory_condition": "Defeat all zombie waves in level before they reach the house (all 50 levels complete = full campaign)",
+          "has_defeat_state": true,
+          "defeat_condition": "1 zombie reaches house = instant level fail",
+          "player_goal": "Clear level with minimal plant losses (3-star = no plant deaths)"
+        },
+        {
+          "mode": "adventure_mode_2",
+          "has_win_state": true,
+          "victory_condition": "Defeat all waves using only 3 pre-selected plants per level",
+          "has_defeat_state": true,
+          "defeat_condition": "1 zombie reaches house = instant level fail",
+          "player_goal": "Solve constraint puzzle with limited toolset"
+        },
+        {
+          "mode": "endless",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": true,
+          "defeat_condition": "All lawn mowers consumed (no more defenses available)",
+          "player_goal": "Survive as many waves as possible without restocking"
+        },
+        {
+          "mode": "mini_games",
+          "has_win_state": true,
+          "victory_condition": "Complete puzzle or time-attack objective (varies per mini-game)",
+          "has_defeat_state": true,
+          "defeat_condition": "Zombie reaches house or time expires",
+          "player_goal": "Master variant challenge within constraints"
+        }
+      ],
+      "retention_answer": "Two retention loops: (1) collection—40 plants to unlock, each opens new strategy or counters new zombie type; (2) difficulty escalation—each level introduces new zombie forcing player to adapt. Progression is felt as 'unlock counter → strategy viable → hard enemy now easy.' Player returns to unlock next plant and test it on pending levels."
+    },
+    {
+      "game": "Kingdom Rush: Frontiers",
+      "sources": [
+        {
+          "url": "https://kingdomrushtd.fandom.com/wiki/Kingdom_Rush:_Frontiers",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://kingdomrushtd.fandom.com/wiki/Difficulty",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=2075605111",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://game-ace.com/blog/engineering-of-tower-defense-games/",
+          "type": "article",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Place 1-2 towers (Barracks or Archer), hero spawns. First small wave (3-5 enemies). Test basic tower + hero synergy. Linear, clear path: defend against this wave.",
+        "minute_10": "3-4 towers placed (one per type: Barracks, Archer, Mage, Artillery). Hero reaches level 3-4, active ability unlocked. Managing two resource streams: tower upgrades vs hero cooldown-spending. Enemies differentiate (some armor, some flying).",
+        "hour_5": "15-20 levels beaten, hero cap (L12) reached, full ability tree extended. New specialized towers unlocked (Reinforcements, Frost Mage). Shift from 'survive' to 'optimize for 3-star (minimize hero deaths)'. Replayability via hero leveling on earlier maps.",
+        "endgame": "Heroic Challenge (same level, 6 elite waves, 1 life, increased enemy HP) forces hero level cap + optimal tower placement. Iron Challenge (1 super-wave, no breaks, pure execution). No New Game+; endgame is challenge-variant mastery."
+      },
+      "objectives": [
+        {
+          "mode": "campaign",
+          "has_win_state": true,
+          "victory_condition": "Defeat all 15-20 waves per level before hero reaches 0 HP",
+          "has_defeat_state": true,
+          "defeat_condition": "Hero health reaches 0 = 1 life lost, 3 lives total = level fail",
+          "player_goal": "Clear all waves, earn 3-star (maximize hero HP remaining at wave completion)"
+        },
+        {
+          "mode": "heroic_challenge",
+          "has_win_state": true,
+          "victory_condition": "Defeat 6 elite waves without hero death (1 life total, increased difficulty)",
+          "has_defeat_state": true,
+          "defeat_condition": "Hero health reaches 0 = instant fail",
+          "player_goal": "Master map topology and tower/hero synergy under extreme pressure"
+        },
+        {
+          "mode": "iron_challenge",
+          "has_win_state": true,
+          "victory_condition": "Survive 1 super-wave (all enemies spawn in rapid succession)",
+          "has_defeat_state": true,
+          "defeat_condition": "Hero health reaches 0 = instant fail",
+          "player_goal": "Pure execution test of tower placement and timing"
+        }
+      ],
+      "retention_answer": "Three retention loops: (1) hero leveling—each hero to cap L12 unlocks new ability, enabling replay of earlier maps for faster progression; (2) star hunting—minimize hero deaths for mastery signaling; (3) challenge variants—Heroic/Iron teach deep map knowledge and reward skillful play. New hero = new viable strategies = previously-hard level now manageable with new tool."
+    }
+  ],
+  "advisory": true
+}
+```
+
+## PRÉ-MORTEM (erreurs des runs passés)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [s0-contrat] exécuteur LLM en échec à s0-contrat: claude -p returncode=1: 
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [manifest-b5a1ad66fadc124e] Les 3 tentatives precedentes de s2.7-gm-worldscan ont echoue a la materialisation de design_questions.json en violant la regle append-only : elles n'ont pas recopie les questions q_art_001/q_art_002/q_art_003 deja posees par l'Artiste (s2.5-artbible) et presentes dans le run_dir. — cause: Le GM doit lire design_questions.json existant dans le run_dir et recopier TOUTES les questions des rondes precedentes (regle verifiee par _validate_design_questions -> refus 'question(s) disparue(s)') ; ne produire que ses propres questions supprime celles de l'autre pilier et rend le fichier non materialisable. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-7b3cb2c6b2d9611c] Les 3 tentatives precedentes de s2.7-gm-worldscan-r2 ont echoue a la materialisation du canal design_questions avec le motif append-only 'question(s) disparue(s) : q_art_001, q_art_002, q_art_003' : un fond correct (gm_worldscan.json et art_bible.md valides) mais un fence design_questions qui ne recopiait pas les questions des rondes precedentes. — cause: La regle append-only de _validate_design_questions (run_real.py) lit le design_questions.json existant du run et exige que TOUTE question anterieure (par id) soit presente dans la nouvelle liste ; un agent qui reformule son fence en ne portant que ses reponses, sans recopier verbatim les questions recues des rondes precedentes, declenche un refus rejouable a chaque tentative. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-0dcc0725ea4233b0] L'artefact amont s2-worldscan est une analyse comparative de GENRE (Cookie Clicker, Neko Atsume, Kittens Game) sans entite narrative propre a kitten_clicker : il n'ancre que 2 faits generiques de genre (dont 2 inferes), si bien que 4 des 8 sections (chronology, factions, relations, events) sont NOT_GROUNDED et que toute la matiere narrative concrete provient du charter seul. — cause: Le contrat s2-worldscan produit une observation de references/genre (FORGE_PIPELINE_TARGET_V1 §1.1 : le World Scan amont observe le monde et les references, pas le monde specifique du jeu) ; la Story Bible n'herite donc quasiment d'aucun materiau narratif de son World Scan amont et repose sur le charter comme unique ancre riche. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-d53d7a9b22296d9e] L'album (9 emplacements) et l'ecran d'ouverture ne peuvent pas etre representes fidelement : les contrats de design ne fixent ni l'ordre d'adoption des 6 chatons communs ni le mapping adoption -> emplacement d'album, si bien que je peux dessiner les 9 silhouettes mais pas quel chaton revele quel emplacement ni dans quel ordre ils se colorent. — cause: Les contrats de progression (C.1/C.2) specifient les reactions a collection>=1 mais laissent l'ordre d'adoption et l'assignation des emplacements d'album non determines (pre-mortem manifest-712f1c4999592d2d). -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-895fab74168b579b] Ma sortie R2 precedente a ete refusee a la materialisation : les trois 'answer.ref' du fence design_questions pointaient la section 'about' de mon propre art_bible (art_bible:...) au lieu de l'artefact du repondant GM (gm_worldscan:...). — cause: Confusion d'adressage dans le canal design_questions : pour une question ART->GM le repondant est le GM, donc answer.ref doit resoudre dans gm_worldscan.json (grey_blocks answers), jamais dans la section art_bible citee par 'about'. -- GENERATION_DIFFERENTE_A_REEXAMINER
+
+## RETOUR DU MATÉRIALISEUR — tentative 1 (ta sortie précédente a été REFUSÉE)
+s3-decompo: artefact featuremap.json non matérialisable — aucun bloc ```json``` valide (0 bloc(s) fenced inspectés) et la sortie entière n'est pas du JSON
+Corrige la FORME demandée ; le fond de ta sortie précédente reste valable.
+
+FORGE_DISPATCH:s3-decompo:tower_defense_sonde-20260829-build:2

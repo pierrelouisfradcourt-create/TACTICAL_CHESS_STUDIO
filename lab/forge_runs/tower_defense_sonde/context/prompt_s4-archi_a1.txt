@@ -1,0 +1,583 @@
+## RÔLE
+Architecte (étape 4). Point de vue imposé : architecte logiciel senior qui découpe par responsabilité, pas par confort.
+
+## EXIGENCES COGNITIVES
+Raisonnement architecture profond, effort élevé. Doit tenir un graphe de dépendances complet en tête et détecter les cycles avant qu'ils existent.
+
+## MÉMOIRE DE TRAVAIL
+Consomme la featuremap (étape 3) ; sur repo existant, connaît le blueprint en place (diff d'archi, pas réinvention). Conventions : CLAUDE.md + rules/.
+
+## OBJECTIF
+Produire blueprint.yaml gelé : modules + responsabilités · deps autorisées/interdites (ex : ui→api→engine ok, ui→engine interdit) · ownership · invariants d'archi.
+
+## DANS LE PÉRIMÈTRE (in_scope)
+Découpage en modules, graphe de dépendances autorisées/interdites, ownership par module, invariants d'architecture. Écrit uniquement blueprint.yaml.
+
+## HORS PÉRIMÈTRE (out_of_scope)
+Aucune écriture de code d'implémentation. Ne crée aucun fichier source. Ne décide pas la WireMap (étape 5). Ne touche pas aux lanes protégées (tests/, src/).
+
+## PERMISSIONS
+read: repo entier. write: blueprint.yaml uniquement. create: blueprint.yaml. run: aucun. delete: aucun.
+
+## GARDE-FOU
+Jamais « au feeling » : la structure physique est une CONSÉQUENCE du blueprint, justifiée par la featuremap. Tue les god-objects avant qu'ils existent. Toute dépendance interdite doit être explicite.
+
+## CRITÈRES DE RÉUSSITE
+blueprint valide ; chaque feature de la featuremap couverte par ≥1 module ; chaque module porte une responsabilité et une preuve attendue ; aucune dépendance cyclique ; aucune dépendance déclarée qui soit elle-même interdite ; deps_interdites listées explicitement et non vides.
+
+## ORACLES / TESTS
+DEUX ORACLES, DEUX MOMENTS — ne pas les confondre. AVANT build (ici) : `node scripts/forge/check_blueprint_contract.mjs <run_dir>/blueprint.json --featuremap <run_dir>/featuremap.json` répond « cette architecture couvre-t-elle le besoin ? » (couverture, responsabilités, cycles, contradictions, preuves). APRÈS build (étape s10b) : `forge.static_oracles.check_architecture` répond « le code respecte-t-il l'architecture ? ». Appelé en amont sur un src vide, il ne trouve aucun import et serait vacuement vert : ce n'est pas ton oracle. Jamais de LLM-as-judge.
+
+## CONTRAT DE SORTIE
+Un bloc ```json``` TERMINAL, matérialisé en blueprint.json par l'exécuteur (tu n'écris JAMAIS ce fichier toi-même) : {"modules": ["<id>", ...], "deps_interdites": [["source", "cible"], ...], "ownership": {...}, "responsabilites": [{"module", "responsabilite", "couvre": ["<id de feature>"], "dependances": ["<module>"], "preuve_attendue": {"kind", "statement"}}]}. `modules` reste une liste de CHAÎNES (forme consommée telle quelle par check_architecture après build — ne jamais la transformer en objets). RÈGLES DURES : `couvre` cite l'`id` EXACT d'une feature de featuremap.json — une feature que nul module ne couvre signifie que l'architecture ne répond pas au besoin. `dependances` est OBLIGATOIRE et peut être vide (module feuille), jamais absent ; les consommateurs en sont DÉRIVÉS mécaniquement, ne les saisis pas. Ne déclare jamais une dépendance que tu inscris toi-même dans deps_interdites.
+
+## RAPPORT FINAL
+software/evidence/claim séparés ; cite le reçu de check_blueprint_contract ; liste les features non couvertes et les couvertures fantômes ; claim_verdict: NO_CLAIM_ALLOWED. RETURN LINEAGE (doctrine FORGE_CAUSAL_LINEAGE_V2 §3, ratifiee Pierre 2026-08-06) — aucun worker ne meurt seul : le retour porte la CAUSALITE, pas seulement le resultat. Termine TOUJOURS par ce bloc, succes comme echec : `why_task_existed:` {`problem:` le probleme mesure qui a active cette tache · `oracle:` l'oracle ou la mesure qui l'a detecte, ou "aucun" si l'activation vient d'une decision humaine · `root_cause:` la cause racine identifiee, ou "non etablie" · `action_reason:` pourquoi CETTE action y repond} · `result:` l'etat reellement obtenu · `proof:` la commande executee et sa sortie · `learning:` ce que tu as appris et qui resservira, ou "aucun" · `next_reason:` pourquoi le niveau superieur doit agir OU pourquoi la chaine causale est FERMEE et se termine ici. Regles : ces champs sont HERITES ou CONSTATES, jamais inventes — si tu n'as pas recu le `why`, ecris "non transmis" plutot que de le deviner (une cause fabriquee est la meme faute qu'un `validated_by` fabrique). En ECHEC, `result` porte ce que tu as essaye et ce qui a echoue. `next_reason` ne vaut escalade que si une cause non resolue persiste, une preuve manque ou contredit l'etat attendu, ou une correction reste possible — sinon la lignee se termine proprement, sans action supplementaire.
+
+## À LIRE OBLIGATOIREMENT AVANT TOUTE ACTION
+- scripts/forge/standard/repo_map.yaml
+- scripts/forge/contracts/SCHEMA.md
+- l'artefact featuremap produit par l'étape 3 (Décompo fonctionnelle)
+- le blueprint.yaml existant si le repo est déjà structuré
+- lab/forge_runs/<projet>/knowledge_packet.json — patterns externes cités, ADVISORY jamais prescriptif
+- lab/forge_runs/<projet>/charter.yaml — INTENT LINEAGE : intention humaine, invariants, hors_scope, et le bloc `provenance` (source Pierre, fog_humangate). HERITE, jamais reecrit : l'etape verifie que sa decision la respecte, ou remonte le conflit.
+- scripts/forge/standard/repo_map.yaml — TABLE FIGEE des racines et des gabarits d'adresse. Realite verifiable, pas une intention : toute adresse decidee ici y est confrontee (defaut mesure 2026-08-05 : racine 04_CONTENT inventee, 232 019 tokens de reprise).
+
+## RÈGLE DE RESTITUTION — Chaque affirmation du final_report doit citer l'oracle/l'ancre non-LLM qui l'appuie. Appuyée par un oracle => software_verdict (OK/FAIL/BLOCKED) + evidence_verdict: MECHANICAL_VALIDATION_ONLY. Sans oracle disponible => claim_verdict: NO_CLAIM_ALLOWED et remonte un besoin HumanGate (fog), jamais un claim auto-certifié. Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement. En dernier lieu, une section finale SKIPPED_VALIDATION, structurée et EXPLICITE : pour chaque validation que tu n'as PAS faite, liste l'item de validation (quoi), le périmètre concerné (où), le statut (ex. non fait / partiel / hors délai) et la raison (pourquoi). Rien sauté => écris `SKIPPED_VALIDATION: aucun` — une décision assumée, jamais un silence. Le silence sur cette section est traité comme un oubli, pas comme 'rien à signaler'. TOUTE DERNIÈRE LIGNE DU RAPPORT, OBLIGATOIRE — lignée Return : une ligne unique `RETURN_REASON: {"status": "NOT_DISCOVERED"}` si tu n'as découvert AUCUN problème pendant ce travail. Si (et SEULEMENT si) tu as réellement découvert un problème — défaut rencontré, cause d'un échec, écart mesuré — écris à la place `RETURN_REASON: {"status": "DISCOVERED", "problem": "<le problème, factuel>", "root_cause": "<la cause racine si connue, sinon omets ce champ>"}`. JSON valide sur UNE seule ligne, aucun texte après. N'invente JAMAIS un problème pour remplir ce champ : un NOT_DISCOVERED honnête vaut mieux qu'un DISCOVERED de complaisance.
+
+## MARQUEUR DE DISPATCH (ne pas modifier)
+FORGE_DISPATCH:s4-archi:tower_defense_sonde-20260829-build:1
+
+## TÂCHE CONCRÈTE (tower_defense_sonde-20260829-build / s4-archi)
+Conçois l'architecture du projet 'tower_defense_sonde' (code à créer sous games/tower_defense_sonde). Termine ta réponse par UN bloc ```json ... ``` contenant EXACTEMENT un objet de la forme {"modules": ["<dossier ou fichier de premier niveau sous la racine du code>", ...], "deps_interdites": [["<module_source>", "<module_cible>"], ...]} — format lu par forge.static_oracles.check_architecture. deps_interdites est OBLIGATOIRE et NON VIDE : déclare au minimum la séparation logique→rendu et logique→input (un blueprint sans dépendance interdite est rejeté par l'exécuteur — un tel projet relève du fog HumanGate, pas d'un oracle vide). Tu n'écris AUCUN fichier : l'exécuteur matérialise lui-même blueprint.json depuis ce bloc.
+
+## ARTEFACTS AMONT (run_dir)
+
+### charter.yaml (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\tower_defense_sonde\charter.yaml)
+meta:
+  nom_sonde: td_probe_v1
+  etape: s0-contrat
+  date_redaction: '2026-08-29'
+  statut: PROPOSITION (non ratifiée) — attend HumanGate Pierre
+  provenance_commande:
+    genre: 'Tower Defense jouable — SOURCE: Pierre, 2026-08-29 (verbatim structuré
+      dans le dispatch)'
+    objectif_experimental: 'Révéler une vraie boucle de jeu (décisions → conséquences
+      divergentes) — SOURCE: Pierre, 2026-08-29'
+    contraintes_techniques: 'SOURCE: pratique standard des sondes Forge (page HTML+JS
+      unique, RNG seedé, logique .mjs testable, window.__game, #overlay/#restart)
+      — relayée par Pierre 2026-08-29'
+    observabilite: 'SOURCE: Pierre, 2026-08-29'
+    non_impose_par_pierre: nombre de maps/tours/ennemis/upgrades/vagues, forme de
+      l'économie — TOUT le bloc `conception:` ci-dessous est PROPOSITION non ratifiée
+objectif: 'Produire une sonde Tower Defense jouable, page web unique et déterministe,
+  dont le seul rôle est de PROUVER qu''une boucle de jeu existe : que des décisions
+  de joueur (où poser, quoi poser, monter en niveau ou en nombre, appeler la vague
+  tôt ou tard) produisent des issues mesurablement différentes, qu''un bot compétent
+  GAGNE et qu''un bot naïf PERD sur la même seed. La sonde n''est pas un jeu à livrer
+  : c''est un instrument de mesure de l''existence d''une boucle.
+
+  '
+reference_jeu: 'Genre : Tower Defense jouable (SOURCE Pierre, 2026-08-29 — aucun jeu-modèle
+  précis fourni ni ratifié). Jeu-modèle : Kingdom Rush / Bloons TD — PROPOSITION (non
+  ratifiée, FOG-1), citée uniquement pour la grammaire de genre (chemin fixe, vagues
+  appelables, tours à niveaux, économie par bounty). Interdiction : aucune reproduction
+  d''assets, de noms, de courbes de balance ou de contenu de ces jeux.
+
+  '
+plateforme_cible: 'Web — page HTML unique + JavaScript, rendu <canvas> 2D, zéro dépendance
+  externe. SOURCE : contrainte technique n°3 de la commande (pratique standard des
+  sondes Forge, relayée par Pierre 2026-08-29). Détail : plateforme_cible_detail ci-dessous.
+
+  '
+plateforme_cible_detail:
+- 1 fichier `index.html` (DOM + canvas + boot), zéro dépendance externe, zéro CDN,
+  zéro réseau.
+- Logique de jeu en modules ES `.mjs` purs, importables et exécutables sous `node
+  --test` sans DOM ni canvas.
+- 'Rendu strictement séparé : aucun module logique ne touche `document`, `window`,
+  `canvas`, `Date`, `performance` ni `Math.random`.'
+- Simulation à pas fixe (`TICK_MS = 16`, 62.5 ticks/s logiques), avancée par `step(state,
+  dt_fixe)` — jamais par le temps réel.
+- RNG seedé déterministe (générateur entier 32 bits type mulberry32) porté DANS l'état,
+  jamais global.
+- Ouverture par `file://` suffisante — aucun serveur requis.
+hors_scope:
+- Toute forme de sauvegarde/persistance (localStorage, fichier, serveur).
+- Audio, musique, effets sonores.
+- 'Assets externes : images, sprites, fonts, atlas. Rendu = primitives canvas (rect,
+  arc, ligne, texte).'
+- Menu principal, écran de sélection, tutoriel scénarisé, options.
+- 'Multi-maps : une seule map (voir `conception.maps`). Pas de map editor, pas de
+  génération procédurale de map.'
+- 'Vente/déplacement de tour (choix assumé : rend les décisions de placement irréversibles
+  donc réellement coûteuses).'
+- Méta-progression persistante entre parties (arbre de talents, déblocages) — la boucle
+  méta est intra-partie uniquement.
+- Responsive/mobile, tactile, redimensionnement dynamique du canvas (taille fixe).
+- Multijoueur, réseau, télémétrie, analytics.
+- Difficultés multiples, modes alternatifs, endless.
+- 'Polish visuel : particules, écrans de transition, animations d''interface, juice.'
+- 'Équilibrage « fun » : la sonde prouve la DIVERGENCE des issues, pas la qualité
+  ressentie. Le fun reste un jugement humain (fog Pierre).'
+- Toute décision d'architecture logicielle (découpage précis des modules, noms de
+  fichiers, structures de données) — relève de l'étape 4.
+- 'Tout code : ce charter n''en contient aucun et n''en autorise aucun à cette étape.'
+conception:
+  boucles:
+  - nom: boucle_tick
+    niveau: 1
+    proposition: 'Pas fixe de 16 ms : les ennemis avancent le long du chemin, chaque
+      tour vérifie son cooldown, acquiert la cible vivante la plus AVANCÉE dans son
+      rayon (règle de ciblage unique et fixe : `first`), tire, applique dégâts et
+      effets ; les morts versent leur bounty ; les ennemis atteignant la sortie retirent
+      des vies.
+
+      '
+    role_dans_la_boucle: 'C''est l''unité de conséquence. Elle ne demande aucune décision
+      au joueur — elle est le mécanisme qui transforme les décisions des boucles supérieures
+      en résultat observable. Sa raison d''être : rendre chaque décision MESURABLE
+      au tick près et REJOUABLE.
+
+      '
+    preuve_attendue: 'Deux exécutions de la même seed avec la même séquence d''actions
+      produisent des états strictement identiques (égalité exacte d''un hash de l''état
+      à N ticks) — assertion d''égalité STRICTE, pas de tolérance, pas de `>=`.
+
+      '
+  - nom: boucle_vague
+    niveau: 2
+    proposition: 'Phase de préparation de 15 s (compte à rebours) → le joueur pose/upgrade
+      → il appelle la vague (bouton) ou la vague part seule à la fin du décompte →
+      la vague se déverse → nettoyage → bonus de fin de vague → retour en préparation.
+
+      '
+    role_dans_la_boucle: 'Crée la décision de TEMPO : appeler tôt rapporte un bonus
+      d''or proportionnel au temps de préparation économisé (2 or par seconde restante,
+      max 30), mais prive de la fenêtre où l''or des kills de la vague précédente
+      aurait pu être converti en défense. C''est un pari explicite : richesse contre
+      sécurité.
+
+      '
+    preuve_attendue: 'Deux bots identiques sauf sur le tempo (l''un appelle toujours
+      immédiatement, l''autre attend toujours la fin du décompte) divergent sur l''or
+      cumulé ET sur les vies finales avec des valeurs distinctes non triviales — et
+      l''ordre du gagnant s''inverse selon la composition de vague, montrant que le
+      tempo n''est pas dominé.
+
+      '
+  - nom: boucle_partie
+    niveau: 3
+    proposition: '10 vagues. Victoire = vague 10 nettoyée avec `lives > 0`. Défaite
+      = `lives <= 0` à n''importe quel moment. Fin de partie → overlay avec le verdict
+      → bouton restart qui réinitialise à la seed fournie.
+
+      '
+    role_dans_la_boucle: 'Donne un critère de SORTIE binaire et observable. Sans condition
+      de défaite atteignable, aucune décision n''a de coût ; sans victoire atteignable,
+      la solvabilité est indémontrable.
+
+      '
+    preuve_attendue: 'Sur la même seed : un bot compétent scripté atteint l''état
+      `VICTORY` avec un nombre de vies exact et non nul ; un bot naïf scripté atteint
+      l''état `DEFEAT` avec `lives == 0` avant la vague 10. Les deux issues sont lues
+      dans `window.__game.result` et affichées dans `#overlay`.
+
+      '
+  - nom: boucle_meta_intra_partie
+    niveau: 4
+    proposition: 'Le trésor de guerre : l''or non dépensé est un actif. Une tour de
+      niveau 3 coûte 2,4× son coût de base (base + 0,8× + 1,6×) ; trois tours de niveau
+      1 coûtent 3×. Le joueur arbitre en permanence entre « monter en hauteur » (percée
+      d''armure, ralentissement renforcé, splash élargi — capacités que le nombre
+      ne remplace PAS) et « monter en largeur » (couverture spatiale du chemin, que
+      la hauteur ne remplace pas non plus).
+
+      '
+    role_dans_la_boucle: 'C''est la décision structurante de la partie, celle qui
+      rend deux parties différentes. Elle est non triviale par construction : les
+      niveaux 3 débloquent des CAPACITÉS (pas seulement des nombres), donc aucune
+      des deux voies ne domine l''autre.
+
+      '
+    preuve_attendue: 'Trois bots — « tall » (upgrade prioritaire), « wide » (nouvelles
+      tours prioritaires), « mixte » — sur la même seed produisent trois vecteurs
+      de résultat distincts (vies finales, vague de mort ou de victoire, or total
+      dépensé, fuites cumulées) avec au moins deux valeurs distinctes non triviales
+      sur CHAQUE métrique retenue, et au moins une inversion de classement entre deux
+      métriques (règle de variance, ratifiée Pierre 2026-07-21).
+
+      '
+  maps:
+  - nom: map_unique_hairpin
+    proposition: 'UNE map. Grille 20×12 cases de 32 px → canvas 640×384. Un chemin
+      unique fixe (polyligne de cases, codée en dur, aucune génération) : entrée au
+      bord gauche à mi-hauteur, il file vers la droite, remonte, repart à droite,
+      redescend en épingle serrée (deux couloirs parallèles séparés par une seule
+      colonne de cases constructibles), puis rejoint la sortie au bord droit. Toute
+      case hors-chemin est constructible ; une case n''accueille qu''une tour.
+
+      '
+    role_dans_la_boucle: 'L''épingle crée la décision SPATIALE, et une seule map suffit
+      à la porter : les cases de la colonne centrale de l''épingle voient TROIS segments
+      de chemin à la fois — une tour y vaut environ trois tours dispersées, mais ces
+      cases sont peu nombreuses (6) et se disputent entre Frost, Gun et Cannon. Poser
+      cher au bon endroit vs poser peu cher partout devient un vrai arbitrage. Une
+      deuxième map n''ajouterait aucune décision nouvelle — elle est donc hors scope.
+
+      '
+    preuve_attendue: 'Deux bots au budget et au parc de tours IDENTIQUES, ne différant
+      que par le placement (l''un sur la colonne d''épingle, l''autre sur les premières
+      cases libres rencontrées), divergent strictement sur les fuites cumulées et
+      sur les vies finales. Un test unitaire assert que le nombre de cases voyant
+      ≥3 segments de chemin est exactement 6.
+
+      '
+  tours:
+  - nom: gun
+    proposition: Coût 50. Dégâts 6. Cadence 2,0 tirs/s. Portée 2,5 cases. Mono-cible,
+      projectile visible. Percée d'armure 0.
+    role_dans_la_boucle: 'Le socle économique et la décision « largeur ». Excellent
+      rendement or/dégâts contre les cibles sans armure, structurellement mauvais
+      contre l''armure (6−4 = 2 par tir sur Brute). Elle rend le spam de Gun viable
+      jusqu''à la vague où l''armure arrive — et là seulement, elle force le joueur
+      à changer d''avis.
+
+      '
+    preuve_attendue: 'Test unitaire STRICT : un tir de Gun L1 sur Brute (armure 4)
+      retire exactement 2 PV, pas « au moins 2 ». Test de bot : un parc 100 % Gun
+      L1 échoue à tuer la vague 7 dans la fenêtre de chemin disponible et perd des
+      vies — mesuré par un compteur de fuites exact.
+
+      '
+  - nom: frost
+    proposition: Coût 60. Dégâts 1. Cadence 1,5 tirs/s. Portée 2,0 cases. Applique
+      ralentissement 45 % pendant 1,5 s (non cumulable, rafraîchi).
+    role_dans_la_boucle: 'Tour-facilitatrice : elle ne gagne rien seule, elle multiplie
+      la valeur de tout le reste en allongeant le temps d''exposition. Elle crée la
+      décision « investir dans une tour qui ne tue pas », le choix le plus contre-intuitif
+      et donc le plus révélateur d''une vraie boucle. Elle est aussi la réponse dédiée
+      aux Runners rapides.
+
+      '
+    preuve_attendue: 'Comparaison à parc de dégâts constant : le même ensemble de
+      Gun, avec et sans un Frost à l''épingle, produit deux totaux de fuites strictement
+      différents sur la vague 6 (vague de Runners). Test unitaire STRICT : un ennemi
+      à 2,2 cases/s sous effet Frost avance exactement 1,21 cases/s (tolérance flottante
+      epsilon explicite, jamais une inégalité ouverte).
+
+      '
+  - nom: cannon
+    proposition: Coût 100. Dégâts 22. Cadence 0,5 tir/s. Portée 3,0 cases. Splash
+      rayon 1,2 case (dégâts pleins dans le rayon). Percée d'armure 0.
+    role_dans_la_boucle: 'La réponse à l''armure et aux paquets. Chère, lente, gaspillée
+      contre les Runners isolés (une cible rapide traverse sa fenêtre entre deux tirs).
+      Elle rend l''achat conditionnel à une LECTURE de la vague à venir : c''est la
+      décision d''anticipation.
+
+      '
+    preuve_attendue: 'Test unitaire STRICT : un tir de Cannon sur Brute retire exactement
+      18 PV (22−4) ; un tir touchant 4 Grunts groupés retire exactement 22 PV à chacun
+      des 4 (comptage exact des cibles touchées, jamais `>= 1`). Test de bot : un
+      parc 100 % Cannon perd sur la vague 6 (Runners) — prouvant qu''aucune tour n''est
+      dominante.
+
+      '
+  ennemis:
+  - nom: grunt
+    proposition: 'PV 40. Vitesse 1,0 case/s. Armure 0. Bounty 8. Coût en vies si fuite
+      : 1.'
+    role_dans_la_boucle: 'L''étalon. Il calibre l''économie et sert de référence :
+      toute autre décision se mesure à « combien de Grunts ce choix vaut-il ».'
+    preuve_attendue: 'Assertion STRICTE : tuer un Grunt fait passer l''or de G à G+8
+      exactement, et le compteur d''ennemis vivants de n à n−1 exactement.'
+  - nom: runner
+    proposition: 'PV 18. Vitesse 2,2 cases/s. Armure 0. Bounty 6. Coût en vies si
+      fuite : 1. Arrive en paquets serrés.'
+    role_dans_la_boucle: 'Il punit spécifiquement l''absence de contrôle (Frost) et
+      la cadence lente (Cannon). Il transforme « ai-je assez de dégâts » en « ai-je
+      assez de TEMPS D''EXPOSITION » — c''est lui qui rend la décision Frost/Cannon
+      non triviale.
+
+      '
+    preuve_attendue: Sur la vague 6, un parc Cannon-only laisse fuir un nombre exact
+      et non nul de Runners, là où le même budget en Gun+Frost en laisse fuir exactement
+      0.
+  - nom: brute
+    proposition: 'PV 220. Vitesse 0,6 case/s. Armure 4 (soustraction plate par impact,
+      dégâts minimum plancher 1). Bounty 25. Coût en vies si fuite : 5.'
+    role_dans_la_boucle: 'Il punit le spam de petits coups et rend l''armure lisible
+      : c''est la mécanique qui interdit la stratégie unique. Son coût de fuite à
+      5 vies fait qu''une seule erreur de lecture est immédiatement visible dans la
+      métrique.
+
+      '
+    preuve_attendue: 'Assertion STRICTE : une fuite de Brute fait passer les vies
+      de L à L−5 exactement. Table de dégâts vérifiée exactement : Gun L1 → 2, Gun
+      L3 (percée 3) → valeur exacte figée en test doré, Cannon L1 → 18.
+
+      '
+  vagues:
+  - nom: calendrier_10_vagues
+    proposition: '10 vagues, composition FIXE (aucune RNG sur la composition ; la
+      seed ne pilote que les micro-décisions de simulation, ex. départage de cibles
+      à égalité) : V1 = 8 Grunt · V2 = 12 Grunt · V3 = 10 Grunt + 4 Runner · V4 =
+      1 Brute + 8 Grunt · V5 = 16 Grunt + 6 Runner · V6 = 18 Runner · V7 = 3 Brute
+      + 10 Grunt · V8 = 12 Runner + 2 Brute · V9 = 20 Grunt + 4 Brute · V10 = 6 Brute
+      + 20 Runner + 10 Grunt. Intervalle de spawn 0,6 s ; préparation 15 s entre vagues.
+
+      '
+    role_dans_la_boucle: 'C''est le calendrier de RÉVÉLATION des décisions. Chaque
+      vague pose une question dont la réponse était à acheter une vague plus tôt :
+      V4 demande « as-tu prévu l''armure ? », V6 demande « as-tu prévu la vitesse
+      ? », V10 demande les deux à la fois. Une composition fixe (et non aléatoire)
+      est délibérée : elle rend l''anticipation POSSIBLE, donc la décision réelle
+  
+[tronqué]
+
+### artifacts/s3-decompo.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\tower_defense_sonde\artifacts\s3-decompo.txt)
+
+[tronqué]
+```json
+{
+  "game_id": "tower_defense_sonde",
+  "systemes": [
+    {
+      "id": "SYS-MAP",
+      "features": [
+        {
+          "id": "FEAT-MAP-GEO",
+          "capacites": [
+            {"id": "R1", "capacite": "Chemin unique fixe — un ennemi apparaît à l'entrée et parcourt le chemin visible jusqu'à la sortie en suivant ses virages", "source_ref": "D2", "expected_proof": {"kind": "visual", "statement": "Un ennemi visible apparaît à l'entrée du chemin et parcourt le chemin visible jusqu'à la sortie en suivant ses virages — suivable du regard sur toute sa trajectoire (D2)."}},
+            {"id": "R2", "capacite": "Cases constructibles — toute case hors-chemin est constructible, une seule tour par case", "source_ref": "map_unique_hairpin", "expected_proof": {"kind": "oracle", "statement": "Test de géométrie STRICT : toute case hors-chemin est constructible et une case n'accueille qu'une tour (grille 20x12, canvas 640x384)."}},
+            {"id": "R3", "capacite": "Épingle à triple couverture — un nombre exact de cases voient trois segments de chemin", "source_ref": "map_unique_hairpin", "expected_proof": {"kind": "oracle", "statement": "Test unitaire STRICT : le nombre de cases voyant >=3 segments de chemin est exactement 6 (égalité, jamais >=)."}}
+          ]
+        },
+        {
+          "id": "FEAT-MAP-SPATIAL",
+          "capacites": [
+            {"id": "R4", "capacite": "Décision spatiale — deux parcs identiques différant seulement par le placement divergent sur fuites et vies", "source_ref": "map_unique_hairpin", "expected_proof": {"kind": "oracle", "statement": "Deux bots au budget et au parc IDENTIQUES ne différant que par le placement (colonne d'épingle vs premières cases libres) divergent strictement sur les fuites cumulées ET les vies finales."}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SYS-TOWERS",
+      "features": [
+        {
+          "id": "FEAT-GUN",
+          "capacites": [
+            {"id": "R5", "capacite": "Statistiques Gun — coût 50, dégâts 6, cadence 2,0/s, portée 2,5, mono-cible, percée 0", "source_ref": "gun", "expected_proof": {"kind": "oracle", "statement": "Table figée vérifiée à l'égalité : Gun coût 50, dégâts 6, cadence 2,0 tirs/s, portée 2,5 cases, percée d'armure 0."}},
+            {"id": "R6", "capacite": "Gun face à l'armure — un tir de Gun L1 sur Brute retire exactement 2 PV", "source_ref": "gun", "expected_proof": {"kind": "oracle", "statement": "Test unitaire STRICT : un tir de Gun L1 sur Brute (armure 4) retire exactement 2 PV (6-4), pas « au moins 2 »."}}
+          ]
+        },
+        {
+          "id": "FEAT-FROST",
+          "capacites": [
+            {"id": "R7", "capacite": "Ralentissement Frost — un ennemi sous effet Frost avance à une vitesse réduite exacte", "source_ref": "frost", "expected_proof": {"kind": "oracle", "statement": "Test STRICT (epsilon flottant nommé) : un ennemi à 2,2 cases/s sous Frost avance exactement 1,21 cases/s ; ralentissement 45% / 1,5s, non cumulable, rafraîchi."}},
+            {"id": "R8", "capacite": "Valeur du Frost — à dégâts constants, ajouter un Frost à l'épingle change strictement les fuites", "source_ref": "frost", "expected_proof": {"kind": "oracle", "statement": "À parc de dégâts constant, le même ensemble de Gun avec vs sans un Frost à l'épingle produit deux totaux de fuites strictement différents sur la vague 6 (Runners)."}}
+          ]
+        },
+        {
+          "id": "FEAT-CANNON",
+          "capacites": [
+            {"id": "R9", "capacite": "Statistiques Cannon — coût 100, dégâts 22, cadence 0,5/s, portée 3,0, splash 1,2, percée 0", "source_ref": "cannon", "expected_proof": {"kind": "oracle", "statement": "Table figée vérifiée à l'égalité : Cannon coût 100, dégâts 22, cadence 0,5 tir/s, portée 3,0 cases, splash rayon 1,2 case, percée 0."}},
+            {"id": "R10", "capacite": "Splash Cannon — un tir touchant 4 Grunts groupés retire exactement 22 PV à chacun", "source_ref": "cannon", "expected_proof": {"kind": "oracle", "statement": "Test STRICT : un tir de Cannon touchant 4 Grunts groupés retire exactement 22 PV à chacun des 4 (comptage exact des cibles touchées, jamais >=1)."}},
+            {"id": "R11", "capacite": "Cannon face à l'armure — un tir de Cannon sur Brute retire exactement 18 PV", "source_ref": "cannon", "expected_proof": {"kind": "oracle", "statement": "Test STRICT : un tir de Cannon sur Brute retire exactement 18 PV (22-4)."}}
+          ]
+        },
+        {
+          "id": "FEAT-TARGETING",
+          "capacites": [
+            {"id": "R12", "capacite": "Ciblage 'first' — chaque tour acquiert la cible vivante la plus avancée dans son rayon", "source_ref": "boucle_tick", "expected_proof": {"kind": "oracle", "statement": "Règle de ciblage unique et fixe : chaque tour acquiert la cible vivante la plus AVANCÉE dans son rayon ('first') ; départage des égalités déterministe et rejouable."}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SYS-ENEMIES",
+      "features": [
+        {
+          "id": "FEAT-GRUNT",
+          "capacites": [
+            {"id": "R13", "capacite": "Grunt étalon — tuer un Grunt verse 8 or et décrémente le compteur de vivants", "source_ref": "grunt", "expected_proof": {"kind": "oracle", "statement": "Assertion STRICTE : tuer un Grunt (PV 40, armure 0, bounty 8) fait passer l'or de G à G+8 exactement et le compteur de vivants de n à n-1 exactement."}}
+          ]
+        },
+        {
+          "id": "FEAT-RUNNER",
+          "capacites": [
+            {"id": "R14", "capacite": "Runner punit la lenteur — un parc Cannon-only laisse fuir des Runners qu'un parc contrôlé arrête", "source_ref": "runner", "expected_proof": {"kind": "oracle", "statement": "Sur la vague 6, un parc Cannon-only laisse fuir un nombre exact et non nul de Runners (vitesse 2,2), là où le même budget en Gun+Frost en laisse fuir exactement 0."}}
+          ]
+        },
+        {
+          "id": "FEAT-BRUTE",
+          "capacites": [
+            {"id": "R15", "capacite": "Armure Brute — soustraction plate par impact, plancher de dégâts 1, table vérifiée", "source_ref": "brute", "expected_proof": {"kind": "oracle", "statement": "Table de dégâts vérifiée exactement contre Brute (armure 4, plancher 1) : Gun L1 -> 2, Gun L3 (percée 3) -> valeur dorée figée, Cannon L1 -> 18."}},
+            {"id": "R16", "capacite": "Coût de fuite Brute — une fuite de Brute retire exactement 5 vies", "source_ref": "brute", "expected_proof": {"kind": "oracle", "statement": "Assertion STRICTE : une fuite de Brute fait passer les vies de L à L-5 exactement."}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SYS-ECONOMY",
+      "features": [
+        {
+          "id": "FEAT-ECO-SOURCES",
+          "capacites": [
+            {"id": "R17", "capacite": "Bounty par kill — chaque mort verse son bounty (8/6/25)", "source_ref": "economie_a_trois_robinets", "expected_proof": {"kind": "oracle", "statement": "Robinet 1 : bounty par kill 8 (Grunt) / 6 (Runner) / 25 (Brute) versé exactement à la mort de l'ennemi."}},
+            {"id": "R18", "capacite": "Bonus de fin de vague — 20 + 5 x numéro de vague", "source_ref": "economie_a_trois_robinets", "expected_proof": {"kind": "oracle", "statement": "Robinet 2 : bonus de fin de vague = 20 + 5 x numéro_de_vague, égalité exacte à chaque nettoyage."}},
+            {"id": "R19", "capacite": "Bonus d'appel anticipé — 2 or par seconde de préparation restante, plafond 30", "source_ref": "boucle_vague", "expected_proof": {"kind": "oracle", "statement": "Robinet 3 : bonus d'appel anticipé = 2 or x secondes de préparation restantes (plafond 30) ; deux bots ne différant que par cet usage ont un or cumulé strictement différent à la vague 5."}}
+          ]
+        },
+        {
+          "id": "FEAT-ECO-INVARIANT",
+          "capacites": [
+            {"id": "R20", "capacite": "Invariant comptable de l'or — égalité stricte à chaque tick", "source_ref": "economie_a_trois_robinets", "expected_proof": {"kind": "oracle", "statement": "Invariant STRICT à chaque tick : or_actuel == 100 + Somme(bounties) + Somme(bonus_vague) + Somme(bonus_anticipation) - Somme(dépenses), égalité exacte, jamais >=."}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SYS-UPGRADES",
+      "features": [
+        {
+          "id": "FEAT-UP-COSTS",
+          "capacites": [
+            {"id": "R21", "capacite": "Coûts d'upgrade — L2 = 0,8 x base, L3 = 1,6 x base", "source_ref": "trois_niveaux_par_tour", "expected_proof": {"kind": "oracle", "statement": "Table de coûts STRICTE : coût L2 = 0,8 x coût de base, coût L3 = 1,6 x coût de base ; Gun L3 total = 50 + 40 + 80 = 170."}},
+            {"id": "R22", "capacite": "Effet générique par niveau — +60% dégâts, +10% portée", "source_ref": "trois_niveaux_par_tour", "expected_proof": {"kind": "oracle", "statement": "Assertion exacte : chaque niveau ajoute +60% de dégâts et +10% de portée par rapport au niveau précédent."}}
+          ]
+        },
+        {
+          "id": "FEAT-UP-CAPS",
+          "capacites": [
+            {"id": "R23", "capacite": "Capacité de niveau 3 — le L3 débloque une capacité, pas seulement un nombre", "source_ref": "trois_niveaux_par_tour", "expected_proof": {"kind": "oracle", "statement": "Effet SPÉCIFIQUE L3 vérifié : Gun L3 -> percée d'armure 3 (Brute 4->1) ; Frost L3 -> 45%->60% et 1,5s->2,2s ; Cannon L3 -> splash 1,2->1,8 case."}},
+            {"id": "R24", "capacite": "Deux voies gagnantes — hauteur et largeur mènent chacune à la victoire par des vies finales différentes", "source_ref": "S11", "expected_proof": {"kind": "oracle", "statement": "Deux bots au budget identique gagnent tous deux mais par des voies différentes (Gun L3 percée vs Cannon L2 nombreux) avec des vies finales exactes DIFFÉRENTES."}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SYS-WAVES",
+      "features": [
+        {
+          "id": "FEAT-WAVE-CAL",
+          "capacites": [
+            {"id": "R25", "capacite": "Calendrier fixe de 10 vagues — composition déterministe, aucune RNG sur la composition", "source_ref": "calendrier_10_vagues", "expected_proof": {"kind": "oracle", "statement": "Composition FIXE V1..V10 vérifiée à l'égalité (V1=8 Grunt ... V10=6 Brute+20 Runner+10 Grunt) ; la seed ne pilote que les micro-décisions de simulation."}},
+            {"id": "R26", "capacite": "Statistiques d'ennemis constantes — aucun multiplicateur global de PV par vague", "source_ref": "courbe_de_pression", "expected_proof": {"kind": "oracle", "statement": "Test STRICT : les PV d'un Grunt à la vague 10 sont exactement 40, identiques à la vague 1 (assertion d'égalité, aucun scaling caché)."}},
+            {"id": "R27", "capacite": "Non-dominance — deux stratégies mono-tour échouent à des vagues différentes", "source_ref": "S10", "expected_proof": {"kind": "oracle", "statement": "Au moins deux stratégies mono-tour échouent à des vagues DIFFÉRENTES (Gun-only échoue V7, Cannon-only échoue V6) — assertion d'inégalité stricte entre les deux numéros."}}
+          ]
+        },
+        {
+          "id": "FEAT-WAVE-PHASE",
+          "capacites": [
+            {"id": "R28", "capacite": "Phase de préparation — compte à rebours de 15 s avant chaque vague", "source_ref": "boucle_vague", "expected_proof": {"kind": "oracle", "statement": "Phase de préparation de 15 s (compte à rebours) avant chaque vague ; la vague part seule à la fin du décompte si non appelée."}},
+            {"id": "R29", "capacite": "Appel de vague (ENTRÉE joueur) — le joueur appelle la vague via le DOM", "source_ref": "S5", "expected_proof": {"kind": "bot_action", "statement": "Le joueur appelle la vague par le DOM seul (#btn-call-wave), sans appel de fonction JS interne ; l'action interrompt le décompte."}},
+            {"id": "R30", "capacite": "Divergence de tempo — appeler tôt vs tard change or et vies, avec inversion du gagnant", "source_ref": "boucle_vague", "expected_proof": {"kind": "oracle", "statement": "Deux bots ne différant que par le tempo (appel immédiat vs fin de décompte) divergent sur l'or cumulé ET les vies finales, et l'ordre du gagnant s'inverse selon la composition de vague."}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SYS-GAMELOOP",
+      "features": [
+        {
+          "id": "FEAT-TICK",
+          "capacites": [
+            {"id": "R31", "capacite": "Pas de simulation fixe — step(state, dt_fixe) à 16 ms, jamais le temps réel", "source_ref": "boucle_tick", "expected_proof": {"kind": "oracle", "statement": "Simulation à pas fixe (TICK_MS=16, 62,5 ticks/s) avancée par step(state, dt_fixe) ; aucune dépendance au delta variable."}},
+            {"id": "R32", "capacite": "Déterminisme par hash — même seed et mêmes actions produisent un état strictement identique", "source_ref": "S2", "expected_proof": {"kind": "oracle", "statement": "Deux exécutions réelles de la même seed avec la même liste d'actions horodatées en TICKS produisent des états finaux dont le hash est STRICTEMENT ÉGAL (comparaison de deux exécutions, pas d'un état à lui-même)."}},
+            {"id": "R33", "capacite": "RNG seedé déterministe — aucune source non déterministe dans les modules logiques", "source_ref": "S3", "expected_proof": {"kind": "oracle", "statement": "Oracle statique (grep AST/textuel) : aucun appel à Math.random, Date.now, performance.now ni requestAnimationFrame dans les modules logiques .mjs ; ÉCHOUE si un seul appel est présent."}}
+          ]
+        },
+        {
+          "id": "FEAT-END",
+          "capacites": [
+            {"id": "R34", "capacite": "Victoire (solvabilité positive) — un bot compétent atteint VICTORY avec vies > 0", "source_ref": "S8", "expected_proof": {"kind": "oracle", "statement": "Un bot compétent scripté (seed 1337, aucun LLM) atteint result=='VICTORY' avec un nombre de vies finales EXACT figé en test doré, strictement supérieur à 0."}},
+            {"id": "R35", "capacite": "Défaite (solvabilité négative) — un bot naïf atteint DEFEAT avec lives==0 avant la vague 10", "source_ref": "S9", "expected_proof": {"kind": "oracle", "statement": "Un bot naïf scripté (tour la moins chère sur première case libre, jamais d'upgrade, jamais de Frost) atteint result=='DEFEAT' avec lives==0 avant la vague 10, même seed 1337."}},
+            {"id": "R36", "capacite": "Restart (ENTRÉE joueur) — le joueur clique #restart et l'état revient à la seed d'origine", "source_ref": "S6", "expected_proof": {"kind": "bot_action", "statement": "Le joueur clique #restart (DOM) : #overlay disparaît et l'état est réinitialisé à la seed d'origine, vérifié par égalité stricte avec l'état initial."}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SYS-OBSERVABILITY",
+      "features": [
+        {
+          "id": "FEAT-PLAYER-ACTIONS",
+          "capacites": [
+            {"id": "R37", "capacite": "Sélection de tour (ENTRÉE joueur) — via les boutons DOM", "source_ref": "S5", "expected_proof": {"kind": "bot_action", "statement": "Le joueur sélectionne un type de tour par le DOM seul (#btn-gun, #btn-frost, #btn-cannon), sans appel de fonction JS interne."}},
+            {"id": "R38", "capacite": "Pose de tour (ENTRÉE joueur) — clic sur une case libre du canvas, l'or diminue", "source_ref": "S5", "expected_proof": {"kind": "bot_action", "statement": "Le joueur pose une tour par clic sur une case libre du canvas (coordonnées calculables) ; la tour visible apparaît et le compteur d'or affiché diminue (D3)."}},
+            {"id": "R39", "capacite": "Upgrade de tour (ENTRÉE joueur) — via le bouton DOM sur tour sélectionnée", "source_ref": "S5", "expected_proof": {"kind": "bot_action", "statement": "Le joueur upgrade une tour sélectionnée par le DOM seul (#btn-upgrade), sans appel de fonction JS interne."}}
+          ]
+        },
+        {
+          "id": "FEAT-STATE-READ",
+          "capacites": [
+            {"id": "R40", "capacite": "Lecture d'état — window.__game expose l'état complet en lecture seule", "source_ref": "S1", "expected_proof": {"kind": "oracle", "statement": "window.__game expose sans appel de fonction : tick, seed, phase, wave, gold, lives, towers[], enemies[], leaks, result ; vérifié par lecture DOM-externe (Playwright evaluate), aucun setter/triche exposé."}}
+          ]
+        },
+        {
+          "id": "FEAT-INVALID",
+          "capacites": [
+            {"id": "R41", "capacite": "Refus d'action invalide — l'état reste inchangé, aucune exception console", "source_ref": "S7", "expected_proof": {"kind": "oracle", "statement": "Chaque action invalide (pose sur chemin, case occupée, or insuffisant, upgrade d'une tour L3, appel pendant une vague) est refusée : état inchangé (égalité stricte avant/après), zéro exception console."}}
+          ]
+        },
+        {
+          "id": "FEAT-VISUAL",
+          "capacites": [
+            {"id": "R42", "capacite": "Ennemi visible — l'ennemi est suivable du regard sur toute sa trajectoire", "source_ref": "D2", "expected_proof": {"kind": "visual", "statement": "Un ennemi visible parcourt le chemin visible en suivant ses virages, suivable du regard de l'entrée à la sortie (D2)."}},
+            {"id": "R43", "capacite": "Tir et impact visibles — projectile visible, barre de vie qui raccourcit", "source_ref": "D4", "expected_proof": {"kind": "visual", "statement": "Une tour visible tire un projectile visible vers un ennemi ; à l'impact la barre de vie de l'ennemi raccourcit à l'écran (D4)."}},
+            {"id": "R44", "capacite": "Ralentissement Frost visible — changement de couleur et d'allure à l'œil nu", "source_ref": "D7", "expected_proof": {"kind": "visual", "statement": "Un ennemi passant à portée d'une tour Frost change visiblement de couleur et ralentit visiblement (D7)."}},
+            {"id": "R45", "capacite": "Zone Cannon visible — plusieurs barres de vie raccourcissent au même instant", "source_ref": "D8", "expected_proof": {"kind": "visual", "statement": "Un tir de Cannon produit un effet de zone visible touchant plusieurs ennemis : plusieurs barres de vie raccourcissent au même instant (D8)."}},
+            {"id": "R46", "capacite": "Overlay de fin — panneau VICTORY/DEFEAT par-dessus le jeu", "source_ref": "D12", "expected_proof": {"kind": "visual", "statement": "En fin de partie, #overlay devient visible et affiche VICTORY (dernière vague nettoyée, vies restantes) ou DEFEAT (vies à zéro) ; le jeu s'arrête visiblement (D11/D12)."}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SYS-PROOF-DISCIPLINE",
+      "features": [
+        {
+          "id": "FEAT-METRIC",
+          "capacites": [
+            {"id": "R47", "capacite": "Variance des métriques — chaque métrique de classement prend au moins 2 valeurs distinctes", "source_ref": "S12", "expected_proof": {"kind": "oracle", "statement": "Chaque métrique retenue (lives_final, wave_reached, leaks_total, gold_spent_total) prend au moins 2 valeurs distinctes non triviales sur le panel de bots ; une variance nulle est requalifiée par écrit, jamais supprimée."}},
+            {"id": "R48", "capacite": "Non-identité des métriques — aucune métrique n'est identiquement égale à une autre", "source_ref": "S13", "expected_proof": {"kind": "oracle", "statement": "Test d'égalité par paires : aucune métrique retenue n'est identiquement égale à une autre sur tout le panel (une égalité totale => la métrique ne mesure pas ce que son nom promet)."}},
+            {"id": "R49", "capacite": "Inversion de classement — au moins deux métriques et deux bots dont le classement s'inverse", "source_ref": "S14", "expected_proof": {"kind": "oracle", "statement": "Il existe au moins deux métriques et deux bots tels que le classement s'inverse, prouvant que les décisions sont multidimensionnelles et non réductibles à un score unique."}}
+          ]
+        },
+        {
+          "id": "FEAT-TEST-RIGOR",
+          "capacites": [
+            {"id": "R50", "capacite": "Assertions strictes — aucune assertion tautologique, toute assertion numérique est une égalité", "source_ref": "S15", "expected_proof": {"kind": "oracle", "statement": "Aucune assertion satisfaite par l'état initial ou une valeur par défaut ; interdits : x>=0, length>=0, hp<=maxHp ; toute assertion numérique est une égalité exacte (ou epsilon nommé pour les flottants)."}},
+            {"id": "R51", "capacite": "Preuve par mutation — le score de survivants est rapporté, les mutants critiques tués", "source_ref": "S16", "expected_proof": {"kind": "mutation", "statement": "La suite node --test est soumise à mutation sur les modules logiques ; score de survivants rapporté avec dénominateur exact ; un mutant qui inverse une condition de mort, de fuite ou de dépense d'or DOIT être tué."}},
+            {"id": "R52", "capacite": "Tests jumeaux de falsification — un test devient rouge si la mécanique est neutralisée", "source_ref": "S17", "expected_proof": {"kind": "oracle", "statement": "Chaque test de comportement possède un test JUMEAU de falsification qui échoue si la mécanique est neutralisée (ex. ralentissement Frost à 0% doit faire ÉCHOUER le test de valeur du Frost)."}}
+          ]
+        },
+        {
+          "id": "FEAT-EVIDENCE",
+          "capacites": [
+            {"id": "R53", "capacite": "Evidence path — tout reçu d'oracle pointe un artefact réellement écrit", "source_ref": "S18", "expected_proof": {"kind": "oracle", "statement": "Tout reçu d'oracle porte un evidence_path pointant un artefact RÉELLEMENT écrit (sortie brute node --test, JSON de run des bots, PNG de partie et d'overlay) ; un reçu sans evidence_path vérifiable => BLOCKED."}},
+            {"id": "R54", "capacite": "Preuve visuelle franchissant la frontière — captures d'un rendu navigateur réel de la page finale", "source_ref": "S19", "expected_proof": {"kind": "visual", "statement": "Les captures viennent d'un rendu navigateur RÉEL de la page finale (VICTORY et DEFEAT), jamais d'un rendu de fixture, de mock ou de composant isolé."}},
+            {"id": "R55", "capacite": "Console propre — zéro erreur/exception sur une partie complète VICTORY et une DEFEAT", "source_ref": "S20", "expected_proof": {"kind": "oracle", "statement": "Zéro erreur et zéro exception non capturée dans la console navigateur sur une partie complète menée jusqu'à VICTORY et sur une menée jusqu'à DEFEAT."}}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+## PRÉ-MORTEM (erreurs des runs passés)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [s0-contrat] exécuteur LLM en échec à s0-contrat: claude -p returncode=1: 
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [manifest-b5a1ad66fadc124e] Les 3 tentatives precedentes de s2.7-gm-worldscan ont echoue a la materialisation de design_questions.json en violant la regle append-only : elles n'ont pas recopie les questions q_art_001/q_art_002/q_art_003 deja posees par l'Artiste (s2.5-artbible) et presentes dans le run_dir. — cause: Le GM doit lire design_questions.json existant dans le run_dir et recopier TOUTES les questions des rondes precedentes (regle verifiee par _validate_design_questions -> refus 'question(s) disparue(s)') ; ne produire que ses propres questions supprime celles de l'autre pilier et rend le fichier non materialisable. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-7b3cb2c6b2d9611c] Les 3 tentatives precedentes de s2.7-gm-worldscan-r2 ont echoue a la materialisation du canal design_questions avec le motif append-only 'question(s) disparue(s) : q_art_001, q_art_002, q_art_003' : un fond correct (gm_worldscan.json et art_bible.md valides) mais un fence design_questions qui ne recopiait pas les questions des rondes precedentes. — cause: La regle append-only de _validate_design_questions (run_real.py) lit le design_questions.json existant du run et exige que TOUTE question anterieure (par id) soit presente dans la nouvelle liste ; un agent qui reformule son fence en ne portant que ses reponses, sans recopier verbatim les questions recues des rondes precedentes, declenche un refus rejouable a chaque tentative. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-0dcc0725ea4233b0] L'artefact amont s2-worldscan est une analyse comparative de GENRE (Cookie Clicker, Neko Atsume, Kittens Game) sans entite narrative propre a kitten_clicker : il n'ancre que 2 faits generiques de genre (dont 2 inferes), si bien que 4 des 8 sections (chronology, factions, relations, events) sont NOT_GROUNDED et que toute la matiere narrative concrete provient du charter seul. — cause: Le contrat s2-worldscan produit une observation de references/genre (FORGE_PIPELINE_TARGET_V1 §1.1 : le World Scan amont observe le monde et les references, pas le monde specifique du jeu) ; la Story Bible n'herite donc quasiment d'aucun materiau narratif de son World Scan amont et repose sur le charter comme unique ancre riche. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-d53d7a9b22296d9e] L'album (9 emplacements) et l'ecran d'ouverture ne peuvent pas etre representes fidelement : les contrats de design ne fixent ni l'ordre d'adoption des 6 chatons communs ni le mapping adoption -> emplacement d'album, si bien que je peux dessiner les 9 silhouettes mais pas quel chaton revele quel emplacement ni dans quel ordre ils se colorent. — cause: Les contrats de progression (C.1/C.2) specifient les reactions a collection>=1 mais laissent l'ordre d'adoption et l'assignation des emplacements d'album non determines (pre-mortem manifest-712f1c4999592d2d). -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-895fab74168b579b] Ma sortie R2 precedente a ete refusee a la materialisation : les trois 'answer.ref' du fence design_questions pointaient la section 'about' de mon propre art_bible (art_bible:...) au lieu de l'artefact du repondant GM (gm_worldscan:...). — cause: Confusion d'adressage dans le canal design_questions : pour une question ART->GM le repondant est le GM, donc answer.ref doit resoudre dans gm_worldscan.json (grey_blocks answers), jamais dans la section art_bible citee par 'about'. -- GENERATION_DIFFERENTE_A_REEXAMINER
+
+FORGE_DISPATCH:s4-archi:tower_defense_sonde-20260829-build:1

@@ -1,0 +1,665 @@
+{
+ "game_id": "tower_defense_sonde",
+ "systemes": [
+  {
+   "id": "SYS-MAP",
+   "features": [
+    {
+     "id": "FEAT-MAP-GEO",
+     "capacites": [
+      {
+       "id": "R1",
+       "capacite": "Chemin unique fixe — un ennemi apparaît à l'entrée et parcourt le chemin visible jusqu'à la sortie en suivant ses virages",
+       "source_ref": "D2",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Un ennemi visible apparaît à l'entrée du chemin et parcourt le chemin visible jusqu'à la sortie en suivant ses virages — suivable du regard sur toute sa trajectoire (D2)."
+       }
+      },
+      {
+       "id": "R2",
+       "capacite": "Cases constructibles — toute case hors-chemin est constructible, une seule tour par case",
+       "source_ref": "map_unique_hairpin",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Test de géométrie STRICT : toute case hors-chemin est constructible et une case n'accueille qu'une tour (grille 20x12, canvas 640x384)."
+       }
+      },
+      {
+       "id": "R3",
+       "capacite": "Épingle à triple couverture — un nombre exact de cases voient trois segments de chemin",
+       "source_ref": "map_unique_hairpin",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Test unitaire STRICT : le nombre de cases voyant >=3 segments de chemin est exactement 6 (égalité, jamais >=)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT-MAP-SPATIAL",
+     "capacites": [
+      {
+       "id": "R4",
+       "capacite": "Décision spatiale — deux parcs identiques différant seulement par le placement divergent sur fuites et vies",
+       "source_ref": "map_unique_hairpin",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Deux bots au budget et au parc IDENTIQUES ne différant que par le placement (colonne d'épingle vs premières cases libres) divergent strictement sur les fuites cumulées ET les vies finales."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS-TOWERS",
+   "features": [
+    {
+     "id": "FEAT-GUN",
+     "capacites": [
+      {
+       "id": "R5",
+       "capacite": "Statistiques Gun — coût 50, dégâts 6, cadence 2,0/s, portée 2,5, mono-cible, percée 0",
+       "source_ref": "gun",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Table figée vérifiée à l'égalité : Gun coût 50, dégâts 6, cadence 2,0 tirs/s, portée 2,5 cases, percée d'armure 0."
+       }
+      },
+      {
+       "id": "R6",
+       "capacite": "Gun face à l'armure — un tir de Gun L1 sur Brute retire exactement 2 PV",
+       "source_ref": "gun",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Test unitaire STRICT : un tir de Gun L1 sur Brute (armure 4) retire exactement 2 PV (6-4), pas « au moins 2 »."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT-FROST",
+     "capacites": [
+      {
+       "id": "R7",
+       "capacite": "Ralentissement Frost — un ennemi sous effet Frost avance à une vitesse réduite exacte",
+       "source_ref": "frost",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Test STRICT (epsilon flottant nommé) : un ennemi à 2,2 cases/s sous Frost avance exactement 1,21 cases/s ; ralentissement 45% / 1,5s, non cumulable, rafraîchi."
+       }
+      },
+      {
+       "id": "R8",
+       "capacite": "Valeur du Frost — à dégâts constants, ajouter un Frost à l'épingle change strictement les fuites",
+       "source_ref": "frost",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "À parc de dégâts constant, le même ensemble de Gun avec vs sans un Frost à l'épingle produit deux totaux de fuites strictement différents sur la vague 6 (Runners)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT-CANNON",
+     "capacites": [
+      {
+       "id": "R9",
+       "capacite": "Statistiques Cannon — coût 100, dégâts 22, cadence 0,5/s, portée 3,0, splash 1,2, percée 0",
+       "source_ref": "cannon",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Table figée vérifiée à l'égalité : Cannon coût 100, dégâts 22, cadence 0,5 tir/s, portée 3,0 cases, splash rayon 1,2 case, percée 0."
+       }
+      },
+      {
+       "id": "R10",
+       "capacite": "Splash Cannon — un tir touchant 4 Grunts groupés retire exactement 22 PV à chacun",
+       "source_ref": "cannon",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Test STRICT : un tir de Cannon touchant 4 Grunts groupés retire exactement 22 PV à chacun des 4 (comptage exact des cibles touchées, jamais >=1)."
+       }
+      },
+      {
+       "id": "R11",
+       "capacite": "Cannon face à l'armure — un tir de Cannon sur Brute retire exactement 18 PV",
+       "source_ref": "cannon",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Test STRICT : un tir de Cannon sur Brute retire exactement 18 PV (22-4)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT-TARGETING",
+     "capacites": [
+      {
+       "id": "R12",
+       "capacite": "Ciblage 'first' — chaque tour acquiert la cible vivante la plus avancée dans son rayon",
+       "source_ref": "boucle_tick",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Règle de ciblage unique et fixe : chaque tour acquiert la cible vivante la plus AVANCÉE dans son rayon ('first') ; départage des égalités déterministe et rejouable."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS-ENEMIES",
+   "features": [
+    {
+     "id": "FEAT-GRUNT",
+     "capacites": [
+      {
+       "id": "R13",
+       "capacite": "Grunt étalon — tuer un Grunt verse 8 or et décrémente le compteur de vivants",
+       "source_ref": "grunt",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Assertion STRICTE : tuer un Grunt (PV 40, armure 0, bounty 8) fait passer l'or de G à G+8 exactement et le compteur de vivants de n à n-1 exactement."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT-RUNNER",
+     "capacites": [
+      {
+       "id": "R14",
+       "capacite": "Runner punit la lenteur — un parc Cannon-only laisse fuir des Runners qu'un parc contrôlé arrête",
+       "source_ref": "runner",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Sur la vague 6, un parc Cannon-only laisse fuir un nombre exact et non nul de Runners (vitesse 2,2), là où le même budget en Gun+Frost en laisse fuir exactement 0."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT-BRUTE",
+     "capacites": [
+      {
+       "id": "R15",
+       "capacite": "Armure Brute — soustraction plate par impact, plancher de dégâts 1, table vérifiée",
+       "source_ref": "brute",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Table de dégâts vérifiée exactement contre Brute (armure 4, plancher 1) : Gun L1 -> 2, Gun L3 (percée 3) -> valeur dorée figée, Cannon L1 -> 18."
+       }
+      },
+      {
+       "id": "R16",
+       "capacite": "Coût de fuite Brute — une fuite de Brute retire exactement 5 vies",
+       "source_ref": "brute",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Assertion STRICTE : une fuite de Brute fait passer les vies de L à L-5 exactement."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS-ECONOMY",
+   "features": [
+    {
+     "id": "FEAT-ECO-SOURCES",
+     "capacites": [
+      {
+       "id": "R17",
+       "capacite": "Bounty par kill — chaque mort verse son bounty (8/6/25)",
+       "source_ref": "economie_a_trois_robinets",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Robinet 1 : bounty par kill 8 (Grunt) / 6 (Runner) / 25 (Brute) versé exactement à la mort de l'ennemi."
+       }
+      },
+      {
+       "id": "R18",
+       "capacite": "Bonus de fin de vague — 20 + 5 x numéro de vague",
+       "source_ref": "economie_a_trois_robinets",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Robinet 2 : bonus de fin de vague = 20 + 5 x numéro_de_vague, égalité exacte à chaque nettoyage."
+       }
+      },
+      {
+       "id": "R19",
+       "capacite": "Bonus d'appel anticipé — 2 or par seconde de préparation restante, plafond 30",
+       "source_ref": "boucle_vague",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Robinet 3 : bonus d'appel anticipé = 2 or x secondes de préparation restantes (plafond 30) ; deux bots ne différant que par cet usage ont un or cumulé strictement différent à la vague 5."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT-ECO-INVARIANT",
+     "capacites": [
+      {
+       "id": "R20",
+       "capacite": "Invariant comptable de l'or — égalité stricte à chaque tick",
+       "source_ref": "economie_a_trois_robinets",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Invariant STRICT à chaque tick : or_actuel == 100 + Somme(bounties) + Somme(bonus_vague) + Somme(bonus_anticipation) - Somme(dépenses), égalité exacte, jamais >=."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS-UPGRADES",
+   "features": [
+    {
+     "id": "FEAT-UP-COSTS",
+     "capacites": [
+      {
+       "id": "R21",
+       "capacite": "Coûts d'upgrade — L2 = 0,8 x base, L3 = 1,6 x base",
+       "source_ref": "trois_niveaux_par_tour",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Table de coûts STRICTE : coût L2 = 0,8 x coût de base, coût L3 = 1,6 x coût de base ; Gun L3 total = 50 + 40 + 80 = 170."
+       }
+      },
+      {
+       "id": "R22",
+       "capacite": "Effet générique par niveau — +60% dégâts, +10% portée",
+       "source_ref": "trois_niveaux_par_tour",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Assertion exacte : chaque niveau ajoute +60% de dégâts et +10% de portée par rapport au niveau précédent."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT-UP-CAPS",
+     "capacites": [
+      {
+       "id": "R23",
+       "capacite": "Capacité de niveau 3 — le L3 débloque une capacité, pas seulement un nombre",
+       "source_ref": "trois_niveaux_par_tour",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Effet SPÉCIFIQUE L3 vérifié : Gun L3 -> percée d'armure 3 (Brute 4->1) ; Frost L3 -> 45%->60% et 1,5s->2,2s ; Cannon L3 -> splash 1,2->1,8 case."
+       }
+      },
+      {
+       "id": "R24",
+       "capacite": "Deux voies gagnantes — hauteur et largeur mènent chacune à la victoire par des vies finales différentes",
+       "source_ref": "S11",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Deux bots au budget identique gagnent tous deux mais par des voies différentes (Gun L3 percée vs Cannon L2 nombreux) avec des vies finales exactes DIFFÉRENTES."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS-WAVES",
+   "features": [
+    {
+     "id": "FEAT-WAVE-CAL",
+     "capacites": [
+      {
+       "id": "R25",
+       "capacite": "Calendrier fixe de 10 vagues — composition déterministe, aucune RNG sur la composition",
+       "source_ref": "calendrier_10_vagues",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Composition FIXE V1..V10 vérifiée à l'égalité (V1=8 Grunt ... V10=6 Brute+20 Runner+10 Grunt) ; la seed ne pilote que les micro-décisions de simulation."
+       }
+      },
+      {
+       "id": "R26",
+       "capacite": "Statistiques d'ennemis constantes — aucun multiplicateur global de PV par vague",
+       "source_ref": "courbe_de_pression",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Test STRICT : les PV d'un Grunt à la vague 10 sont exactement 40, identiques à la vague 1 (assertion d'égalité, aucun scaling caché)."
+       }
+      },
+      {
+       "id": "R27",
+       "capacite": "Non-dominance — deux stratégies mono-tour échouent à des vagues différentes",
+       "source_ref": "S10",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Au moins deux stratégies mono-tour échouent à des vagues DIFFÉRENTES (Gun-only échoue V7, Cannon-only échoue V6) — assertion d'inégalité stricte entre les deux numéros."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT-WAVE-PHASE",
+     "capacites": [
+      {
+       "id": "R28",
+       "capacite": "Phase de préparation — compte à rebours de 15 s avant chaque vague",
+       "source_ref": "boucle_vague",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Phase de préparation de 15 s (compte à rebours) avant chaque vague ; la vague part seule à la fin du décompte si non appelée."
+       }
+      },
+      {
+       "id": "R29",
+       "capacite": "Appel de vague (ENTRÉE joueur) — le joueur appelle la vague via le DOM",
+       "source_ref": "S5",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Le joueur appelle la vague par le DOM seul (#btn-call-wave), sans appel de fonction JS interne ; l'action interrompt le décompte."
+       }
+      },
+      {
+       "id": "R30",
+       "capacite": "Divergence de tempo — appeler tôt vs tard change or et vies, avec inversion du gagnant",
+       "source_ref": "boucle_vague",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Deux bots ne différant que par le tempo (appel immédiat vs fin de décompte) divergent sur l'or cumulé ET les vies finales, et l'ordre du gagnant s'inverse selon la composition de vague."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS-GAMELOOP",
+   "features": [
+    {
+     "id": "FEAT-TICK",
+     "capacites": [
+      {
+       "id": "R31",
+       "capacite": "Pas de simulation fixe — step(state, dt_fixe) à 16 ms, jamais le temps réel",
+       "source_ref": "boucle_tick",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Simulation à pas fixe (TICK_MS=16, 62,5 ticks/s) avancée par step(state, dt_fixe) ; aucune dépendance au delta variable."
+       }
+      },
+      {
+       "id": "R32",
+       "capacite": "Déterminisme par hash — même seed et mêmes actions produisent un état strictement identique",
+       "source_ref": "S2",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Deux exécutions réelles de la même seed avec la même liste d'actions horodatées en TICKS produisent des états finaux dont le hash est STRICTEMENT ÉGAL (comparaison de deux exécutions, pas d'un état à lui-même)."
+       }
+      },
+      {
+       "id": "R33",
+       "capacite": "RNG seedé déterministe — aucune source non déterministe dans les modules logiques",
+       "source_ref": "S3",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Oracle statique (grep AST/textuel) : aucun appel à Math.random, Date.now, performance.now ni requestAnimationFrame dans les modules logiques .mjs ; ÉCHOUE si un seul appel est présent."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT-END",
+     "capacites": [
+      {
+       "id": "R34",
+       "capacite": "Victoire (solvabilité positive) — un bot compétent atteint VICTORY avec vies > 0",
+       "source_ref": "S8",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Un bot compétent scripté (seed 1337, aucun LLM) atteint result=='VICTORY' avec un nombre de vies finales EXACT figé en test doré, strictement supérieur à 0."
+       }
+      },
+      {
+       "id": "R35",
+       "capacite": "Défaite (solvabilité négative) — un bot naïf atteint DEFEAT avec lives==0 avant la vague 10",
+       "source_ref": "S9",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Un bot naïf scripté (tour la moins chère sur première case libre, jamais d'upgrade, jamais de Frost) atteint result=='DEFEAT' avec lives==0 avant la vague 10, même seed 1337."
+       }
+      },
+      {
+       "id": "R36",
+       "capacite": "Restart (ENTRÉE joueur) — le joueur clique #restart et l'état revient à la seed d'origine",
+       "source_ref": "S6",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Le joueur clique #restart (DOM) : #overlay disparaît et l'état est réinitialisé à la seed d'origine, vérifié par égalité stricte avec l'état initial."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS-OBSERVABILITY",
+   "features": [
+    {
+     "id": "FEAT-PLAYER-ACTIONS",
+     "capacites": [
+      {
+       "id": "R37",
+       "capacite": "Sélection de tour (ENTRÉE joueur) — via les boutons DOM",
+       "source_ref": "S5",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Le joueur sélectionne un type de tour par le DOM seul (#btn-gun, #btn-frost, #btn-cannon), sans appel de fonction JS interne."
+       }
+      },
+      {
+       "id": "R38",
+       "capacite": "Pose de tour (ENTRÉE joueur) — clic sur une case libre du canvas, l'or diminue",
+       "source_ref": "S5",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Le joueur pose une tour par clic sur une case libre du canvas (coordonnées calculables) ; la tour visible apparaît et le compteur d'or affiché diminue (D3)."
+       }
+      },
+      {
+       "id": "R39",
+       "capacite": "Upgrade de tour (ENTRÉE joueur) — via le bouton DOM sur tour sélectionnée",
+       "source_ref": "S5",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Le joueur upgrade une tour sélectionnée par le DOM seul (#btn-upgrade), sans appel de fonction JS interne."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT-STATE-READ",
+     "capacites": [
+      {
+       "id": "R40",
+       "capacite": "Lecture d'état — window.__game expose l'état complet en lecture seule",
+       "source_ref": "S1",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "window.__game expose sans appel de fonction : tick, seed, phase, wave, gold, lives, towers[], enemies[], leaks, result ; vérifié par lecture DOM-externe (Playwright evaluate), aucun setter/triche exposé."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT-INVALID",
+     "capacites": [
+      {
+       "id": "R41",
+       "capacite": "Refus d'action invalide — l'état reste inchangé, aucune exception console",
+       "source_ref": "S7",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Chaque action invalide (pose sur chemin, case occupée, or insuffisant, upgrade d'une tour L3, appel pendant une vague) est refusée : état inchangé (égalité stricte avant/après), zéro exception console."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT-VISUAL",
+     "capacites": [
+      {
+       "id": "R42",
+       "capacite": "Ennemi visible — l'ennemi est suivable du regard sur toute sa trajectoire",
+       "source_ref": "D2",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Un ennemi visible parcourt le chemin visible en suivant ses virages, suivable du regard de l'entrée à la sortie (D2)."
+       }
+      },
+      {
+       "id": "R43",
+       "capacite": "Tir et impact visibles — projectile visible, barre de vie qui raccourcit",
+       "source_ref": "D4",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Une tour visible tire un projectile visible vers un ennemi ; à l'impact la barre de vie de l'ennemi raccourcit à l'écran (D4)."
+       }
+      },
+      {
+       "id": "R44",
+       "capacite": "Ralentissement Frost visible — changement de couleur et d'allure à l'œil nu",
+       "source_ref": "D7",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Un ennemi passant à portée d'une tour Frost change visiblement de couleur et ralentit visiblement (D7)."
+       }
+      },
+      {
+       "id": "R45",
+       "capacite": "Zone Cannon visible — plusieurs barres de vie raccourcissent au même instant",
+       "source_ref": "D8",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Un tir de Cannon produit un effet de zone visible touchant plusieurs ennemis : plusieurs barres de vie raccourcissent au même instant (D8)."
+       }
+      },
+      {
+       "id": "R46",
+       "capacite": "Overlay de fin — panneau VICTORY/DEFEAT par-dessus le jeu",
+       "source_ref": "D12",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "En fin de partie, #overlay devient visible et affiche VICTORY (dernière vague nettoyée, vies restantes) ou DEFEAT (vies à zéro) ; le jeu s'arrête visiblement (D11/D12)."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "SYS-PROOF-DISCIPLINE",
+   "features": [
+    {
+     "id": "FEAT-METRIC",
+     "capacites": [
+      {
+       "id": "R47",
+       "capacite": "Variance des métriques — chaque métrique de classement prend au moins 2 valeurs distinctes",
+       "source_ref": "S12",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Chaque métrique retenue (lives_final, wave_reached, leaks_total, gold_spent_total) prend au moins 2 valeurs distinctes non triviales sur le panel de bots ; une variance nulle est requalifiée par écrit, jamais supprimée."
+       }
+      },
+      {
+       "id": "R48",
+       "capacite": "Non-identité des métriques — aucune métrique n'est identiquement égale à une autre",
+       "source_ref": "S13",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Test d'égalité par paires : aucune métrique retenue n'est identiquement égale à une autre sur tout le panel (une égalité totale => la métrique ne mesure pas ce que son nom promet)."
+       }
+      },
+      {
+       "id": "R49",
+       "capacite": "Inversion de classement — au moins deux métriques et deux bots dont le classement s'inverse",
+       "source_ref": "S14",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Il existe au moins deux métriques et deux bots tels que le classement s'inverse, prouvant que les décisions sont multidimensionnelles et non réductibles à un score unique."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT-TEST-RIGOR",
+     "capacites": [
+      {
+       "id": "R50",
+       "capacite": "Assertions strictes — aucune assertion tautologique, toute assertion numérique est une égalité",
+       "source_ref": "S15",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Aucune assertion satisfaite par l'état initial ou une valeur par défaut ; interdits : x>=0, length>=0, hp<=maxHp ; toute assertion numérique est une égalité exacte (ou epsilon nommé pour les flottants)."
+       }
+      },
+      {
+       "id": "R51",
+       "capacite": "Preuve par mutation — le score de survivants est rapporté, les mutants critiques tués",
+       "source_ref": "S16",
+       "expected_proof": {
+        "kind": "mutation",
+        "statement": "La suite node --test est soumise à mutation sur les modules logiques ; score de survivants rapporté avec dénominateur exact ; un mutant qui inverse une condition de mort, de fuite ou de dépense d'or DOIT être tué."
+       }
+      },
+      {
+       "id": "R52",
+       "capacite": "Tests jumeaux de falsification — un test devient rouge si la mécanique est neutralisée",
+       "source_ref": "S17",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Chaque test de comportement possède un test JUMEAU de falsification qui échoue si la mécanique est neutralisée (ex. ralentissement Frost à 0% doit faire ÉCHOUER le test de valeur du Frost)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "FEAT-EVIDENCE",
+     "capacites": [
+      {
+       "id": "R53",
+       "capacite": "Evidence path — tout reçu d'oracle pointe un artefact réellement écrit",
+       "source_ref": "S18",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Tout reçu d'oracle porte un evidence_path pointant un artefact RÉELLEMENT écrit (sortie brute node --test, JSON de run des bots, PNG de partie et d'overlay) ; un reçu sans evidence_path vérifiable => BLOCKED."
+       }
+      },
+      {
+       "id": "R54",
+       "capacite": "Preuve visuelle franchissant la frontière — captures d'un rendu navigateur réel de la page finale",
+       "source_ref": "S19",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Les captures viennent d'un rendu navigateur RÉEL de la page finale (VICTORY et DEFEAT), jamais d'un rendu de fixture, de mock ou de composant isolé."
+       }
+      },
+      {
+       "id": "R55",
+       "capacite": "Console propre — zéro erreur/exception sur une partie complète VICTORY et une DEFEAT",
+       "source_ref": "S20",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Zéro erreur et zéro exception non capturée dans la console navigateur sur une partie complète menée jusqu'à VICTORY et sur une menée jusqu'à DEFEAT."
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

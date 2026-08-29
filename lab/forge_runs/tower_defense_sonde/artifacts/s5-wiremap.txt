@@ -1,0 +1,93 @@
+All artefacts read: `blueprint.json`, `featuremap.json` (55 capabilities R1–R55), `charter.yaml`, `repo_map.yaml`, `SCHEMA.md`. Code root `games/tower_defense_sonde` does not exist yet — expected: s5-wiremap precedes s9-build. The WireMap is the **plan** that binds each capability to the file+function the builder will implement, isomorphic to the blueprint's module tree (`config / sim / actions / render / input / bots / tests / main.mjs / index.html`) and to each module's `couvre` list.
+
+## Restitution — s5-wiremap / tower_defense_sonde
+
+**Isomorphisme WireMap ↔ blueprint.** Chaque ligne est placée dans le module que le blueprint désigne comme `couvre`-ant sa `FEAT-*` :
+
+| Module (blueprint) | Capacités mappées |
+|---|---|
+| `config` | R1, R2, R3, R21, R22, R25, R26 |
+| `sim` | R4, R6, R7, R8, R10, R11, R12, R13, R14, R15, R16, R17, R18, R19, R20, R23, R24, R27, R28, R30, R31, R32, R33, R34, R35 |
+| `config` (tables tours) | R5, R9 |
+| `actions` | R29, R36, R37, R38, R39, R41 |
+| `render` | R42, R43, R44, R45, R46 |
+| `main.mjs` | R40 |
+| `bots` | R47, R48, R49 |
+| `tests` | R50, R51, R52, R53, R54, R55 |
+
+**Couverture** (auto-inspection, ancre = énumération featuremap) : 55/55 capacités R1→R55 portées par exactement une ligne, aucune `feature` fantôme (aucun id hors featuremap). Chaque ligne porte `fonction` non vide et `fichiers` non vide.
+
+**Discipline de verdict.** L'oracle liant de cette étape — `check_wiremap_contract.mjs <run_dir>/wiremap.json` — **n'a pas pu être exécuté** : je n'écris aucun fichier (l'exécuteur matérialise `wiremap.json` depuis mon bloc), donc aucune cible n'existe encore. Aucun oracle non-LLM n'était donc disponible à cette étape ⇒ pas de `software_verdict` auto-certifié. La confrontation carte↔plan (`check_wiremap_contract`) et carte↔code (`forge.static_oracles.check_wiremap`, s10c) sont les deux points de preuve mécaniques, tous deux en aval de moi.
+
+- `evidence_verdict:` MECHANICAL_VALIDATION_ONLY — sur le seul fait vérifiable par inspection (55/55 ids présents, 0 fantôme).
+- `claim_verdict:` NO_CLAIM_ALLOWED — sur l'isomorphisme et la traçabilité fichier/fonction, non prouvables sans le code ni l'oracle.
+- `fog → HumanGate :` (1) l'oracle liant s'exécute à la matérialisation ; si `maillon_non_lie` ou `couvre` fantôme, le build est bloqué en amont. (2) Les noms de fonctions ci-dessous **prescrivent** l'API que le builder devra respecter — leur existence réelle est prouvée seulement par `check_wiremap` en s10c.
+
+**SKIPPED_VALIDATION :**
+- item: `check_wiremap_contract.mjs` (couverture + `maillon_non_lie`) · périmètre: `<run_dir>/wiremap.json` · statut: non fait · raison: aucun fichier écrit à cette étape (contrat : « en amont aucun fichier n'est écrit : ce n'est pas ton oracle ») ; s'exécute à la matérialisation par l'exécuteur.
+- item: `forge.static_oracles.check_wiremap` (fichiers existent, fonctions définies) · périmètre: `games/tower_defense_sonde` · statut: non fait · raison: code inexistant avant s9-build ; oracle prévu s10c.
+
+**RETURN LINEAGE**
+- `why_task_existed:` { `problem:` le plan (blueprint) et la featuremap existent mais aucune carte ne relie chaque capacité à un fichier/fonction avec sa preuve attendue · `oracle:` aucun — activation par la séquence Forge (étape s5 après s4) · `root_cause:` non transmis (étape planifiée, pas un défaut) · `action_reason:` produire la WireMap isomorphe est le livrable qui rend le delta attendu-vs-réel calculable en aval } · `result:` WireMap 55/55 capacités mappées, isomorphe aux 9 modules du blueprint, émise en bloc pour matérialisation · `proof:` inspection featuremap.json (R1..R55) vs bloc de sortie — bijection ; oracles liants en aval, non exécutables ici · `learning:` la couche `sim` concentre 25/55 capacités (noyau déterministe) ; les capacités `bot_action`/`visual` (R29,R36,R37,R38,R39,R42–R46,R54) sont mappées à la fonction qui RÉALISE le mécanisme, la preuve restant le run DOM réel / la capture navigateur · `next_reason:` chaîne FERMÉE proprement ici — le niveau supérieur enchaîne s6+ ; aucune cause non résolue, la seule preuve manquante (oracle liant) est structurellement en aval et non franchissable à s5.
+
+```json
+{"features": [
+{"feature": "R1 Chemin unique fixe", "fonction": "pathCells", "fichiers": ["config/geometry.mjs"], "preuve": "visual (D2) rendu navigateur réel — ennemi suivable entrée->sortie ; tests/geometry.test.mjs assert continuité de la polyligne"},
+{"feature": "R2 Cases constructibles", "fonction": "isBuildable", "fichiers": ["config/geometry.mjs"], "preuve": "tests/geometry.test.mjs — toute case hors-chemin constructible, une seule tour par case (grille 20x12)"},
+{"feature": "R3 Epingle triple couverture", "fonction": "tripleCoverageCells", "fichiers": ["config/geometry.mjs"], "preuve": "tests/geometry.test.mjs — nombre de cases voyant >=3 segments === 6 (egalite stricte)"},
+{"feature": "R4 Decision spatiale", "fonction": "acquireTarget", "fichiers": ["sim/targeting.mjs"], "preuve": "tests/spatial.test.mjs — deux parcs identiques differant seulement par le placement divergent strictement sur fuites et vies finales"},
+{"feature": "R5 Statistiques Gun", "fonction": "towerStats", "fichiers": ["config/towers.mjs"], "preuve": "tests/towers.test.mjs — table figee: cout 50, degats 6, cadence 2.0/s, portee 2.5, percee 0 (egalites)"},
+{"feature": "R6 Gun face a l'armure", "fonction": "applyDamage", "fichiers": ["sim/combat.mjs"], "preuve": "tests/combat.test.mjs — Gun L1 sur Brute (armure 4) retire exactement 2 PV"},
+{"feature": "R7 Ralentissement Frost", "fonction": "effectiveSpeed", "fichiers": ["sim/movement.mjs"], "preuve": "tests/frost.test.mjs — ennemi 2.2 cases/s sous Frost avance exactement 1.21 cases/s (epsilon nomme)"},
+{"feature": "R8 Valeur du Frost", "fonction": "applyFrostSlow", "fichiers": ["sim/combat.mjs"], "preuve": "tests/frost_value.test.mjs — meme parc Gun avec vs sans Frost a l'epingle: totaux de fuites strictement differents sur V6"},
+{"feature": "R9 Statistiques Cannon", "fonction": "towerStats", "fichiers": ["config/towers.mjs"], "preuve": "tests/towers.test.mjs — table figee: cout 100, degats 22, cadence 0.5/s, portee 3.0, splash 1.2, percee 0 (egalites)"},
+{"feature": "R10 Splash Cannon", "fonction": "applySplashDamage", "fichiers": ["sim/combat.mjs"], "preuve": "tests/combat.test.mjs — tir Cannon touchant 4 Grunts groupes retire exactement 22 PV a chacun (comptage exact des cibles)"},
+{"feature": "R11 Cannon face a l'armure", "fonction": "applyDamage", "fichiers": ["sim/combat.mjs"], "preuve": "tests/combat.test.mjs — tir Cannon sur Brute retire exactement 18 PV (22-4)"},
+{"feature": "R12 Ciblage first", "fonction": "acquireTarget", "fichiers": ["sim/targeting.mjs"], "preuve": "tests/targeting.test.mjs — cible vivante la plus avancee dans le rayon, departage d'egalite deterministe et rejouable"},
+{"feature": "R13 Grunt etalon", "fonction": "killEnemy", "fichiers": ["sim/combat.mjs"], "preuve": "tests/economy.test.mjs — tuer un Grunt: or G->G+8 exact et compteur vivants n->n-1 exact"},
+{"feature": "R14 Runner punit la lenteur", "fonction": "resolveCombat", "fichiers": ["sim/combat.mjs"], "preuve": "tests/runner.test.mjs — sur V6 un parc Cannon-only laisse fuir un nombre exact non nul de Runners, Gun+Frost au meme budget en laisse fuir 0"},
+{"feature": "R15 Armure Brute", "fonction": "applyDamage", "fichiers": ["sim/combat.mjs"], "preuve": "tests/armor.test.mjs — table doree: soustraction plate, plancher 1 ; Gun L1->2, Gun L3 percee3->valeur figee, Cannon L1->18"},
+{"feature": "R16 Cout de fuite Brute", "fonction": "processLeak", "fichiers": ["sim/movement.mjs"], "preuve": "tests/leak.test.mjs — une fuite de Brute fait passer les vies L->L-5 exactement"},
+{"feature": "R17 Bounty par kill", "fonction": "awardBounty", "fichiers": ["sim/economy.mjs"], "preuve": "tests/economy.test.mjs — bounty verse exactement a la mort: 8 Grunt / 6 Runner / 25 Brute"},
+{"feature": "R18 Bonus de fin de vague", "fonction": "waveClearBonus", "fichiers": ["sim/economy.mjs"], "preuve": "tests/economy.test.mjs — bonus = 20 + 5 x numero_de_vague, egalite exacte a chaque nettoyage"},
+{"feature": "R19 Bonus d'appel anticipe", "fonction": "earlyCallBonus", "fichiers": ["sim/economy.mjs"], "preuve": "tests/economy.test.mjs — 2 or x secondes restantes, plafond 30 ; deux bots differant sur cet usage ont un or cumule strictement different a V5"},
+{"feature": "R20 Invariant comptable de l'or", "fonction": "applyGoldDelta", "fichiers": ["sim/economy.mjs"], "preuve": "tests/economy_invariant.test.mjs — a chaque tick or == 100 + Sum(bounties) + Sum(bonus_vague) + Sum(bonus_anticipation) - Sum(depenses), egalite exacte"},
+{"feature": "R21 Couts d'upgrade", "fonction": "upgradeCost", "fichiers": ["config/upgrades.mjs"], "preuve": "tests/upgrades.test.mjs — L2=0.8x base, L3=1.6x base ; Gun L3 total = 50+40+80 = 170"},
+{"feature": "R22 Effet generique par niveau", "fonction": "levelScaling", "fichiers": ["config/upgrades.mjs"], "preuve": "tests/upgrades.test.mjs — chaque niveau ajoute +60% degats et +10% portee vs niveau precedent (egalite)"},
+{"feature": "R23 Capacite de niveau 3", "fonction": "applyLevel3Capability", "fichiers": ["sim/upgrades.mjs"], "preuve": "tests/upgrades_caps.test.mjs — Gun L3->percee 3 (Brute 4->1), Frost L3->60%/2.2s, Cannon L3->splash 1.8"},
+{"feature": "R24 Deux voies gagnantes", "fonction": "applyLevel3Capability", "fichiers": ["sim/upgrades.mjs"], "preuve": "tests/two_paths.test.mjs — bot tall (Gun L3 percee) et bot wide (Cannon L2 nombreux), meme budget, gagnent tous deux avec vies finales exactes DIFFERENTES"},
+{"feature": "R25 Calendrier fixe 10 vagues", "fonction": "waveComposition", "fichiers": ["config/waves.mjs"], "preuve": "tests/waves.test.mjs — composition V1..V10 verifiee a l'egalite, aucune RNG sur la composition"},
+{"feature": "R26 Statistiques d'ennemis constantes", "fonction": "enemyBaseStats", "fichiers": ["config/enemies.mjs"], "preuve": "tests/waves.test.mjs — PV Grunt a V10 === 40 === V1, aucun scaling cache"},
+{"feature": "R27 Non-dominance", "fonction": "resolveCombat", "fichiers": ["sim/combat.mjs"], "preuve": "tests/nondominance.test.mjs — Gun-only echoue V7, Cannon-only echoue V6 (numeros de vague strictement inegaux)"},
+{"feature": "R28 Phase de preparation", "fonction": "updatePreparation", "fichiers": ["sim/waves.mjs"], "preuve": "tests/waves_phase.test.mjs — compte a rebours de 15 s avant chaque vague, depart automatique en fin de decompte si non appelee"},
+{"feature": "R29 Appel de vague (ENTREE)", "fonction": "callWave", "fichiers": ["actions/actions.mjs", "input/input.mjs", "index.html"], "preuve": "bot_action — clic DOM #btn-call-wave (sans appel JS interne) interrompt le decompte"},
+{"feature": "R30 Divergence de tempo", "fonction": "callWave", "fichiers": ["sim/waves.mjs"], "preuve": "tests/tempo.test.mjs — appel immediat vs fin de decompte divergent sur or cumule ET vies finales, ordre du gagnant s'inverse selon la composition de vague"},
+{"feature": "R31 Pas de simulation fixe", "fonction": "step", "fichiers": ["sim/step.mjs"], "preuve": "tests/tick.test.mjs — step(state, dt_fixe) a TICK_MS=16, aucune dependance au delta variable"},
+{"feature": "R32 Determinisme par hash", "fonction": "hashState", "fichiers": ["sim/hash.mjs"], "preuve": "tests/determinism.test.mjs — deux executions reelles de la meme seed + memes actions (ticks) produisent un hash d'etat STRICTEMENT egal"},
+{"feature": "R33 RNG seede deterministe", "fonction": "mulberry32", "fichiers": ["sim/rng.mjs"], "preuve": "tests/purity.test.mjs — oracle statique grep AST: zero Math.random/Date.now/performance.now/requestAnimationFrame dans les modules logiques .mjs"},
+{"feature": "R34 Victoire (solvabilite positive)", "fonction": "evaluateEndConditions", "fichiers": ["sim/end.mjs"], "preuve": "tests/solvability.test.mjs — bot competent seed 1337 (aucun LLM) atteint result=='VICTORY' avec vies finales exactes figees > 0"},
+{"feature": "R35 Defaite (solvabilite negative)", "fonction": "evaluateEndConditions", "fichiers": ["sim/end.mjs"], "preuve": "tests/solvability.test.mjs — bot naif seed 1337 atteint result=='DEFEAT' avec lives==0 avant la vague 10"},
+{"feature": "R36 Restart (ENTREE)", "fonction": "restart", "fichiers": ["actions/actions.mjs", "index.html"], "preuve": "bot_action — clic DOM #restart: #overlay disparait, etat reinitialise a la seed d'origine (egalite stricte avec l'etat initial)"},
+{"feature": "R37 Selection de tour (ENTREE)", "fonction": "selectTowerType", "fichiers": ["actions/actions.mjs", "input/input.mjs", "index.html"], "preuve": "bot_action — DOM seul #btn-gun/#btn-frost/#btn-cannon, sans appel de fonction JS interne"},
+{"feature": "R38 Pose de tour (ENTREE)", "fonction": "placeTower", "fichiers": ["actions/actions.mjs", "input/input.mjs"], "preuve": "bot_action — clic canvas sur case libre (pixel->case), la tour visible apparait et le compteur d'or affiche diminue (D3)"},
+{"feature": "R39 Upgrade de tour (ENTREE)", "fonction": "upgradeTower", "fichiers": ["actions/actions.mjs", "input/input.mjs", "index.html"], "preuve": "bot_action — DOM seul #btn-upgrade sur tour selectionnee, sans appel de fonction JS interne"},
+{"feature": "R40 Lecture d'etat", "fonction": "exposeGameState", "fichiers": ["main.mjs"], "preuve": "Playwright evaluate lit window.__game (tick, seed, phase, wave, gold, lives, towers[], enemies[], leaks, result) sans appel de fonction, aucun setter/triche expose"},
+{"feature": "R41 Refus d'action invalide", "fonction": "validateAndApply", "fichiers": ["actions/actions.mjs"], "preuve": "tests/invalid.test.mjs — pose sur chemin/case occupee/or insuffisant/upgrade L3/appel pendant vague: etat strictement egal avant/apres, zero exception console"},
+{"feature": "R42 Ennemi visible", "fonction": "drawEnemies", "fichiers": ["render/render.mjs"], "preuve": "visual (D2) — capture navigateur reel: ennemi suivable du regard de l'entree a la sortie en suivant ses virages"},
+{"feature": "R43 Tir et impact visibles", "fonction": "drawProjectiles", "fichiers": ["render/render.mjs"], "preuve": "visual (D4) — capture navigateur reel: projectile visible puis barre de vie de l'ennemi qui raccourcit a l'impact"},
+{"feature": "R44 Ralentissement Frost visible", "fonction": "drawEnemies", "fichiers": ["render/render.mjs"], "preuve": "visual (D7) — capture navigateur reel: ennemi a portee Frost change visiblement de couleur et ralentit visiblement"},
+{"feature": "R45 Zone Cannon visible", "fonction": "drawEffects", "fichiers": ["render/render.mjs"], "preuve": "visual (D8) — capture navigateur reel: tir Cannon, plusieurs barres de vie raccourcissent au meme instant"},
+{"feature": "R46 Overlay de fin", "fonction": "drawOverlay", "fichiers": ["render/render.mjs", "index.html"], "preuve": "visual (D11/D12) — capture navigateur reel: #overlay visible affichant VICTORY (vies restantes) ou DEFEAT (vies a zero), jeu arrete"},
+{"feature": "R47 Variance des metriques", "fonction": "collectMetrics", "fichiers": ["bots/harness.mjs"], "preuve": "tests/variance.test.mjs — lives_final, wave_reached, leaks_total, gold_spent_total: chacune >=2 valeurs distinctes non triviales sur le panel"},
+{"feature": "R48 Non-identite des metriques", "fonction": "collectMetrics", "fichiers": ["bots/harness.mjs"], "preuve": "tests/variance.test.mjs — egalite par paires: aucune metrique retenue identiquement egale a une autre sur tout le panel"},
+{"feature": "R49 Inversion de classement", "fonction": "rankBots", "fichiers": ["bots/harness.mjs"], "preuve": "tests/variance.test.mjs — il existe >=2 metriques et >=2 bots dont le classement s'inverse"},
+{"feature": "R50 Assertions strictes", "fonction": "checkStrictAssertions", "fichiers": ["tests/lint_assertions.mjs"], "preuve": "tests/meta.test.mjs — aucune assertion tautologique (x>=0, length>=0, hp<=maxHp interdits), toute assertion numerique est une egalite exacte ou epsilon nomme"},
+{"feature": "R51 Preuve par mutation", "fonction": "runMutation", "fichiers": ["tests/mutation_harness.mjs"], "preuve": "mutation — score de survivants avec denominateur exact ; tout mutant inversant une condition de mort/fuite/depense d'or DOIT etre tue"},
+{"feature": "R52 Tests jumeaux de falsification", "fonction": "assertFalsifiesWhenNeutralized", "fichiers": ["tests/falsification.test.mjs"], "preuve": "tests/falsification.test.mjs — chaque test de comportement a un jumeau rouge si la mecanique est neutralisee (ex. Frost a 0% fait echouer le test de valeur du Frost)"},
+{"feature": "R53 Evidence path", "fonction": "assertEvidencePath", "fichiers": ["tests/evidence.mjs"], "preuve": "tests/evidence.test.mjs — tout recu d'oracle porte un evidence_path pointant un artefact reellement ecrit ; recu sans evidence_path verifiable => BLOCKED"},
+{"feature": "R54 Preuve visuelle franchissant la frontiere", "fonction": "captureFinalScreens", "fichiers": ["tests/visual_capture.mjs"], "preuve": "visual — captures d'un rendu navigateur REEL de la page finale (VICTORY et DEFEAT), jamais fixture/mock/composant isole"},
+{"feature": "R55 Console propre", "fonction": "assertNoConsoleErrors", "fichiers": ["tests/console.test.mjs"], "preuve": "tests/console.test.mjs — zero erreur et zero exception non capturee dans la console navigateur sur une partie VICTORY complete et une DEFEAT complete"}
+]}
+```
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

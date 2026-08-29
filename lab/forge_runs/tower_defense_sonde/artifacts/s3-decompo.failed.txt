@@ -1,0 +1,129 @@
+I now have the full picture, and it's a significant upstream discovery. Let me lay out what I found before delivering the decomposition.
+
+---
+
+# s3-decompo — tower_defense_sonde · Décomposition Fonctionnelle
+
+## Ce que j'ai mesuré avant d'agir (état réel du run_dir)
+
+| Artefact attendu (mandatory_read / entrée oracle) | État |
+|---|---|
+| `prisme.json` (entrée **obligatoire** de `check_decompo.mjs`) | **ABSENT** |
+| `gm_worldscan.json`, `story_bible.json`, `loop.json`, `knowledge_packet.json` | **ABSENTS** |
+| `artifacts/s1-prisme.txt` (merge panel) | présent mais **VIDE** (les 5 lentilles rendues « section vide ou introuvable », `coverage_by_role: {}`) |
+| `charter.yaml` (s0, validé inline) | présent, riche |
+| `prisme/prisme_lens_game_designer.md` | présent, **riche** — porte SON PROPRE bloc `prisme.json` (game_id `td_probe_v1`, ids `ex_*`, **20 exigences**), `software_verdict: BLOCKED` |
+| `prisme/prisme_lens_joueur.md` | présent, **riche** — porte SON PROPRE bloc `prisme.json` (game_id `tower_defense_sonde-20260829-build`, ids `E01..E14` + `N01..N05`, **19 exigences**), `software_verdict: BLOCKED` |
+
+**L'oracle de mon étape ne peut pas tourner.** `check_decompo.mjs` lit `prisme.json`, exige `prisme.exigences[]`, et sans lui rend immédiatement : `« prisme: manifeste absent ou sans exigences[] — la couverture et la non-invention ne sont pas verifiables »` (ligne 151-158). Ma **règle dure** de contrat — `source_ref` cite l'`id` EXACT d'une exigence de `prisme.json` — est **insatisfiable** : le fichier n'existe pas, donc *toute* valeur de `source_ref` serait une invention non déclarée.
+
+**Deux prismes divergents, aucun canonique.** Les deux lentilles ont produit des `prisme.json` avec des `game_id` et des schémas d'id **différents**, et **aucune** n'a été matérialisée en `prisme.json`. Choisir laquelle fait foi est une **arbitration HumanGate** (le merge le dit lui-même : « l'arbitrage entre versions divergentes reste une décision HumanGate »). Je ne la fais pas.
+
+Conformément à la doctrine ratifiée *[oracle_context_must_have_producers]* (« un oracle doit avoir les producteurs de ce qu'il mesure ; preuve impossible ≠ FAIL, c'est le processus qui est en amont ») et *[validator_without_producer]* (« quand un champ est vérifié mais que personne ne l'écrit, le travail est en AMONT »), je **ne fabrique pas** un `prisme.json` ni des `source_ref`, et je **n'émets pas** de `featuremap.json` terminal invalide. Je livre à la place la décomposition **textuelle** demandée par la tâche concrète (« R1..Rn, texte seul, aucun fichier écrit »), et je BLOQUE la sortie-contrat `featuremap.json` en escaladant à Pierre.
+
+---
+
+## Décomposition fonctionnelle — R1..R32 (Système → Feuille)
+
+Chaque feuille : **nom · comportement observable · condition de preuve** (kind + énoncé, **hérité du charter s0**, l'unique source validée ; le mapping vers les ids de lentille est fourni pour la matérialisation future du `featuremap.json`).
+
+### Système 1 — Placement & économie de pose
+- **R1 — Pose de tour** · sélectionner Gun/Frost/Cannon puis cliquer une case libre → la tour apparaît, l'or affiché diminue **exactement** du coût (50/60/100). · *preuve `bot_action`* : bot clique `btn_gun` puis case libre ; `towers` n→n+1 et `gold` −= coût exact. ← joueur `E02` / gd `ex_build_gun`
+- **R2 — Refus d'action invalide (no-op strict)** · pose sur chemin / case occupée / or insuffisant / upgrade d'une L3 / appel pendant une vague → refusé, **état strictement inchangé**, 0 exception console. · *preuve `oracle`* : hash(état) avant == après pour chaque action invalide ; journal console sans exception. ← joueur `N04` / gd `ex_invalid_action_noop`
+- **R3 — Bounty au kill** · à la mort d'un ennemi, l'or grimpe au tick exact de sa mort du bounty exact (Grunt 8 / Runner 6 / Brute 25) et le compteur vivants passe n→n−1. · *preuve `oracle`* strict : tuer un Grunt → `gold` G→G+8 exactement, `enemies` n→n−1 exactement. ← joueur `E07` / gd `ex_bounty`
+- **R4 — Coût de fuite (vies)** · un ennemi atteignant la sortie retire des vies **exactement** (Grunt/Runner 1, Brute 5). · *preuve `oracle`* strict : une fuite de Brute → `lives` L→L−5 exactement. ← **⚠ aucune exigence de lentille** (charter `ennemis.brute.preuve_attendue` seulement)
+
+### Système 2 — Combat (boucle_tick)
+- **R5 — Ciblage `first` + tir visible** · chaque tour acquiert la cible **vivante la plus avancée** dans son rayon, tire à sa cadence, projectile visible, barre de vie raccourcit au même tick. · *preuve `visual`* : deux ticks consécutifs montrent projectile + `hp` cible strictement décroissant. ← joueur `E06` / gd `ex_tower_fires`
+- **R6 — Dégâts vs armure (Gun L1 / Brute)** · un tir de Gun L1 sur Brute (armure 4, plancher 1) retire **exactement 2 PV** (pas « ≥2 »). · *preuve `oracle`* strict. ← **⚠ aucune exigence de lentille** (charter `tours.gun.preuve_attendue`)
+- **R7 — Percée d'armure L3** · Gun L3 (percée 3) retire **strictement davantage** que Gun L1 sur la même Brute (valeur dorée figée en test). · *preuve `oracle`* strict / `bot_action` comparatif. ← gd `ex_advantage_after_invest` (partiel) / joueur `E14` (via avantage)
+- **R8 — Ralentissement Frost** · un ennemi sous Frost avance à **exactement 55 %** de sa vitesse (45 % non cumulable, rafraîchi) ; 2,2 → **1,21 cases/s** (epsilon flottant explicite, jamais une inégalité). · *preuve `oracle`* strict. ← **⚠ aucune exigence de lentille pour la valeur exacte** (joueur `N03` couvre seulement le *visible* ; charter `tours.frost.preuve_attendue`)
+- **R9 — Splash Cannon** · Cannon sur Brute retire **exactement 18** (22−4) ; un tir touchant 4 Grunts groupés retire **exactement 22 à chacun des 4** (comptage exact des cibles). · *preuve `oracle`* strict. ← **⚠ aucune exigence de lentille** (charter `tours.cannon.preuve_attendue`)
+
+### Système 3 — Tours & upgrades (boucle_meta_intra_partie)
+- **R10 — Niveaux d'upgrade** · améliorer une tour sélectionnée monte L1→L2→L3, l'or diminue du coût (L2 0,8× base, L3 1,6× base). · *preuve `bot_action`* : `level` 1→2 exact, `gold` −= coût L2 exact. ← joueur `E03` / gd (via `ex_upgrade_unlock`)
+- **R11 — Capacité L3 visible (UNLOCK)** · au niveau 3 une **capacité nouvelle visible** apparaît (percée d'armure / splash élargi / ralentissement renforcé), pas seulement un plus grand nombre. · *preuve `visual`* : captures avant/après, marqueur L3 + effet distinct rendu. ← joueur `E09` / gd `ex_upgrade_unlock`
+- **R12 — Avantage post-investissement (ADVANTAGE)** · le même engagement de tir rejoué après upgrade L3 retire **strictement plus** de PV qu'avant. · *preuve `bot_action`* comparatif (deux exécutions réelles seed 1337). ← joueur `E14` / gd `ex_advantage_after_invest`
+
+### Système 4 — Vagues & tempo (boucle_vague)
+- **R13 — Calendrier 10 vagues fixe** · compositions V1..V10 **fixes** (aucune RNG sur la composition), intervalle spawn 0,6 s, préparation 15 s. · *preuve `oracle`* : composition déterministe reproductible. ← charter `vagues.calendrier_10_vagues` (⚠ non porté en exigence de lentille)
+- **R14 — Appel anticipé** · cliquer « Appeler la vague » interrompt le décompte et crédite **2 or/s restante (plafond 30)**. · *preuve `bot_action`* : `gold` += min(2·T, 30) exact, phase prep→wave. ← joueur `E05` / gd (via `boucle_vague`)
+- **R15 — Objectif change par vague-clé (NEXT_GOAL)** · à l'entrée de préparation d'une vague-clé (V4 armure, V6 vitesse), le bandeau objectif change en un texte **textuellement distinct**. · *preuve `visual`* (`new_distinct`). ← joueur `E10`,`E11` / gd `ex_next_goal_armor`,`ex_next_goal_speed`
+- **R16 — Divergence de tempo** · deux bots ne différant que par le tempo (appel immédiat vs fin de décompte) divergent sur l'or cumulé **ET** les vies finales (valeurs distinctes non triviales), avec **inversion** du gagnant selon la composition de vague. · *preuve `bot_action`*. ← charter `boucle_vague.preuve_attendue` (⚠ non porté en exigence de lentille)
+
+### Système 5 — Map (map_unique_hairpin)
+- **R17 — Chemin visuellement distinct** · au chargement, le chemin est distinct des cases constructibles, sans légende ni action. · *preuve `visual`*. ← joueur `N02`
+- **R18 — Colonne d'épingle** · **exactement 6 cases** voient ≥3 segments de chemin. · *preuve `oracle`* : test unitaire `== 6`. ← charter `maps.map_unique_hairpin.preuve_attendue` (⚠ non porté en exigence de lentille)
+- **R19 — Divergence spatiale** · à parc/budget identiques, placement épingle vs premières cases libres → **fuites cumulées et vies finales strictement divergentes**. · *preuve `bot_action`*. ← charter `maps.…preuve_attendue` (⚠ non porté)
+
+### Système 6 — Boucle de partie & fin (boucle_partie)
+- **R20 — HUD permanent** · or, vies, n° de vague et ligne d'objectif de survie affichés en continu, sans clic. · *preuve `visual`* (`nonempty`). ← joueur `E01` / gd `ex_goal_survive`
+- **R21 — Rejeu de vague (REPEAT)** · après nettoyage, nouvelle préparation, `wave` incrémenté, parc persistant, gestes pose/tir/récompense rejouables. · *preuve `bot_action`* : `wave` k→k+1, phase→prep, actions R1/R5/R3 de nouveau déclenchables. ← joueur `E12` / gd `ex_repeat_wave`
+- **R22 — Overlay de fin** · panneau VICTORY (vague 10 nettoyée, vies>0) ou DEFEAT (vies≤0), jeu arrêté visiblement, bouton Restart. · *preuve `visual`*. ← joueur `N05` / gd (via `boucle_partie`)
+- **R23 — Restart / reset (META_LOOP)** · Restart réinitialise or→100, vague→1, vies→max, grille vide, à la seed fournie. · *preuve `visual`* (`resets`). ← joueur `E13` / gd (via `boucle_partie`)
+
+### Système 7 — Intégrité & déterminisme
+- **R24 — Déterminisme** · deux exécutions même seed + mêmes actions horodatées en ticks → **hash d'état strictement égal** ; aucun appel non déterministe dans la logique. · *preuve `oracle`* : égalité stricte de hash + grep AST (0 `Math.random`/`Date`/`performance`). ← joueur `N01` / gd `ex_determinism`
+- **R25 — `window.__game` lecture seule** · aucun setter de mutation exposé ; toute action de jeu passe par un contrôle DOM équivalent. · *preuve `oracle`* : 0 clé fonction mutante ; chaque action a un déclencheur DOM. ← gd `ex_read_only_window` (⚠ joueur : couvert en prose R14/D14, pas en exigence dédiée)
+- **R26 — Console propre** · une partie VICTORY et une partie DEFEAT rendues dans un **vrai navigateur** avec 0 exception console. · *preuve `visual` + journal console*. ← gd `ex_console_clean` (⚠ non porté côté joueur)
+
+### Système 8 — Solvabilité & divergence *(le rôle même de la sonde : prouver qu'une boucle existe)*
+- **R27 — Solvabilité positive** · un bot compétent scripté atteint **VICTORY, vies>0** sur seed 1337. · *preuve `bot_action`* e2e. ← gd `ex_solvability_pos`
+- **R28 — Solvabilité négative** · un bot naïf scripté atteint **DEFEAT, vies==0 avant la vague 10** sur seed 1337. · *preuve `bot_action`* e2e. ← gd `ex_solvability_neg`
+- **R29 — Non-dominance** · Gun-only et Cannon-only échouent à des **vagues différentes** (aucune tour dominante). · *preuve `bot_action`* : `wave_reached` distincts. ← gd `ex_non_dominance`
+- **R30 — Deux voies gagnantes** · un bot « tall » et un bot « wide » atteignent tous deux VICTORY avec des **vies finales exactes différentes**. · *preuve `bot_action`*. ← gd `ex_two_win_paths`
+- **R31 — Variance des métriques** · `lives_final`, `wave_reached`, `leaks_total`, `gold_spent_total` : chacune ≥2 valeurs distinctes non triviales sur le panel, aucune paire identiquement égale, **≥1 inversion de classement** (règle de variance, ratifiée Pierre 2026-07-21). · *preuve `oracle`* : tableau variance. ← gd `ex_variance`
+- **R32 — Divergence tall/wide/mixte** · trois bots sur même seed → trois vecteurs de résultat distincts, ≥2 valeurs distinctes par métrique, ≥1 inversion. · *preuve `bot_action`* (preuve directe de `boucle_meta_intra_partie`). ← charter `boucle_meta_intra_partie.preuve_attendue` (recouvre partiellement R31)
+
+**Granularité observée (reportée, jamais gatée)** : 8 systèmes, 32 feuilles, ~4 feuilles/système.
+
+---
+
+## Constat de couverture (ce que la décomposition révèle sur l'amont)
+
+En croisant les 32 règles du **charter** avec les deux prismes de lentille, **10 règles mécaniques du cœur du TD ne sont portées par AUCUNE exigence de l'un ou l'autre prisme** : R4 (coût de fuite exact), R6 (Gun/Brute = 2), R8 (Frost = 1,21 exact), R9 (Cannon = 18 / splash exact), R13 (calendrier fixe), R16 (divergence tempo), R18 (épingle == 6), R19 (divergence spatiale), et partiellement R25/R26 selon la lentille. Les deux lentilles ont bien couvert la **boucle A→J et les règles HUD observables**, mais ont laissé de côté les **tables de dégâts / valeurs exactes** qui sont précisément ce qu'une sonde TD doit prouver strictement (cf. pré-mortem worldscan : « JAMAIS de `>=` tautologique »). Décomposer contre l'un ou l'autre prisme tel quel **omettrait** ces 10 règles — c'est une sous-couverture de la spec réelle.
+
+---
+
+## Sortie-contrat `featuremap.json` — BLOCKED (non émise)
+
+Je **n'émets pas** le bloc `json` terminal, et j'assume ce choix :
+1. `prisme.json` est **absent** → `check_decompo.mjs` FAIL d'entrée ; aucune `source_ref` ne peut résoudre → toute feuille serait une « invention non déclarée ».
+2. Émettre quand même exigerait de **choisir** entre deux prismes divergents non ratifiés (`td_probe_v1` vs `tower_defense_sonde-20260829-build`) — **arbitration HumanGate**, hors de mon autorité.
+3. La tâche concrète demande explicitement « **texte seul, aucun fichier écrit** ».
+
+**Chemin de déblocage (pour Pierre / l'exécuteur), par ordre :**
+1. **Arbitrer le prisme canonique.** Recommandation mesurée : le bloc de `prisme_lens_joueur.md`, dont le `game_id` = `tower_defense_sonde-20260829-build` **correspond exactement** à l'id de ce build (l'autre lentille porte `td_probe_v1`, l'ancien `nom_sonde` du charter). À trancher par Pierre.
+2. **Matérialiser `prisme.json`** dans le run_dir depuis le bloc retenu — **et le compléter** des ~10 règles mécaniques manquantes (R4,R6,R8,R9,R13,R16,R18,R19,R25/R26) faute de quoi s3 décomposera une spec amputée.
+3. **Réparer `merge_prisme.mjs`** (panel gelé, Paquet A #6) : il a rendu les 5 lentilles « vides » alors que `game_designer.md` et `joueur.md` portent une section `## 4. RÈGLES OBSERVABLES` peuplée — la matière produite n'a pas été extraite.
+4. **Corriger le dispatch s1-prisme** : les deux lentilles ont retourné BLOCKED faute de tout accès disque (`Read`/`Glob`/`Grep` désactivés), d'où 0 sourcing EXPECTED/GM (tout en `ADDITIONS/null`).
+5. **Re-dispatcher s3-decompo** : le `featuremap.json` sera alors trivial — le mapping Rn → ids de lentille ci-dessus est déjà fourni.
+
+**Note de gouvernance (sans autorité de ma part)** : les deux lentilles proviennent du **panel Prisme multi-lentilles, gelé** (CLAUDE.md, Paquet A #6, ratifié Pierre 2026-08-28) ; seule l'étape `s1-prisme` **standard** (1 agent) est active. Ce run semble avoir emprunté le chemin gelé. Arbitrage merge/reject/freeze = Pierre.
+
+---
+
+## Verdicts
+
+**software_verdict: BLOCKED** — l'oracle `check_decompo.mjs` ne peut pas vérifier couverture/non-invention : son entrée obligatoire `prisme.json` est absente du run_dir (constat direct : fichier inexistant ; `check_decompo.mjs:151-158`). Je n'ai exécuté aucun oracle (`run: aucun`).
+**evidence_verdict: —** (aucun reçu d'oracle produit ; rien à certifier mécaniquement).
+**claim_verdict: NO_CLAIM_ALLOWED** — la décomposition R1..R32 est un artefact de planification hérité du charter, non une affirmation vérifiée ; aucune assertion « ça marche ».
+**fog → HumanGate (Pierre)** : (a) choix du prisme canonique parmi deux divergents ; (b) complétion des 10 règles mécaniques manquantes ; (c) statut du panel gelé emprunté par ce run.
+
+## SKIPPED_VALIDATION
+- **Exécution de `check_decompo.mjs`** · périmètre : `featuremap.json` + `prisme.json` du run · statut : **non fait / impossible** · raison : `prisme.json` absent (FAIL d'entrée garanti) et `run: aucun` + Bash désactivé dans ce sous-agent.
+- **Matérialisation du `featuremap.json` terminal** · périmètre : sortie-contrat s3 · statut : **retenu volontairement (BLOCKED)** · raison : `source_ref` insatisfiable sans `prisme.json` ; choix du prisme canonique = décision HumanGate ; tâche concrète « texte seul ».
+- **Sourcing GM (`--gm`)** · périmètre : grey blocks · statut : **non applicable** · raison : `gm_worldscan.json` absent (0 grey block, comportement inchangé de l'oracle).
+
+## RETURN LINEAGE
+- **why_task_existed** :
+  - `problem` : décomposer `tower_defense_sonde` en arbre Système→Feature→capacité traçable au Prisme.
+  - `oracle` : aucun côté activation — dispatch de chaîne Forge après s1 (activation processus, pas détection d'oracle).
+  - `root_cause` : **établie** — l'étape s1-prisme n'a pas matérialisé de `prisme.json` canonique : elle a laissé deux blocs de lentille divergents (game_ids/id-schemes différents), un merge panel vide (extraction ratée par `merge_prisme.mjs`), et un sourcing 0/N (lentilles sans accès disque, toutes exigences `ADDITIONS/null`). Les deux lentilles ont elles-mêmes retourné BLOCKED en demandant à l'exécuteur de matérialiser `prisme.json`.
+  - `action_reason` : s3 hérite du Prisme et ne peut ni l'inventer ni arbitrer entre deux versions ; la voie honnête est de livrer la décomposition texte depuis le charter et de bloquer la sortie-contrat vérifiable.
+- **result** : décomposition **R1..R32** (8 systèmes) livrée en texte depuis le charter, chaque feuille avec preuve héritée + pont vers les ids de lentille ; `featuremap.json` **non émise** (BLOCKED) ; 10 règles mécaniques identifiées comme non couvertes par les deux prismes.
+- **proof** : `Read prisme.json` → « File does not exist » ; `Read gm_worldscan.json/story_bible.json/loop.json/knowledge_packet.json` → inexistants ; `artifacts/s1-prisme.txt` → 5 lentilles vides, `coverage_by_role {}` ; `prisme/prisme_lens_{game_designer,joueur}.md` → deux `prisme.json` divergents, tous deux `software_verdict: BLOCKED`. Aucun oracle exécuté (run: aucun).
+- **learning** : quand l'étape Prisme émet ses exigences **dans le corps d'un `.md`** sans matérialisation `prisme.json` et avec un merge qui n'extrait pas la section, l'étape aval hérite du **vide** malgré un travail amont réel et riche — le défaut est une **frontière de matérialisation** (cf. `[proof_must_cross_the_boundary]`), pas un défaut de contenu. Et une décomposition fidèle **au charter** révèle ce qu'un prisme sous-couvrant a omis (ici les tables de dégâts exactes) — d'où l'utilité de décomposer contre la spec validée avant de figer le prisme.
+- **next_reason** : la chaîne **n'est pas fermée** — l'exécuteur/Pierre doit (1) trancher le prisme canonique, (2) matérialiser + compléter `prisme.json`, (3) réparer `merge_prisme.mjs` et l'accès disque du dispatch s1, (4) re-dispatcher s3. Le mapping Rn→ids est prêt pour rendre alors la matérialisation triviale.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "prisme.json (entree obligatoire de check_decompo.mjs et de s3-decompo) est absent du run_dir: s1-prisme a laisse deux blocs prisme.json de lentille divergents (game_ids et id-schemes differents, td_probe_v1 vs tower_defense_sonde-20260829-build), un merge panel vide, et aucune materialisation canonique; de plus les deux prismes sous-couvrent ~10 regles mecaniques du charter (tables de degats/valeurs exactes). s3-decompo ne peut ni inventer un prisme ni arbitrer entre deux versions non ratifiees.", "root_cause": "L'etape s1-prisme n'a pas materialise de prisme.json canonique (les lentilles ont emis leurs exigences dans le corps d'un .md en retournant BLOCKED, merge_prisme.mjs n'a pas extrait leurs sections Regles observables, et le dispatch s1 n'accordait aucun acces disque aux lentilles, forcant 0 sourcing) — frontiere de materialisation non franchie en amont, l'arbitrage du prisme canonique relevant de HumanGate."}
