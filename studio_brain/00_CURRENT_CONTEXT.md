@@ -1,7 +1,24 @@
 # Contexte courant TCS
-*(Handoff. Dernières sessions : 2026-08-29 — run Forge tower_defense_sonde COMPLET (verdict signé
-AUTHENTIQUE, HUMANGATE_READY_WITH_OBJECTION) · (bis) spec liberté de conception V0 PROPOSED rédigée.
-Archive précédente : `journal/context-archive-2026-08-29-avant-audit-paquetA.md` ; plus anciennes au journal.)*
+*(Handoff. Dernières sessions : 2026-08-30 — **RUN 1 chain_probe_v1 CLOS par Pierre** (chaîne
+full_content prouvée, verdict AUTHENTIQUE HUMANGATE_READY) après consolidation fiches 1-5 +
+Project Input · 2026-08-29 — run tower_defense_sonde COMPLET puis CLOS. Archive :
+`journal/context-archive-2026-08-29-avant-audit-paquetA.md`.)*
+
+## RUN 1 chain_probe_v1 (2026-08-30) — **CLOS par Pierre** (`CLOSURE_RUN1_20260830.md` au run_dir)
+- Conclusion ratifiée (verbatim au closure + decision-log) : la chaîne full_content **ferme ses
+  boucles de conception, production et preuve, avec intervention HumanGate quand la chaîne
+  rencontre une décision qu'elle ne doit pas s'attribuer** — niveau de conclusion exact des données.
+- Verdict signé `verdict.json` : OK / HUMANGATE_READY, verify_run **exit 0 AUTHENTIQUE**, seul
+  flag = s10s sauté par profil. 11/11 critères du Brief mesurés. Premières historiques :
+  `design_questions.json` matérialisé (2 questions ART→GM répondues) · s11 red-team **réellement
+  indépendant** (qwen2.5-14b, independent: true) · freeze par convergence après 2 refus GM +
+  décision HumanGate « facettes minimales » (portée sonde-uniquement, canal `design_intent.md`).
+- Entrée canonique : `lab/forge_briefs/chain_probe_v1/project_brief.yaml` (contrat
+  FORGE_PROJECT_INPUT_V0, spec FORGE_DESIGN_FREEDOM_SPEC_V0 **RATIFIÉE** 2026-08-30, N5/N6 fog).
+- Aucun claim de qualité ludique. **RUN 2 (Libre vs Dirigé) = nouveau sas, nouveau GO.**
+- Consolidation commitée avant le run : fiches 1-5 (`full_content`, gate assets, artbible driver,
+  prisme matérialisé sous panel, s11 Qwen bloquant) + Project Input + 3 marqueurs gpu_window
+  manquants (les fenêtres Godot venaient de la suite, pas des workers).
 
 ## Tower Defense sonde (2026-08-29) — **CLOS par Pierre** (`CLOSURE_20260829.md` dans le run_dir)
 - Décision Pierre : run terminé, AUCUNE reconstruction (jeu/charter/chiffres/findings intacts) ; les 4
@@ -26,7 +43,7 @@ Archive précédente : `journal/context-archive-2026-08-29-avant-audit-paquetA.m
 - À savoir : jonction NTFS `games/tower_defense_sonde/node_modules → llm-lego/node_modules` (Playwright).
 
 ## Spec liberté de conception (2026-08-29) — PROPOSED, HumanGate en attente
-- Livrable : `docs/forge/FORGE_DESIGN_FREEDOM_SPEC_V0_PROPOSED.md` — ce que Forge reçoit AVANT s0
+- Livrable : `docs/forge/FORGE_DESIGN_FREEDOM_SPEC_V0.md` — ce que Forge reçoit AVANT s0
   pour maximiser la liberté de s0 sans trous structurels. Aucun chiffre de gameplay, aucun code,
   tower_defense_sonde non touché.
 - Squelette : N1-N9 non négociables (obligations de preuve/forme : provenance par champ, état

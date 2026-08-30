@@ -1346,3 +1346,23 @@ project_brief_gate None) le 2026-08-30.
 
 **Critères de révision** : mécanisation de N5 (passe adversariale des critères de preuve) et de
 N6 (contrôle de fidélité charter→build) — chacune rouvrira la portée via son propre sas.
+
+## 2026-08-30 — Clôture RUN 1 (chain_probe_v1) — preuve de chaîne full_content
+
+**Décision** : RUN 1 est CLÔTURÉ. Conclusion ratifiée (verbatim Pierre) : « RUN 1 a fourni une
+preuve mécanique que la chaîne full_content peut fermer ses boucles de conception, production et
+preuve, avec intervention HumanGate lorsque la chaîne rencontre une décision qu'elle ne doit pas
+s'attribuer. C'est exactement le niveau de conclusion que les données permettent. » RUN 2 (Libre
+vs Dirigé) = nouveau sas, nouveau GO.
+
+**Contexte** : verdict signé AUTHENTIQUE (verify_run exit 0, HUMANGATE_READY), 11/11 critères du
+Brief mesurés, premières historiques : design_questions.json matérialisé, red-team s11 réellement
+indépendant (qwen2.5-14b, independent: true), freeze par convergence après 2 refus GM + décision
+HumanGate « facettes minimales » (elle-même consignée ci-dessus, portée sonde-uniquement).
+Dossier : lab/forge_runs/chain_probe_v1/CLOSURE_RUN1_20260830.md.
+
+**Alternatives rejetées** :
+- Conclure au-delà des données (qualité ludique, généralisation) — refusé, NO_CLAIM_ALLOWED.
+- Enchaîner RUN 2 sans nouveau sas — refusé, GO distinct requis.
+
+**Critères de révision** : RUN 2 ouvrira son propre protocole (bras Libre vs Dirigé).
