@@ -1,0 +1,111 @@
+`verdict: OK` — all 7 required entities covered, advisory resolution 7/7 OK. The deliverables pass my work-discipline check. Here is the final report.
+
+---
+
+# RAPPORT FINAL — s2.5-artbible (chain_probe_v1-20260830-run1)
+
+## Livrables
+- `lab/forge_runs/chain_probe_v1/art_bible.md` — frontmatter (`styles[]`, `mood_keywords[]`) + sections **1. IDENTITÉ VISUELLE / 2. RATIONALE / 3. BESOINS VISUELS** (bloc `visual_requirements` à 7 entités) + les **8 sections héritage/décision** (`heritage_worldscan`, `heritage_story_bible`, `visual_language`, `affordance_rules`, `character_states`, `ui_readability`, `world_constraints`, `asset_rules`).
+- `lab/forge_runs/chain_probe_v1/asset_requests.json` — 7 `asset_request` (une par entité `required:true`), `no_assets_needed:false`.
+
+## Oracle cité (non-LLM)
+`node scripts/forge/check_artbible.mjs art_bible.md asset_requests.json --json` →
+```
+verdict: OK · coverage.checked: true · missing: [] · satisfied: 7/7
+resolution_stats (advisory): 7 OK / 0 BLOCKED / 7 total
+```
+Auto-contrôle de **travail**, sans autorité de preuve : le reçu qui gate l'étape est produit par le **DRIVER** qui ré-exécute ce même check (fiche 3, ratifiée Pierre 2026-08-30). Je ne revendique donc pas SON verdict — je rapporte le mien.
+
+## Verdicts (règle de restitution)
+- **software_verdict: OK** — appuyé par l'oracle `check_artbible.mjs` (forme + couverture besoin↔requête). Chaque besoin `required:true` a ≥1 requête de même `entity_role` (7/7 `satisfied`).
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — un oracle déterministe non-LLM a réellement tourné sur les deux artefacts.
+- **claim_verdict: NO_CLAIM_ALLOWED.**
+
+## asset_requests produits + statut de résolution (jamais jugé esthétiquement)
+| id | entity_role | type | résolution (advisory) |
+|---|---|---|---|
+| req_player_avatar | player | sprite | OK |
+| req_explorable_space | environment | tileset | OK |
+| req_interactive_object | item | sprite | OK |
+| req_terminal_goal | item | sprite | OK |
+| req_interaction_feedback | effect | vfx | OK |
+| req_hud_state | ui | icon | OK |
+| req_end_state_screen | ui | sprite | OK |
+
+Note honnête : la résolution `OK` signifie seulement qu'une entrée du catalogue (`flat-top-down`, 2D/html, CC0) satisfait les filtres mécaniques (`style_tag_match`/`format_runtime_match`/`license_in_allowlist`) — **le résolveur n'utilise pas `type`, et compare des TAGS, pas des pixels**. Ce n'est **pas** un satisfecit visuel.
+
+## Fog → HumanGate (Pierre) — jamais des claims
+- **F1 — Divergence de genre amont (défaut de chaîne).** `s2-worldscan` a scanné le genre « chain-based roguelike/incremental » déduit du **nom de la sonde**, alors que le genre réel FIXÉ par Pierre est `exploration_interaction`, web/HTML (`s0-contrat` `provenance.genre` + `plateforme_cible`). J'ai ancré la bible sur le charter réel et n'ai **pas** repris les conventions du mauvais genre. À confirmer que la chaîne aval doit ignorer le cadre roguelike-à-chaîne.
+- **F2 — Boucle concrète non définie.** Le charter délègue la boucle aux étapes aval (`reference_jeu = aucune`). Mes règles d'affordance lient couleur/silhouette à des **rôles génériques**, à spécialiser quand le GM aura tranché l'objet terminal concret et le jeu d'interactions.
+- **F3 — Conformité esthétique** non évaluable mécaniquement (jugement Pierre requis).
+- **F4 — Tension plateforme.** Le pipeline hôte a pu être conçu « full_godot_content », mais le charter de CE run fixe web/HTML ; autorité = `s0-contrat`.
+
+## SKIPPED_VALIDATION
+- **item** : reçu `check_artbible` faisant autorité · **où** : gate de l'étape · **statut** : non fait (par conception) · **raison** : produit par le DRIVER en aval (`executed_by: driver`), pas par moi — mon check est advisory de travail.
+- **item** : lecture de `design/content_requirements.md` (C.5, carte de jeu) · **où** : run_dir · **statut** : non fait · **raison** : non présent dans le run_dir ni injecté en amont → les `loop_id` du fence utilisent `core_loop`/`art_gm` (valeurs sanctionnées par le contrat) faute de loop_ids C.3 réels.
+- **item** : lecture d'un `charter.yaml` fichier · **où** : run_dir · **statut** : substitué (décision assumée) · **raison** : `s0` a produit le contrat produit en **texte seul** (`s0-contrat.txt`, rôle `contract_author`) sans écrire de fichier ; j'ai consommé cet artefact réel du run_dir comme charter faisant foi — c'est ce qui a permis de détecter la divergence de genre F1.
+- **item** : adéquation viewpoint du style (`flat-top-down` vs boucle réelle) · **où** : asset_requests · **statut** : non vérifié (hors mécanique v0.1, cf. ASSET_CONTRACT_V0 limites connues) · **raison** : fog F3.
+
+## RETURN LINEAGE
+```
+why_task_existed:
+  problem: chain_probe_v1 RUN 1 doit prouver que la chaine full_content transforme un Project
+           Input en output traçable (s0-contrat intention) ; s2.5 est le maillon Art Director.
+  oracle: check_artbible.mjs (forme + couverture besoin<->requete) — activation d'etape par
+          dispatch driver (FORGE_DISPATCH:s2.5-artbible), pas par un defaut mesure.
+  root_cause: (defaut decouvert, distinct de l'activation) s2-worldscan a infere le genre a
+              partir du NOM de sonde faute de charter/product_snapshot injecte -> genre errone.
+  action_reason: ancrer l'identite visuelle sur le charter reel (s0-contrat, genre
+                 exploration_interaction / web-HTML), heriter du worldscan uniquement le
+                 primitif genre-neutre (feedback immediat), ne rien fabriquer cote narratif.
+result: art_bible.md + asset_requests.json livres ; check_artbible OK (couverture 7/7,
+        resolution advisory 7/7 OK) ; divergence de genre amont remontee en fog F1.
+proof: node scripts/forge/check_artbible.mjs ... --json -> {"verdict":"OK","coverage":{"missing":[]},
+       "resolution_stats":{"ok":7,"blocked":0,"total":7}}.
+learning: dans une sonde de chaine, le NOM du run n'est pas une source de genre ; un maillon aval
+          qui lit l'artefact de contrat (s0) peut rattraper une hallucination de genre d'un
+          maillon amont sans la propager — a condition de traiter s0-contrat comme le charter.
+next_reason: chaine NON fermee — F1/F2 attendent HumanGate et le GM ; l'identite visuelle est
+             posee sur des roles generiques, a specialiser une fois la boucle concrete tranchee.
+```
+
+SKIPPED_VALIDATION: (détaillé ci-dessus)
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "s2-worldscan a produit un World Scan hors-genre : il a infere le genre 'chain-based roguelike/incremental' a partir du NOM de la sonde 'chain_probe_v1' (ou 'chain' = la chaine du pipeline full_content, pas une mecanique de jeu), alors que le genre reel fixe par Pierre est 'exploration_interaction' web/HTML (s0-contrat). L'Art Bible a du s'ancrer sur s0-contrat et ecarter les conventions visuelles du mauvais genre.", "root_cause": "Aucun charter/product_snapshot injecte dans le contexte de s2-worldscan : faute d'ancre, le maillon a devine le genre a partir du nom du run, defaut de coherence de chaine que cette sonde existe justement pour reveler."}
+
+```design_questions
+{
+  "schema_version": 1,
+  "round": 1,
+  "questions": [
+    {
+      "id": "q_art_001",
+      "from": "ART",
+      "to": "GM",
+      "round": 1,
+      "about": "art_bible:affordance_rules",
+      "loop_id": "core_loop",
+      "missing": ["objet terminal concret de la boucle", "jeu d'interactions de mi-boucle", "presence ou non d'objets inertes/decor"],
+      "why": "Mes regles d'affordance lient une teinte reservee (emeraude) au SEUL objet terminal et une teinte chaude aux objets agissables. Sans la boucle concrete (que le charter delegue, reference_jeu=aucune), je ne peux pas specialiser silhouette et couleur sur les entites reelles : je reste sur des roles generiques, ce qui bloque le freeze de l'identite.",
+      "blocking": true,
+      "answer": null
+    },
+    {
+      "id": "q_art_002",
+      "from": "ART",
+      "to": "GM",
+      "round": 1,
+      "about": "art_bible:heritage_worldscan",
+      "loop_id": "art_gm",
+      "missing": ["confirmation du genre de travail commun ART<->GM"],
+      "why": "Le World Scan herite decrit le genre 'chain-based roguelike/incremental' alors que s0-contrat fixe 'exploration_interaction' web/HTML. J'ai ancre la bible sur s0-contrat. Avant tout freeze, ART et GM doivent partager le meme genre : confirme que la boucle que tu conçois est exploration_interaction (web/2D top-down) et non le cadre roguelike-a-chaine du World Scan.",
+      "blocking": true,
+      "answer": null
+    }
+  ],
+  "declarations": {
+    "ART": {"round": 1, "ready_for_freeze": false, "open_to_gm": 2},
+    "GM": {"round": 1, "ready_for_freeze": false, "open_to_art": 0}
+  }
+}
+```

@@ -1,0 +1,125 @@
+{
+ "schema_version": 1,
+ "game_id": "chain_probe_v1",
+ "steps": [
+  {
+   "role": "PLAYER_GOAL",
+   "ref": "E01",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "nonempty"
+   }
+  },
+  {
+   "role": "PLAYER_ACTION",
+   "ref": "E02",
+   "affordance": "avatar",
+   "repeat": 1,
+   "observe": {
+    "hud": "zone_exploree",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "PLAYER_ACTION",
+   "ref": "E03",
+   "affordance": "objet_interactif",
+   "repeat": 1,
+   "observe": {
+    "hud": "objets_actives",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "GAME_RESPONSE",
+   "ref": "E04",
+   "repeat": 1,
+   "observe": {
+    "hud": "objets_actives",
+    "predicate": "changes"
+   }
+  },
+  {
+   "role": "REWARD",
+   "ref": "E05",
+   "repeat": 1,
+   "observe": {
+    "hud": "objets_visibles",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "DECISION",
+   "ref": "E06",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "changes"
+   },
+   "options": [
+    "E02",
+    "E03"
+   ],
+   "metric": "objets_actives",
+   "horizon_frames": 300,
+   "policies": [
+    {
+     "name": "explorer",
+     "click": null,
+     "every_frames": 0
+    },
+    {
+     "name": "activer",
+     "click": "objet_interactif",
+     "every_frames": 3
+    }
+   ]
+  },
+  {
+   "role": "UNLOCK",
+   "ref": "E07",
+   "affordance": "objet_interactif",
+   "repeat": 1,
+   "observe": {
+    "hud": "terminal",
+    "predicate": "appears:terminal_disponible",
+    "appears": "terminal_disponible"
+   }
+  },
+  {
+   "role": "NEXT_GOAL",
+   "ref": "E08",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   }
+  },
+  {
+   "role": "NEXT_GOAL",
+   "ref": "E09",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   }
+  },
+  {
+   "role": "REPEAT",
+   "ref": "E10",
+   "affordance": "objet_interactif",
+   "repeat": 1,
+   "observe": {
+    "hud": "objets_actives",
+    "predicate": "increases"
+   },
+   "replay": [
+    "E02",
+    "E03",
+    "E04",
+    "E05"
+   ]
+  }
+ ]
+}

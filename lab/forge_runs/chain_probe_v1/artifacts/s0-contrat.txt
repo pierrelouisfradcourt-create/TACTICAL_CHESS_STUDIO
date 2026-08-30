@@ -1,0 +1,145 @@
+Both mandatory reads done. `SCHEMA.md` read (agent-contract schema — 16 fields, restitution rule). `PROJECT_BIBLE.md` does **not** exist for `chain_probe_v1` — consistent with the Project Brief being the single canonical command entry. I have the Project Brief in full (inline) and the pré-mortem. No further reads needed; the concrete task is **text only, no file written**.
+
+---
+
+# CONTRAT PRODUIT — `chain_probe_v1` (s0-contrat, texte seul)
+
+## 1. Les quatre points demandés par la tâche concrète
+
+### intention
+Créer, de zéro sous `games/chain_probe_v1`, un **jeu minimal jouable du genre `exploration_interaction`** (genre **fixé par Pierre**, non délégable) servant de **sonde expérimentale de bout en bout** pour prouver que la chaîne `full_content` transforme un Project Input en un output traçable (conception → production → preuve). **La qualité ludique du jeu n'est PAS l'objet de RUN 1** (Brief `intention`) — le jeu doit être *vivant et solvable*, pas *bon*.
+*Source : Brief `intention` + `provenance.intention` (Pierre 2026-08-30, verbatim). Genre : Brief `provenance.genre` (Pierre 2026-08-30, FIXÉ, non délégué).*
+
+### joueur cible
+**Joueur solo sur navigateur, aucune compétence pré-requise, session courte.** Aucune audience commerciale visée : c'est la cible d'une mini-sonde expérimentale (cohérent avec « qualité ludique non mesurée »).
+*Statut : **arbitrage délégué** (Brief `libertes_deleguees` : « arbitrer les détails de conception non spécifiés »). Ce n'est PAS un claim de design-intent Pierre — `joueur_cible` n'est ni un champ charter ni un champ design-intent restreint. Arbitré honnêtement, requalifiable par HumanGate.*
+
+### condition de victoire
+Au niveau s0, je pose le **cadre**, pas la règle concrète (le thème/la boucle sont délégués aux étapes aval) :
+- **une** condition terminale unique et **non ambiguë** ;
+- **atteignable** — un bot doit pouvoir la déclencher (**solvabilité**, pré-mortem `s10a`, obligatoire en `s9-build`) ;
+- son atteinte est **observable à l'écran** (état de fin visible).
+
+La formulation concrète (quel objectif exact, quel thème) est **déléguée** aux étapes de conception aval — non inventée à s0.
+*Source du cadre : Brief `libertes_deleguees` (boucle/règles déléguées) + pré-mortem solvabilité. Concrétisation : fog → étapes design/art aval.*
+
+### périmètre V1 minimal jouable
+- un **seul** espace explorable (pas de niveaux multiples) ;
+- un **petit** ensemble d'interactions — le minimum pour une boucle vivante ;
+- **une seule** condition terminale, atteignable ;
+- **déterministe**, seed reproductible (socle N1) ;
+- `window.__game` exposé · actions **DOM-only** · logique métier en module `.mjs` **testable hors navigateur** (N1) ;
+- **aucune** persistance, **aucun** réseau au runtime, **aucun** multijoueur ;
+- dimensionnement **minimal** (Brief `libertes_deleguees` : « dimensionnement nécessaire à la jouabilité de la mini-sonde »).
+
+---
+
+## 2. Charter (champs canoniques — tous remplis, aucun « à définir »)
+
+**`objectif`**
+Livrer un jeu `exploration_interaction` minimal, réellement jouable et **solvable**, en page unique web/HTML sous `games/chain_probe_v1`, comme support de la preuve end-to-end de la chaîne `full_content`. Une action joueur produit un changement d'état observable ; une condition terminale atteignable clôt la partie. La qualité ludique fine n'est pas un objectif mesuré (Brief).
+*Source : Brief `intention` (Pierre 2026-08-30).*
+
+**`hors_scope[]`**
+- Raffinement / mesure de la qualité ludique ou du « fun » (Brief : non mesuré en RUN 1).
+- Multijoueur, réseau, persistance/sauvegarde, comptes.
+- Niveaux multiples, progression méta, contenu au-delà d'une boucle minimale.
+- Toute cible non-web (natif, Godot…).
+- **Définition** des règles normatives, des critères de sortie, de l'autorité de preuve et de verdict (Brief `non_delegue` — la chaîne les *respecte*, ne les *définit* pas).
+*Source : Brief `intention`, `cible`, `non_delegue`.*
+
+**`criteres_succes[]`** (produit)
+- Le jeu s'exécute en **page HTML+JS unique**, RNG **seedé**, logique en `.mjs` testable hors navigateur, `window.__game` exposé, actions DOM-only (N1).
+- Boucle **vivante** : au moins une action joueur → changement d'état **observable**.
+- Condition terminale **atteignable et prouvée solvable** par un bot (pré-mortem — asserts **stricts**, jamais de `>=` tautologique).
+- Construit **de zéro** sous `games/chain_probe_v1`.
+- *Les 11 critères de SORTIE de RUN 1 restent l'autorité de gate et vivent dans le Brief (`criteres_sortie`, `non_delegue`) — cités, non redéfinis ici.*
+*Source : socle N1 + pré-mortem `s10a` (solvabilité) + Brief `criteres_sortie`.*
+
+**`actions_interdites[]`**
+- **Interdiction expresse** : ne réutiliser **ni Cookie Clicker, ni Kitten Clicker, ni le TD (`tower_defense` sonde), ni aucun ancien build studio** comme source de design (Brief `references_autorisees: []` + `provenance.references_autorisees`).
+- N'écrire **rien** hors `games/chain_probe_v1/` ; ne jamais toucher les lanes protégées (`src/`, `tests/`).
+- Ne pas **définir** règles normatives / critères de sortie / autorité preuve-verdict (Brief `non_delegue`).
+- Aucun `>=` tautologique dans les tests — asserter le comportement **strict** (pré-mortem `s10a`).
+- **LM Studio indisponible ⇒ HALT/BLOCKED**, jamais de fallback silencieux vers une autre source (Brief `criteres_sortie`).
+- Aucune dépendance réseau/CDN au **runtime** du jeu (conséquence N1, page unique) ; aucune API Anthropic externe (CLAUDE.md).
+*Source : Brief `references_autorisees` + `non_delegue` + `criteres_sortie` ; pré-mortem ; CLAUDE.md.*
+
+**`plateforme_cible`** → **web/HTML**
+*Source : **N1** (socle normatif « page HTML+JS unique », hiérarchie normative référencée par Pierre ; `FORGE_DESIGN_FREEDOM_SPEC_V0` ratifiée Pierre 2026-08-30, HEAD `0054ff6`).*
+⚠️ **Transparence** : c'est une **détermination normative** (forcée par N1), pas une phrase Pierre verbatim « fais du web ». Ce n'est **pas** une invention d'agent (cf. leçon AutoBattler : Godot posé unilatéralement). Remonté en fog pour confirmation — voir §4.
+
+**`reference_jeu`** → **AUCUNE référence de jeu imposée** — conception de la boucle minimale **déléguée à la chaîne** dans le genre `exploration_interaction` fixé par Pierre.
+*Source : Brief `references_autorisees: []` + `provenance.references_autorisees` (FOG_HUMANGATE Pierre 2026-08-30) + `libertes_deleguees` (boucle/règles déléguées) + `provenance.genre` (Pierre).*
+⚠️ **Je n'ai choisi AUCUN modèle de jeu.** Le champ porte la **décision explicite de Pierre** « pas de référence, boucle libre », pas une invention. La concrétisation de la boucle est déléguée aux étapes aval. Confirmation attendue — voir §4.
+
+**`criteres_demo[]`** (observables, dérivés du sourcé — génériques au genre)
+- Au lancement, un **espace explorable s'affiche** (état initial visible — pas d'écran vide).
+- Au moins **une action joueur (clic/DOM) → changement d'état visible** à l'écran.
+- L'exploration permet d'**atteindre l'interaction terminale**, et son atteinte est **visible** (état de fin non ambigu).
+- Un **même seed rejoué** produit le **même déroulé observable** (déterminisme visible — N1).
+*Source : dérivés de N1 (Pierre-sourcé normatif) + pré-mortem solvabilité.*
+⚠️ La **formulation thématique** de ces critères (quel élément visuel concret, ex. « une flèche qui vole ») **dépend du thème délégué** et n'est **pas** inventée à s0 → autorité : étapes design/art aval. Fog — voir §4.
+
+---
+
+## 3. Flous du prompt : résolus vs remontés
+
+**Résolus (par source traçable, sans invention)**
+- `objectif`, `hors_scope`, `criteres_succes`, `actions_interdites` — dérivés du Brief Pierre-sourcé et du pré-mortem.
+- `plateforme_cible = web/HTML` — **déterminé** par N1 (normatif ratifié), pas choisi.
+- `reference_jeu = aucune (boucle libre déléguée)` — **décision explicite Pierre** transcrite, pas un modèle inventé.
+- `criteres_demo` (couche générique) — dérivés de N1 + solvabilité.
+- `joueur_cible`, `condition de victoire` (cadre), `périmètre V1` — arbitrages délégués (Brief `libertes_deleguees`), bornés par la solvabilité obligatoire.
+
+**Remontés en fog HumanGate (jamais un claim auto-certifié)**
+1. `reference_jeu` : confirmer que « aucune référence / boucle libre » est bien la décision de standing (je n'ai posé aucun modèle).
+2. `plateforme_cible` : web/HTML est **déterminé par N1**, pas énoncé verbatim par Pierre — confirmer acceptable.
+3. `criteres_demo` **thématiques** : différés aux étapes design/art aval (thème délégué non choisi à s0).
+4. **Oracle CHARTER non exécuté** : la tâche « texte seul » interdit d'écrire `charter.yaml`, donc le validateur de schéma déterministe n'a **pas** pu parser de fichier → validité **non prouvée mécaniquement** à cette étape.
+
+---
+
+## 4. RAPPORT FINAL
+
+**software_verdict: BLOCKED**
+— L'oracle CHARTER (validateur de schéma déterministe) **n'a pas été exécuté** : la tâche concrète impose « texte seul, aucun fichier écrit », il n'existe donc aucun `charter.yaml` à parser. La complétude des champs ci-dessus est **auto-constatée**, non prouvée par oracle.
+
+**evidence_verdict: NO_MECHANICAL_VALIDATION**
+— Aucun oracle non-LLM exécuté à cette étape (par conception de la tâche). Je n'écris donc PAS `MECHANICAL_VALIDATION_ONLY` : aucune validation mécanique n'a eu lieu.
+
+**claim_verdict: NO_CLAIM_ALLOWED**
+
+**Oracle cité** : Oracle CHARTER (schéma déterministe non-LLM) — **identifié mais NON exécuté** (texte seul). La provenance Pierre de `reference_jeu` est un **fait de gate**, non mécaniquement vérifiable par ce validateur → fog, jamais claim automatique de conformité.
+
+**fog[] → HumanGate (Pierre)** : les 4 points du §3 « remontés ».
+
+**SKIPPED_VALIDATION**
+- **item** : Oracle CHARTER (validateur de schéma) · **périmètre** : `games/chain_probe_v1` charter.yaml · **statut** : non fait · **raison** : tâche concrète = texte seul, aucun fichier écrit → aucun fichier à parser.
+- **item** : vérification de provenance Pierre de `reference_jeu` · **périmètre** : champ `reference_jeu` · **statut** : non fait (hors capacité d'un oracle de schéma — fait de gate) · **raison** : remonté en fog HumanGate, conforme au contrat.
+
+**RETURN LINEAGE**
+```
+why_task_existed:
+  problem: RUN 1 de chain_probe_v1 exige un contrat produit formalisé au point d'entrée (s0)
+           pour prouver que la chaîne full_content transforme un Project Input en output traçable.
+  oracle: aucun (activation = décision humaine — mission Pierre 2026-08-30).
+  root_cause: non établie (activation par décision, pas par défaut mesuré).
+  action_reason: s0-contrat est le point d'entrée de la boucle ; formaliser le contrat produit
+                 à partir du Project Brief (source de commande unique), sans invention.
+result: contrat produit formalisé en texte — tous champs charter remplis (aucun « à définir ») ;
+        4 fog remontés à HumanGate ; joueur_cible/condition/périmètre posés ; aucun fichier écrit
+        (conforme à « texte seul »).
+proof: lecture scripts/forge/contracts/SCHEMA.md + Project Brief (inline, intégral) ;
+       tentative de lecture lab/forge_runs/chain_probe_v1/PROJECT_BIBLE.md → absent (attendu) ;
+       aucun oracle charter exécuté (texte seul, par conception de la tâche).
+learning: plateforme_cible / reference_jeu / criteres_demo, quand ils DÉRIVENT d'une règle
+          normative Pierre-sourcée (N1) ou d'une décision Pierre explicite (references []), se
+          remplissent par TRAÇABILITÉ, pas par invention. La distinction « détermination
+          normative » vs « invention d'agent » est ce qui évite de rejouer l'erreur AutoBattler.
+next_reason: chaîne NON fermée — s0 produit l'entrée des étapes aval (world scan, design, build) ;
+             les 4 fog attendent HumanGate ; si la chaîne exige un charter.yaml validé par oracle,
+             une étape aval doit matérialiser et valider le fichier (l'oracle n'a pas pu tourner ici).
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "La tache concrete de s0 impose 'texte seul, aucun fichier ecrit' alors que l'oracle CHARTER de l'etape est un validateur de schema qui doit parser charter.yaml : en mode texte-seul l'oracle ne peut pas s'executer, donc la validite de la sortie s0 n'est pas mecaniquement prouvable a cette etape.", "root_cause": "Decouplage entre l'instruction de dispatch (texte seul) et le contrat d'etape (oracle exige un fichier charter.yaml) : le mode probe n'a pas d'oracle texte-seul equivalent."}

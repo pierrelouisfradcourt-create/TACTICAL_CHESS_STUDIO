@@ -1,0 +1,59 @@
+{
+ "schema_version": 1,
+ "round": 2,
+ "questions": [
+  {
+   "id": "q_art_001",
+   "from": "ART",
+   "to": "GM",
+   "round": 1,
+   "about": "art_bible:affordance_rules",
+   "loop_id": "core_loop",
+   "missing": [
+    "objet terminal concret de la boucle",
+    "jeu d'interactions de mi-boucle",
+    "presence ou non d'objets inertes/decor"
+   ],
+   "why": "Mes regles d'affordance lient une teinte reservee (emeraude) au SEUL objet terminal et une teinte chaude aux objets agissables. Sans la boucle concrete, je ne peux pas specialiser silhouette et couleur sur les entites reelles.",
+   "blocking": true,
+   "answer": {
+    "round": 2,
+    "by": "GM",
+    "ref": "gm_worldscan:game_master.grey_blocks.gb_terminal_goal",
+    "text": "Boucle materialisee. Objet terminal : gb_terminal_goal (ITEM/PROGRESSION_GATE, emeraude, LOCKED avec raison visible + preview -> AVAILABLE, requires gb_interactive_object, invariant terminal_goal_uniqueness=1 exactement un). Interactions de mi-boucle : gb_interactive_object (ITEM, ambre, AVAILABLE -> CONSUMED) + content_loop (distinct_interactables 2-8). Objets inertes : role desature/faible-contraste, mesure par skill_loop (affordance_discrimination_ratio : part de clics sur agissables vs inertes). Reponse specialisee dans core_loop, content_loop et skill_loop."
+   }
+  },
+  {
+   "id": "q_art_002",
+   "from": "ART",
+   "to": "GM",
+   "round": 1,
+   "about": "art_bible:heritage_worldscan",
+   "loop_id": "art_gm",
+   "missing": [
+    "confirmation du genre de travail commun ART<->GM"
+   ],
+   "why": "Le World Scan herite decrit 'chain-based roguelike' alors que s0-contrat fixe 'exploration_interaction' web/HTML. Avant tout freeze, ART et GM doivent partager le meme genre.",
+   "blocking": true,
+   "answer": {
+    "round": 2,
+    "by": "GM",
+    "ref": "gm_worldscan:game_master.world_interpretation.0",
+    "text": "GM confirme le genre exploration_interaction (web/HTML 2D top-down), PAS le cadre chain-based roguelike du World Scan amont ; 'chain_probe_v1' designe la chaine du pipeline full_content, pas une mecanique de jeu. Voir genre='exploration_interaction' et world_interpretation[0]. ART et GM partagent le meme genre de travail commun. Tranche par provenance ratifiee (Project Brief canonique, decision Pierre sas Project Input 2026-08-30)."
+   }
+  }
+ ],
+ "declarations": {
+  "ART": {
+   "round": 2,
+   "ready_for_freeze": true,
+   "open_to_gm": 0
+  },
+  "GM": {
+   "round": 2,
+   "ready_for_freeze": true,
+   "open_to_art": 0,
+   "reason": "game_master mecaniquement COMPLET (9 boucles, 9 metriques exclusives, R2a sans orphelin 9/9, R2b transformations prouvees hors humangate, couverture artist_requirements 7/7) : re-trace a la main contre game_master_schema.mjs lu a la source = 0 probleme. Les 2 questions ART restent fermees par des ref qui resolvent. Je passe ready_for_freeze de false a true parce que les 4 reserves qui subordonnaient mon freeze a HumanGate sont RESOLUES par design_intent.md (decisions Pierre ratifiees), PAS parce que la decision serait un satisfecit : (1) facettes minimales economy/skill/world/quest/meta AUTORISEES pour cette sonde uniquement, en conservant la distinction ratifiee boucle-mesurable != systeme-independant != facette-minimale ; (2) F1 divergence de genre tranchee par le Project Brief canonique (exploration_interaction, non delegable) ; (3) content_requirements/calibration absents = absence assumee, comportement attendu ; (4) validite mecanique etablie par l'executeur/driver, pas par moi. Aucune reserve non couverte ne subsiste ; aucun succes n'est deduit de la seule presence de la decision HumanGate. open_to_art=0."
+  }
+ }
+}

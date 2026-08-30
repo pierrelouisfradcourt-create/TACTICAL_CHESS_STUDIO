@@ -1,0 +1,129 @@
+Confirmed: `games/chain_probe_v1/main.mjs` does not exist — we are at **s5, before s9-build**, so the code isn't written yet. `_defined_names` for `.mjs` recognizes `function X`, `const/let/var X =`, `class X`, and class methods `X(){` — so the function names I specify will resolve regardless of the builder's idiom.
+
+I now have everything needed: the blueprint (5 flat modules with ownership + `deps_interdites`), the featuremap rules R1..R13 (s3-decompo), `loop.json` HUD predicates, the art_bible palette, `repo_map.yaml`, and `check_wiremap` read at source. The WireMap is a **specification** isomorphic to the blueprint that the build (s9) must satisfy and `check_wiremap` verifies at s10c.
+
+---
+
+# RAPPORT FINAL — s5-wiremap (chain_probe_v1-20260830-run1)
+
+**Ancres citées (toutes lues, aucune inventée) :**
+- `blueprint.json` (s4, injecté) — modules `{logic, render, input, hud, main}`, `ownership`, `couvre` par module, `deps_interdites`. Fonde l'attribution module→règle (isomorphisme).
+- `artifacts/s3-decompo.txt` (s3 featuremap, injecté) — règles **R1..R13** + feuilles de capacité (`cap_*`, `gb_*`) et leur `expected_proof.kind`.
+- `loop.json` (injecté) — prédicats HUD observables (`nonempty`/`increases`/`changes`/`new_distinct`/`appears:terminal_disponible`) qui fondent chaque `preuve`.
+- `art_bible.md` (injecté) — palette d'affordance (bleu joueur / ambre agissable / émeraude terminal) pour R13.
+- `scripts/forge/static_oracles.py` — **lu à la source** : `check_wiremap` (l.294-364), `_wiremap_entries` (l.263-288), `_defined_names` (l.155-184), `_PREUVE_GD` (l.291). Fonde la **FORME** de ma sortie : `features[]` v1 ; chaque ligne `{feature, fonction, fichiers[], preuve}` ; `fonction` doit être un **nom défini** dans un fichier listé existant ; `fichiers` doit contenir ≥1 fichier existant (sinon `features_manquantes`) ; `preuve` non vide et **sans token `.gd` pendant** (sinon `preuves_absentes`).
+- `scripts/forge/standard/repo_map.yaml` — **lu** : convention de placement. Le blueprint porte des modules **plats** (`logic`…`main`) et la cible est web/HTML DOM-only → fichiers plats `<module>.mjs` à la racine du code (`.mjs` = convention studio des jeux web forgés, `static_oracles.py:28`).
+
+**Isomorphisme WireMap ↔ blueprint (les 5 modules sont tous portés par ≥1 ligne) :**
+- `logic` → R3, R4, R6, R7, R8, R9, R10 · `render` → R2, R5, R6 · `input` → R3, R4, R8 (dans `fichiers`) · `hud` → R1, R9, R10, R12, R13 · `main` → R2, R11.
+
+**Verdicts (Règle de restitution) :**
+- **software_verdict : non émis par moi.** Aucun oracle exécuté sur ma sortie : le code n'existe pas encore (s5 avant s9-build ; `games/chain_probe_v1/main.mjs` absent, vérifié par Read) et `run: aucun`. `check_wiremap` s'exécute **en aval (s10c) par run_real.py** sur le code bâti. Mon seul ancrage mécanique est d'avoir **lu** l'oracle — ce qui fonde la FORME de la carte, pas la preuve qu'elle passe.
+- **evidence_verdict : MECHANICAL_VALIDATION_ONLY non revendicable** — aucune validation mécanique lancée de ma part.
+- **claim_verdict : NO_CLAIM_ALLOWED.**
+- **fog → HumanGate (Pierre) :**
+  1. **Divergence contrat↔plateforme (héritée, non fermée).** La featuremap mandate pour les preuves d'ENTRÉE (R3/R4/R8) le marqueur Godot `main.tscn` (règle V4 GAME-LOOP). La cible réelle est **web/HTML DOM-only** — aucun `main.tscn`. Mes preuves d'entrée sont donc des **e2e web** (`e2e.mjs`, pilotage bot navigateur, prédicats `loop.json`), platform-correctes mais **divergentes** des `expected_proof.statement` de la featuremap. Cohérent avec fog F1 déjà ouvert (art_bible / s3-decompo).
+  2. **Racine de code présumée.** J'ai déclaré un layout plat `<module>.mjs` sous `games/chain_probe_v1` (dérivé du blueprint plat + repo_map), non confirmé par un build. Le builder s9 doit épouser ces chemins pour que `check_wiremap` (s10c) les résolve.
+
+**SKIPPED_VALIDATION :**
+- item: exécution de `check_wiremap` sur le code réel · où: `games/chain_probe_v1` · statut: **non fait** · raison: s5 précède s9-build, le code n'existe pas (Read sur `main.mjs` → absent) ; `run: aucun` ; l'oracle tourne en aval (s10c) via run_real.py.
+- item: exécution de `check_wiremap_contract` (couverture plan + `maillon_non_lie`) · où: wiremap↔featuremap · statut: **non fait** · raison: `run: aucun` / Bash désactivé ; de plus la tâche concrète impose le format **v1 `features[]`** (sans champ `couvre`), tandis que `check_wiremap_contract` attend le schéma v2/`couvre` — hors périmètre de ce livrable.
+- item: confirmation du layout (racine = `games/chain_probe_v1`, fichiers plats `.mjs`) · où: sortie build · statut: **partiel (hypothèse ancrée)** · raison: dérivé blueprint+repo_map, non prouvé par un build.
+
+**RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2 §3) :**
+- `why_task_existed:`
+  - `problem:` le run a produit blueprint (s4) + featuremap (s3) mais aucune carte reliant chaque règle de jeu à la fonction/fichier qui la réalise — sans wiremap, le delta attendu-vs-réel est incalculable pour `check_wiremap` à s10c.
+  - `oracle:` aucun — activation nominale de l'étape s5 du profil (marqueur `FORGE_DISPATCH:s5-wiremap`), pas un oracle rouge.
+  - `root_cause:` non établie (activation nominale, pas une panne).
+  - `action_reason:` produire la WireMap isomorphe au blueprint (module=fichier) mappant R1..R13 → fonction+fichiers+preuve, au format `check_wiremap`.
+- `result:` WireMap v1 `features[]` de 13 lignes ; 5 modules blueprint tous représentés ; chaque ligne porte `fonction` non vide (nom défini reconnu par `_defined_names`) et `fichiers` non vides ; chaque `preuve` non vide et sans token `.gd`.
+- `proof:` lecture à la source de `check_wiremap`/`_defined_names`/`_wiremap_entries` (`static_oracles.py:263-364, 155-184`) + `games/chain_probe_v1/main.mjs` absent (Read). Aucune exécution d'oracle (code non bâti, `run: aucun`).
+- `learning:` à s5 web/HTML, les preuves d'ENTRÉE doivent être des e2e web (`e2e.mjs` pilotant les affordances DOM), jamais le marqueur Godot `main.tscn` hérité de la règle V4 — sinon divergence contrat↔plateforme.
+- `next_reason:` chaîne **NON fermée** — le fog contrat↔plateforme (web vs `main.tscn`) et la présomption de layout doivent être tranchés par HumanGate avant/à s9-build ; côté carte, le livrable est complet pour `check_wiremap`.
+
+```json
+{
+  "features": [
+    {
+      "feature": "R1 But affiché (E01)",
+      "fonction": "renderObjective",
+      "fichiers": ["hud.mjs"],
+      "preuve": "e2e (e2e.mjs): à t0 le HUD 'objectif' est nonempty et nomme l'objet terminal (loop.json E01 predicate=nonempty)."
+    },
+    {
+      "feature": "R2 Scène non vide au lancement (E11)",
+      "fonction": "renderScene",
+      "fichiers": ["render.mjs", "main.mjs"],
+      "preuve": "e2e visual: DOM à t0 contient l'espace + un avatar + >=1 objet interactif, jamais un écran vide (main déclenche render avant premier paint; blueprint render preuve_attendue)."
+    },
+    {
+      "feature": "R3 Déplacement de l'avatar (E02, ENTRÉE)",
+      "fonction": "moveAvatar",
+      "fichiers": ["input.mjs", "logic.mjs"],
+      "preuve": "bot_action e2e: input traduit le clic destination en commande move; logic.moveAvatar fait croître 'zone_exploree' STRICTEMENT (loop.json E02 predicate=increases; cible GM explorable_reach_ratio 0.9-1.0)."
+    },
+    {
+      "feature": "R4 Activation d'un objet (E03, ENTRÉE)",
+      "fonction": "activateObject",
+      "fichiers": ["input.mjs", "logic.mjs"],
+      "preuve": "bot_action e2e: clic objet ambre -> logic.activateObject incrémente 'objets_actives' de delta STRICT = 1 (loop.json E03 predicate=increases; jamais un >= tautologique)."
+    },
+    {
+      "feature": "R5 Feedback d'activation (E04, EFFET)",
+      "fonction": "renderFeedback",
+      "fichiers": ["render.mjs"],
+      "preuve": "visual e2e: avant/après le clic, l'état rendu de l'objet diffère et un élément de flash apparaît dans la même fenêtre de frame (loop.json E04 predicate=changes; art_bible core_feedback)."
+    },
+    {
+      "feature": "R6 Révélation par exploration (E05, EFFET)",
+      "fonction": "revealObjects",
+      "fichiers": ["logic.mjs", "render.mjs"],
+      "preuve": "bot_action e2e: en explorant, 'objets_visibles' augmente STRICTEMENT par rapport à sa valeur initiale (loop.json E05 predicate=increases)."
+    },
+    {
+      "feature": "R7 Arbitrage explorer / activer (E06, DÉCISION)",
+      "fonction": "step",
+      "fichiers": ["logic.mjs"],
+      "preuve": "bot_action solvability: deux politiques (explorer vs activer) exercent logic.step sur >=300 frames et produisent des trajectoires d''objets_actives' distinctes (loop.json E06 policies, horizon_frames=300)."
+    },
+    {
+      "feature": "R8 Ouverture du gate (E07, ENTRÉE/UNLOCK)",
+      "fonction": "updateGate",
+      "fichiers": ["logic.mjs", "input.mjs"],
+      "preuve": "bot_action e2e: activer le dernier objet requis -> logic.updateGate fait passer le terminal LOCKED->AVAILABLE et un groupe 'terminal_disponible' apparaît (loop.json E07 predicate=appears:terminal_disponible)."
+    },
+    {
+      "feature": "R9 Objectif tant que gate fermé (E08, NEXT_GOAL)",
+      "fonction": "currentObjective",
+      "fichiers": ["logic.mjs", "hud.mjs"],
+      "preuve": "visual e2e: gate fermé, logic.currentObjective renvoie et le HUD 'objectif' porte 'activer les objets interactifs', libellé distinct du terminal (loop.json E08 predicate=new_distinct)."
+    },
+    {
+      "feature": "R10 Objectif une fois gate ouvert (E09, NEXT_GOAL)",
+      "fonction": "currentObjective",
+      "fichiers": ["logic.mjs", "hud.mjs"],
+      "preuve": "visual e2e: gate ouvert, logic.currentObjective bascule le HUD 'objectif' sur 'rejoindre et déclencher l'objet terminal', texte différent du précédent (loop.json E09 predicate=new_distinct)."
+    },
+    {
+      "feature": "R11 Répétition de la boucle (E10, REPEAT)",
+      "fonction": "gameLoop",
+      "fichiers": ["main.mjs"],
+      "preuve": "bot_action solvability e2e: main.gameLoop rejoue déplacer->activer->réponse->révéler sur >=2 objets; 'objets_actives' augmente par cycle (loop.json E10 replay=[E02,E03,E04,E05]; blueprint main preuve: bot joue la boucle complète et GAGNE)."
+    },
+    {
+      "feature": "R12 Écran de fin (E12)",
+      "fonction": "renderEndScreen",
+      "fichiers": ["hud.mjs"],
+      "preuve": "visual e2e: déclencher l'objet terminal affiche un overlay d'état de fin distinct du HUD, au premier plan (blueprint hud preuve; art_bible gb_end_state_screen)."
+    },
+    {
+      "feature": "R13 HUD sans teinte de rôle (E13)",
+      "fonction": "renderHud",
+      "fichiers": ["hud.mjs"],
+      "preuve": "oracle statique: check déterministe des couleurs du HUD, disjointes des teintes réservées (bleu joueur / ambre agissable / émeraude terminal) — art_bible affordance_rules; aucun LLM-as-judge."
+    }
+  ]
+}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Les preuves d'ENTRÉE mandatées par la featuremap (R3/R4/R8) citent le marqueur de scène Godot 'main.tscn' (règle V4 GAME-LOOP), mais la cible réelle de chain_probe_v1 est web/HTML DOM-only sans aucun 'main.tscn' ; la WireMap a donc dû ancrer ces preuves sur des e2e web (e2e.mjs, prédicats loop.json), platform-correctes mais divergentes des expected_proof de la featuremap.", "root_cause": "La règle V4 GAME-LOOP impose un marqueur de scène Godot ('main.tscn') aux preuves d'action joueur et est appliquée telle quelle à une cible web DOM-only qui n'a pas ce concept — mismatch cross-plateforme déjà ouvert en amont (fog F1)."}

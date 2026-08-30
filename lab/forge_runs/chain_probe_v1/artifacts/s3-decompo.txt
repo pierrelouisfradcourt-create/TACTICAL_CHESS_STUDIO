@@ -1,0 +1,301 @@
+I've now read the three real gating files on disk — `check_decompo.mjs`, `upstream_schema.mjs` (the `validateFeaturemap`/`collectLeaves`/`validateLeaf` that decide COMPLÉTUDE), and the materialized `prisme.json` + `gm_worldscan.json`. I built the decomposition against the contract as actually coded, not as remembered.
+
+**One decision governs the whole artifact, stated plainly before the deliverable.** The V4 GAME-LOOP check (`check_decompo.mjs:193`) requires every player-action entrée proof to be `bot_action` **and** to contain the literal substring `main.tscn` — a Godot scene marker. This run's target is **web/HTML, DOM-only** (art_bible: "cible web/HTML, 2D, DOM-only"). I comply with the ratified rule (the entrées carry `main.tscn` as the bot's scene-of-origin marker), but a web build has no `main.tscn`. I surface that as a real contract↔platform divergence (fog → HumanGate), coherent with the genre-divergence fog F1 already open upstream. I did **not** fabricate any expected proof: exigence leaves inherit the Prisme's proof verbatim, entrée leaves carry the rule-mandated `bot_action/main.tscn`, and each grey-block leaf copies its GM `builder_contract` **verbatim**.
+
+---
+
+# chain_probe_v1 — Décomposition fonctionnelle (s3-decompo)
+
+## Règles de jeu R1..Rn (une ligne par règle · nom · comportement observable · condition de preuve)
+
+- **R1 — But affiché** (E01) : dès t0, la ligne d'objectif nomme l'objet terminal, non vide. → *preuve `visual`* (HUD `objectif` nonempty à t0).
+- **R2 — Scène non vide au lancement** (E11) : espace + avatar + ≥1 objet interactif visibles à l'écran. → *preuve `visual`* (DOM à t0).
+- **R3 — Déplacement de l'avatar** (E02, ENTRÉE joueur) : cliquer une destination déplace l'avatar ; l'espace exploré augmente strictement. → *preuve `bot_action` depuis main.tscn* (`explorable_reach_ratio` 0.9–1.0).
+- **R4 — Activation d'un objet** (E03, ENTRÉE joueur) : cliquer un objet ambre incrémente `objets_actives` de **exactement 1**. → *preuve `bot_action` depuis main.tscn* (delta STRICT = 1).
+- **R5 — Feedback d'activation** (E04, EFFET) : à chaque activation, l'objet change d'état visible + impulsion/flash. → *preuve `visual`* (avant/après diffèrent, flash même frame).
+- **R6 — Révélation par exploration** (E05, EFFET) : explorer fait entrer de nouveaux objets dans le champ. → *preuve `bot_action`* (`objets_visibles`↑ strict).
+- **R7 — Arbitrage explorer / activer** (E06, DÉCISION) : deux politiques produisent des trajectoires distinctes. → *preuve `bot_action`* (2 trajectoires sur ≥300 frames).
+- **R8 — Ouverture du gate** (E07, ENTRÉE joueur / UNLOCK) : activer le dernier objet requis fait passer le terminal verrouillé→disponible ; un groupe `terminal_disponible` apparaît. → *preuve `bot_action` depuis main.tscn*.
+- **R9 — Objectif tant que gate fermé** (E08, NEXT_GOAL / EFFET) : le HUD `objectif` porte "activer les objets interactifs". → *preuve `visual`* (libellé distinct).
+- **R10 — Objectif une fois gate ouvert** (E09, NEXT_GOAL / EFFET) : le HUD `objectif` bascule sur "rejoindre et déclencher l'objet terminal". → *preuve `visual`* (`new_distinct`).
+- **R11 — Répétition de la boucle** (E10, REPEAT) : rejouer déplacer→activer→réponse→révéler sur ≥2 objets. **REJEU de R3/R4/R5/R6 — aucune feuille propre** (doctrine H) ; ses `replay` [E02,E03,E04,E05] sont tous couverts. → *preuve `bot_action`* (`objets_actives`↑ par cycle).
+- **R12 — Écran de fin** (E12) : déclencher le terminal affiche un overlay de fin distinct du HUD, au premier plan. → *preuve `visual`*.
+- **R13 — HUD sans teinte de rôle** (E13) : couleurs du HUD disjointes des teintes réservées (bleu/ambre/émeraude). → *preuve `oracle`* (check statique).
+
+**Entités du Game Master (7 grey blocks)** — chacune portée par une feuille `id=gb_*` dont `expected_proof.statement` recopie le `builder_contract` **tel quel** : `gb_explorable_space`, `gb_player_avatar`, `gb_interactive_object` (sourcées sur E11), `gb_terminal_goal` (E01), `gb_interaction_feedback` (E04), `gb_hud_state` (E13), `gb_end_state_screen` (E12). Aucune n'est sourcée sur une exigence player-action (E02/E03/E07), pour ne pas entrer en conflit entre la recopie verbatim du `builder_contract` et l'obligation V4 `bot_action/main.tscn`.
+
+---
+
+## RAPPORT FINAL — s3-decompo (chain_probe_v1-20260830-run1)
+
+**Ancres citées :**
+- `check_decompo.mjs` + `upstream_schema.mjs` — **lus à la source** (`scripts/forge/`). La FORME de ma sortie (arbre Système→Feature→capacité ; feuille `{id, capacite, source_ref, expected_proof{kind∈PROOF_KINDS, statement}}` ; ids feuilles/features uniques ; couverture ∪ rejeu ; non-invention ; V4 entrée `bot_action`+`main.tscn` ; NEXT_GOAL effet `visual|file_write` ; grey block porté par `id`|`source_ref`) est construite contre ce code lu.
+- `prisme.json` (s1) — 13 exigences E01–E13, lues à la source. `gm_worldscan.json` (s2.7) — 7 grey blocks, `builder_contract` recopiés verbatim.
+
+**Couverture (tracée manuellement contre l'oracle, non exécutée) :**
+- **13/13 exigences portées** : E01–E09, E11, E12, E13 chacune par ≥1 feuille sourcée ; **E10 (REPEAT)** sans feuille propre (rejouable), son `replay` [E02,E03,E04,E05] intégralement couvert.
+- **Exigences non couvertes** : aucune.
+- **Feuilles non sourcées** : aucune (tous les `source_ref` ∈ {E01..E13}).
+- **Actions joueur (E02,E03,E07)** : 3/3 en feuille d'ENTRÉE `bot_action` dont le `statement` contient `main.tscn`.
+- **Maillons** : F(UNLOCK)=1 · G(NEXT_GOAL)=2 · H(REPEAT)=1 · I=0 · J=0 (I/J structurellement absents du genre, refus honnête déjà acté par le GM/Prisme).
+- **Grey blocks** : 7/7 portés (feuille `id=gb_*`).
+- Granularité : 3 systèmes / 9 features / 19 feuilles (REPORTÉE, non gatée).
+
+**Verdicts (Règle de restitution) :**
+- **software_verdict : BLOCKED** — je n'exécute pas l'oracle (`run: none`). Le reçu liant `check_decompo.mjs` vient de `run_real.py` en aval, sur la featuremap matérialisée. Mon seul ancrage mécanique est d'avoir **lu** l'oracle, ce qui fonde la forme, pas le vert.
+- **evidence_verdict : MECHANICAL_VALIDATION_ONLY non revendicable** — aucune exécution d'oracle de ma part (trace manuelle seulement).
+- **claim_verdict : NO_CLAIM_ALLOWED.**
+- **fog → HumanGate (Pierre) :** le check V4 (`check_decompo.mjs:193`) impose la sous-chaîne `main.tscn` (Godot) dans la preuve d'entrée, alors que la cible est web/HTML sans scène Godot. Les entrées portent `main.tscn` comme marqueur de scène-d'origine par conformité à la règle ratifiée, mais le build web (s9) n'aura pas ce fichier — divergence contrat↔plateforme à trancher, cohérente avec F1.
+
+**SKIPPED_VALIDATION :**
+- item: exécution de `check_decompo.mjs` sur la featuremap matérialisée · périmètre: `featuremap.json` de ce run · statut: **non fait (décision assumée)** · raison: `run: none` ; l'oracle s'exécute en aval par `run_real.py`. Verdict tracé manuellement contre la source lue.
+- item: vérification qu'un `main.tscn` existera au build · périmètre: preuves d'entrée E02/E03/E07 · statut: **non fait** · raison: hors périmètre s3 (build = s9) ; divergence surfacée en fog + RETURN_REASON.
+- item: égalité byte-à-byte des `builder_contract` recopiés · périmètre: 7 feuilles grey block · statut: **partiel** · raison: recopiés depuis `gm_worldscan.json` lu à la source ; `check_decompo` NE vérifie PAS cette égalité (garde-fou doctrinal, contrôle HumanGate/aval).
+
+**RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2 §3) :**
+- `why_task_existed:` { `problem:` sans featuremap traçable, s4-archi/s5-wiremap/s9-build construiraient sans couverture prouvée des 13 exigences du Prisme ni des 7 grey blocks du GM · `oracle:` `check_decompo.mjs` (couverture/non-invention/complétude + grey blocks) ; activation = position dans la chaîne `full_content`, aucun défaut mesuré · `root_cause:` non transmis (activation par pipeline, pas par mesure) · `action_reason:` décomposer 13 exigences + 7 grey blocks en un arbre où chaque feuille porte `{capacite, source_ref, expected_proof}`, règle V4 sur les entrées et recopie verbatim des builder_contracts respectées }
+- `result:` featuremap 3 systèmes / 9 features / 19 feuilles ; 13/13 exigences couvertes (E10 par rejeu), 7/7 grey blocks portés, 3/3 entrées `bot_action`+`main.tscn`. Tracé contre l'oracle lu, NON exécuté.
+- `proof:` lecture de `scripts/forge/check_decompo.mjs` + `scripts/forge/upstream_schema.mjs` ; commande d'oracle aval : `node scripts/forge/check_decompo.mjs lab/forge_runs/chain_probe_v1/featuremap.json --prisme lab/forge_runs/chain_probe_v1/prisme.json --gm lab/forge_runs/chain_probe_v1/gm_worldscan.json`.
+- `learning:` le check V4 exige en dur `main.tscn` (Godot) dans la preuve d'entrée, y compris pour un run web/HTML — la règle ratifiée pour Godot s'applique telle quelle à une plateforme sans scène Godot.
+- `next_reason:` la chaîne continue (s4/s5 consomment la featuremap) ; une divergence non résolue persiste (`main.tscn` vs web) → à remonter à HumanGate, mais elle ne bloque pas la production de la featuremap — la lignée productive se ferme ici, la fog reste ouverte côté Pierre.
+
+```json
+{
+  "game_id": "chain_probe_v1",
+  "systemes": [
+    {
+      "id": "S_scene",
+      "features": [
+        {
+          "id": "F_scene_lancement",
+          "capacites": [
+            {
+              "id": "cap_scene_non_vide",
+              "capacite": "A t0, l'espace, l'avatar et au moins un objet interactif sont visibles ; l'ecran n'est jamais vide.",
+              "source_ref": "E11",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "A t0, le DOM contient l'espace, un element avatar et >=1 objet interactif."
+              }
+            },
+            {
+              "id": "gb_explorable_space",
+              "capacite": "Rendre l'espace 2D top-down navigable, avatar place a l'etat initial (grey block gb_explorable_space).",
+              "source_ref": "E11",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "rendre un espace 2D top-down navigable (fond neutre desature qui recule), avatar place a l'etat initial : jamais un ecran vide"
+              }
+            },
+            {
+              "id": "gb_player_avatar",
+              "capacite": "Avatar joueur unique, deplacable, identifiable (grey block gb_player_avatar).",
+              "source_ref": "E11",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "avatar bleu deplacable au clic/DOM, toujours identifiable, etats repos/mouvement/interaction (art_bible:character_states)"
+              }
+            },
+            {
+              "id": "gb_interactive_object",
+              "capacite": "Objet interactif ambre agissable, distinct de l'inerte (grey block gb_interactive_object).",
+              "source_ref": "E11",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "objet ambre clicable qui passe a un etat active + impulsion lumineuse au clic (core_feedback), distinct visuellement de l'inerte"
+              }
+            }
+          ]
+        },
+        {
+          "id": "F_but",
+          "capacites": [
+            {
+              "id": "cap_but_affiche",
+              "capacite": "Une ligne d'objectif nommant l'objet terminal est affichee non vide des le lancement.",
+              "source_ref": "E01",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "A t0, le HUD 'objectif' est non vide et nomme l'objet terminal comme but."
+              }
+            },
+            {
+              "id": "gb_terminal_goal",
+              "capacite": "Objet terminal emeraude unique, LOCKED avec raison visible -> AVAILABLE -> etat de fin (grey block gb_terminal_goal).",
+              "source_ref": "E01",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "objet emeraude unique, etat LOCKED avec raison visible -> AVAILABLE quand le gate ouvre -> declenche l'etat de fin visible"
+              }
+            }
+          ]
+        },
+        {
+          "id": "F_hud",
+          "capacites": [
+            {
+              "id": "cap_hud_couleurs_disjointes",
+              "capacite": "Le HUD n'utilise aucune couleur reservee aux roles joueur/agissable/terminal.",
+              "source_ref": "E13",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Un check statique confirme que les couleurs du HUD sont disjointes des teintes reservees (bleu joueur / ambre agissable / emeraude terminal)."
+              }
+            },
+            {
+              "id": "gb_hud_state",
+              "capacite": "HUD peripherique minimal exposant l'etat courant, window.__game observable (grey block gb_hud_state).",
+              "source_ref": "E13",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "HUD minimal en peripherie, contraste eleve, expose l'etat courant ; window.__game observable (N1), aucune teinte de role reutilisee"
+              }
+            }
+          ]
+        },
+        {
+          "id": "F_fin",
+          "capacites": [
+            {
+              "id": "cap_overlay_fin",
+              "capacite": "Au declenchement du terminal, un overlay d'etat de fin distinct apparait au premier plan.",
+              "source_ref": "E12",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Apres declenchement du terminal, un element overlay de fin distinct du HUD est present et lisible au premier plan."
+              }
+            },
+            {
+              "id": "gb_end_state_screen",
+              "capacite": "Overlay/banniere d'etat de fin distinct du HUD courant (grey block gb_end_state_screen).",
+              "source_ref": "E12",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "overlay/banniere d'etat de fin distinct du HUD courant, s'affiche quand l'objet terminal est declenche (etat de fin visible)"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S_boucle",
+      "features": [
+        {
+          "id": "F_entree",
+          "capacites": [
+            {
+              "id": "cap_entree_deplacer",
+              "capacite": "ENTREE : le joueur deplace l'avatar (affordance 'avatar') en cliquant une destination.",
+              "source_ref": "E02",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot de navigation pilote la scene d'entree main.tscn et deplace l'avatar (affordance 'avatar') ; le ratio d'espace explore augmente strictement (cible GM explorable_reach_ratio 0.9-1.0)."
+              }
+            },
+            {
+              "id": "cap_entree_activer",
+              "capacite": "ENTREE : le joueur active un objet ambre (affordance 'objet_interactif') en cliquant.",
+              "source_ref": "E03",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot pilote main.tscn et clique un objet ambre (affordance 'objet_interactif') ; objets_actives passe de n a n+1 (delta STRICT = 1, cible GM core_state_changes_per_click, jamais un >= tautologique)."
+              }
+            }
+          ]
+        },
+        {
+          "id": "F_reponse",
+          "capacites": [
+            {
+              "id": "cap_feedback_activation",
+              "capacite": "EFFET : a chaque activation l'etat visible de l'objet change et une impulsion lumineuse se declenche.",
+              "source_ref": "E04",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Avant/apres le clic, l'etat rendu de l'objet differe et un element de flash apparait dans la meme fenetre de frame."
+              }
+            },
+            {
+              "id": "gb_interaction_feedback",
+              "capacite": "Flash blanc bref a fort contraste sur chaque changement d'etat (grey block gb_interaction_feedback).",
+              "source_ref": "E04",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "flash blanc bref a fort contraste declenche sur chaque changement d'etat (art_bible:affordance_rules regle 4), sans masquer la scene"
+              }
+            },
+            {
+              "id": "cap_revelation_objets",
+              "capacite": "EFFET : a mesure que le joueur explore, des objets jusque-la hors-champ deviennent visibles.",
+              "source_ref": "E05",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot explore et le nombre d'objets interactifs visibles augmente strictement par rapport a sa valeur initiale."
+              }
+            }
+          ]
+        },
+        {
+          "id": "F_decision",
+          "capacites": [
+            {
+              "id": "cap_decision_explorer_activer",
+              "capacite": "DECISION : a tout instant, deplacer pour reveler plus OU activer un objet visible ; l'objectif reflete le focus.",
+              "source_ref": "E06",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Deux politiques (explorer-seul vs activer-des-visible) sur >=300 frames produisent des trajectoires d'objets_actives differentes (sonde a deux trajectoires)."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S_progression",
+      "features": [
+        {
+          "id": "F_gate",
+          "capacites": [
+            {
+              "id": "cap_entree_ouvrir_gate",
+              "capacite": "ENTREE / UNLOCK : le joueur active le dernier objet requis (affordance 'objet_interactif') ; le terminal passe verrouille -> disponible.",
+              "source_ref": "E07",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot pilote main.tscn et active les objets requis (affordance 'objet_interactif') ; l'element terminal transitionne vers AVAILABLE et un nouveau groupe 'terminal_disponible' apparait."
+              }
+            }
+          ]
+        },
+        {
+          "id": "F_objectif_courant",
+          "capacites": [
+            {
+              "id": "cap_objectif_gate_ferme",
+              "capacite": "EFFET VISIBLE (NEXT_GOAL) : tant que le gate est ferme, l'objectif affiche 'activer les objets interactifs'.",
+              "source_ref": "E08",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Gate ferme : le HUD 'objectif' porte le libelle 'activer les objets interactifs', distinct du libelle terminal."
+              }
+            },
+            {
+              "id": "cap_objectif_gate_ouvert",
+              "capacite": "EFFET VISIBLE (NEXT_GOAL) : une fois le gate ouvert, l'objectif bascule sur 'rejoindre et declencher l'objet terminal'.",
+              "source_ref": "E09",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Gate ouvert : le HUD 'objectif' change pour 'rejoindre et declencher l'objet terminal', texte different du libelle precedent (new_distinct sur le meme hud)."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le check V4 GAME LOOP de check_decompo.mjs (l.193) exige la sous-chaine 'main.tscn' dans la preuve d'entree bot_action de toute action joueur, alors que la cible de ce run est web/HTML DOM-only (art_bible), plateforme sans scene Godot : les entrees E02/E03/E07 doivent litteralement contenir 'main.tscn' pour passer l'oracle, sur un build qui n'aura pas ce fichier.", "root_cause": "La regle V4 (ratifiee 2026-08-22, GO Pierre) a ete calibree sur la convention Godot (main.tscn = scene d'entree du bot) et est appliquee telle quelle a un run de plateforme web, sans garde qui adapte le marqueur de scene-d'origine a la plateforme cible fixee par s0-contrat."}

@@ -1,0 +1,104 @@
+I now have the exact validator (`check_story_bible`, `static_oracles.py:1473-1574`) and both mandatory references. Here is my analysis and the anchored deliverable.
+
+## What my context actually carried
+
+- **worldscan** — PRESENT (injected under "ARTEFACTS AMONT"). But it is a **comparative GENRE scan**, not an observation of chain_probe_v1's world. It states verbatim: *"Pas de product_snapshot accessible. Basant l'observation sur le nom de la sonde ('chain_probe_v1') et les patterns de jeu standards."* Its `games[]` block describes the loops/retention/objectives of **three OTHER games** (Chained, Domino Idle, Slay the Spire), and carries `advisory: true`.
+- **charter** — ABSENT. No charter.yaml content appears anywhere in my injected context. Per the anchoring rule (*« leur absence du contexte se déclare dans inputs_recus, jamais ne se compense »*), I declare `charter: false` and do **not** read it from disk to compensate.
+
+**Consequence, honestly:** my two designated anchoring sources carry almost no narrative matter about chain_probe_v1's *world*. The garde-fou applies directly — a nearly-empty but honest bible beats a rich fabricated one.
+
+## Section verdicts (traced against `check_story_bible`)
+
+- **context** → GROUNDED, but thin: the only anchorable world-facts are (1) the worldscan's explicit *absence* of a product snapshot, and (2) a genre *frame* (declared inference — sanctioned by in_scope: *« un fait de genre du worldscan peut fonder un cadre narratif — en le disant »*).
+- **chronology, stakes, factions, characters, relations, events, coherence_rules** → all **NOT_GROUNDED**. The worldscan describes only other games' *gameplay* (permadeath, prestige, waves, boss phases — game systems, out of scope); no lore, faction, character, event, timeline, or world-coherence rule of chain_probe_v1 exists in either source. Inventing any would be a structural lie downstream (the GM builds on this).
+
+---
+
+# RAPPORT FINAL — s2.6-story-bible (chain_probe_v1-20260830-run1)
+
+**Ancres citées :**
+- `worldscan.json` (s2-worldscan, injecté) — scan comparatif de genre, `advisory: true`, **sans product_snapshot** (cité verbatim). Fournit un label de genre et l'aveu explicite qu'aucun monde n'est observé.
+- `charter.yaml` — **ABSENCE MESURÉE** : non injecté dans mon contexte → `inputs_recus.charter = false`. Non lu sur disque (compensation interdite par la règle d'ancrage). Écho du défaut déjà consigné en vivo (FORGE_PIPELINE_TARGET_V1 §6ter R1' : « charter.yaml absent du run_dir »).
+- `forge.static_oracles.check_story_bible` — **lu à la source** (`scripts/forge/static_oracles.py:1473-1574`) : vocabulaire figé `STORY_BIBLE_SECTIONS` (8 id), `_STORY_BIBLE_SOURCES = ("worldscan","charter")` strict, `inputs_recus` à deux booléens, GROUNDED⇒≥1 élément `{statement, source∈entrées, ref, inferred:bool}`, NOT_GROUNDED⇒`reason` non vide, refus des placeholders. Mon bloc JSON est **construit contre ce contrat lu**.
+
+**Sections NOT_GROUNDED et raison (7/8) :** chronology (aucune ligne de temps), stakes (worldscan = enjeux de gameplay d'autres jeux, hors périmètre monde), factions (aucune faction observée), characters (seuls des rôles de gameplay génériques d'autres jeux), relations (ni faction ni personnage à relier), events (événements de gameplay d'autres jeux, pas de lore), coherence_rules (aucune matière-monde à contraindre). Détail dans le bloc.
+
+**Verdicts (Règle de restitution) :**
+- **software_verdict : non émis par moi** — je n'ai **exécuté aucun oracle** (`run: none`, Bash désactivé). `check_story_bible` s'exécute **en aval, par run_real.py**, sur l'artefact matérialisé ; le reçu liant vient de là, pas de moi. Mon seul ancrage mécanique est d'avoir **lu** le validateur (`static_oracles.py:1473-1574`), ce qui fonde la FORME de ma sortie, pas la preuve qu'elle passe.
+- **evidence_verdict : MECHANICAL_VALIDATION_ONLY non revendicable** — aucune validation mécanique exécutée de ma part.
+- **claim_verdict : NO_CLAIM_ALLOWED.**
+- **fog → HumanGate (Pierre) :**
+  1. **Alimentation de la station** : la Story Bible est nourrie d'un worldscan orienté *patterns de gameplay comparatifs* (type GM-scan : `games[]` = boucles/rétention d'AUTRES jeux) plutôt que d'une *observation du MONDE* du projet, et sans charter transmis. Est-ce l'entrée attendue pour s2.6, ou un défaut d'aiguillage amont ?
+  2. **Honnêteté narrative** (l'inférence de genre en `context` est-elle un cadrage acceptable, et 7/8 NOT_GROUNDED est-il le bon résultat) : `check_story_bible` **ne juge jamais la qualité narrative** (dit explicitement) — c'est un jugement humain.
+
+**SKIPPED_VALIDATION :**
+- item: exécution de `check_story_bible` sur l'artefact matérialisé · périmètre: story_bible.json de ce run · statut: **non fait** · raison: hors permissions (`run: none`, Bash désactivé) ; l'artefact n'est matérialisé et validé que par `run_real.py` en aval.
+- item: lecture du charter.yaml réel sur disque · périmètre: run_dir chain_probe_v1 · statut: **non fait (décision assumée)** · raison: charter non injecté dans mon contexte ; le lire pour compenser violerait la règle d'ancrage — `inputs_recus.charter=false` reflète sincèrement mon contexte.
+- item: fidélité de chaque `ref` au passage-source · périmètre: éléments GROUNDED de `context` · statut: **partiel** · raison: mes `ref` sont des citations verbatim du worldscan injecté, mais `check_story_bible` ne vérifie pas la fidélité des `ref` et je n'ai lancé aucun outil de recoupement indépendant → rattrapage humain/aval.
+
+```json
+{
+  "game_id": "chain_probe_v1",
+  "inputs_recus": {
+    "worldscan": true,
+    "charter": false
+  },
+  "sections": [
+    {
+      "id": "context",
+      "status": "GROUNDED",
+      "elements": [
+        {
+          "statement": "Le worldscan declare explicitement qu'aucun product_snapshot n'est accessible : il n'observe aucune matiere-monde propre a chain_probe_v1 et fonde son analyse sur le nom de la sonde et des patterns de jeu standards. Le seul fait de contexte reellement ancrable est donc l'ABSENCE d'un monde decrit dans les entrees.",
+          "source": "worldscan",
+          "ref": "Pas de product_snapshot accessible. Basant l'observation sur le nom de la sonde ('chain_probe_v1') et les patterns de jeu standards.",
+          "inferred": false
+        },
+        {
+          "statement": "Deduit du seul fait de genre disponible : le worldscan situe chain_probe_v1 dans le genre 'chain-based roguelike/incremental hybrid'. Ce fait ne fonde qu'un CADRE structurel possible (boucle centree sur une mecanique de chaine, structure de run/progression), jamais un contenu de monde : ni lieu, ni epoque, ni lore, ni ton narratif.",
+          "source": "worldscan",
+          "ref": "Effectuant un scan World des jeux comparables au genre 'chain-based roguelike/incremental hybrid'",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "id": "chronology",
+      "status": "NOT_GROUNDED",
+      "reason": "Ni le worldscan ni le charter n'etablissent de chronologie propre a chain_probe_v1. Le worldscan est un scan comparatif de genre (Chained, Domino Idle, Slay the Spire) sans product_snapshot, et le charter est absent du contexte recu (inputs_recus.charter=false) : aucune ligne de temps du monde n'est ancrable."
+    },
+    {
+      "id": "stakes",
+      "status": "NOT_GROUNDED",
+      "reason": "Le worldscan ne decrit que des enjeux de GAMEPLAY d'autres jeux (permadeath, prestige, penalite de wraparound de chaine) : des systemes de jeu, hors perimetre d'une Story Bible qui dit le monde et non le jeu. Aucun enjeu NARRATIF du monde de chain_probe_v1 n'est ancre ; charter absent."
+    },
+    {
+      "id": "factions",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucune faction du monde de chain_probe_v1 n'apparait dans les entrees. Le worldscan n'observe que des jeux comparables et leurs mecaniques, sans product_snapshot ; charter absent. Inventer une faction ici serait un mensonge structurel pour le GM en aval."
+    },
+    {
+      "id": "characters",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucun personnage propre a chain_probe_v1 n'est ancrable. Le worldscan ne cite que des roles de gameplay generiques d'autres jeux (joueur, boss, ennemis elite), pas des personnages d'un monde ; charter absent."
+    },
+    {
+      "id": "relations",
+      "status": "NOT_GROUNDED",
+      "reason": "Sans faction ni personnage ancre (voir sections factions et characters, toutes deux NOT_GROUNDED), aucune relation du monde n'est deductible. Le worldscan ne porte aucune donnee relationnelle sur chain_probe_v1 ; charter absent."
+    },
+    {
+      "id": "events",
+      "status": "NOT_GROUNDED",
+      "reason": "Le worldscan ne decrit que des evenements de GAMEPLAY d'autres jeux (vagues, phases de boss, cascades de dominos), pas des evenements narratifs du monde de chain_probe_v1. Aucun evenement de lore n'est ancrable ; charter absent."
+    },
+    {
+      "id": "coherence_rules",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucune matiere-monde n'etant ancree (sections chronology a events toutes NOT_GROUNDED), aucune regle de coherence narrative ne peut etre derivee sans fabrication. Le worldscan est un scan comparatif de genre sans product_snapshot ; charter absent."
+    }
+  ]
+}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Les deux sources d'ancrage de la Story Bible sont narrativement vides pour chain_probe_v1 : le worldscan injecte est un scan comparatif de genre (games[] = boucles/retention d'AUTRES jeux) sans product_snapshot, et le charter n'a pas ete injecte (inputs_recus.charter=false) -> 7/8 sections NOT_GROUNDED, la seule GROUNDED n'ancrant que l'absence de monde plus un cadre de genre.", "root_cause": "La station s2.6-story-bible est alimentee par un worldscan oriente patterns-de-gameplay (type GM/observation comparative) au lieu d'une observation du MONDE du projet, et par un run_dir sans charter transmis en amont ; sans matiere-monde ni charter, aucun ancrage narratif reel n'est possible."}

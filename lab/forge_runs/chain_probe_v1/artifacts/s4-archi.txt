@@ -1,0 +1,136 @@
+I now have the full ground truth. Three findings drive the blueprint:
+
+1. **The real before-build gate is `check_blueprint_contract.mjs`**, not `check_architecture`. It *requires* a rich object: `modules` (strings) **+** `deps_interdites` (non-empty pairs, endpoints ∈ modules) **+** `responsabilites[]` `{module, responsabilite, couvre[], dependances[], preuve_attendue{kind,statement}}`. A bare `{modules, deps_interdites}` FAILs it (no `responsabilites`, 0 features covered).
+2. **`featureIds()` returns `sys.features[].id`** — the nine `F_*` ids. `couvre` must cite those exactly (not `cap_*`/`gb_*`, not `E*`).
+3. **`check_architecture` reads only `modules` + `deps_interdites`** (`set(blueprint["modules"])`, ignores extra keys), and a *module* = the **first folder under the code root** (`_module_of`). So the superset object satisfies **both** oracles; modules must be clean first-level source folders.
+
+The genre is web/HTML DOM-only 2D top-down exploration. I split by responsibility into a pure state core with a star topology around it.
+
+---
+
+# RAPPORT FINAL — s4-archi (chain_probe_v1-20260830-run1)
+
+## Décision d'architecture (justifiée par la featuremap, pas « au feeling »)
+
+Un **cœur d'état pur** (`logic`) est la seule source de vérité ; tout le reste gravite autour sans jamais le contaminer, et les périphériques (`render`, `input`, `hud`) sont **isolés entre eux** — ils ne communiquent qu'à travers l'état de `logic` et le câblage de `main`. Cela tue le god-object avant qu'il existe : aucun module ne peut devenir un « moteur qui rend + écoute + dessine le HUD ».
+
+**Modules (dossiers/fichier de premier niveau sous `games/chain_probe_v1/`)** — conséquence physique du découpage, pas l'inverse :
+
+| module | responsabilité | dépend de | preuve attendue |
+|---|---|---|---|
+| `logic` | état & règles pures : espace/avatar/objets, compteur `objets_actives` (delta STRICT=1), état terminal LOCKED→AVAILABLE, machine d'objectif, révélation, divergence de politiques. **Zéro DOM.** | — (feuille) | `bot_action` |
+| `render` | rendu DOM de la scène depuis l'état : scène non-vide à t0, feedback visible (état diffère + flash), révélation | `logic` | `visual` |
+| `input` | capture des clics joueur → commandes `move`/`activate` vers `logic` | `logic` | `bot_action` |
+| `hud` | chrome périphérique : ligne d'objectif, bascule de libellé, overlay de fin, **disjonction des couleurs de rôle** | `logic` | `oracle` |
+| `main` | composition root + boucle + preuve de **solvabilité e2e** (un bot joue et GAGNE) ; garantit « jamais un écran vide » au boot | `logic`,`render`,`input`,`hud` | `bot_action` |
+
+**Couverture featuremap (9/9)** : `F_scene_lancement`→render,main · `F_but`→hud · `F_hud`→hud · `F_fin`→hud · `F_entree`→logic,input · `F_reponse`→logic,render · `F_decision`→logic · `F_gate`→logic · `F_objectif_courant`→logic,hud. Aucune feature orpheline, aucune couverture fantôme (chaque `couvre` cite un `F_*` réel).
+
+**Graphe** : DAG strict — `logic` est puits, `main` est source ; aucun cycle. **13 dépendances interdites** verrouillent : `logic` ne dépend de rien (4 paires), les 3 périphériques ne se voient pas et ne remontent jamais vers `main` (9 paires). Aucune dépendance déclarée n'est elle-même interdite (les arêtes autorisées vont *vers le bas*, les interdites couvrent les directions inverses/latérales).
+
+## Verdicts (séparés)
+
+- **software_verdict: OK** — blueprint valide *par construction*, chaque prédicat codé de `check_blueprint_contract.checkBlueprintDoc` vérifié à la main contre la **source lue** (modules non-vides ✓ ; deps_interdites non-vide, endpoints ∈ modules ✓ ; responsabilites complètes, `couvre`⊆featureIds ✓ ; `dependances` présent partout, ∈ modules ✓ ; chaque module a une entrée ✓ ; 9/9 couvertes ✓ ; aucun cycle ✓ ; aucune dep∈deps_interdites ✓ ; `preuve_attendue.kind`∈PROOF_KINDS ✓).
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — ancres = lecture-source de `check_blueprint_contract.mjs`, `upstream_schema.mjs` (`featureIds`/`checkBlueprintDoc`), `static_oracles.check_architecture` (`_module_of`), `repo_map.yaml`, et la `featuremap.json` matérialisée sur disque.
+- **claim_verdict: NO_CLAIM_ALLOWED** — je n'ai **pas exécuté** le reçu (`run: aucun`, et `blueprint.json` est matérialisé par l'exécuteur, pas par moi). Le reçu exécuté de `check_blueprint_contract.mjs <run_dir>/blueprint.json --featuremap <run_dir>/featuremap.json` est produit **en aval par l'exécuteur** après matérialisation — c'est lui qui transforme le OK-par-construction en OK-exécuté.
+
+## Fogs → HumanGate
+- **F-shape** (découvert) : le CONTRAT DE SORTIE exige l'objet riche (que consomme `check_blueprint_contract`) alors que la TÂCHE CONCRÈTE dit « EXACTEMENT `{modules, deps_interdites}` » (forme lue par `check_architecture`). Un `{modules, deps_interdites}` nu **échoue** le gate d'avant-build. J'émets le **superset** (satisfait les deux oracles). À trancher : aligner la formulation de la tâche sur l'oracle réellement gatant.
+- **F1 hérité** (non mien) : divergence de genre du World Scan amont + marqueur `main.tscn` dans des preuves d'un build **web** (aucun `main.tscn`). Mes `preuve_attendue` de blueprint sont platform-neutres (DOM/`window.__game`), je ne propage pas `main.tscn`.
+
+## SKIPPED_VALIDATION
+- **item** : exécution du reçu `check_blueprint_contract.mjs` · **où** : `run_dir/blueprint.json` · **statut** : non fait · **raison** : `run: aucun` + fichier non matérialisé par moi (rôle de l'exécuteur en aval).
+- **item** : `forge.static_oracles.check_architecture` · **où** : `games/chain_probe_v1/` · **statut** : non applicable ici · **raison** : oracle d'APRÈS-build sur `src` vide = vert vacant (précisé par le contrat) ; ce n'est pas mon oracle.
+- **item** : ordre du bloc de lignée `RETURN_REASON` vs bloc `json` terminal · **où** : ce rapport · **statut** : arbitré · **raison** : le livrable extractible (dernière fence ```json```) prime ; `RETURN_REASON` posé en dernière **ligne** nue après la fence satisfait les deux lectures.
+
+## RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2 §3)
+- **why_task_existed** :
+  - **problem** : `chain_probe_v1` a une featuremap (9 features) mais aucune architecture gelée — sans blueprint, `check_architecture` d'aval est vacuement vert et le build n'a pas de contrainte de dépendances.
+  - **oracle** : `check_blueprint_contract.mjs` (gate d'AVANT-build de s4) — activation par la position dans la chaîne, pas par un défaut mesuré.
+  - **root_cause** : non établie (activation nominale de pipeline, pas une panne).
+  - **action_reason** : produire un blueprint qui couvre 9/9 features, sépare logique↔rendu↔input et fige un DAG anti-god-object, vérifiable par l'oracle nommé.
+- **result** : blueprint riche (5 modules, 13 paires interdites, 5 responsabilités, 9/9 couvertes, DAG sans cycle) émis en bloc terminal ; validé par construction contre la source de l'oracle, non exécuté (run: aucun).
+- **proof** : lecture-source `check_blueprint_contract.mjs` + `upstream_schema.mjs::featureIds/checkBlueprintDoc` + `static_oracles.check_architecture::_module_of` + `featuremap.json` (9 `F_*`) ; vérification manuelle prédicat-par-prédicat (ci-dessus). Aucune commande exécutée.
+- **learning** : le gate réel de s4 est `check_blueprint_contract` (forme riche), pas `check_architecture` ; `couvre` doit citer `sys.features[].id` (les `F_*`), jamais les feuilles `cap_*`/`gb_*` ni les `E*` — piège probable pour un s4 naïf qui échouerait `couverture_fantome`.
+- **next_reason** : lignée **ouverte, non escaladée** — l'exécuteur doit matérialiser `blueprint.json` puis lancer le reçu `check_blueprint_contract` (la seule étape que je ne peux pas faire) ; le fog F-shape mérite une décision Pierre pour aligner la formulation de la tâche. Sinon la chaîne descend normalement vers s5-wiremap.
+
+```json
+{
+  "modules": ["logic", "render", "input", "hud", "main"],
+  "deps_interdites": [
+    ["logic", "render"],
+    ["logic", "input"],
+    ["logic", "hud"],
+    ["logic", "main"],
+    ["render", "input"],
+    ["render", "hud"],
+    ["render", "main"],
+    ["input", "render"],
+    ["input", "hud"],
+    ["input", "main"],
+    ["hud", "render"],
+    ["hud", "input"],
+    ["hud", "main"]
+  ],
+  "ownership": {
+    "logic": "Etat & regles pures (source de verite unique, zero DOM): espace explorable, avatar, objets interactifs, compteur objets_actives (delta STRICT=1), etat terminal LOCKED->AVAILABLE, machine d'objectif courant, revelation, divergence de politiques.",
+    "render": "Rendu DOM de la scene depuis l'etat logic: scene non-vide a t0, feedback d'activation (etat rendu different + flash), revelation d'objets. Lecture seule de l'etat.",
+    "input": "Capture des entrees joueur (clics destination/objet) et traduction en commandes move/activate vers logic. N'ecrit jamais le DOM de rendu.",
+    "hud": "Chrome peripherique: ligne d'objectif (nomme le terminal a t0, bascule une fois le gate ouvert), overlay d'etat de fin, disjonction des couleurs de role (bleu/ambre/emeraude).",
+    "main": "Composition root + boucle de jeu + preuve de solvabilite e2e (un bot joue la boucle complete et GAGNE); garantit qu'aucun ecran n'est vide au boot en declenchant render avant premier paint."
+  },
+  "responsabilites": [
+    {
+      "module": "logic",
+      "responsabilite": "Cœur d'etat pur et regles de transition: deplacement, activation a delta STRICT=1, revelation d'objets, ouverture du gate (LOCKED->AVAILABLE), machine d'objectif courant, et divergence mesurable de deux politiques. Aucune dependance rendu/input/hud/main.",
+      "couvre": ["F_entree", "F_reponse", "F_decision", "F_gate", "F_objectif_courant"],
+      "dependances": [],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Un bot pilote l'etat via l'entree: objets_actives passe de n a n+1 (delta STRICT=1, jamais un >= tautologique), le nombre d'objets reveles augmente strictement, le terminal transitionne LOCKED->AVAILABLE apres le dernier requis, l'objectif bascule, et deux politiques (explorer-seul vs activer-des-visible) sur >=300 frames produisent des trajectoires d'objets_actives distinctes."
+      }
+    },
+    {
+      "module": "render",
+      "responsabilite": "Rendre la scene DOM depuis l'etat logic (espace 2D top-down, avatar, objets interactifs, feedback). Ne remonte jamais vers main, n'importe ni input ni hud.",
+      "couvre": ["F_scene_lancement", "F_reponse"],
+      "dependances": ["logic"],
+      "preuve_attendue": {
+        "kind": "visual",
+        "statement": "A t0 le DOM contient l'espace, un element avatar et >=1 objet interactif (jamais vide); a chaque activation l'etat rendu de l'objet differe entre avant/apres le clic et un element de flash apparait dans la meme fenetre de frame."
+      }
+    },
+    {
+      "module": "input",
+      "responsabilite": "Capturer les clics joueur (destination, objet ambre) et emettre les commandes move/activate vers logic. Ne dessine aucun rendu, n'importe ni render ni hud.",
+      "couvre": ["F_entree"],
+      "dependances": ["logic"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Un bot clique une destination puis un objet ambre; les commandes atteignent logic — l'espace explore augmente strictement (deplacement) et objets_actives augmente de exactement 1 (activation)."
+      }
+    },
+    {
+      "module": "hud",
+      "responsabilite": "Chrome peripherique lisant l'etat logic: ligne d'objectif, bascule de libellé, overlay de fin, et couleurs strictement disjointes des teintes de role. Aucune logique de jeu, n'importe ni render ni input.",
+      "couvre": ["F_but", "F_hud", "F_fin", "F_objectif_courant"],
+      "dependances": ["logic"],
+      "preuve_attendue": {
+        "kind": "oracle",
+        "statement": "Un check statique confirme que les couleurs du HUD sont disjointes des teintes reservees (bleu joueur / ambre agissable / emeraude terminal); en complement observable DOM: l'objectif est non vide et nomme le terminal a t0, bascule sur 'rejoindre et declencher l'objet terminal' une fois le gate ouvert, et un overlay de fin distinct apparait au premier plan au declenchement."
+      }
+    },
+    {
+      "module": "main",
+      "responsabilite": "Composition root: instancie logic, cable input->logic et logic->render/hud, execute la boucle et prouve la solvabilite end-to-end. Peut dependre de tous les modules; aucun module ne depend de lui.",
+      "couvre": ["F_scene_lancement"],
+      "dependances": ["logic", "render", "input", "hud"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Solvabilite: un bot joue la boucle complete (explorer -> activer les objets requis -> le gate s'ouvre -> rejoindre et declencher le terminal) et GAGNE (etat de fin atteint), et au boot render est declenche avant le premier paint de sorte que l'ecran n'est jamais vide."
+      }
+    }
+  ]
+}
+```
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le CONTRAT DE SORTIE exige l'objet riche (modules+deps_interdites+responsabilites) consomme par check_blueprint_contract, mais la TACHE CONCRETE demande 'EXACTEMENT {modules, deps_interdites}' (forme de check_architecture); un objet nu echoue le gate d'avant-build.", "root_cause": "La formulation de la tache cible la forme de check_architecture (oracle d'APRES-build) alors que l'oracle reellement gatant de s4 est check_blueprint_contract (forme riche)."}

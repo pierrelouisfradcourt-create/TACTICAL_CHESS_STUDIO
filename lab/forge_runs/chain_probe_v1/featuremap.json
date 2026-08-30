@@ -1,0 +1,236 @@
+{
+ "game_id": "chain_probe_v1",
+ "systemes": [
+  {
+   "id": "S_scene",
+   "features": [
+    {
+     "id": "F_scene_lancement",
+     "capacites": [
+      {
+       "id": "cap_scene_non_vide",
+       "capacite": "A t0, l'espace, l'avatar et au moins un objet interactif sont visibles ; l'ecran n'est jamais vide.",
+       "source_ref": "E11",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "A t0, le DOM contient l'espace, un element avatar et >=1 objet interactif."
+       }
+      },
+      {
+       "id": "gb_explorable_space",
+       "capacite": "Rendre l'espace 2D top-down navigable, avatar place a l'etat initial (grey block gb_explorable_space).",
+       "source_ref": "E11",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "rendre un espace 2D top-down navigable (fond neutre desature qui recule), avatar place a l'etat initial : jamais un ecran vide"
+       }
+      },
+      {
+       "id": "gb_player_avatar",
+       "capacite": "Avatar joueur unique, deplacable, identifiable (grey block gb_player_avatar).",
+       "source_ref": "E11",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "avatar bleu deplacable au clic/DOM, toujours identifiable, etats repos/mouvement/interaction (art_bible:character_states)"
+       }
+      },
+      {
+       "id": "gb_interactive_object",
+       "capacite": "Objet interactif ambre agissable, distinct de l'inerte (grey block gb_interactive_object).",
+       "source_ref": "E11",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "objet ambre clicable qui passe a un etat active + impulsion lumineuse au clic (core_feedback), distinct visuellement de l'inerte"
+       }
+      }
+     ]
+    },
+    {
+     "id": "F_but",
+     "capacites": [
+      {
+       "id": "cap_but_affiche",
+       "capacite": "Une ligne d'objectif nommant l'objet terminal est affichee non vide des le lancement.",
+       "source_ref": "E01",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "A t0, le HUD 'objectif' est non vide et nomme l'objet terminal comme but."
+       }
+      },
+      {
+       "id": "gb_terminal_goal",
+       "capacite": "Objet terminal emeraude unique, LOCKED avec raison visible -> AVAILABLE -> etat de fin (grey block gb_terminal_goal).",
+       "source_ref": "E01",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "objet emeraude unique, etat LOCKED avec raison visible -> AVAILABLE quand le gate ouvre -> declenche l'etat de fin visible"
+       }
+      }
+     ]
+    },
+    {
+     "id": "F_hud",
+     "capacites": [
+      {
+       "id": "cap_hud_couleurs_disjointes",
+       "capacite": "Le HUD n'utilise aucune couleur reservee aux roles joueur/agissable/terminal.",
+       "source_ref": "E13",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Un check statique confirme que les couleurs du HUD sont disjointes des teintes reservees (bleu joueur / ambre agissable / emeraude terminal)."
+       }
+      },
+      {
+       "id": "gb_hud_state",
+       "capacite": "HUD peripherique minimal exposant l'etat courant, window.__game observable (grey block gb_hud_state).",
+       "source_ref": "E13",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "HUD minimal en peripherie, contraste eleve, expose l'etat courant ; window.__game observable (N1), aucune teinte de role reutilisee"
+       }
+      }
+     ]
+    },
+    {
+     "id": "F_fin",
+     "capacites": [
+      {
+       "id": "cap_overlay_fin",
+       "capacite": "Au declenchement du terminal, un overlay d'etat de fin distinct apparait au premier plan.",
+       "source_ref": "E12",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Apres declenchement du terminal, un element overlay de fin distinct du HUD est present et lisible au premier plan."
+       }
+      },
+      {
+       "id": "gb_end_state_screen",
+       "capacite": "Overlay/banniere d'etat de fin distinct du HUD courant (grey block gb_end_state_screen).",
+       "source_ref": "E12",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "overlay/banniere d'etat de fin distinct du HUD courant, s'affiche quand l'objet terminal est declenche (etat de fin visible)"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "S_boucle",
+   "features": [
+    {
+     "id": "F_entree",
+     "capacites": [
+      {
+       "id": "cap_entree_deplacer",
+       "capacite": "ENTREE : le joueur deplace l'avatar (affordance 'avatar') en cliquant une destination.",
+       "source_ref": "E02",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot de navigation pilote la scene d'entree main.tscn et deplace l'avatar (affordance 'avatar') ; le ratio d'espace explore augmente strictement (cible GM explorable_reach_ratio 0.9-1.0)."
+       }
+      },
+      {
+       "id": "cap_entree_activer",
+       "capacite": "ENTREE : le joueur active un objet ambre (affordance 'objet_interactif') en cliquant.",
+       "source_ref": "E03",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot pilote main.tscn et clique un objet ambre (affordance 'objet_interactif') ; objets_actives passe de n a n+1 (delta STRICT = 1, cible GM core_state_changes_per_click, jamais un >= tautologique)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "F_reponse",
+     "capacites": [
+      {
+       "id": "cap_feedback_activation",
+       "capacite": "EFFET : a chaque activation l'etat visible de l'objet change et une impulsion lumineuse se declenche.",
+       "source_ref": "E04",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Avant/apres le clic, l'etat rendu de l'objet differe et un element de flash apparait dans la meme fenetre de frame."
+       }
+      },
+      {
+       "id": "gb_interaction_feedback",
+       "capacite": "Flash blanc bref a fort contraste sur chaque changement d'etat (grey block gb_interaction_feedback).",
+       "source_ref": "E04",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "flash blanc bref a fort contraste declenche sur chaque changement d'etat (art_bible:affordance_rules regle 4), sans masquer la scene"
+       }
+      },
+      {
+       "id": "cap_revelation_objets",
+       "capacite": "EFFET : a mesure que le joueur explore, des objets jusque-la hors-champ deviennent visibles.",
+       "source_ref": "E05",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot explore et le nombre d'objets interactifs visibles augmente strictement par rapport a sa valeur initiale."
+       }
+      }
+     ]
+    },
+    {
+     "id": "F_decision",
+     "capacites": [
+      {
+       "id": "cap_decision_explorer_activer",
+       "capacite": "DECISION : a tout instant, deplacer pour reveler plus OU activer un objet visible ; l'objectif reflete le focus.",
+       "source_ref": "E06",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Deux politiques (explorer-seul vs activer-des-visible) sur >=300 frames produisent des trajectoires d'objets_actives differentes (sonde a deux trajectoires)."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "S_progression",
+   "features": [
+    {
+     "id": "F_gate",
+     "capacites": [
+      {
+       "id": "cap_entree_ouvrir_gate",
+       "capacite": "ENTREE / UNLOCK : le joueur active le dernier objet requis (affordance 'objet_interactif') ; le terminal passe verrouille -> disponible.",
+       "source_ref": "E07",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot pilote main.tscn et active les objets requis (affordance 'objet_interactif') ; l'element terminal transitionne vers AVAILABLE et un nouveau groupe 'terminal_disponible' apparait."
+       }
+      }
+     ]
+    },
+    {
+     "id": "F_objectif_courant",
+     "capacites": [
+      {
+       "id": "cap_objectif_gate_ferme",
+       "capacite": "EFFET VISIBLE (NEXT_GOAL) : tant que le gate est ferme, l'objectif affiche 'activer les objets interactifs'.",
+       "source_ref": "E08",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Gate ferme : le HUD 'objectif' porte le libelle 'activer les objets interactifs', distinct du libelle terminal."
+       }
+      },
+      {
+       "id": "cap_objectif_gate_ouvert",
+       "capacite": "EFFET VISIBLE (NEXT_GOAL) : une fois le gate ouvert, l'objectif bascule sur 'rejoindre et declencher l'objet terminal'.",
+       "source_ref": "E09",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Gate ouvert : le HUD 'objectif' change pour 'rejoindre et declencher l'objet terminal', texte different du libelle precedent (new_distinct sur le meme hud)."
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

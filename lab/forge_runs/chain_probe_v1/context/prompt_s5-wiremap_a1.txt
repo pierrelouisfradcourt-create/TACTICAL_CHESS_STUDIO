@@ -1,0 +1,1131 @@
+## RÔLE
+WireMap isomorphe (étape 5). Point de vue imposé : cartographe qui fait épouser à la carte l'arbre du blueprint — section = module = dossier.
+
+## EXIGENCES COGNITIVES
+Pensée structurelle : la WireMap est le MÊME arbre que l'architecture, pas une liste plate ; chaque feuille traçable à ses fichiers/fonctions.
+
+## MÉMOIRE DE TRAVAIL
+Consomme le blueprint (étape 4) + la featuremap (étape 3). Connaît la convention WireMap du studio (colonnes fichiers/fonction/version/preuve/statut).
+
+## OBJECTIF
+Produire la WireMap isomorphe au blueprint : section = module = dossier ; chaque feature mappée à ses fichiers/fonctions avec preuve attendue et statut.
+
+## DANS LE PÉRIMÈTRE (in_scope)
+Construction de la WireMap épousant l'architecture, colonnes complètes par feuille (fichiers, fonction, version, preuve, statut).
+
+## HORS PÉRIMÈTRE (out_of_scope)
+Ne code rien ; ne modifie ni le blueprint ni la featuremap ; ne décide pas l'ownership (c'est l'archi).
+
+## PERMISSIONS
+read: repo + blueprint + featuremap. write: la WireMap uniquement. create: WireMap. run: aucun. delete: aucun.
+
+## GARDE-FOU
+Isomorphisme STRICT WireMap ↔ blueprint (jamais une liste plate). Chaque ligne porte une preuve attendue. Toute divergence sera signalée par l'oracle wiremap. V4 GAME LOOP (2026-08-22, GO Pierre) : une ligne par affordance de `loop.json` : `category: system.adapter`, `provides: ["affordance:<nom>"]`, `fichiers` = l'adaptateur d'entrée qui la relie à sa règle ; `couvre` cite la capacité d'ENTRÉE correspondante. Chaque ligne `affordance:<x>` `requires` la capacité système qu'elle déclenche (jamais un `requires` vide) ; la ligne système résolue par ce `requires` (ou une ligne atteinte transitivement via ses propres `requires`, profondeur ≤ 3) `couvre` la feuille d'EFFET (`file_write`/`visual`) de la MÊME exigence que la feuille d'ENTRÉE couverte par la ligne d'affordance — c'est la chaîne affordance → input → système → effet, vérifiée par résolution d'ids (`check_wiremap_contract`, finding `maillon_non_lie`), sans champ nouveau.
+
+## CRITÈRES DE RÉUSSITE
+WireMap isomorphe au blueprint ; 7 colonnes remplies (section, feature, fichiers, fonction, version, preuve, statut) ; chaque feature de la featuremap présente.
+
+## ORACLES / TESTS
+DEUX ORACLES, DEUX MOMENTS — ne pas les confondre. AVANT build (ici) : `node scripts/forge/check_wiremap_contract.mjs <run_dir>/wiremap.json --featuremap <run_dir>/featuremap.json` répond « la carte couvre-t-elle le plan ? » (toute capacité portée par ≥1 ligne, aucun `couvre` fantôme) ET « chaque affordance est-elle LIÉE à un effet réel ? » (finding `maillon_non_lie`, `stats.affordances`/`affordances_liees`). APRÈS build (étape s10c) : `forge.static_oracles.check_wiremap` répond « la carte correspond-elle au code ? » (fichiers existants, fonctions définies). En amont aucun fichier n'est écrit : ce n'est pas ton oracle. Les règles d'ÉTAT de ligne restent à `forge.standard_oracles.check_line_states`, le placement à `check_placement`. Jamais de LLM-as-judge.
+
+## CONTRAT DE SORTIE
+wiremap : {section=module, features[{feature, fichiers[], fonction, version, preuve, statut}]} — ou le schéma v2 {systems[], lines[]} (standard/SCHEMA.md §3). DANS LES DEUX CAS, chaque ligne porte en plus `couvre: ["<id de capacité>"]`, NON VIDE, citant l'`id` EXACT d'une capacité (feuille) de featuremap.json. Sans ce champ, le delta attendu-vs-réel n'est calculable par personne : une carte qui ne dit pas ce qu'elle réalise ne se confronte à aucun plan.
+
+## RAPPORT FINAL
+Restitution standard : cite le reçu de check_wiremap_contract ; liste les capacités non couvertes ; claim_verdict: NO_CLAIM_ALLOWED. RETURN LINEAGE (doctrine FORGE_CAUSAL_LINEAGE_V2 §3, ratifiee Pierre 2026-08-06) — aucun worker ne meurt seul : le retour porte la CAUSALITE, pas seulement le resultat. Termine TOUJOURS par ce bloc, succes comme echec : `why_task_existed:` {`problem:` le probleme mesure qui a active cette tache · `oracle:` l'oracle ou la mesure qui l'a detecte, ou "aucun" si l'activation vient d'une decision humaine · `root_cause:` la cause racine identifiee, ou "non etablie" · `action_reason:` pourquoi CETTE action y repond} · `result:` l'etat reellement obtenu · `proof:` la commande executee et sa sortie · `learning:` ce que tu as appris et qui resservira, ou "aucun" · `next_reason:` pourquoi le niveau superieur doit agir OU pourquoi la chaine causale est FERMEE et se termine ici. Regles : ces champs sont HERITES ou CONSTATES, jamais inventes — si tu n'as pas recu le `why`, ecris "non transmis" plutot que de le deviner (une cause fabriquee est la meme faute qu'un `validated_by` fabrique). En ECHEC, `result` porte ce que tu as essaye et ce qui a echoue. `next_reason` ne vaut escalade que si une cause non resolue persiste, une preuve manque ou contredit l'etat attendu, ou une correction reste possible — sinon la lignee se termine proprement, sans action supplementaire.
+
+## À LIRE OBLIGATOIREMENT AVANT TOUTE ACTION
+- scripts/forge/standard/repo_map.yaml
+- scripts/forge/contracts/SCHEMA.md
+- blueprint.yaml produit par l'étape 4
+- la featuremap produite par l'étape 3
+- lab/forge_runs/<projet>/charter.yaml — INTENT LINEAGE : intention humaine, invariants, hors_scope, et le bloc `provenance` (source Pierre, fog_humangate). HERITE, jamais reecrit : l'etape verifie que sa decision la respecte, ou remonte le conflit.
+- scripts/forge/standard/repo_map.yaml — TABLE FIGEE des racines et des gabarits d'adresse. Realite verifiable, pas une intention : toute adresse decidee ici y est confrontee (defaut mesure 2026-08-05 : racine 04_CONTENT inventee, 232 019 tokens de reprise).
+
+## RÈGLE DE RESTITUTION — Chaque affirmation du final_report doit citer l'oracle/l'ancre non-LLM qui l'appuie. Appuyée par un oracle => software_verdict (OK/FAIL/BLOCKED) + evidence_verdict: MECHANICAL_VALIDATION_ONLY. Sans oracle disponible => claim_verdict: NO_CLAIM_ALLOWED et remonte un besoin HumanGate (fog), jamais un claim auto-certifié. Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement. En dernier lieu, une section finale SKIPPED_VALIDATION, structurée et EXPLICITE : pour chaque validation que tu n'as PAS faite, liste l'item de validation (quoi), le périmètre concerné (où), le statut (ex. non fait / partiel / hors délai) et la raison (pourquoi). Rien sauté => écris `SKIPPED_VALIDATION: aucun` — une décision assumée, jamais un silence. Le silence sur cette section est traité comme un oubli, pas comme 'rien à signaler'. TOUTE DERNIÈRE LIGNE DU RAPPORT, OBLIGATOIRE — lignée Return : une ligne unique `RETURN_REASON: {"status": "NOT_DISCOVERED"}` si tu n'as découvert AUCUN problème pendant ce travail. Si (et SEULEMENT si) tu as réellement découvert un problème — défaut rencontré, cause d'un échec, écart mesuré — écris à la place `RETURN_REASON: {"status": "DISCOVERED", "problem": "<le problème, factuel>", "root_cause": "<la cause racine si connue, sinon omets ce champ>"}`. JSON valide sur UNE seule ligne, aucun texte après. N'invente JAMAIS un problème pour remplir ce champ : un NOT_DISCOVERED honnête vaut mieux qu'un DISCOVERED de complaisance.
+
+## MARQUEUR DE DISPATCH (ne pas modifier)
+FORGE_DISPATCH:s5-wiremap:chain_probe_v1-20260830-run1:1
+
+## TÂCHE CONCRÈTE (chain_probe_v1-20260830-run1 / s5-wiremap)
+Produis la WireMap du projet 'chain_probe_v1' (code sous games/chain_probe_v1). Termine ta réponse par UN bloc ```json ... ``` contenant EXACTEMENT un objet de la forme {"features": [{"feature": "R1 <nom>", "fonction": "<nom de fonction implémentant la règle>", "fichiers": ["<chemin relatif à la racine du code>"], "preuve": "<test ou preuve>"}, ...]} — format lu par forge.static_oracles.check_wiremap. Pour CHAQUE feature : fonction NON VIDE et fichiers NON VIDE (str non vides) — une fonction ou des fichiers vides rendent la feature invérifiable et sont rejetés par l'exécuteur. Tu n'écris AUCUN fichier : l'exécuteur matérialise lui-même wiremap.json depuis ce bloc.
+
+## ARTEFACTS AMONT (run_dir)
+
+### artifacts/s3-decompo.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\chain_probe_v1\artifacts\s3-decompo.txt)
+I've now read the three real gating files on disk — `check_decompo.mjs`, `upstream_schema.mjs` (the `validateFeaturemap`/`collectLeaves`/`validateLeaf` that decide COMPLÉTUDE), and the materialized `prisme.json` + `gm_worldscan.json`. I built the decomposition against the contract as actually coded, not as remembered.
+
+**One decision governs the whole artifact, stated plainly before the deliverable.** The V4 GAME-LOOP check (`check_decompo.mjs:193`) requires every player-action entrée proof to be `bot_action` **and** to contain the literal substring `main.tscn` — a Godot scene marker. This run's target is **web/HTML, DOM-only** (art_bible: "cible web/HTML, 2D, DOM-only"). I comply with the ratified rule (the entrées carry `main.tscn` as the bot's scene-of-origin marker), but a web build has no `main.tscn`. I surface that as a real contract↔platform divergence (fog → HumanGate), coherent with the genre-divergence fog F1 already open upstream. I did **not** fabricate any expected proof: exigence leaves inherit the Prisme's proof verbatim, entrée leaves carry the rule-mandated `bot_action/main.tscn`, and each grey-block leaf copies its GM `builder_contract` **verbatim**.
+
+---
+
+# chain_probe_v1 — Décomposition fonctionnelle (s3-decompo)
+
+## Règles de jeu R1..Rn (une ligne par règle · nom · comportement observable · condition de preuve)
+
+- **R1 — But affiché** (E01) : dès t0, la ligne d'objectif nomme l'objet terminal, non vide. → *preuve `visual`* (HUD `objectif` nonempty à t0).
+- **R2 — Scène non vide au lancement** (E11) : espace + avatar + ≥1 objet interactif visibles à l'écran. → *preuve `visual`* (DOM à t0).
+- **R3 — Déplacement de l'avatar** (E02, ENTRÉE joueur) : cliquer une destination déplace l'avatar ; l'espace exploré augmente strictement. → *preuve `bot_action` depuis main.tscn* (`explorable_reach_ratio` 0.9–1.0).
+- **R4 — Activation d'un objet** (E03, ENTRÉE joueur) : cliquer un objet ambre incrémente `objets_actives` de **exactement 1**. → *preuve `bot_action` depuis main.tscn* (delta STRICT = 1).
+- **R5 — Feedback d'activation** (E04, EFFET) : à chaque activation, l'objet change d'état visible + impulsion/flash. → *preuve `visual`* (avant/après diffèrent, flash même frame).
+- **R6 — Révélation par exploration** (E05, EFFET) : explorer fait entrer de nouveaux objets dans le champ. → *preuve `bot_action`* (`objets_visibles`↑ strict).
+- **R7 — Arbitrage explorer / activer** (E06, DÉCISION) : deux politiques produisent des trajectoires distinctes. → *preuve `bot_action`* (2 trajectoires sur ≥300 frames).
+- **R8 — Ouverture du gate** (E07, ENTRÉE joueur / UNLOCK) : activer le dernier objet requis fait passer le terminal verrouillé→disponible ; un groupe `terminal_disponible` apparaît. → *preuve `bot_action` depuis main.tscn*.
+- **R9 — Objectif tant que gate fermé** (E08, NEXT_GOAL / EFFET) : le HUD `objectif` porte "activer les objets interactifs". → *preuve `visual`* (libellé distinct).
+- **R10 — Objectif une fois gate ouvert** (E09, NEXT_GOAL / EFFET) : le HUD `objectif` bascule sur "rejoindre et déclencher l'objet terminal". → *preuve `visual`* (`new_distinct`).
+- **R11 — Répétition de la boucle** (E10, REPEAT) : rejouer déplacer→activer→réponse→révéler sur ≥2 objets. **REJEU de R3/R4/R5/R6 — aucune feuille propre** (doctrine H) ; ses `replay` [E02,E03,E04,E05] sont tous couverts. → *preuve `bot_action`* (`objets_actives`↑ par cycle).
+- **R12 — Écran de fin** (E12) : déclencher le terminal affiche un overlay de fin distinct du HUD, au premier plan. → *preuve `visual`*.
+- **R13 — HUD sans teinte de rôle** (E13) : couleurs du HUD disjointes des teintes réservées (bleu/ambre/émeraude). → *preuve `oracle`* (check statique).
+
+**Entités du Game Master (7 grey blocks)** — chacune portée par une feuille `id=gb_*` dont `expected_proof.statement` recopie le `builder_contract` **tel quel** : `gb_explorable_space`, `gb_player_avatar`, `gb_interactive_object` (sourcées sur E11), `gb_terminal_goal` (E01), `gb_interaction_feedback` (E04), `gb_hud_state` (E13), `gb_end_state_screen` (E12). Aucune n'est sourcée sur une exigence player-action (E02/E03/E07), pour ne pas entrer en conflit entre la recopie verbatim du `builder_contract` et l'obligation V4 `bot_action/main.tscn`.
+
+---
+
+## RAPPORT FINAL — s3-decompo (chain_probe_v1-20260830-run1)
+
+**Ancres citées :**
+- `check_decompo.mjs` + `upstream_schema.mjs` — **lus à la source** (`scripts/forge/`). La FORME de ma sortie (arbre Système→Feature→capacité ; feuille `{id, capacite, source_ref, expected_proof{kind∈PROOF_KINDS, statement}}` ; ids feuilles/features uniques ; couverture ∪ rejeu ; non-invention ; V4 entrée `bot_action`+`main.tscn` ; NEXT_GOAL effet `visual|file_write` ; grey block porté par `id`|`source_re
+[tronqué]
+```json
+{
+  "game_id": "chain_probe_v1",
+  "systemes": [
+    {
+      "id": "S_scene",
+      "features": [
+        {
+          "id": "F_scene_lancement",
+          "capacites": [
+            {
+              "id": "cap_scene_non_vide",
+              "capacite": "A t0, l'espace, l'avatar et au moins un objet interactif sont visibles ; l'ecran n'est jamais vide.",
+              "source_ref": "E11",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "A t0, le DOM contient l'espace, un element avatar et >=1 objet interactif."
+              }
+            },
+            {
+              "id": "gb_explorable_space",
+              "capacite": "Rendre l'espace 2D top-down navigable, avatar place a l'etat initial (grey block gb_explorable_space).",
+              "source_ref": "E11",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "rendre un espace 2D top-down navigable (fond neutre desature qui recule), avatar place a l'etat initial : jamais un ecran vide"
+              }
+            },
+            {
+              "id": "gb_player_avatar",
+              "capacite": "Avatar joueur unique, deplacable, identifiable (grey block gb_player_avatar).",
+              "source_ref": "E11",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "avatar bleu deplacable au clic/DOM, toujours identifiable, etats repos/mouvement/interaction (art_bible:character_states)"
+              }
+            },
+            {
+              "id": "gb_interactive_object",
+              "capacite": "Objet interactif ambre agissable, distinct de l'inerte (grey block gb_interactive_object).",
+              "source_ref": "E11",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "objet ambre clicable qui passe a un etat active + impulsion lumineuse au clic (core_feedback), distinct visuellement de l'inerte"
+              }
+            }
+          ]
+        },
+        {
+          "id": "F_but",
+          "capacites": [
+            {
+              "id": "cap_but_affiche",
+              "capacite": "Une ligne d'objectif nommant l'objet terminal est affichee non vide des le lancement.",
+              "source_ref": "E01",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "A t0, le HUD 'objectif' est non vide et nomme l'objet terminal comme but."
+              }
+            },
+            {
+              "id": "gb_terminal_goal",
+              "capacite": "Objet terminal emeraude unique, LOCKED avec raison visible -> AVAILABLE -> etat de fin (grey block gb_terminal_goal).",
+              "source_ref": "E01",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "objet emeraude unique, etat LOCKED avec raison visible -> AVAILABLE quand le gate ouvre -> declenche l'etat de fin visible"
+              }
+            }
+          ]
+        },
+        {
+          "id": "F_hud",
+          "capacites": [
+            {
+              "id": "cap_hud_couleurs_disjointes",
+              "capacite": "Le HUD n'utilise aucune couleur reservee aux roles joueur/agissable/terminal.",
+              "source_ref": "E13",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Un check statique confirme que les couleurs du HUD sont disjointes des teintes reservees (bleu joueur / ambre agissable / emeraude terminal)."
+              }
+            },
+            {
+              "id": "gb_hud_state",
+              "capacite": "HUD peripherique minimal exposant l'etat courant, window.__game observable (grey block gb_hud_state).",
+              "source_ref": "E13",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "HUD minimal en peripherie, contraste eleve, expose l'etat courant ; window.__game observable (N1), aucune teinte de role reutilisee"
+              }
+            }
+          ]
+        },
+        {
+          "id": "F_fin",
+          "capacites": [
+            {
+              "id": "cap_overlay_fin",
+              "capacite": "Au declenchement du terminal, un overlay d'etat de fin distinct apparait au premier plan.",
+              "source_ref": "E12",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Apres declenchement du terminal, un element overlay de fin distinct du HUD est present et lisible au premier plan."
+              }
+            },
+            {
+              "id": "gb_end_state_screen",
+              "capacite": "Overlay/banniere d'etat de fin distinct du HUD courant (grey block gb_end_state_screen).",
+              "source_ref": "E12",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "overlay/banniere d'etat de fin distinct du HUD courant, s'affiche quand l'objet terminal est declenche (etat de fin visible)"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S_boucle",
+      "features": [
+        {
+          "id": "F_entree",
+          "capacites": [
+            {
+              "id": "cap_entree_deplacer",
+              "capacite": "ENTREE : le joueur deplace l'avatar (affordance 'avatar') en cliquant une destination.",
+              "source_ref": "E02",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot de navigation pilote la scene d'entree main.tscn et deplace l'avatar (affordance 'avatar') ; le ratio d'espace explore augmente strictement (cible GM explorable_reach_ratio 0.9-1.0)."
+              }
+            },
+            {
+              "id": "cap_entree_activer",
+              "capacite": "ENTREE : le joueur active un objet ambre (affordance 'objet_interactif') en cliquant.",
+              "source_ref": "E03",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot pilote main.tscn et clique un objet ambre (affordance 'objet_interactif') ; objets_actives passe de n a n+1 (delta STRICT = 1, cible GM core_state_changes_per_click, jamais un >= tautologique)."
+              }
+            }
+          ]
+        },
+        {
+          "id": "F_reponse",
+          "capacites": [
+            {
+              "id": "cap_feedback_activation",
+              "capacite": "EFFET : a chaque activation l'etat visible de l'objet change et une impulsion lumineuse se declenche.",
+              "source_ref": "E04",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Avant/apres le clic, l'etat rendu de l'objet differe et un element de flash apparait dans la meme fenetre de frame."
+              }
+            },
+            {
+              "id": "gb_interaction_feedback",
+              "capacite": "Flash blanc bref a fort contraste sur chaque changement d'etat (grey block gb_interaction_feedback).",
+              "source_ref": "E04",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "flash blanc bref a fort contraste declenche sur chaque changement d'etat (art_bible:affordance_rules regle 4), sans masquer la scene"
+              }
+            },
+            {
+              "id": "cap_revelation_objets",
+              "capacite": "EFFET : a mesure que le joueur explore, des objets jusque-la hors-champ deviennent visibles.",
+              "source_ref": "E05",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot explore et le nombre d'objets interactifs visibles augmente strictement par rapport a sa valeur initiale."
+              }
+            }
+          ]
+        },
+        {
+          "id": "F_decision",
+          "capacites": [
+            {
+              "id": "cap_decision_explorer_activer",
+              "capacite": "DECISION : a tout instant, deplacer pour reveler plus OU activer un objet visible ; l'objectif reflete le focus.",
+              "source_ref": "E06",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Deux politiques (explorer-seul vs activer-des-visible) sur >=300 frames produisent des trajectoires d'objets_actives differentes (sonde a deux trajectoires)."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S_progression",
+      "features": [
+        {
+          "id": "F_gate",
+          "capacites": [
+            {
+              "id": "cap_entree_ouvrir_gate",
+              "capacite": "ENTREE / UNLOCK : le joueur active le dernier objet requis (affordance 'objet_interactif') ; le terminal passe verrouille -> disponible.",
+              "source_ref": "E07",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot pilote main.tscn et active les objets requis (affordance 'objet_interactif') ; l'element terminal transitionne vers AVAILABLE et un nouveau groupe 'terminal_disponible' apparait."
+              }
+            }
+          ]
+        },
+        {
+          "id": "F_objectif_courant",
+          "capacites": [
+            {
+              "id": "cap_objectif_gate_ferme",
+              "capacite": "EFFET VISIBLE (NEXT_GOAL) : tant que le gate est ferme, l'objectif affiche 'activer les objets interactifs'.",
+              "source_ref": "E08",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Gate ferme : le HUD 'objectif' porte le libelle 'activer les objets interactifs', distinct du libelle terminal."
+              }
+            },
+            {
+              "id": "cap_objectif_gate_ouvert",
+              "capacite": "EFFET VISIBLE (NEXT_GOAL) : une fois le gate ouvert, l'objectif bascule sur 'rejoindre et declencher l'objet terminal'.",
+              "source_ref": "E09",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Gate ouvert : le HUD 'objectif' change pour 'rejoindre et declencher l'objet terminal', texte different du libelle precedent (new_distinct sur le meme hud)."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+### blueprint.json (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\chain_probe_v1\blueprint.json)
+{
+ "modules": [
+  "logic",
+  "render",
+  "input",
+  "hud",
+  "main"
+ ],
+ "deps_interdites": [
+  [
+   "logic",
+   "render"
+  ],
+  [
+   "logic",
+   "input"
+  ],
+  [
+   "logic",
+   "hud"
+  ],
+  [
+   "logic",
+   "main"
+  ],
+  [
+   "render",
+   "input"
+  ],
+  [
+   "render",
+   "hud"
+  ],
+  [
+   "render",
+   "main"
+  ],
+  [
+   "input",
+   "render"
+  ],
+  [
+   "input",
+   "hud"
+  ],
+  [
+   "input",
+   "main"
+  ],
+  [
+   "hud",
+   "render"
+  ],
+  [
+   "hud",
+   "input"
+  ],
+  [
+   "hud",
+   "main"
+  ]
+ ],
+ "ownership": {
+  "logic": "Etat & regles pures (source de verite unique, zero DOM): espace explorable, avatar, objets interactifs, compteur objets_actives (delta STRICT=1), etat terminal LOCKED->AVAILABLE, machine d'objectif courant, revelation, divergence de politiques.",
+  "render": "Rendu DOM de la scene depuis l'etat logic: scene non-vide a t0, feedback d'activation (etat rendu different + flash), revelation d'objets. Lecture seule de l'etat.",
+  "input": "Capture des entrees joueur (clics destination/objet) et traduction en commandes move/activate vers logic. N'ecrit jamais le DOM de rendu.",
+  "hud": "Chrome peripherique: ligne d'objectif (nomme le terminal a t0, bascule une fois le gate ouvert), overlay d'etat de fin, disjonction des couleurs de role (bleu/ambre/emeraude).",
+  "main": "Composition root + boucle de jeu + preuve de solvabilite e2e (un bot joue la boucle complete et GAGNE); garantit qu'aucun ecran n'est vide au boot en declenchant render avant premier paint."
+ },
+ "responsabilites": [
+  {
+   "module": "logic",
+   "responsabilite": "Cœur d'etat pur et regles de transition: deplacement, activation a delta STRICT=1, revelation d'objets, ouverture du gate (LOCKED->AVAILABLE), machine d'objectif courant, et divergence mesurable de deux politiques. Aucune dependance rendu/input/hud/main.",
+   "couvre": [
+    "F_entree",
+    "F_reponse",
+    "F_decision",
+    "F_gate",
+    "F_objectif_courant"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot pilote l'etat via l'entree: objets_actives passe de n a n+1 (delta STRICT=1, jamais un >= tautologique), le nombre d'objets reveles augmente strictement, le terminal transitionne LOCKED->AVAILABLE apres le dernier requis, l'objectif bascule, et deux politiques (explorer-seul vs activer-des-visible) sur >=300 frames produisent des trajectoires d'objets_actives distinctes."
+   }
+  },
+  {
+   "module": "render",
+   "responsabilite": "Rendre la scene DOM depuis l'etat logic (espace 2D top-down, avatar, objets interactifs, feedback). Ne remonte jamais vers main, n'importe ni input ni hud.",
+   "couvre": [
+    "F_scene_lancement",
+    "F_reponse"
+   ],
+   "dependances": [
+    "logic"
+   ],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "A t0 le DOM contient l'espace, un element avatar et >=1 objet interactif (jamais vide); a chaque activation l'etat rendu de l'objet differe entre avant/apres le clic et un element de flash apparait dans la meme fenetre de frame."
+   }
+  },
+  {
+   "module": "input",
+   "responsabilite": "Capturer les clics joueur (destination, objet ambre) et emettre les commandes move/activate vers logic. Ne dessine aucun rendu, n'importe ni render ni hud.",
+   "couvre": [
+    "F_entree"
+   ],
+   "dependances": [
+    "logic"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot clique une destination puis un objet ambre; les commandes atteignent logic — l'espace explore augmente strictement (deplacement) et objets_actives augmente de exactement 1 (activation)."
+   }
+  },
+  {
+   "module": "hud",
+   "responsabilite": "Chrome peripherique lisant l'etat logic: ligne d'objectif, bascule de libellé, overlay de fin, et couleurs strictement disjointes des teintes de role. Aucune logique de jeu, n'importe ni render ni input.",
+   "couvre": [
+    "F_but",
+    "F_hud",
+    "F_fin",
+    "F_objectif_courant"
+   ],
+   "dependances": [
+    "logic"
+   ],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "Un check statique confirme que les couleurs du HUD sont disjointes des teintes reservees (bleu joueur / ambre agissable / emeraude terminal); en complement observable DOM: l'objectif est non vide et nomme le terminal a t0, bascule sur 'rejoindre et declencher l'objet terminal' une fois le gate ouvert, et un overlay de fin distinct apparait au premier plan au declenchement."
+   }
+  },
+  {
+   "module": "main",
+   "responsabilite": "Composition root: instancie logic, cable input->logic et logic->render/hud, execute la boucle et prouve la solvabilite end-to-end. Peut dependre de tous les modules; aucun module ne depend de lui.",
+   "couvre": [
+    "F_scene_lancement"
+   ],
+   "dependances": [
+    "logic",
+    "render",
+    "input",
+    "hud"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Solvabilite: un bot joue la boucle complete (explorer -> activer les objets requis -> le gate s'ouvre -> rejoindre et declencher le terminal) et GAGNE (etat de fin atteint), et au boot render est declenche avant le premier paint de sorte que l'ecran n'est jamais vide."
+   }
+  }
+ ]
+}
+
+### artifacts/s2.6-story-bible.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\chain_probe_v1\artifacts\s2.6-story-bible.txt)
+I now have the exact validator (`check_story_bible`, `static_oracles.py:1473-1574`) and both mandatory references. Here is my analysis and the anchored deliverable.
+
+## What my context actually carried
+
+- **worldscan** — PRESENT (injected under "ARTEFACTS AMONT"). But it is a **comparative GENRE scan**, not an observation of chain_probe_v1's world. It states verbatim: *"Pas de product_snapshot accessible. Basant l'observation sur le nom de la sonde ('chain_probe_v1') et les patterns de jeu standards."* Its `games[]` block describes the loops/retention/objectives of **three OTHER games** (Chained, Domino Idle, Slay the Spire), and carries `advisory: true`.
+- **charter** — ABSENT. No charter.yaml content appears anywhere in my injected context. Per the anchoring rule (*« leur absence du contexte se déclare dans inputs_recus, jamais ne se compense »*), I declare `charter: false` and do **not** read it from disk to compensate.
+
+**Consequence, honestly:** my two designated anchoring sources carry almost no narrative matter about chain_probe_v1's *world*. The garde-fou applies directly — a nearly-empty but honest bible beats a rich fabricated one.
+
+## Section verdicts (traced against `check_story_bible`)
+
+- **context** → GROUNDED, but thin: the only anchorable world-facts are (1) the worldscan's explicit *absence* of a product snapshot, and (2) a genre *frame* (declared inference — sanctioned by in_scope: *« un fait de genre du worldscan peut fonder un cadre narratif — en le disant »*).
+- **chronology, stakes, factions, characters, relations, events, coherence_rules** → all **NOT_GROUNDED**. The worldscan describes only other games' *gameplay* (permadeath, prestige, waves, boss phases — game systems, out of scope); no lore, faction, character, event, timeline, or world-coherence rule of chain_probe_v1 exists in either source. Inventing any would be a structural lie downstream (the GM builds on this).
+
+---
+
+# RAPPORT FINAL — s2.6-story-bible (chain_probe_v1-20260830-run1)
+
+**Ancres citées :**
+- `worldscan.json` (s2-worldscan, injecté) — scan comparatif de genre, `advisory: true`, **sans product_snapshot** (cité verbatim). Fournit un label de genre et l'aveu explicite qu'aucun monde n'est observé.
+- `charter.yaml` — **ABSENCE MESURÉE** : non injecté dans mon contexte → `inputs_recus.charter = false`. Non lu sur disque (compensation interdite par la règle d'ancrage). Écho du défaut déjà consigné en vivo (FORGE_PIPELINE_TARGET_V1 §6ter R1' : « charter.yaml absent du run_dir »).
+- `forge.static_oracles.check_story_bible` — **lu à la source** (`scripts/forge/static_oracles.py:1473-1574`) : vocabulaire figé `STORY_BIBLE_SECTIONS` (8 id), `_STORY_BIBLE_SOURCES = ("worldscan","charter")` strict, `inputs_recus` à deux booléens, GROUNDED⇒≥1 élément `{statement, source∈entrées, ref, inferred:bool}`, NOT_GROUNDED⇒`reason` non vide, refus des placeholders. Mon bloc JSON est **construit contre ce contrat lu**.
+
+**Sections NOT_GROUNDED et raison (7/8) :** chronology (aucune ligne de temps), stakes (worldscan = enjeux de gameplay d'autres jeux, hors périmètre monde), factions (aucune faction observée), characters (seuls des rôles de gameplay génériques d'autres jeux), relations (ni faction ni personnage à relier), events (événements de gameplay d'autres jeux, pas de lore), coherence_rules (aucune matière-monde à contraindre). Détail dans le bloc.
+
+**Verdicts (Règle de restitution) :**
+- **software_verdict : non émis par moi** — je n'ai **exécuté aucun oracle** (`run: none`, Bash désactivé). `check_story_bible` s'exécute **en aval, par run_real.py**, sur l'artefact matérialisé ; le reçu liant vient de là, pas de moi. Mon seul ancrage mécanique est d'avoir **lu** le validateur (`static_oracles.py:1473-1574`), ce qui fonde la FORME de ma sortie, pas la preuve qu'elle passe.
+- **evidence_verdict : MECHANICAL_VALIDATION_ONLY non revendicable** — aucune validation mécanique exécutée de ma part.
+- **claim_verdict : NO_CLAIM_ALLOWED.**
+- **fog → HumanGate (Pierre) :**
+  1. **Alimentation de la station** : la Story Bible est nourrie d'un worldscan orienté *patterns de gameplay comparatifs* (type GM-scan : `games[]` = boucles/rétention d'AUTRES jeux) plutôt que d'une *observation du MONDE* du projet, et sans charter transmis. Est-ce l'entrée attendue pour s2.6, ou un défaut d'aiguillage amont ?
+  2. **Honnêteté narrative** (l'inférence de genre en `context` est-elle un cadrage acceptable, et 7/8 NOT_GROUNDED est-il le bon résultat) : `check_story_bible` **ne juge jamais la qualité narrative** (dit explicitement) — c'est un jugement humain.
+
+**SKIPPED_VALIDATION :**
+- item: exécution de `check_story_bible` sur l'artefact matérialisé · périmètre: story_bible.json de ce run · statut: **non fait** · raison: hors permissions (`run: none`, Bash désactivé) ; l'artefact n'est matérialisé et validé que par `run_real.py` en aval.
+- item: lecture du charter.yaml réel sur disque · périmètre: run_dir chain_probe_v1 · statut: **non fait (décision assumée)** · raison: charter non injecté dans mon contexte ; le lire pour compenser violerait la règle d'ancrage — `inputs_recus.charter=false` reflète sincèrement mon contexte.
+- item: fidélité de chaque `ref` au passage-source · périmètre: éléments GROUNDED de `context` · statut: **partiel** · raison: mes `ref` sont des citations verbatim du worldscan injecté, mais `check_story_bible` ne vérifie pas la fidélité des `ref` et je n'ai lancé aucun outil de recoupement indépendant → rattrapage humain/aval.
+
+```json
+{
+  "game_id": "chain_probe_v1",
+  "inputs_recus": {
+    "worldscan": true,
+    "charter": false
+  },
+  "sections": [
+    {
+      "id": "context",
+      "status": "GROUNDED",
+      "elements": [
+        {
+          "statement": "Le worldscan declare explicitement qu'aucun product_snapshot n'est accessible : il n'observe aucune matiere-monde propre a chain_probe_v1 et fonde son analyse sur le nom de la sonde et des patterns de jeu standards. Le seul fait de contexte reellement ancrable est donc l'ABSENCE d'un monde decrit dans les entrees.",
+          "source": "worldscan",
+          "ref": "Pas de product_snapshot accessible. Basant l'observation sur le nom de la sonde ('chain_probe_v1') et les patterns de jeu standards.",
+          "inferred": false
+        },
+        {
+          "statement": "Deduit du seul fait de genre disponible : le worldscan situe chain_probe_v1 dans le genre 'chain-based roguelike/incremental hybrid'. Ce fait ne fonde qu'un CADRE structurel possible (boucle centree sur une mecanique de chaine, structure de run/progression), jamais un contenu de monde : ni lieu, ni epoque, ni lore, ni ton narratif.",
+          "source": "worldscan",
+          "ref": "Effectuant un scan World des jeux comparables au genre 'chain-based roguelike/incremental hybrid'",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "id": "chronology",
+      "status": "NOT_GROUNDED",
+      "reason": "Ni le worldscan ni le charter n'etablissent de chronologie propre a chain_probe_v1. Le worldscan est un scan comparatif de genre (Chained, Domino Idle, Slay the Spire) sans product_snapshot, et le charter est absent du contexte recu (inputs_recus.charter=false) : aucune ligne de temps du monde n'est ancrable."
+    },
+    {
+      "id": "stakes",
+      "status": "NOT_GROUNDED",
+      "reason": "Le worldscan ne decrit que des enjeux de GAMEPLAY d'autres jeux (permadeath, prestige, penalite de wraparound de chaine) : des systemes de jeu, hors perimetre d'une Story Bible qui dit le monde et non le jeu. Aucun enjeu NARRATIF du monde de chain_probe_v1 n'est ancre ; charter absent."
+    },
+    {
+      "id": "factions",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucune faction du monde de chain_probe_v1 n'apparait dans les entrees. Le worldscan n'observe que des jeux comparables et leurs mecaniques, sans product_snapshot ; charter absent. Inventer une faction ici serait un mensonge structurel pour le GM en aval."
+    },
+    {
+      "id": "characters",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucun personnage propre a chain_probe_v1 n'est ancrable. Le worldscan ne cite que des roles de gameplay generiques d'autres jeux (joueur, boss, ennemis elite), pas des personnages d'un monde ; charter absent."
+    },
+    {
+      "id": "relations",
+      "status": "NOT_GROUNDED",
+      "reason": "Sans faction ni personnage ancre (voir sections factions et characters, toutes deux NOT_GROUNDED), aucune relation du monde n'est deductible. Le worldscan ne porte aucune donnee relationnelle sur chain_probe_v1 ; charter absent."
+    },
+    {
+      "id": "events",
+      "status": "NOT_GROUNDED",
+      "reason": "Le worldscan ne decrit que des evenements de GAMEPLAY d'autres jeux (vagues, phases de boss, cascades de dominos), pas des evenements narratifs du monde de chain_probe_v1. Aucun evenement de lore n'est ancrable ; charter absent."
+    },
+    {
+      "id": "coherence_rules",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucune matiere-monde n'etant ancree (sections chronology a events toutes NOT_GROUNDED), aucune regle de coherence narrative ne peut etre derivee sans fabrication. Le worldscan est un scan comparatif de genre sans product_snapshot ; charter absent."
+    }
+  ]
+}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Les deux sources d'ancrage de la Story Bible sont narrativement vides pour chain_probe_v1 : le worldscan injecte est un scan comparatif de genre (games[] = boucles/retention d'AUTRES jeux) sans product_snapshot, et le charter n'a pas ete injecte (inputs_recus.charter=false) -> 7/8 sections NOT_GROUNDED, la seule GROUNDED n'ancrant que l'absence de monde plus un cadre de genre.", "root_cause": "La station s2.6-story-bible est alimentee par un worldscan oriente patterns-de-gameplay (type GM/observation comparative) au lieu d'une observation du MONDE du projet, et par un run_dir sans charter transmis en amont ; sans matiere-monde ni charter, aucun ancrage narratif reel n'est possible."}
+
+### art_bible.md (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\chain_probe_v1\art_bible.md)
+---
+styles: [flat-top-down, high-contrast-minimal, flat-geometric]
+mood_keywords: [clair, lisible, minimal, fonctionnel, calme, contraste-eleve, affordance-first]
+---
+
+# Art Bible — chain_probe_v1 (v0.2, s2.5-artbible-r2)
+
+> Genre reel (autorite : s0-contrat) : `exploration_interaction`, cible **web/HTML**, 2D, DOM-only.
+> **Passe r2 (boucle de completion mutuelle Art <-> GM).** La v0.1 fixait une identite de ROLES
+> generiques faute de boucle concrete (fog F2). Le Game Master a depuis materialise la boucle
+> (s2.7-gm-worldscan) : 4 boucles reelles, 8 grey_blocks, 7 artist_requirements, et a CONFIRME le
+> genre `exploration_interaction`. Cette v0.2 SPECIALISE l'identite sur ces entites concretes et
+> ferme F2 ; F1 (divergence de genre amont) est confirmee cote GM ; F3 (conformite esthetique)
+> reste un fog HumanGate permanent, hors autorite de tout oracle.
+> Objet de RUN 1 : un jeu **vivant et solvable**, pas *bon* (s0-contrat `intention`). L'identite
+> visuelle reste calibree sur la **lisibilite de l'affordance**, jamais sur la beaute.
+
+## 1. IDENTITE VISUELLE
+
+Style decide : **flat, geometrique, contraste eleve, vue de dessus (top-down)** — une identite
+minimale et fonctionnelle ou la couleur et la silhouette portent le sens du jeu, pas la
+decoration. C'est un choix d'art direction assume pour une mini-sonde web dont le critere est
+« vivant et solvable » (s0-contrat `intention`, `criteres_succes`) : le joueur doit lire d'un
+coup d'oeil ce qui est **explorable**, ce qui est **interactif**, et ce qui est **le but**.
+
+Palette d'affordance — chaque role porte UNE teinte reservee, saturee, a fort contraste sur un
+fond neutre desature. En r2, chaque teinte est desormais liee a une entite CONCRETE de la boucle
+du GM (grey_blocks) et a ses etats reels :
+- **Fond / espace explorable** (`gb_explorable_space`, LOCATION) : neutre desature, clair
+  (gris-bleu tres pale) — recule, ne capte jamais l'attention. Sert de scene, pas d'acteur.
+- **Avatar joueur** (`gb_player_avatar`, ACTOR, etat PLACED) : teinte primaire franche et unique
+  (bleu vif) — jamais partagee avec un autre role, pour que « moi » soit toujours identifiable.
+- **Objet interactif de mi-boucle** (`gb_interactive_object`, ITEM, etats AVAILABLE -> CONSUMED) :
+  teinte secondaire chaude (ambre) — signale « tu peux agir ici » ; passe visiblement a l'etat
+  consomme au clic.
+- **But / interaction terminale** (`gb_terminal_goal`, ITEM/PROGRESSION_GATE, etats LOCKED ->
+  AVAILABLE) : teinte d'accent maximale reservee (vert-emeraude sature) — n'apparait QUE sur
+  l'objet terminal, unique dans toute la scene ; l'etat LOCKED montre POURQUOI (raison visible)
+  et un apercu (preview) de ce qui attend.
+- **Feedback d'etat** (`gb_interaction_feedback`, UI/FEEDBACK) : blanc/flash bref a fort
+  contraste — un changement d'etat produit une impulsion lumineuse visible (le critere « action
+  -> changement d'etat visible » materialise), sans masquer la scene.
+- **HUD d'etat courant** (`gb_hud_state`, UI/FEEDBACK) : peripherique, sur son propre fond, sans
+  reutiliser aucune teinte de role.
+- **Ecran de fin** (`gb_end_state_screen`, UI/REWARD, etats LOCKED -> AVAILABLE) : overlay de
+  premier plan, distinct du HUD, qui rend l'atteinte du but non ambigue.
+- **Inerte / decor** : desature, faible contraste — visiblement « rien a faire ici », jamais
+  confondable avec l'ambre agissable.
+
+Mood : clair, calme, fonctionnel, contraste eleve. Pas d'ambiance narrative (aucune matiere
+narrative disponible en amont, voir `## heritage_story_bible`) : l'ambiance est celle d'un
+banc de test lisible, assume comme tel.
+
+## 2. RATIONALE
+
+**Pourquoi ce style, trace a la source.**
+
+1. *Le genre reel impose la clarte top-down, pas une esthetique de roguelike a chaine.* Le
+   charter (`s0-contrat` `plateforme_cible` = web/HTML ; `provenance.genre` =
+   `exploration_interaction`, FIXE par Pierre, non delegue) fixe un jeu d'exploration web 2D.
+   Le World Scan herite, lui, decrit un genre DIFFERENT (« chain-based roguelike/incremental »,
+   voir `## heritage_worldscan`) : ses conventions specifiques (physique de chaine, prestige,
+   permadeath) ne s'appliquent PAS ici. **En r2, le GM a leve l'ambiguite** : son bloc de genre
+   pose `genre = exploration_interaction` et son `world_interpretation` premiere entree confirme
+   que le cadre roguelike-a-chaine est une divergence a ne pas propager (cite en reponse a
+   q_art_002). ART et GM partagent donc desormais le meme genre — c'etait la condition de mon
+   travail commun. Ce que j'herite du World Scan est uniquement le **primitif genre-neutre** :
+   un feedback immediat et visible des la premiere interaction (adresses en `## heritage_worldscan`).
+
+2. *« Vivant et solvable, pas bon » oriente vers l'affordance, pas la beaute.* s0-contrat
+   `intention` et `criteres_succes` posent que RUN 1 ne mesure pas la qualite ludique. Une
+   identite qui maximise la lisibilite de l'affordance sert directement le critere de
+   solvabilite (un bot, comme un humain, doit distinguer le but des objets inertes) — pre-mortem
+   `s10a` (solvabilite obligatoire), repris par le GM en invariant `terminal_reachable`.
+
+3. *La boucle concrete est desormais connue : l'identite est SPECIALISEE, plus generique.* Ma
+   v0.1 liait la couleur/silhouette a des ROLES generiques faute de boucle (fog F2). Le GM a
+   materialise 8 grey_blocks et 7 artist_requirements avec leurs ETATS reels (LOCKED/AVAILABLE/
+   CONSUMED/PLACED). J'ai donc specialise `## affordance_rules`, `## character_states`,
+   `## ui_readability` et `## visual_language` sur ces entites concretes (adresses `gm_worldscan:
+   grey_blocks.<id>` / `gm_worldscan:artist_requirements.<id>` citees dans ces sections). **F2 est
+   ferme.**
+
+4. *La matiere-monde restant vide, aucune ambiance narrative n'est inventee.* La Story Bible rend
+   7/8 sections NOT_GROUNDED (`## heritage_story_bible`). J'assume une identite **abstraite/
+   fonctionnelle** plutot que de fabriquer un univers — garde-fou « une bible honnete et minimale
+   vaut mieux qu'une riche fabriquee ».
+
+**Couverture (adossee a la donnee structuree, jamais a cette prose).** Les 7 entites visuelles de
+la section 3 correspondent 1:1 aux 7 `artist_requirements` du GM (memes entites que ses
+grey_blocks) — chacune a sa propre `asset_request` en `asset_requests.json`. La verification de
+couverture besoin<->requete est faite par `check_artbible.mjs::checkCoverage`, pas par ce
+paragraphe.
+
+**Fogs remontes a HumanGate (jamais un claim auto-certifie), voir aussi le fence
+`design_questions` :**
+- **F1 (divergence de genre amont) — confirmee, non fermee.** Le World Scan a scanne le mauvais
+  genre (« chain » = la chaine du pipeline `full_content`, pas une mecanique de jeu). Autorite du
+  genre reel = s0-contrat (Pierre). Le GM a re-ancre la mesure sur des jeux reels du bon genre
+  (Samorost 1, Machinarium). A confirmer par HumanGate que la chaine aval doit ignorer le cadre
+  roguelike-a-chaine.
+- **F2 (boucle concrete non definie) — FERMEE en r2.** Le GM a tranche la boucle ; j'ai specialise
+  l'identite dessus (voir point 3 et les sections DECIDEES).
+- **F3 (conformite esthetique) — fog permanent.** `check_artbible.mjs` et `asset_request.mjs`
+  comparent des TAGS, jamais des pixels — aucune de mes affirmations n'est un satisfecit visuel
+  (jugement Pierre requis). `ready_for_freeze` cote ART = design COMPLET et coherent, jamais un
+  verdict d'esthetique.
+
+## 3. BESOINS VISUELS
+
+Chaque entite visuelle distincte de la boucle materialisee par le GM (grey_blocks /
+artist_requirements). Toutes `required:true` : dans cette sonde minimale, aucune entite n'est du
+decor purement cosmetique — chacune sert une boucle vivante ou l'etat de fin observable. En cas
+de doute, `required:true` (cout d'une requete en plus = nul). Les `description` citent l'ancre GM
+et les etats a rendre.
+
+```json
+{
+  "visual_requirements": [
+    {
+      "id": "vr_player_avatar",
+      "entity_role": "player",
+      "required": true,
+      "description": "Avatar controle par le joueur, acteur unique de l'exploration. Teinte primaire reservee (bleu vif), silhouette lisible en vue de dessus, etats fonctionnels repos/mouvement/interaction. Ancre GM: gm_worldscan:grey_blocks.gb_player_avatar (ACTOR, etat PLACED) + gm_worldscan:artist_requirements.ar_player_avatar. Source charter: s0-contrat criteres_demo 'au moins une action joueur (clic/DOM) -> changement d'etat visible'."
+    },
+    {
+      "id": "vr_explorable_space",
+      "entity_role": "environment",
+      "required": true,
+      "description": "Espace explorable unique (un seul espace, pas de niveaux multiples). Fond neutre desature qui recule, avatar place a l'etat initial (jamais un ecran vide). Ancre GM: gm_worldscan:grey_blocks.gb_explorable_space (LOCATION, AVAILABLE) + gm_worldscan:artist_requirements.ar_explorable_space. Source charter: s0-contrat criteres_demo 'au lancement, un espace explorable s'affiche' + perimetre V1 'un seul espace explorable'."
+    },
+    {
+      "id": "vr_interactive_object",
+      "entity_role": "item",
+      "required": true,
+      "description": "Objet interactif de mi-boucle : ce que le joueur active pour faire progresser l'etat. Teinte chaude (ambre) = 'agissable' ; passe de AVAILABLE a CONSUMED au clic, distinct de l'inerte. Le contenu porte 2 a 8 TYPES distincts (calibration build, non invente ici). Ancre GM: gm_worldscan:grey_blocks.gb_interactive_object (ITEM, AVAILABLE) + gm_worldscan:artist_requirements.ar_interactive_object + gm_worldscan:loops.content_loop. Source charter: s0-contrat perimetre V1 'un petit ensemble d'interactions'."
+    },
+    {
+      "id": "vr_terminal_goal",
+      "entity_role": "item",
+      "required": true,
+      "description": "Objet/interaction TERMINALE, distinct de l'objet ordinaire : declenche la condition de victoire unique. Teinte emeraude reservee, unique dans la scene ; etat LOCKED (raison du verrou visible + apercu) -> AVAILABLE quand le gate ouvre. Ancre GM: gm_worldscan:grey_blocks.gb_terminal_goal (ITEM/PROGRESSION_GATE, LOCKED, requires gb_interactive_object) + gm_worldscan:artist_requirements.ar_terminal_goal + gm_worldscan:loops.progression_loop. Source charter: s0-contrat criteres_demo 'l'exploration permet d'atteindre l'interaction terminale, et son atteinte est visible'."
+    },
+    {
+      "id": "vr_interaction_feedback",
+      "entity_role": "effect",
+      "required": true,
+      "description": "Effet de feedback visible sur changement d'etat (impulsion/flash bref, fort contraste), perceptible sans masquer la scene. Materialise 'action -> changement d'etat VISIBLE'. Ancre GM: gm_worldscan:grey_blocks.gb_interaction_feedback (UI/FEEDBACK) + gm_worldscan:artist_requirements.ar_interaction_feedback + gm_worldscan:loops.core_loop. Source charter: s0-contrat criteres_demo 'action joueur -> changement d'etat visible a l'ecran'."
+    },
+    {
+      "id": "vr_hud_state",
+      "entity_role": "ui",
+      "required": true,
+      "description": "HUD minimal d'etat courant (progression), peripherique, contraste eleve, aucune teinte de role reutilisee ; window.__game observable (N1). Ancre GM: gm_worldscan:grey_blocks.gb_hud_state (UI/FEEDBACK) + gm_worldscan:artist_requirements.ar_hud_state. Source charter: s0-contrat criteres_demo (etat courant lisible) + N1 'window.__game expose, etat observable'."
+    },
+    {
+      "id": "vr_end_state_screen",
+      "entity_role": "ui",
+      "required": true,
+      "description": "Ecran/banniere d'etat de fin, non ambigu, distinct du HUD courant : overlay de premier plan qui rend l'atteinte de la condition terminale VISIBLE (etats LOCKED -> AVAILABLE). Ancre GM: gm_worldscan:grey_blocks.gb_end_state_screen (UI/REWARD, LOCKED, requires gb_terminal_goal) + gm_worldscan:artist_requirements.ar_end_state_screen. Source charter: s0-contrat 'son atteinte est observable a l'ecran (etat de fin visible)'."
+    }
+  ]
+}
+```
+
+## 4. HERITAGE ET DECISIONS
+
+Les deux sections `heritage_*` citent leurs adresses sources reelles (World Scan, Story Bible).
+Les cinq sections suivantes sont DECIDEES par l'Art Director (aucune adresse heritee exigee),
+bornees par le charter reel (s0-contrat) et, en r2, SPECIALISEES sur la boucle materialisee par le
+GM (adresses `gm_worldscan:…` citees a titre de consommation aval — le GM est un pair de la boucle
+de completion, pas une source d'heritage amont).
+
+## heritage_worldscan
+
+Ce que le World Scan (`worldscan.json`, `advisory:true`) apporte reellement — et ce qu'il
+n'apporte PAS.
+
+**Divergence de genre (fait herite, a ne pas propager en silence).** Le World Scan situe le
+projet dans le genre « chain-based roguelike/incremental hybrid » et scanne trois jeux de CE
+genre : `worldscan:games[0].game` (Chained), `worldscan:games[1].game` (Domino Idle),
+`worldscan:games[2].game` (Slay the Spire). Or le genre reel FIXE par Pierre est
+`exploration_interaction` (s0-contrat `provenance.genre`). Le World Scan a deduit son genre du
+NOM de la sonde (« chain_probe_v1 »), ou « chain » designe la chaine du pipeline `full_content`,
+pas une mecanique de jeu. **Consequence : les conventions visuelles specifiques du World Scan
+(physique de chaine, prestige, permadeath, boss a phases) NE sont PAS heritees ici.** Remonte en
+fog F1 ; confirme cote GM en r2 (`gm_worldscan:world_interpretation.0`).
+
+**Ce qui reste heritable (primitif genre-neutre d'attente joueur).** Les trois `minute_1` scannes
+convergent sur un meme primitif independant du genre — un feedback immediat et visible des la
+premiere interaction : `worldscan:games[0].loops.minute_1` (« collision chaine -> degats directs.
+Recompense : Or immediat »), `worldscan:games[1].loops.minute_1` (« clique domino #1 -> 2-3
+dominos tombent... satisfaction visuelle »), `worldscan:games[2].loops.minute_1` (« joue une
+carte -> synergie decouverte = dopamine »). J'herite ce primitif — et lui seul — pour justifier le
+role visuel `vr_interaction_feedback` et la regle « toute action produit une impulsion visible ».
+La `worldscan:games[0].retention_answer` (« friction basse ») soutient aussi le parti-pris de
+lisibilite immediate. `worldscan:advisory` = true : cet apport est advisory, jamais un juge.
+
+## heritage_story_bible
+
+Ce que la Story Bible (`story_bible.json`) apporte : **presque rien, honnetement**. Elle rend
+7 sections sur 8 NOT_GROUNDED faute de matiere-monde et de charter injecte
+(`story_bible:inputs_recus.charter` = false).
+
+- `story_bible:context` (seule section GROUNDED) : ancre uniquement l'ABSENCE d'un monde decrit
+  plus un cadre de genre — « le seul fait de contexte reellement ancrable est donc l'ABSENCE d'un
+  monde decrit dans les entrees ».
+- `story_bible:characters` = NOT_GROUNDED (« aucun personnage propre a chain_probe_v1 n'est
+  ancrable ») -> aucun etat de personnage narratif a decliner ; `## character_states` traite donc
+  des ETATS FONCTIONNELS de l'avatar, pas d'une psychologie.
+- `story_bible:factions` = NOT_GROUNDED, `story_bible:events` = NOT_GROUNDED,
+  `story_bible:coherence_rules` = NO
+[tronqué]
+
+### asset_requests.json (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\chain_probe_v1\asset_requests.json)
+{
+  "requests": [
+    {
+      "id": "req_player_avatar",
+      "entity_role": "player",
+      "purpose": "navigation",
+      "type": "sprite",
+      "style": "flat-top-down",
+      "references": [
+        "gm_worldscan:grey_blocks.gb_player_avatar",
+        "gm_worldscan:artist_requirements.ar_player_avatar",
+        "etats: PLACED (repos), mouvement, interaction; teinte bleu vif reservee"
+      ],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "style_tag_match" },
+        { "check": "format_runtime_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    },
+    {
+      "id": "req_explorable_space",
+      "entity_role": "environment",
+      "purpose": "navigation",
+      "type": "tileset",
+      "style": "flat-top-down",
+      "references": [
+        "gm_worldscan:grey_blocks.gb_explorable_space",
+        "gm_worldscan:artist_requirements.ar_explorable_space",
+        "fond neutre desature qui recule; espace unique navigable; jamais un ecran vide"
+      ],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "style_tag_match" },
+        { "check": "format_runtime_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    },
+    {
+      "id": "req_interactive_object",
+      "entity_role": "item",
+      "purpose": "gameplay",
+      "type": "sprite",
+      "style": "flat-top-down",
+      "references": [
+        "gm_worldscan:grey_blocks.gb_interactive_object",
+        "gm_worldscan:artist_requirements.ar_interactive_object",
+        "gm_worldscan:loops.content_loop",
+        "etats: AVAILABLE -> CONSUMED; teinte ambre chaude; 2-8 types distincts a calibrer au build"
+      ],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "style_tag_match" },
+        { "check": "format_runtime_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    },
+    {
+      "id": "req_terminal_goal",
+      "entity_role": "item",
+      "purpose": "gameplay",
+      "type": "sprite",
+      "style": "flat-top-down",
+      "references": [
+        "gm_worldscan:grey_blocks.gb_terminal_goal",
+        "gm_worldscan:artist_requirements.ar_terminal_goal",
+        "gm_worldscan:loops.progression_loop",
+        "etats: LOCKED (raison visible + preview) -> AVAILABLE; teinte emeraude reservee, unique dans la scene"
+      ],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "style_tag_match" },
+        { "check": "format_runtime_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    },
+    {
+      "id": "req_interaction_feedback",
+      "entity_role": "effect",
+      "purpose": "feedback",
+      "type": "vfx",
+      "style": "flat-top-down",
+      "references": [
+        "gm_worldscan:grey_blocks.gb_interaction_feedback",
+        "gm_worldscan:artist_requirements.ar_interaction_feedback",
+        "gm_worldscan:loops.core_loop",
+        "flash blanc bref a fort contraste sur chaque changement d'etat, sans masquer la scene"
+      ],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "style_tag_match" },
+        { "check": "format_runtime_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    },
+    {
+      "id": "req_hud_state",
+      "entity_role": "ui",
+      "purpose": "ui",
+      "type": "icon",
+      "style": "flat-top-down",
+      "references": [
+        "gm_worldscan:grey_blocks.gb_hud_state",
+        "gm_worldscan:artist_requirements.ar_hud_state",
+        "HUD peripherique minimal, contraste eleve, aucune teinte de role reutilisee; window.__game observable"
+      ],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "style_tag_match" },
+        { "check": "format_runtime_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    },
+    {
+      "id": "req_end_state_screen",
+      "entity_role": "ui",
+      "purpose": "ui",
+      "type": "sprite",
+      "style": "flat-top-down",
+      "references": [
+        "gm_worldscan:grey_blocks.gb_end_state_screen",
+        "gm_worldscan:artist_requirements.ar_end_state_screen",
+        "etats: LOCKED -> AVAILABLE; overlay de fin distinct du HUD courant, premier plan, fin non ambigue"
+      ],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "style_tag_match" },
+        { "check": "format_runtime_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    }
+  ],
+  "no_assets_needed": false,
+  "reason": null
+}
+
+
+### loop.json (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\chain_probe_v1\loop.json)
+{
+ "schema_version": 1,
+ "game_id": "chain_probe_v1",
+ "steps": [
+  {
+   "role": "PLAYER_GOAL",
+   "ref": "E01",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "nonempty"
+   }
+  },
+  {
+   "role": "PLAYER_ACTION",
+   "ref": "E02",
+   "affordance": "avatar",
+   "repeat": 1,
+   "observe": {
+    "hud": "zone_exploree",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "PLAYER_ACTION",
+   "ref": "E03",
+   "affordance": "objet_interactif",
+   "repeat": 1,
+   "observe": {
+    "hud": "objets_actives",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "GAME_RESPONSE",
+   "ref": "E04",
+   "repeat": 1,
+   "observe": {
+    "hud": "objets_actives",
+    "predicate": "changes"
+   }
+  },
+  {
+   "role": "REWARD",
+   "ref": "E05",
+   "repeat": 1,
+   "observe": {
+    "hud": "objets_visibles",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "DECISION",
+   "ref": "E06",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "changes"
+   },
+   "options": [
+    "E02",
+    "E03"
+   ],
+   "metric": "objets_actives",
+   "horizon_frames": 300,
+   "policies": [
+    {
+     "name": "explorer",
+     "click": null,
+     "every_frames": 0
+    },
+    {
+     "name": "activer",
+     "click": "objet_interactif",
+     "every_frames": 3
+    }
+   ]
+  },
+  {
+   "role": "UNLOCK",
+   "ref": "E07",
+   "affordance": "objet_interactif",
+   "repeat": 1,
+   "observe": {
+    "hud": "terminal",
+    "predicate": "appears:terminal_disponible",
+    "appears": "terminal_disponible"
+   }
+  },
+  {
+   "role": "NEXT_GOAL",
+   "ref": "E08",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   }
+  },
+  {
+   "role": "NEXT_GOAL",
+   "ref": "E09",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   }
+  },
+  {
+   "role": "REPEAT",
+   "ref": "E10",
+   "affordance": "objet_interactif",
+   "repeat": 1,
+   "observe": {
+    "hud": "objets_actives",
+    "predicate": "increases"
+   },
+   "replay": [
+    "E02",
+    "E03",
+    "E04",
+    "E05"
+   ]
+  }
+ ]
+}
+
+## PRÉ-MORTEM (erreurs des runs passés)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [s2.7-gm-worldscan] échec d'une tentative précédente à s2.7-gm-worldscan → ✅ RÉPARÉ: réparé à la tentative 2 (tier opus)
+- [s2.7-gm-worldscan-r2] échec d'une tentative précédente à s2.7-gm-worldscan-r2 → ✅ RÉPARÉ: réparé à la tentative 2 (tier opus)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [manifest-d323a4cc2ed7df26] Le schema ferme game_master_schema.mjs exige 9 boucles COMPLETES non-orphelines a transformation perceptible, mais le genre reel exploration_interaction d'une sonde mono-espace ne porte honnetement que ~4 boucles de 1er rang (core/gameplay/progression/content) ; les 5 restantes (economy/skill/world/quest/meta) ont du etre mappees sur des facettes minimales/derivees du meme jeu, correspondant aux 7/8 dimensions NOT_MEASURED. De plus le World Scan amont a scanne un genre errone (chain-based roguelike au lieu d'exploration_interaction), et les sources de design (content_requirements.md, calibration.md) sont absentes du run_dir. — cause: Le schema a 9 boucles obligatoires a ete calibre sur une classe de jeu riche (Kitten Clicker) et applique tel quel a une sonde d'exploration minimale ; combine a un worldscan de genre errone deduit du nom 'chain_probe_v1' (ou 'chain' = la chaine du pipeline, pas une mecanique) et a l'absence des fichiers de design en amont, faute de garde qui recale le worldscan sur le genre fixe par s0-contrat. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-f211093862d1be7f] echec de la tentative 1 a s2.7-gm-worldscan-r2 -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-c894f25e65c5d865] Le World Scan amont injecte scanne un genre errone (chain-based roguelike/incremental : Chained, Domino Idle, Slay the Spire) alors que s0-contrat et l'Art Bible fixent le genre reel exploration_interaction (web/HTML 2D top-down). J'ai du re-ancrer la mesure de genre sur des jeux reels du bon genre (Samorost 1, Machinarium) et ne conserver du worldscan que le primitif genre-neutre de feedback immediat ; 7/8 dimensions ressortent NOT_MEASURED car structurellement absentes du genre cible. — cause: s2-worldscan a deduit son genre du nom de sonde 'chain_probe_v1' (ou 'chain' designe la chaine du pipeline full_content, pas une mecanique de jeu) faute de product_snapshot, sans reconcilier avec l'autorite de genre s0-contrat ; aucune garde amont ne recale le worldscan sur le genre fixe par le charter. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-1e94121f0623774d] Le schema C.4 exige 9 boucles cablees non-orphelines, mais une sonde exploration_interaction minimale ('vivant et solvable, pas bon', s0-contrat) n'a honnetement que ~4 boucles reelles (core/gameplay/progression/content) ; economy/skill/world/quest/meta ne sont pas cablables sans fabrication -> game_master round 1 PARTIEL (4 boucles + 5 questions bloquantes a l'Artiste). Par ailleurs le World Scan amont a scanne le MAUVAIS genre (chain-based roguelike au lieu d'exploration_interaction), divergence deja signalee par l'art_bible (F1). — cause: La station s2.7 herite (a) d'un schema C.4 calibre sur un jeu riche (Kitten Clicker, 9 boucles) applique tel quel a une sonde minimale dont le genre n'a pas ces boucles, et (b) d'un worldscan de genre errone deduit du nom 'chain_probe_v1' ou 'chain' designe la chaine du pipeline, pas une mecanique de jeu. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-c4b6d67862fac5b1] Le schema ferme game_master_schema.mjs exige 9 boucles COMPLETES non-orphelines a transformation perceptible en round 2, mais le genre reel exploration_interaction d'une sonde mono-espace ne porte que ~4 boucles de 1er rang (core/gameplay/progression/content) ; les 5 restantes (economy/skill/world/quest/meta) ont du etre mappees sur des facettes minimales/derivees du meme jeu (certaines bordant les 4 principales), correspondant aux 5+ dimensions declarees NOT_MEASURED. — cause: Le schema a 9 boucles obligatoires a ete calibre sur une classe de jeu riche (Kitten Clicker : economie/skill/meta reels) et applique tel quel a une sonde d'exploration minimale, forcant a decouper un jeu naturellement a 4-5 boucles en 9 ; la validation deterministe ne juge que la forme, pas la distinction reelle des boucles (renvoyee a red-team/HumanGate). -- GENERATION_DIFFERENTE_A_REEXAMINER
+
+FORGE_DISPATCH:s5-wiremap:chain_probe_v1-20260830-run1:1

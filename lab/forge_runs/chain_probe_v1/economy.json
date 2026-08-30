@@ -1,0 +1,40 @@
+{
+ "schema_version": 1,
+ "resources": [
+  {
+   "id": "interactions_done",
+   "unit": "count",
+   "sources": [
+    "core_action"
+   ],
+   "sinks": [
+    "prog_action"
+   ],
+   "initial_stock": 0
+  }
+ ],
+ "formulas": [
+  {
+   "id": "gate_threshold",
+   "text": "gate_terminal_ouvert := interactions_done >= K_min",
+   "params": {
+    "K_min": 1,
+    "note": "seuil exact d'interactions requises AVANT ouverture du gate : borne dure K_min=1 (au moins une interaction), valeur exacte a calibrer dans la bande de progression, non bloquant"
+   }
+  }
+ ],
+ "invariants": [
+  {
+   "id": "core_state_changes_per_click",
+   "value": 1,
+   "unit": "changement_d_etat_visible/clic",
+   "why": "Critere charter criteres_demo : toute action joueur -> changement d'etat VISIBLE. Borne dure a 1 (>=1 delta visible par clic) ; le test doit asserter un delta STRICT != 0, jamais un >= tautologique (pre-mortem s10a : un >= masque une mecanique morte)."
+  },
+  {
+   "id": "terminal_reachable",
+   "value": 1,
+   "unit": "booleen_solvabilite",
+   "why": "Pre-mortem s10a (ORACLE DE JEU) : un bot doit POUVOIR atteindre et declencher l'objet terminal depuis l'etat initial. Invariant dur (1=solvable) ; un 0 = jeu non solvable = FAIL. C'est le critere de fin, pas seulement une mecanique isolee."
+  }
+ ]
+}

@@ -1,0 +1,99 @@
+Tout est vérifié mécaniquement. Rapport final.
+
+---
+
+## Rapport s9-build — `chain_probe_v1` (tentative 6)
+
+### Ce que j'ai trouvé avant d'agir
+
+Le jeu était déjà construit (tentatives 4/5) et **quasi vert** : oracle `returncode=0`, mutation `35/35 tués`, wiremap `passed:true`, assets `7 resolved / 0 blocked`. J'ai donc mesuré au lieu de reconstruire. `state.json` nommait la cause exacte :
+
+> `last_root_cause: "returncode=0 (volets rouges: harness_no_hardcoded_flags, reuse_ratio_wired, runtime_alive)"`
+
+Sur ces trois, **un seul gate réellement** (`driver.py:3292` : `not harness_flags["passed"]` ⇒ `final = "FAIL"`). Les deux autres ne bloquent pas : `reuse_ratio_wired` est explicitement advisory (`driver.py:3047`), et `runtime_alive` est `checked:false` donc `runtime_dead` est faux (`driver.py:3365`). C'est ce seul volet qui a fait boucler l'escalade haiku→sonnet→opus 5 fois.
+
+### Corrections (2 fichiers, dans l'ownership `main`)
+
+**1. `solvability.mjs` — le statut est désormais calculé, plus écrit en dur** (gate `check_harness_no_hardcoded_flags`, `static_oracles.py:819`)
+
+| avant | après |
+|---|---|
+| `if (state.won) won = true;` | `won = state.won;` |
+| `return { solvable: true, ... }` | `return { solvable: result.won, ... }` |
+| `return { solvable: false, best }` | `return { solvable: best.won, best }` |
+
+Ce n'est pas un contournement de regex : aucune branche ne peut plus **affirmer** la solvabilité — elle est dérivée du résultat réel de la partie jouée par le bot.
+
+**2. `run-oracle.mjs` — `reuse_ratio.mjs` réellement invoqué**, en volet **hors gate** (il compte des imports, il ne juge pas ; l'inclure dans `allPass` transformerait une mesure en verdict).
+
+### Preuves d'exécution
+
+| Oracle (non-LLM) | Commande | Résultat |
+|---|---|---|
+| Suite complète | `node run-oracle.mjs` | **returncode 0** — Mécanique PASS (40/40), E2E PASS, Solvabilité PASS |
+| Solvabilité | volet `solvability.mjs` | bot **GAGNE** frame 95, param 160, 3/3 objets, 0 objectif hors d'atteinte |
+| E2E | volet `e2e.mjs` (Chromium réel) | clics réels : avatar (200,150)→(140,79), `objectsActive` 0→1 delta STRICT=1, restart OK |
+| Mutation | `forge.mutation.run_mutation_test` sur les 5 fichiers logiques | **35/35 tués, 0 survivant** |
+| `check_harness_no_hardcoded_flags` | appel direct | `passed:true, raisons:[]` ← **était le blocage** |
+| `check_reuse_ratio_wired` | appel direct | `passed:true, raisons:[]` |
+| `check_wiremap` | appel direct | `passed:true`, 0 manquante / 0 renommée / 0 preuve absente |
+| `check_asset_consumption` | appel direct | `passed:true`, 7 resolved, 0 blocked, 0 missing |
+| `check_e2e_harness` / `check_solvability_wired` | appel direct | `passed:true` / `passed:true, checked:true` |
+
+`evidence_path` (produit par le driver) : `lab/forge_runs/chain_probe_v1/evidence/oracle_chain_probe_v1.log`
+
+**Reçu `reuse_ratio.mjs`** (désormais exécuté mécaniquement, plus seulement cité) :
+```
+logicFiles: [hud.mjs, input.mjs, logic.mjs, render.mjs]
+reuseRatio = 0/(4+0) = 0.000 · crossGameReuse = 0.000
+```
+`0.000` est un **fait, pas une erreur** : mes 3 requêtes SEARCH n'ont ramené que des *patterns* (`path: null`), aucune brique de code importable. Il n'y avait pas de delta à économiser.
+
+**Requêtes SEARCH §2bis** (journalisées dans `knowledge_base/search_log.jsonl`, horodatées avant écriture) : `reuse ratio oracle harness wiring` (9 hits) · `solvability bot plays and wins policy search` (1) · `hardcoded success flag harness computed status` (2).
+
+### Fichiers touchés vs ownership
+
+| Fichier | Ownership | OK |
+|---|---|---|
+| `games/chain_probe_v1/solvability.mjs` | `main` — « preuve de solvabilite e2e » | ✓ |
+| `games/chain_probe_v1/run-oracle.mjs` | `main` — harnais de preuve | ✓ |
+| `lab/forge_runs/chain_probe_v1/wiremap.json` | mandaté par la tâche (R11 → v1.3) | ✓ |
+
+**Intégrité prouvée par SHA-256** contre le reçu mutation signé de 12:34 : les 5 modules logiques (`hud/input/logic/main/render`) et les **2 suites scellées** (`logic.test.mjs`, `properties.test.mjs`) sont **byte-identiques**. Le run mutation a touché leurs mtimes puis restauré ; 0 `.mutbak` résiduel. `wiremap_frozen.json` non modifié (11:47, intact). `tests/**` non touché. **Aucun commit.**
+
+---
+
+software_verdict: **OK**
+evidence_verdict: MECHANICAL_VALIDATION_ONLY
+claim_verdict: NO_CLAIM_ALLOWED
+
+**fog → HumanGate** (jugement Pierre, hors ma portée) :
+1. `runtime_alive` reste `SKIPPED` — sonde **Godot** (`run_runtime_alive`) sans producteur sur un jeu web/HTML. Non-gatant, mais c'est un rouge structurel permanent qui restera dans le reçu signé.
+2. `amont_traversal` de s10c : **0/13 références résolues** — les 13 features (E01–E13) pointent vers des adresses `gm_worldscan:game_master.*` introuvables. ADVISORY, ownership **amont** (s2.7/s5), hors s9-build.
+3. Le pattern KB `pat-forge-reuse_tracking_oracle_dead_since_inception` affirme que `reuse_ratio_wired` n'a **jamais** été vert sur aucun run Forge. Je mesure qu'il l'est **ici** ; je ne peux pas vérifier l'affirmation historique.
+
+### SKIPPED_VALIDATION
+
+| Item | Périmètre | Statut | Raison |
+|---|---|---|---|
+| `runtime_alive` | `games/chain_probe_v1` | non fait | sonde Godot, aucun `run/main_scene` sur un jeu web — pas de producteur (règle 2026-08-17 : preuve impossible ≠ FAIL) |
+| `debordements_ownership` (s10b) | archi | non fait | `checked:false` dans le reçu ; volet exécuté par le driver, pas par ce worker |
+| Étape s10a complète du driver | pipeline | partiel | j'ai appelé ses fonctions d'oracle **une à une** ; l'émission du reçu signé HMAC reste au driver |
+| `amont_traversal` 0/13 | s2.7 / s5 | non fait | hors ownership s9-build |
+| Playtest humain / qualité visuelle | rendu | non fait | non mécanisable — relève de HumanGate (leçon `forge_mechanical_ok_visually_dead`) |
+
+**why_task_existed:**
+- `problem:` s9-build échouait en boucle depuis 5 tentatives (escalade haiku→sonnet→opus épuisée) alors que l'oracle code sortait `returncode=0`.
+- `oracle:` `s10a-oracle-code`, `last_root_cause: "returncode=0 (volets rouges: harness_no_hardcoded_flags, reuse_ratio_wired, runtime_alive)"`.
+- `root_cause:` `solvability.mjs` écrivait son statut de succès en **littéral** (`won = true` l.55, `solvable: true` l.71) — la garde anti-théâtre `check_harness_no_hardcoded_flags` gate `final` (`driver.py:3292`), et `run-oracle.mjs` n'invoquait jamais `reuse_ratio.mjs`. Les tentatives précédentes ont corrigé mutation et wiremap sans jamais lire *quel* volet gatait réellement, et ont re-livré le même harnais.
+- `action_reason:` rendre le statut **dérivé** de l'état du jeu ferme la cause sans affaiblir la preuve ; câbler `reuse_ratio` en volet hors-gate rend la mesure exécutable sans transformer une métrique en verdict.
+
+**result:** suite d'oracle `returncode=0` ; mutation 35/35 ; les 8 gardes statiques appelées rendent `passed:true` ; WireMap R11 → v1.3, `check_wiremap` vert ; 5 modules logiques + 2 suites scellées byte-identiques.
+
+**proof:** `node run-oracle.mjs` → `GLOBAL: PASS`, returncode 0 · `forge.mutation.run_mutation_test` → `TOTAL 35/35 survived 0` · `check_harness_no_hardcoded_flags` → `{"passed": true, "raisons": []}`.
+
+**learning:** quand un reçu d'oracle porte plusieurs « volets rouges », ils ne sont pas équivalents — il faut lire *quelle* condition entre dans le calcul de `final` (ici une seule sur trois). Cinq escalades ont été dépensées à corriger des volets advisory. Corollaire : une garde heuristique de texte (`check_harness_no_hardcoded_flags`) rougit sur du code sémantiquement correct ; la bonne réponse n'est pas de la contourner mais de rendre le statut **réellement** dérivé — le code est plus honnête après.
+
+**next_reason:** chaîne causale **FERMÉE** dans mon périmètre — la cause du blocage est corrigée et re-vérifiée par exécution réelle. Reste au driver : reçu mutation signé + verdict HMAC (s12), puis HumanGate sur les 3 points de fog ci-dessus.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "s9-build a echoue 5 fois d'affilee (escalade haiku->sonnet->opus epuisee) sur le seul volet gatant harness_no_hardcoded_flags, pendant que les tentatives corrigeaient des volets advisory non bloquants (reuse_ratio_wired, runtime_alive)", "root_cause": "solvability.mjs ecrivait son statut de succes en litteral (won = true, solvable: true) au lieu de le deriver de l'etat du jeu; le reçu d'oracle enumere les volets rouges sans distinguer ceux qui entrent dans le calcul de final (driver.py:3292) de ceux qui sont advisory, ce qui a oriente 5 reparations successives vers les mauvais volets"}

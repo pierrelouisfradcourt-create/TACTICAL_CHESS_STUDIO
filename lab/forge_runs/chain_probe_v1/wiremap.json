@@ -1,0 +1,186 @@
+{
+ "features": [
+  {
+   "feature": "R1 But affiché (E01)",
+   "fonction": "renderObjective",
+   "fichiers": [
+    "hud.mjs"
+   ],
+   "version": "1.2",
+   "statut": "TESTÉ ✓",
+   "preuve": "e2e.mjs (Playwright/Chromium réel): #hud-objective affiche 'Activer les objets (0/3)' au boot; properties.test.mjs 'hud: la ligne d'objectif nomme l'état courant et bascule avec le gate' (renderHud -> renderObjective écrit currentObjective() dans #hud-objective); oracle PASS",
+   "couvre": [
+    "renderObjective"
+   ]
+  },
+  {
+   "feature": "R2 Scène non vide au lancement (E11)",
+   "fonction": "renderScene",
+   "fichiers": [
+    "render.mjs",
+    "main.mjs"
+   ],
+   "version": "1.2",
+   "statut": "TESTÉ ✓",
+   "preuve": "e2e.mjs (Playwright/Chromium réel): window.__game.avatarX numérique dès domcontentloaded + capture visuelle (grille, avatar bleu, ligne d'objectif avant toute interaction); properties.test.mjs 'renderScene: la scène n'est jamais vide au boot (avatar présent)' et 'main: init() peint la scène ET le HUD avant tout premier paint'; grille assertée à exactement 48 cellules; oracle PASS",
+   "couvre": [
+    "renderScene"
+   ]
+  },
+  {
+   "feature": "R3 Déplacement de l'avatar (E02, ENTRÉE)",
+   "fonction": "moveAvatar",
+   "fichiers": [
+    "input.mjs",
+    "logic.mjs"
+   ],
+   "version": "1.1",
+   "statut": "TESTÉ ✓",
+   "preuve": "e2e.mjs (Playwright/Chromium réel): un vrai clic souris sur #game-container déplace l'avatar (200,150)->(140,79) et exploredCells augmente strictement (1->2); logic.test.mjs 'Movement increases explored area strictly'; oracle PASS",
+   "couvre": [
+    "moveAvatar"
+   ]
+  },
+  {
+   "feature": "R4 Activation d'un objet (E03, ENTRÉE)",
+   "fonction": "activateObject",
+   "fichiers": [
+    "input.mjs",
+    "logic.mjs"
+   ],
+   "version": "1.1",
+   "statut": "TESTÉ ✓",
+   "preuve": "e2e.mjs (Playwright/Chromium réel): un vrai clic souris sur l'objet révélé porte objectsActive de 0 à 1 (delta STRICT=1); logic.test.mjs: delta STRICT=1, re-activation retourne false; oracle PASS",
+   "couvre": [
+    "E03"
+   ]
+  },
+  {
+   "feature": "R5 Feedback d'activation (E04, EFFET)",
+   "fonction": "renderFeedback",
+   "fichiers": [
+    "render.mjs"
+   ],
+   "version": "1.1",
+   "statut": "TESTÉ ✓",
+   "preuve": "properties.test.mjs 'renderFeedback: le flash s'applique à l'objet cliqué' (transform scale(1.3) + box-shadow ambre appliqués dans la même frame sur [data-id]) et 'renderScene: activer un objet change son état rendu' (#ffb600 -> #d4b500, états rendus distincts avant/après); 'main: tick() consomme exactement une activation en attente'; oracle PASS",
+   "couvre": [
+    "requirement-capability-id"
+   ]
+  },
+  {
+   "feature": "R6 Révélation par exploration (E05, EFFET)",
+   "fonction": "revealObjects",
+   "fichiers": [
+    "logic.mjs",
+    "render.mjs"
+   ],
+   "version": "1.2",
+   "statut": "TESTÉ ✓",
+   "preuve": "logic.mjs::revealObjects() est désormais une méthode NOMMÉE (extraite de moveAvatar) — l'oracle wiremap résout le nom sur le code réel. logic.test.mjs: moveAvatar co-localisé -> objectsVisible +1 STRICT, et un objet déjà actif n'est jamais re-marqué visible; properties.test.mjs 'revealObjects: rayon strict' (hors rayon => jamais révélé); e2e.mjs réel confirme visible=true déclenche le rendu; oracle PASS",
+   "couvre": [
+    "revealObjects"
+   ]
+  },
+  {
+   "feature": "R7 Arbitrage explorer / activer (E06, DÉCISION)",
+   "fonction": "step",
+   "fichiers": [
+    "logic.mjs"
+   ],
+   "version": "1.2",
+   "statut": "TESTÉ ✓",
+   "preuve": "logic.test.mjs 'Bot policy divergence: explore vs activate' (explore: 0 objet, activate: 3 objets après 300 frames — trajectoires distinctes); step() délègue à _exploreStep/_seekStep/_passiveActivateNearby/_activatableTargets, chaque garde and testée directement; mutation 100% sur logic.mjs (24/24 tués); oracle PASS",
+   "couvre": [
+    "E06_decision_explorer",
+    "E06_decision_activer"
+   ]
+  },
+  {
+   "feature": "R8 Ouverture du gate (E07, ENTRÉE/UNLOCK)",
+   "fonction": "updateGate",
+   "fichiers": [
+    "logic.mjs",
+    "input.mjs"
+   ],
+   "version": "1.2",
+   "statut": "TESTÉ ✓",
+   "preuve": "logic.mjs::updateGate() est désormais une méthode NOMMÉE (extraite d'activateObject) — l'oracle wiremap résout le nom sur le code réel. logic.test.mjs: activateObject(0,1,2) -> terminalState LOCKED->AVAILABLE exactement à objectsRequired; properties.test.mjs 'updateGate: n'ouvre le terminal QU'au compte exact requis' (requis-1 => LOCKED); oracle PASS",
+   "couvre": [
+    "updateGate"
+   ]
+  },
+  {
+   "feature": "R9 Objectif tant que gate fermé (E08, NEXT_GOAL)",
+   "fonction": "currentObjective",
+   "fichiers": [
+    "logic.mjs",
+    "hud.mjs"
+   ],
+   "version": "1.0",
+   "statut": "TESTÉ ✓",
+   "preuve": "logic.test.mjs: currentObjective contient 'Activer' quand LOCKED; oracle PASS",
+   "couvre": [
+    "currentObjective"
+   ]
+  },
+  {
+   "feature": "R10 Objectif une fois gate ouvert (E09, NEXT_GOAL)",
+   "fonction": "currentObjective",
+   "fichiers": [
+    "logic.mjs",
+    "hud.mjs"
+   ],
+   "version": "1.1",
+   "statut": "TESTÉ ✓",
+   "preuve": "logic.test.mjs: currentObjective contient 'terminal' quand AVAILABLE, distinct du libellé LOCKED; properties.test.mjs 'hud: la ligne d'objectif ... bascule avec le gate' observe la bascule sur le DOM du HUD; oracle PASS",
+   "couvre": [
+    "NEXT_GOAL"
+   ]
+  },
+  {
+   "feature": "R11 Répétition de la boucle (E10, REPEAT)",
+   "fonction": "scheduleTick",
+   "fichiers": [
+    "main.mjs"
+   ],
+   "version": "1.3",
+   "statut": "TESTÉ ✓",
+   "preuve": "solvability.mjs: bot joue GameState.step() directement, 6000 frames max, gagne a la frame 95 (recherche de politique, param=160); le statut 'solvable' est DERIVE du resultat reel de la partie (result.won / best.won), plus aucun litteral — garde forge.static_oracles.check_harness_no_hardcoded_flags verte (passed=true, 0 raison); properties.test.mjs 'main: une partie neuve ne tourne pas avant run()' et 'main: run() demarre la boucle' (scheduleTick arme par run(), jamais a la construction); main.tick() ne fait QUE re-rendre — l'etat ne change que sur commande joueur/debug; oracle PASS",
+   "couvre": [
+    "gameLoop"
+   ]
+  },
+  {
+   "feature": "R12 Écran de fin (E12)",
+   "fonction": "renderEndScreen",
+   "fichiers": [
+    "hud.mjs",
+    "main.mjs",
+    "input.mjs",
+    "logic.mjs"
+   ],
+   "version": "1.2",
+   "statut": "TESTÉ ✓",
+   "preuve": "e2e.mjs (Playwright/Chromium réel): window.__game_debug.win() -> #overlay perd 'hidden', #overlayTitle contient 'Victoire'; un vrai clic sur #restart relance la partie (objectsActive=0, terminalState=LOCKED, won=false, #overlay reprend 'hidden'); properties.test.mjs 'hud: l'overlay de fin reste caché tant que la partie n'est pas gagnée' (bascule dans les DEUX sens) et 'main: restart() remet la partie à zéro et relance la boucle'; conforme PLAYABLE_CONTRACT.md; oracle PASS",
+   "couvre": [
+    "renderEndScreen",
+    "restart"
+   ]
+  },
+  {
+   "feature": "R13 HUD sans teinte de rôle (E13)",
+   "fonction": "renderHud",
+   "fichiers": [
+    "hud.mjs"
+   ],
+   "version": "1.1",
+   "statut": "TESTÉ ✓",
+   "preuve": "e2e.mjs: checkColorDisjointness() rend true dans le navigateur réel; properties.test.mjs 'hud: les trois teintes de rôle sont strictement disjointes' assert STRICT true (3 teintes: #2196F3 joueur, #ffb600 agissable, #00c851 terminal), et le chrome HUD n'emploie qu'un gris neutre (#f0f0f0/#ddd); oracle PASS",
+   "couvre": [
+    "renderHud"
+   ]
+  }
+ ],
+ "updated_at": "2026-08-30T13:40:00Z"
+}

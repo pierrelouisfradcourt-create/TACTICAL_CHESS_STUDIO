@@ -1,0 +1,413 @@
+## RÔLE
+Builder (délégation bornée par l'ownership). Point de vue : développeur discipliné qui reste dans son module.
+
+## EXIGENCES COGNITIVES
+Exécution bornée, micro-commits, tenue à jour de la WireMap. Discipline de périmètre supérieure à la vitesse : ne déborde jamais l'ownership.
+
+## MÉMOIRE DE TRAVAIL
+Consomme le blueprint (étape 7) qui fixe son ownership et la WireMap (étape 5) qu'il doit tenir à jour. Conventions : CLAUDE.md + rules/ (par lane). Le repo a déjà été créé à l'étape 8 (Create Repo).
+
+## OBJECTIF
+Produire le code borné à l'ownership, avec la WireMap tenue à jour. Micro-commits exécutés. Consulter knowledge_base/search.mjs avant d'écrire une pièce de logique réutilisable, importer réellement ce qui matche, n'écrire que le delta (§2bis).
+
+## DANS LE PÉRIMÈTRE (in_scope)
+Implémentation du code UNIQUEMENT dans l'ownership défini par le blueprint ; mise à jour de la WireMap (colonnes fichiers/fonction/version/preuve/statut).
+
+## HORS PÉRIMÈTRE (out_of_scope)
+Ne sort JAMAIS de son ownership (blueprint). Ne touche pas à tests/** (zone protégée). Ne modifie pas l'architecture (blueprint, deps).
+
+## PERMISSIONS
+read: repo entier. write: UNIQUEMENT les fichiers de son ownership + la WireMap. run: l'oracle code (cargo/pytest/vitest via scripts/forge/oracles.json). create: fichiers de son ownership uniquement. delete: aucun. INTERDIT: tests/**.
+
+## GARDE-FOU
+Respecte l'ownership : n'écrit que dans les fichiers que le blueprint lui attribue. Micro-commits. Ne franchit pas les deps interdites du blueprint.
+
+## CRITÈRES DE RÉUSSITE
+Code dans l'ownership (aucun fichier hors périmètre modifié) ; oracle code vert ; WireMap à jour. Pour un JEU (objectif/condition de victoire joueur) : oracle de SOLVABILITÉ vert (un bot joue et GAGNE réellement) ET preuve e2e verte (click-through navigateur réel, cf. scripts/forge/contracts/PLAYABLE_CONTRACT.md).
+
+## ORACLES / TESTS
+Oracle CODE déterministe non-LLM : cargo / pytest / vitest via scripts/forge/oracles.json selon la lane. Jamais de LLM-as-judge. Pour un JEU : l'oracle CODE inclut OBLIGATOIREMENT un volet SOLVABILITÉ (solvability.mjs câblé dans run-oracle.mjs) — les mécaniques testées EN ISOLATION ne suffisent pas : un jeu aux objectifs inatteignables passe tous les tests de mécanique tout en étant injouable. Le volet mesure l'enveloppe d'action réelle du moteur, vérifie que les objectifs requis y sont, et fait JOUER un bot qui doit gagner. Modèle : scripts/forge/templates/solvability.template.mjs. L'oracle CODE d'un JEU inclut AUSSI OBLIGATOIREMENT un volet e2e (e2e.mjs, click-through navigateur réel câblé dans run-oracle.mjs) conforme au contrat de jouabilité (scripts/forge/contracts/PLAYABLE_CONTRACT.md) : la garde structurelle forge.static_oracles.check_e2e_harness REJETTE un e2e absent, non câblé, ou coquille (qui imprime PASS sans piloter). Enfin, pour un JEU, l'oracle-code inclut un GATE MUTATION (forge.mutation.run_mutation_test sur game.mjs + forge.static_oracles.check_mutation_gate) : « 100% des mutants tués OU chaque survivant trié équivalent avec justification dans games/<projet>/mutation_triage.json ». Un survivant non justifié => oracle rouge (auto-correction).
+
+## CONTRAT DE SORTIE
+diff (micro-commits) + WireMap à jour (colonnes fichiers/fonction/version/preuve/ statut) + reçu reuse_ratio.mjs (scripts/forge/reuse_ratio.mjs <dossier du jeu>). Pour un JEU : un volet solvability.mjs (bot-joue-et-gagne) ET un e2e.mjs (click-through navigateur réel, contrat de jouabilité) tous deux câblés dans run-oracle.mjs, en plus des mécaniques.
+
+## RAPPORT FINAL
+software/evidence/claim séparés ; cite l'oracle code utilisé ; liste les fichiers touchés vs ownership ; cite la sortie de reuse_ratio.mjs (evidence_path) et les requêtes SEARCH effectuées avant écriture (§2bis) ; claim_verdict: NO_CLAIM_ALLOWED. Sans oracle disponible => remonte un besoin HumanGate (fog), pas de claim. RETURN LINEAGE (doctrine FORGE_CAUSAL_LINEAGE_V2 §3, ratifiee Pierre 2026-08-06) — aucun worker ne meurt seul : le retour porte la CAUSALITE, pas seulement le resultat. Termine TOUJOURS par ce bloc, succes comme echec : `why_task_existed:` {`problem:` le probleme mesure qui a active cette tache · `oracle:` l'oracle ou la mesure qui l'a detecte, ou "aucun" si l'activation vient d'une decision humaine · `root_cause:` la cause racine identifiee, ou "non etablie" · `action_reason:` pourquoi CETTE action y repond} · `result:` l'etat reellement obtenu · `proof:` la commande executee et sa sortie · `learning:` ce que tu as appris et qui resservira, ou "aucun" · `next_reason:` pourquoi le niveau superieur doit agir OU pourquoi la chaine causale est FERMEE et se termine ici. Regles : ces champs sont HERITES ou CONSTATES, jamais inventes — si tu n'as pas recu le `why`, ecris "non transmis" plutot que de le deviner (une cause fabriquee est la meme faute qu'un `validated_by` fabrique). En ECHEC, `result` porte ce que tu as essaye et ce qui a echoue. `next_reason` ne vaut escalade que si une cause non resolue persiste, une preuve manque ou contredit l'etat attendu, ou une correction reste possible — sinon la lignee se termine proprement, sans action supplementaire.
+
+## À LIRE OBLIGATOIREMENT AVANT TOUTE ACTION
+- scripts/forge/contracts/SCHEMA.md
+- le blueprint.yaml (ownership) qui borne strictement sa zone d'écriture
+- la WireMap produite à l'étape 5 (fichiers/fonction/version/preuve/statut)
+
+## RÈGLE DE RESTITUTION — Chaque affirmation du final_report doit citer l'oracle/l'ancre non-LLM qui l'appuie. Appuyée par un oracle => software_verdict (OK/FAIL/BLOCKED) + evidence_verdict: MECHANICAL_VALIDATION_ONLY. Sans oracle disponible => claim_verdict: NO_CLAIM_ALLOWED et remonte un besoin HumanGate (fog), jamais un claim auto-certifié. Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement. En dernier lieu, une section finale SKIPPED_VALIDATION, structurée et EXPLICITE : pour chaque validation que tu n'as PAS faite, liste l'item de validation (quoi), le périmètre concerné (où), le statut (ex. non fait / partiel / hors délai) et la raison (pourquoi). Rien sauté => écris `SKIPPED_VALIDATION: aucun` — une décision assumée, jamais un silence. Le silence sur cette section est traité comme un oubli, pas comme 'rien à signaler'. TOUTE DERNIÈRE LIGNE DU RAPPORT, OBLIGATOIRE — lignée Return : une ligne unique `RETURN_REASON: {"status": "NOT_DISCOVERED"}` si tu n'as découvert AUCUN problème pendant ce travail. Si (et SEULEMENT si) tu as réellement découvert un problème — défaut rencontré, cause d'un échec, écart mesuré — écris à la place `RETURN_REASON: {"status": "DISCOVERED", "problem": "<le problème, factuel>", "root_cause": "<la cause racine si connue, sinon omets ce champ>"}`. JSON valide sur UNE seule ligne, aucun texte après. N'invente JAMAIS un problème pour remplir ce champ : un NOT_DISCOVERED honnête vaut mieux qu'un DISCOVERED de complaisance.
+
+## MARQUEUR DE DISPATCH (ne pas modifier)
+FORGE_DISPATCH:s9-build:chain_probe_v1-20260830-run1:6
+
+## TÂCHE CONCRÈTE (chain_probe_v1-20260830-run1 / s9-build)
+Implémente le projet 'chain_probe_v1' sous games/chain_probe_v1, borné à ton ownership (blueprint) : code + harnais de preuve COMPLET conformément au contrat — run-oracle.mjs, e2e.mjs et solvability.mjs à la RACINE du jeu (exigence check_e2e_harness), PLUS les suites de convention mutation du studio logic.test.mjs et properties.test.mjs à la racine (le volet mutation du driver exécute par défaut : node --test logic.test.mjs properties.test.mjs — sans elles la baseline est rouge et l'étape échoue). Chaque asset_request.id doit finir resolved (fichier réel du jeu) ou blocked justifié dans asset_resolution.json (clé unique 'requests') — gate check_asset_consumption à s10a. Tiens la WireMap à jour (jamais wiremap_frozen.json). AUCUN commit (git/PowerShell) : le verdict signé et HumanGate s'en chargent.
+
+## ARTEFACTS AMONT (run_dir)
+Rappel ownership : tu n'écris QUE dans les fichiers que le blueprint.json ci-dessous t'attribue (contrat s9-build §5).
+
+### blueprint.json (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\chain_probe_v1\blueprint.json)
+{
+ "modules": [
+  "logic",
+  "render",
+  "input",
+  "hud",
+  "main"
+ ],
+ "deps_interdites": [
+  [
+   "logic",
+   "render"
+  ],
+  [
+   "logic",
+   "input"
+  ],
+  [
+   "logic",
+   "hud"
+  ],
+  [
+   "logic",
+   "main"
+  ],
+  [
+   "render",
+   "input"
+  ],
+  [
+   "render",
+   "hud"
+  ],
+  [
+   "render",
+   "main"
+  ],
+  [
+   "input",
+   "render"
+  ],
+  [
+   "input",
+   "hud"
+  ],
+  [
+   "input",
+   "main"
+  ],
+  [
+   "hud",
+   "render"
+  ],
+  [
+   "hud",
+   "input"
+  ],
+  [
+   "hud",
+   "main"
+  ]
+ ],
+ "ownership": {
+  "logic": "Etat & regles pures (source de verite unique, zero DOM): espace explorable, avatar, objets interactifs, compteur objets_actives (delta STRICT=1), etat terminal LOCKED->AVAILABLE, machine d'objectif courant, revelation, divergence de politiques.",
+  "render": "Rendu DOM de la scene depuis l'etat logic: scene non-vide a t0, feedback d'activation (etat rendu different + flash), revelation d'objets. Lecture seule de l'etat.",
+  "input": "Capture des entrees joueur (clics destination/objet) et traduction en commandes move/activate vers logic. N'ecrit jamais le DOM de rendu.",
+  "hud": "Chrome peripherique: ligne d'objectif (nomme le terminal a t0, bascule une fois le gate ouvert), overlay d'etat de fin, disjonction des couleurs de role (bleu/ambre/emeraude).",
+  "main": "Composition root + boucle de jeu + preuve de solvabilite e2e (un bot joue la boucle complete et GAGNE); garantit qu'aucun ecran n'est vide au boot en declenchant render avant premier paint."
+ },
+ "responsabilites": [
+  {
+   "module": "logic",
+   "responsabilite": "Cœur d'etat pur et regles de transition: deplacement, activation a delta STRICT=1, revelation d'objets, ouverture du gate (LOCKED->AVAILABLE), machine d'objectif courant, et divergence mesurable de deux politiques. Aucune dependance rendu/input/hud/main.",
+   "couvre": [
+    "F_entree",
+    "F_reponse",
+    "F_decision",
+    "F_gate",
+    "F_objectif_courant"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot pilote l'etat via l'entree: objets_actives passe de n a n+1 (delta STRICT=1, jamais un >= tautologique), le nombre d'objets reveles augmente strictement, le terminal transitionne LOCKED->AVAILABLE apres le dernier requis, l'objectif bascule, et deux politiques (explorer-seul vs activer-des-visible) sur >=300 frames produisent des trajectoires d'objets_actives distinctes."
+   }
+  },
+  {
+   "module": "render",
+   "responsabilite": "Rendre la scene DOM depuis l'etat logic (espace 2D top-down, avatar, objets interactifs, feedback). Ne remonte jamais vers main, n'importe ni input ni hud.",
+   "couvre": [
+    "F_scene_lancement",
+    "F_reponse"
+   ],
+   "dependances": [
+    "logic"
+   ],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "A t0 le DOM contient l'espace, un element avatar et >=1 objet interactif (jamais vide); a chaque activation l'etat rendu de l'objet differe entre avant/apres le clic et un element de flash apparait dans la meme fenetre de frame."
+   }
+  },
+  {
+   "module": "input",
+   "responsabilite": "Capturer les clics joueur (destination, objet ambre) et emettre les commandes move/activate vers logic. Ne dessine aucun rendu, n'importe ni render ni hud.",
+   "couvre": [
+    "F_entree"
+   ],
+   "dependances": [
+    "logic"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot clique une destination puis un objet ambre; les commandes atteignent logic — l'espace explore augmente strictement (deplacement) et objets_actives augmente de exactement 1 (activation)."
+   }
+  },
+  {
+   "module": "hud",
+   "responsabilite": "Chrome peripherique lisant l'etat logic: ligne d'objectif, bascule de libellé, overlay de fin, et couleurs strictement disjointes des teintes de role. Aucune logique de jeu, n'importe ni render ni input.",
+   "couvre": [
+    "F_but",
+    "F_hud",
+    "F_fin",
+    "F_objectif_courant"
+   ],
+   "dependances": [
+    "logic"
+   ],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "Un check statique confirme que les couleurs du HUD sont disjointes des teintes reservees (bleu joueur / ambre agissable / emeraude terminal); en complement observable DOM: l'objectif est non vide et nomme le terminal a t0, bascule sur 'rejoindre et declencher l'objet terminal' une fois le gate ouvert, et un overlay de fin distinct apparait au premier plan au declenchement."
+   }
+  },
+  {
+   "module": "main",
+   "responsabilite": "Composition root: instancie logic, cable input->logic et logic->render/hud, execute la boucle et prouve la solvabilite end-to-end. Peut dependre de tous les modules; aucun module ne depend de lui.",
+   "couvre": [
+    "F_scene_lancement"
+   ],
+   "dependances": [
+    "logic",
+    "render",
+    "input",
+    "hud"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Solvabilite: un bot joue la boucle complete (explorer -> activer les objets requis -> le gate s'ouvre -> rejoindre et declencher le terminal) et GAGNE (etat de fin atteint), et au boot render est declenche avant le premier paint de sorte que l'ecran n'est jamais vide."
+   }
+  }
+ ]
+}
+
+### wiremap.json (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\chain_probe_v1\wiremap.json)
+{
+ "features": [
+  {
+   "feature": "R1 But affiché (E01)",
+   "fonction": "renderObjective",
+   "fichiers": [
+    "hud.mjs"
+   ],
+   "version": "1.2",
+   "statut": "TESTÉ ✓",
+   "preuve": "e2e.mjs (Playwright/Chromium réel): #hud-objective affiche 'Activer les objets (0/3)' au boot; properties.test.mjs 'hud: la ligne d'objectif nomme l'état courant et bascule avec le gate' (renderHud -> renderObjective écrit currentObjective() dans #hud-objective); oracle PASS",
+   "couvre": [
+    "renderObjective"
+   ]
+  },
+  {
+   "feature": "R2 Scène non vide au lancement (E11)",
+   "fonction": "renderScene",
+   "fichiers": [
+    "render.mjs",
+    "main.mjs"
+   ],
+   "version": "1.2",
+   "statut": "TESTÉ ✓",
+   "preuve": "e2e.mjs (Playwright/Chromium réel): window.__game.avatarX numérique dès domcontentloaded + capture visuelle (grille, avatar bleu, ligne d'objectif avant toute interaction); properties.test.mjs 'renderScene: la scène n'est jamais vide au boot (avatar présent)' et 'main: init() peint la scène ET le HUD avant tout premier paint'; grille assertée à exactement 48 cellules; oracle PASS",
+   "couvre": [
+    "renderScene"
+   ]
+  },
+  {
+   "feature": "R3 Déplacement de l'avatar (E02, ENTRÉE)",
+   "fonction": "moveAvatar",
+   "fichiers": [
+    "input.mjs",
+    "logic.mjs"
+   ],
+   "version": "1.1",
+   "statut": "TESTÉ ✓",
+   "preuve": "e2e.mjs (Playwright/Chromium réel): un vrai clic souris sur #game-container déplace l'avatar (200,150)->(140,79) et exploredCells augmente strictement (1->2); logic.test.mjs 'Movement increases explored area strictly'; oracle PASS",
+   "couvre": [
+    "moveAvatar"
+   ]
+  },
+  {
+   "feature": "R4 Activation d'un objet (E03, ENTRÉE)",
+   "fonction": "activateObject",
+   "fichiers": [
+    "input.mjs",
+    "logic.mjs"
+   ],
+   "version": "1.1",
+   "statut": "TESTÉ ✓",
+   "preuve": "e2e.mjs (Playwright/Chromium réel): un vrai clic souris sur l'objet révélé porte objectsActive de 0 à 1 (delta STRICT=1); logic.test.mjs: delta STRICT=1, re-activation retourne false; oracle PASS",
+   "couvre": [
+    "E03"
+   ]
+  },
+  {
+   "feature": "R5 Feedback d'activation (E04, EFFET)",
+   "fonction": "renderFeedback",
+   "fichiers": [
+    "render.mjs"
+   ],
+   "version": "1.1",
+   "statut": "TESTÉ ✓",
+   "preuve": "properties.test.mjs 'renderFeedback: le flash s'applique à l'objet cliqué' (transform scale(1.3) + box-shadow ambre appliqués dans la même frame sur [data-id]) et 'renderScene: activer un objet change son état rendu' (#ffb600 -> #d4b500, états rendus distincts avant/après); 'main: tick() consomme exactement une activation en attente'; oracle PASS",
+   "couvre": [
+    "requirement-capability-id"
+   ]
+  },
+  {
+   "feature": "R6 Révélation par exploration (E05, EFFET)",
+   "fonction": "revealObjects",
+   "fichiers": [
+    "logic.mjs",
+    "render.mjs"
+   ],
+   "version": "1.2",
+   "statut": "TESTÉ ✓",
+   "preuve": "logic.mjs::revealObjects() est désormais une méthode NOMMÉE (extraite de moveAvatar) — l'oracle wiremap résout le nom sur le code réel. logic.test.mjs: moveAvatar co-localisé -> objectsVisible +1 STRICT, et un objet déjà actif n'est jamais re-marqué visible; properties.test.mjs 'revealObjects: rayon strict' (hors rayon => jamais révélé); e2e.mjs réel confirme visible=true déclenche le rendu; oracle PASS",
+   "couvre": [
+    "revealObjects"
+   ]
+  },
+  {
+   "feature": "R7 Arbitrage explorer / activer (E06, DÉCISION)",
+   "fonction": "step",
+   "fichiers": [
+    "logic.mjs"
+   ],
+   "version": "1.2",
+   "statut": "TESTÉ ✓",
+   "preuve": "logic.test.mjs 'Bot policy divergence: explore vs activate' (explore: 0 objet, activate: 3 objets après 300 frames — trajectoires distinctes); step() délègue à _exploreStep/_seekStep/_passiveActivateNearby/_activatableTargets, chaque garde and testée directement; mutation 100% sur logic.mjs (24/24 tués); oracle PASS",
+   "couvre": [
+    "E06_decision_explorer",
+    "E06_decision_activer"
+   ]
+  },
+  {
+   "feature": "R8 Ouverture du gate (E07, ENTRÉE/UNLOCK)",
+   "fonction": "updateGate",
+   "fichiers": [
+    "logic.mjs",
+    "input.mjs"
+   ],
+   "version": "1.2",
+   "statut": "TESTÉ ✓",
+   "preuve": "logic.mjs::updateGate() est désormais une méthode NOMMÉE (extraite d'activateObject) — l'oracle wiremap résout le nom sur le code réel. logic.test.mjs: activateObject(0,1,2) -> terminalState LOCKED->AVAILABLE exactement à objectsRequired; properties.test.mjs 'updateGate: n'ouvre le terminal QU'au compte exact requis' (requis-1 => LOCKED); oracle PASS",
+   "couvre": [
+    "updateGate"
+   ]
+  },
+  {
+   "feature": "R9 Objectif tant que gate fermé (E08, NEXT_GOAL)",
+   "fonction": "currentObjective",
+   "fichiers": [
+    "logic.mjs",
+    "hud.mjs"
+   ],
+   "version": "1.0",
+   "statut": "TESTÉ ✓",
+   "preuve": "logic.test.mjs: currentObjective contient 'Activer' quand LOCKED; oracle PASS",
+   "couvre": [
+    "currentObjective"
+   ]
+  },
+  {
+   "feature": "R10 Objectif une fois gate ouvert (E09, NEXT_GOAL)",
+   "fonction": "currentObjective",
+   "fichiers": [
+    "logic.mjs",
+    "hud.mjs"
+   ],
+   "version": "1.1",
+   "statut": "TESTÉ ✓",
+   "preuve": "logic.test.mjs: currentObjective contient 'terminal' quand AVAILABLE, distinct du libellé LOCKED; properties.test.mjs 'hud: la ligne d'objectif ... bascule avec le gate' observe la bascule sur le DOM du HUD; oracle PASS",
+   "couvre": [
+    "NEXT_GOAL"
+   ]
+  },
+  {
+   "feature": "R11 Répétition de la boucle (E10, REPEAT)",
+   "fonction": "scheduleTick",
+   "fichiers": [
+    "main.mjs"
+   ],
+   "version": "1.2",
+   "statut": "TESTÉ ✓",
+   "preuve": "solvability.mjs: bot joue GameState.step() directement, 6000 frames max, gagne à la frame 95 (recherche de politique, param=160); properties.test.mjs 'main: une partie neuve ne tourne pas avant run()' et 'main: run() démarre la boucle' (scheduleTick armé par run(), jamais à la construction); main.tick() ne fait QUE re-rendre — l'état ne change que sur commande joueur/debug; oracle PASS",
+   "couvre": [
+    "gameLoop"
+   ]
+  },
+  {
+   "feature": "R12 Écran de fin (E12)",
+   "fonction": "renderEndScreen",
+   "fichiers": [
+    "hud.mjs",
+    "main.mjs",
+    "input.mjs",
+    "logic.mjs"
+   ],
+   "version": "1.2",
+   "statut": "TESTÉ ✓",
+   "preuve": "e2e.mjs (Playwright/Chromium réel): window.__game_debug.win() -> #overlay perd 'hidden', #overlayTitle contient 'Victoire'; un vrai clic sur #restart relance la partie (objectsActive=0, terminalState=LOCKED, won=false, #overlay reprend 'hidden'); properties.test.mjs 'hud: l'overlay de fin reste caché tant que la partie n'est pas gagnée' (bascule dans les DEUX sens) et 'main: restart() remet la partie à zéro et relance la boucle'; conforme PLAYABLE_CONTRACT.md; oracle PASS",
+   "couvre": [
+    "renderEndScreen",
+    "restart"
+   ]
+  },
+  {
+   "feature": "R13 HUD sans teinte de rôle (E13)",
+   "fonction": "renderHud",
+   "fichiers": [
+    "hud.mjs"
+   ],
+   "version": "1.1",
+   "statut": "TESTÉ ✓",
+   "preuve": "e2e.mjs: checkColorDisjointness() rend true dans le navigateur réel; properties.test.mjs 'hud: les trois teintes de rôle sont strictement disjointes' assert STRICT true (3 teintes: #2196F3 joueur, #ffb600 agissable, #00c851 terminal), et le chrome HUD n'emploie qu'un gris neutre (#f0f0f0/#ddd); oracle PASS",
+   "couvre": [
+    "renderHud"
+   ]
+  }
+ ],
+ "updated_at": "2026-08-30T13:00:00Z"
+}
+
+
+## PRÉ-MORTEM (erreurs des runs passés)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [s9-build] échec d'une tentative précédente à s9-build → ✅ RÉPARÉ: réparé à la tentative 4 (tier sonnet)
+- [s10a-oracle-code] returncode=0; mutation=FAIL
+- [s10c-oracle-wiremap] FAIL
+- [s9-build] échec d'une tentative précédente à s9-build → ✅ RÉPARÉ: réparé à la tentative 5 (tier opus)
+- [s10a-oracle-code] returncode=0
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [manifest-d323a4cc2ed7df26] Le schema ferme game_master_schema.mjs exige 9 boucles COMPLETES non-orphelines a transformation perceptible, mais le genre reel exploration_interaction d'une sonde mono-espace ne porte honnetement que ~4 boucles de 1er rang (core/gameplay/progression/content) ; les 5 restantes (economy/skill/world/quest/meta) ont du etre mappees sur des facettes minimales/derivees du meme jeu, correspondant aux 7/8 dimensions NOT_MEASURED. De plus le World Scan amont a scanne un genre errone (chain-based roguelike au lieu d'exploration_interaction), et les sources de design (content_requirements.md, calibration.md) sont absentes du run_dir. — cause: Le schema a 9 boucles obligatoires a ete calibre sur une classe de jeu riche (Kitten Clicker) et applique tel quel a une sonde d'exploration minimale ; combine a un worldscan de genre errone deduit du nom 'chain_probe_v1' (ou 'chain' = la chaine du pipeline, pas une mecanique) et a l'absence des fichiers de design en amont, faute de garde qui recale le worldscan sur le genre fixe par s0-contrat. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-f211093862d1be7f] echec de la tentative 1 a s2.7-gm-worldscan-r2 -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-c894f25e65c5d865] Le World Scan amont injecte scanne un genre errone (chain-based roguelike/incremental : Chained, Domino Idle, Slay the Spire) alors que s0-contrat et l'Art Bible fixent le genre reel exploration_interaction (web/HTML 2D top-down). J'ai du re-ancrer la mesure de genre sur des jeux reels du bon genre (Samorost 1, Machinarium) et ne conserver du worldscan que le primitif genre-neutre de feedback immediat ; 7/8 dimensions ressortent NOT_MEASURED car structurellement absentes du genre cible. — cause: s2-worldscan a deduit son genre du nom de sonde 'chain_probe_v1' (ou 'chain' designe la chaine du pipeline full_content, pas une mecanique de jeu) faute de product_snapshot, sans reconcilier avec l'autorite de genre s0-contrat ; aucune garde amont ne recale le worldscan sur le genre fixe par le charter. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-1e94121f0623774d] Le schema C.4 exige 9 boucles cablees non-orphelines, mais une sonde exploration_interaction minimale ('vivant et solvable, pas bon', s0-contrat) n'a honnetement que ~4 boucles reelles (core/gameplay/progression/content) ; economy/skill/world/quest/meta ne sont pas cablables sans fabrication -> game_master round 1 PARTIEL (4 boucles + 5 questions bloquantes a l'Artiste). Par ailleurs le World Scan amont a scanne le MAUVAIS genre (chain-based roguelike au lieu d'exploration_interaction), divergence deja signalee par l'art_bible (F1). — cause: La station s2.7 herite (a) d'un schema C.4 calibre sur un jeu riche (Kitten Clicker, 9 boucles) applique tel quel a une sonde minimale dont le genre n'a pas ces boucles, et (b) d'un worldscan de genre errone deduit du nom 'chain_probe_v1' ou 'chain' designe la chaine du pipeline, pas une mecanique de jeu. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-c4b6d67862fac5b1] Le schema ferme game_master_schema.mjs exige 9 boucles COMPLETES non-orphelines a transformation perceptible en round 2, mais le genre reel exploration_interaction d'une sonde mono-espace ne porte que ~4 boucles de 1er rang (core/gameplay/progression/content) ; les 5 restantes (economy/skill/world/quest/meta) ont du etre mappees sur des facettes minimales/derivees du meme jeu (certaines bordant les 4 principales), correspondant aux 5+ dimensions declarees NOT_MEASURED. — cause: Le schema a 9 boucles obligatoires a ete calibre sur une classe de jeu riche (Kitten Clicker : economie/skill/meta reels) et applique tel quel a une sonde d'exploration minimale, forcant a decouper un jeu naturellement a 4-5 boucles en 9 ; la validation deterministe ne juge que la forme, pas la distinction reelle des boucles (renvoyee a red-team/HumanGate). -- GENERATION_DIFFERENTE_A_REEXAMINER
+
+FORGE_DISPATCH:s9-build:chain_probe_v1-20260830-run1:6

@@ -1,0 +1,151 @@
+{
+ "modules": [
+  "logic",
+  "render",
+  "input",
+  "hud",
+  "main"
+ ],
+ "deps_interdites": [
+  [
+   "logic",
+   "render"
+  ],
+  [
+   "logic",
+   "input"
+  ],
+  [
+   "logic",
+   "hud"
+  ],
+  [
+   "logic",
+   "main"
+  ],
+  [
+   "render",
+   "input"
+  ],
+  [
+   "render",
+   "hud"
+  ],
+  [
+   "render",
+   "main"
+  ],
+  [
+   "input",
+   "render"
+  ],
+  [
+   "input",
+   "hud"
+  ],
+  [
+   "input",
+   "main"
+  ],
+  [
+   "hud",
+   "render"
+  ],
+  [
+   "hud",
+   "input"
+  ],
+  [
+   "hud",
+   "main"
+  ]
+ ],
+ "ownership": {
+  "logic": "Etat & regles pures (source de verite unique, zero DOM): espace explorable, avatar, objets interactifs, compteur objets_actives (delta STRICT=1), etat terminal LOCKED->AVAILABLE, machine d'objectif courant, revelation, divergence de politiques.",
+  "render": "Rendu DOM de la scene depuis l'etat logic: scene non-vide a t0, feedback d'activation (etat rendu different + flash), revelation d'objets. Lecture seule de l'etat.",
+  "input": "Capture des entrees joueur (clics destination/objet) et traduction en commandes move/activate vers logic. N'ecrit jamais le DOM de rendu.",
+  "hud": "Chrome peripherique: ligne d'objectif (nomme le terminal a t0, bascule une fois le gate ouvert), overlay d'etat de fin, disjonction des couleurs de role (bleu/ambre/emeraude).",
+  "main": "Composition root + boucle de jeu + preuve de solvabilite e2e (un bot joue la boucle complete et GAGNE); garantit qu'aucun ecran n'est vide au boot en declenchant render avant premier paint."
+ },
+ "responsabilites": [
+  {
+   "module": "logic",
+   "responsabilite": "Cœur d'etat pur et regles de transition: deplacement, activation a delta STRICT=1, revelation d'objets, ouverture du gate (LOCKED->AVAILABLE), machine d'objectif courant, et divergence mesurable de deux politiques. Aucune dependance rendu/input/hud/main.",
+   "couvre": [
+    "F_entree",
+    "F_reponse",
+    "F_decision",
+    "F_gate",
+    "F_objectif_courant"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot pilote l'etat via l'entree: objets_actives passe de n a n+1 (delta STRICT=1, jamais un >= tautologique), le nombre d'objets reveles augmente strictement, le terminal transitionne LOCKED->AVAILABLE apres le dernier requis, l'objectif bascule, et deux politiques (explorer-seul vs activer-des-visible) sur >=300 frames produisent des trajectoires d'objets_actives distinctes."
+   }
+  },
+  {
+   "module": "render",
+   "responsabilite": "Rendre la scene DOM depuis l'etat logic (espace 2D top-down, avatar, objets interactifs, feedback). Ne remonte jamais vers main, n'importe ni input ni hud.",
+   "couvre": [
+    "F_scene_lancement",
+    "F_reponse"
+   ],
+   "dependances": [
+    "logic"
+   ],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "A t0 le DOM contient l'espace, un element avatar et >=1 objet interactif (jamais vide); a chaque activation l'etat rendu de l'objet differe entre avant/apres le clic et un element de flash apparait dans la meme fenetre de frame."
+   }
+  },
+  {
+   "module": "input",
+   "responsabilite": "Capturer les clics joueur (destination, objet ambre) et emettre les commandes move/activate vers logic. Ne dessine aucun rendu, n'importe ni render ni hud.",
+   "couvre": [
+    "F_entree"
+   ],
+   "dependances": [
+    "logic"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot clique une destination puis un objet ambre; les commandes atteignent logic — l'espace explore augmente strictement (deplacement) et objets_actives augmente de exactement 1 (activation)."
+   }
+  },
+  {
+   "module": "hud",
+   "responsabilite": "Chrome peripherique lisant l'etat logic: ligne d'objectif, bascule de libellé, overlay de fin, et couleurs strictement disjointes des teintes de role. Aucune logique de jeu, n'importe ni render ni input.",
+   "couvre": [
+    "F_but",
+    "F_hud",
+    "F_fin",
+    "F_objectif_courant"
+   ],
+   "dependances": [
+    "logic"
+   ],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "Un check statique confirme que les couleurs du HUD sont disjointes des teintes reservees (bleu joueur / ambre agissable / emeraude terminal); en complement observable DOM: l'objectif est non vide et nomme le terminal a t0, bascule sur 'rejoindre et declencher l'objet terminal' une fois le gate ouvert, et un overlay de fin distinct apparait au premier plan au declenchement."
+   }
+  },
+  {
+   "module": "main",
+   "responsabilite": "Composition root: instancie logic, cable input->logic et logic->render/hud, execute la boucle et prouve la solvabilite end-to-end. Peut dependre de tous les modules; aucun module ne depend de lui.",
+   "couvre": [
+    "F_scene_lancement"
+   ],
+   "dependances": [
+    "logic",
+    "render",
+    "input",
+    "hud"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Solvabilite: un bot joue la boucle complete (explorer -> activer les objets requis -> le gate s'ouvre -> rejoindre et declencher le terminal) et GAGNE (etat de fin atteint), et au boot render est declenche avant le premier paint de sorte que l'ecran n'est jamais vide."
+   }
+  }
+ ]
+}
