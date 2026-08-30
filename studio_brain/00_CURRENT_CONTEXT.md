@@ -4,6 +4,22 @@ full_content prouvée, verdict AUTHENTIQUE HUMANGATE_READY) après consolidation
 Project Input · 2026-08-29 — run tower_defense_sonde COMPLET puis CLOS. Archive :
 `journal/context-archive-2026-08-29-avant-audit-paquetA.md`.)*
 
+## Paire pilote RUN 2 L/D (2026-08-30) — **CLÔTURÉE par Pierre** (pièces aux 2 run_dirs)
+- Protocole pré-enregistré `docs/forge/RUN2_PILOTE_PROTOCOLE_V0.md` : p1_alpha=D1 (structure
+  imposée ratifiée), p1_beta=L1 (libre), parallèle strict, même HEAD f8c50a0, tripwire.
+- **L1 : FREEZE avec objection conservée** — chaîne complète 18 étapes, verify_run AUTHENTIQUE,
+  s11 Qwen indépendant (2e fois), assets 11/11 ; mutation `and→or@L149` = **CLAIM UNVERIFIED** ;
+  jamais un PASS sans réserve, jamais une preuve de qualité produit. Tripwire propre (1 hit CSS
+  classé innocent après enquête).
+- **D1 : arrêté au freeze** — incompatibilité R3×D démontrée (boucle normative immuable vs gate
+  exigeant sa modification). Résultat pilote valide mais dégradé (`PILOT_STOP_20260830.md`).
+- **3 findings de protocole = le vrai résultat** : granularité R3-lite (réponse thématique ≠
+  modification mécanique) · topologie des rondes (pas de créneau de re-déclaration après le
+  répondant) · R3×D (gate-modification vs objet normatif). Gardes NON corrigées pendant le pilote.
+- **Comparaison L/D : BLOCKED — aucune conclusion Libre vs Dirigé** (« L1 au bout ≠ L1 > D1 »).
+  M1-M7 : UNKNOWN. Ordre : **sas correctif R3/freeze** AVANT toute analyse et toute paire.
+- Coûts : L1 704k / D1 358k tokens (~1,06 M la paire).
+
 ## RUN 1 chain_probe_v1 (2026-08-30) — **CLOS par Pierre** (`CLOSURE_RUN1_20260830.md` au run_dir)
 - Conclusion ratifiée (verbatim au closure + decision-log) : la chaîne full_content **ferme ses
   boucles de conception, production et preuve, avec intervention HumanGate quand la chaîne

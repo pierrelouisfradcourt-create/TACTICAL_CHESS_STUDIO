@@ -1366,3 +1366,25 @@ Dossier : lab/forge_runs/chain_probe_v1/CLOSURE_RUN1_20260830.md.
 - Enchaîner RUN 2 sans nouveau sas — refusé, GO distinct requis.
 
 **Critères de révision** : RUN 2 ouvrira son propre protocole (bras Libre vs Dirigé).
+
+## 2026-08-30 — Clôture paire pilote L/D (p1_alpha/p1_beta) — HumanGate L1 : FREEZE
+
+**Décision** : L1 (p1_beta) = FREEZE avec objection conservée — recevable comme état de run
+(verify_run AUTHENTIQUE), jamais comme PASS sans réserve ; mutation and→or@L149 = CLAIM
+UNVERIFIED. D1 (p1_alpha) = arrêté au freeze (incompatibilité R3×D démontrée), résultat pilote
+valide mais dégradé. Comparaison L/D : BLOCKED — « L1 exécuté jusqu'au bout ≠ L1 > D1 », aucune
+conclusion expérimentale Libre vs Dirigé. Pilote CLÔTURÉ sur ses 3 findings de protocole
+(granularité R3-lite · topologie des rondes · gate-modification vs objet normatif immuable).
+
+**Contexte** : paire pilote ratifiée 2026-08-30 (une paire = mesurabilité, jamais la validation
+≥2 paires) ; lancement parallèle même HEAD f8c50a0 ; tripwire contamination propre (1 hit CSS
+classé innocent après enquête). Dossiers : lab/forge_runs/p1_beta/CLOSURE_PILOTE_20260830.md,
+lab/forge_runs/p1_alpha/PILOT_STOP_20260830.md.
+
+**Alternatives rejetées** :
+- Faire passer D1 par contournement de gate (refusé — le contournement exact que le protocole interdit).
+- Corriger R3/freeze pendant le pilote (refusé — on perdrait l'observation de la chaîne d'origine).
+- Tirer une conclusion L vs D d'une paire dégradée (refusé, NO_CLAIM_ALLOWED).
+
+**Critères de révision** : sas correctif R3/freeze (3 findings comme spec) AVANT toute analyse
+M1-M7 et toute nouvelle paire.
