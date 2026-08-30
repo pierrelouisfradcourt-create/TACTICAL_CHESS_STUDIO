@@ -1,0 +1,136 @@
+# project_brief.yaml — chain_probe_v1
+# Entrée canonique unique du projet (FORGE_PROJECT_INPUT_V0 §1).
+# Hiérarchie : FORGE_DESIGN_FREEDOM_SPEC_V0 (N1..N9) -> CE Brief -> s0 -> charter.
+# Ce Brief NE RECOPIE JAMAIS les règles N1-N9 : il les CITE (contraintes.normative_refs).
+#
+# RUN 1 — mission Pierre 2026-08-30. Rédaction du fichier par l'agent (Claude Sonnet 5),
+# contenu normatif sourcé Pierre 2026-08-30 (voir bloc `provenance` pour la source
+# champ par champ — aucune source n'est fabriquée ; ce qui n'est pas tracé est marqué
+# comme tel, jamais inventé).
+
+projet: chain_probe_v1
+
+intention: >-
+  Prouver que la chaîne de conception collaborative full_content peut transformer un
+  Project Input en un output traçable de bout en bout, en fermant ses boucles de
+  conception, production et preuve. Le jeu produit est volontairement minimal et sert
+  de support expérimental ; sa qualité ludique n'est pas l'objet de RUN 1.
+
+contraintes:
+  # Citées, jamais recopiées — le contenu de chaque règle vit UNIQUEMENT dans
+  # docs/forge/FORGE_DESIGN_FREEDOM_SPEC_V0_PROPOSED.md.
+  # N5 et N6 sont volontairement ABSENTES de cette liste : ce ne sont PAS des
+  # exigences de RUN 1 (voir provenance.fog_n5 / provenance.fog_n6 pour la
+  # justification explicite — hors couverture, jamais prétendues prouvées).
+  normative_refs:
+    - spec: FORGE_DESIGN_FREEDOM_SPEC_V0
+      rules: [N1, N2, N3, N4, N7, N8, N9]
+  project_specific:
+    techniques:
+      - >-
+        genre : exploration_interaction — FIXÉ PAR PIERRE, non délégable à la chaîne
+        (le schéma project_brief.yaml n'a pas de champ dédié `genre` à ce sas ; le
+        genre est transporté ici comme contrainte project_specific avec provenance
+        explicite — voir provenance.genre)
+      - >-
+        cible technique conforme au socle N1 : page HTML+JS unique, RNG seedé,
+        logique métier en module .mjs testable hors navigateur, exposition
+        window.__game, actions DOM-only, déterminisme reproductible par hash
+    experimentales:
+      - >-
+        RUN 1 = preuve de bout en bout de la chaîne full_content (conception
+        collaborative -> production -> preuve) ; le jeu produit sert de sonde
+        expérimentale, sa qualité ludique n'est pas mesurée par ce Brief
+
+cible: web/HTML
+
+# Aucune référence de conception autorisée pour ce RUN — fog explicite ci-dessous
+# (mécanisme references_autorisees vide + provenance FOG_HUMANGATE, check_project_brief
+# §"references_autorisees : liste ; peut être vide UNIQUEMENT si..."). Interdiction
+# EXPRESSE : ne pas reprendre Cookie Clicker ni Kitten Clicker, ni le TD (tower_defense
+# sonde), ni aucun ancien build du studio comme source de design — ce sont des
+# fixtures de test ou des runs antérieurs, pas des références de conception autorisées.
+references_autorisees: []
+
+criteres_sortie:
+  - "design_questions.json produit"
+  - "boucle Art <-> GM r2 exécutée"
+  - "design_freeze franchie par convergence après blocage éventuel"
+  - >-
+    chaque asset_request.id est soit resolved AVEC un fichier vérifiable sur disque,
+    soit blocked avec une justification explicite — aucun troisième état
+  - "un id d'asset_request silencieusement non consommé (ni resolved, ni blocked) = FAIL"
+  - "check_artbible exécuté par le driver, avec executed_by: driver dans le reçu"
+  - "preuves s10 (s10a-oracle-code, s10b-oracle-archi, s10c-oracle-wiremap) produites"
+  - "s11-redteam-code exécuté par le propriétaire indépendant prévu par le contrat de l'étape"
+  - "s11 réellement indépendant : le reçu porte independent: true, pas seulement déclaré"
+  - "LM Studio indisponible => HALT/BLOCKED sans fallback silencieux vers une autre source"
+  - "verdict signé HMAC produit ET verify_run le re-vérifie authentique (pas seulement présent)"
+
+libertes_deleguees:
+  - "choisir le thème"
+  - "la boucle de jeu minimale"
+  - "les règles et interactions"
+  - "la direction artistique"
+  - "les personnages, objets et éléments de décor nécessaires"
+  - "le dimensionnement nécessaire à la jouabilité de la mini-sonde"
+  - "les assets nécessaires à la production"
+  - "arbitrer les détails de conception non spécifiés par le Project Brief"
+
+# Champ hors schéma V0 (check_project_brief ne ferme QUE les clés de premier niveau de
+# `contraintes` — le sommet du Brief reste ouvert, cf. audit préflight). Porte
+# explicitement ce que la mission Pierre 2026-08-30 a nommé NON délégué, pour qu'aucun
+# lecteur (humain ou s0) ne le confonde avec `libertes_deleguees` ci-dessus.
+non_delegue:
+  - "les règles normatives"
+  - "les critères de sortie"
+  - "l'autorité des preuves"
+  - "l'autorité du verdict"
+  - "la définition du Project Input lui-même"
+
+principe: >-
+  La chaîne est libre de concevoir le support expérimental, mais elle ne définit pas
+  elle-même les conditions qui permettent de déclarer la chaîne réussie.
+
+provenance:
+  projet: "Pierre 2026-08-30 (slug demandé explicitement par la mission RUN 1)"
+  intention: "Pierre 2026-08-30 (texte verbatim de la mission RUN 1)"
+  genre: >-
+    Pierre 2026-08-30 — genre exploration_interaction FIXÉ par Pierre, explicitement
+    NON délégable à la chaîne ; transporté en contraintes.project_specific.techniques
+    faute de champ `genre` dédié au schéma V0 actuel (voir note dans ce même champ)
+  contraintes: >-
+    Pierre 2026-08-30 — normative_refs cite N1,N2,N3,N4,N7,N8,N9 de
+    FORGE_DESIGN_FREEDOM_SPEC_V0_PROPOSED (statut PROPOSED, non ratifiée séparément à
+    ce jour, référencée telle quelle par la hiérarchie normative de
+    FORGE_PROJECT_INPUT_V0 §décisions du sas) ; N5 et N6 volontairement absentes,
+    voir fog_n5/fog_n6 ci-dessous
+  fog_n5: >-
+    FOG_HUMANGATE Pierre 2026-08-30 : N5 (séparation concepteur/instrumenteur — passe
+    adversariale indépendante avant gel des critères de preuve) n'est PAS une exigence
+    de RUN 1 : le mécanisme n'est pas encore mécanisé pour ce RUN. Ne pas prétendre
+    cette règle couverte ni prouvée par ce Brief.
+  fog_n6: >-
+    FOG_HUMANGATE Pierre 2026-08-30 : N6 (fidélité charter -> build, ou écart déclaré)
+    n'est PAS une exigence de RUN 1 : le mécanisme n'est pas encore mécanisé pour ce
+    RUN (cf. FORGE_PROJECT_INPUT_V0 §6, ligne « Fidélité charter->build (N6) : UNKNOWN
+    — identifié, hors périmètre de ce sas »). Ne pas prétendre cette règle couverte ni
+    prouvée par ce Brief.
+  references_autorisees: >-
+    FOG_HUMANGATE Pierre 2026-08-30 : aucune référence de conception autorisée pour ce
+    RUN. Interdiction expresse : ne pas reprendre Cookie Clicker, ni Kitten Clicker, ni
+    le TD (tower_defense_sonde), ni aucun ancien build du studio comme source de
+    design — ce sont des fixtures de test ou des runs antérieurs, jamais des
+    références de conception autorisées pour ce projet.
+  criteres_sortie: "Pierre 2026-08-30 (les 11 critères, texte verbatim de la mission RUN 1)"
+  libertes_deleguees: "Pierre 2026-08-30 (les 8 libertés, texte verbatim de la mission RUN 1)"
+  non_delegue: "Pierre 2026-08-30 (texte verbatim de la mission RUN 1)"
+  principe: "Pierre 2026-08-30 (texte verbatim de la mission RUN 1)"
+  cible: >-
+    agent (Claude Sonnet 5) — déduite du socle N1 cité (page HTML+JS unique) ; aucune
+    source Pierre explicite pour ce champ dans la mission RUN 1, déduction mécanique
+    d'une règle normative déjà sourcée, pas une invention de contenu de design
+  redaction_fichier: >-
+    Claude Sonnet 5 (agent) — structure, mise en forme YAML et répartition des champs
+    de ce Brief ; le contenu normatif lui-même est sourcé Pierre 2026-08-30 champ par
+    champ ci-dessus, jamais fabriqué

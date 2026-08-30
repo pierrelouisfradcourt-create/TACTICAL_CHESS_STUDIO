@@ -270,6 +270,7 @@ def _manifest_mode_param(root: Path, adapter_path: Path) -> None:
     }])
 
 
+@pytest.mark.gpu_window  # lance le VRAI binaire Godot (fenêtre) — T-GPU sur GO explicite seul
 @pytest.mark.skipif(not _GODOT_OK, reason="binaire Godot absent (godot.config.json)")
 @pytest.mark.skipif(not _FIXTURES_OK, reason="artefacts de preuve DIVERGENCE_ORACLE_V1 absents")
 def test_reel_detecte_le_defaut_historique_mode_inerte():
@@ -285,6 +286,7 @@ def test_reel_detecte_le_defaut_historique_mode_inerte():
     assert any("mode" in f for f in volet["fails"])
 
 
+@pytest.mark.gpu_window  # lance le VRAI binaire Godot (fenêtre) — T-GPU sur GO explicite seul
 @pytest.mark.skipif(not _GODOT_OK, reason="binaire Godot absent (godot.config.json)")
 @pytest.mark.skipif(not _FIXTURES_OK, reason="artefacts de preuve DIVERGENCE_ORACLE_V1 absents")
 def test_reel_accepte_le_jeu_corrige_games_pacman_lecture_seule():

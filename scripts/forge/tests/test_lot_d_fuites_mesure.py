@@ -170,6 +170,9 @@ def _run_probe(game_dir: Path, loop_spec: dict, tmp_path: Path, *, timeout: int 
     return json.loads(line.split(" ", 2)[2])
 
 
+@pytest.mark.gpu_window  # lance le VRAI binaire Godot sur game_build9 (fenêtre) — c'était
+                         # le trou de marqueur qui faisait ouvrir une fenêtre à CHAQUE T0
+                         # standard depuis le Lot D (constaté Pierre 2026-08-30)
 @pytest.mark.skipif(bool(_SKIP_REASON), reason=_SKIP_REASON)
 def test_replay_ref_sans_affordance_rejoue_desormais_pelote_sur_run9(tmp_path):
     """MESURE (Lot D) : le loop.json RÉEL du run 9 (j_advantage sans `affordance`,
