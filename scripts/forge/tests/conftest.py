@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import subprocess  # noqa: E402
 
 from forge import learning_hook  # noqa: E402 — après sys.path.insert, volontairement
+from forge import driver as _driver_module  # noqa: E402
 from forge.driver import ForgeDriver  # noqa: E402
 
 # `forge.dispatch` est importé ICI, volontairement, et pas seulement patché s'il est déjà
@@ -110,6 +111,33 @@ def _neutralise_observer_par_defaut(request, monkeypatch):
         )
 
     monkeypatch.setattr(ForgeDriver, "_default_observer_runner", _stub_observer_runner)
+
+
+# --- garde générique : aucun sous-processus Node `check_artbible.mjs` RÉEL par défaut
+# (fiche 3, sas ratifié Pierre 2026-08-30) -----------------------------------------------
+# MESURE : depuis la fiche 3, `ForgeDriver._run_llm_gated` appelle `self.artbible_check_runner`
+# (défaut `oracle.run_check_artbible`, un VRAI spawn Node) après CHAQUE étape s2.5-artbible/-r2
+# rendue verte. Tout test PRÉEXISTANT qui atteint s2.5-artbible avec un exécuteur factice — qui
+# n'écrit jamais de VRAI art_bible.md/asset_requests.json sur disque, ces fichiers étant produits
+# par l'AGENT via Write en production, jamais par le driver ni son exécuteur de test — ferait
+# échouer la nouvelle gate sur un défaut hors du périmètre de ce que le test mesure (node absent
+# du poste CI, ou fichiers illisibles). Même patron que `_neutralise_observer_par_defaut` :
+# substitution du NOM DE MODULE `forge.driver.run_check_artbible` (résolu par `__init__` à
+# CHAQUE construction via `artbible_check_runner or run_check_artbible` — jamais figé à
+# l'import), donc atteint tout driver construit après cette fixture, et laisse INTACT le `or`
+# du constructeur : un `artbible_check_runner=` explicite (test_artbible_check.py, le fichier
+# dédié au branchement) continue de primer.
+@pytest.fixture(autouse=True)
+def _neutralise_artbible_check_par_defaut(monkeypatch):
+    """Neutralise le VRAI spawn Node `check_artbible.mjs` pour tout test qui n'injecte pas
+    son propre `artbible_check_runner` — rend un PASS structurel neutre (MEASURED/OK)."""
+    def _stub_artbible_check_runner(art_bible_path, asset_requests_path, timeout=120):
+        return {
+            "status": "MEASURED", "pass": True, "verdict": "OK", "findings": [],
+            "coverage": {"checked": False, "missing": [], "satisfied": []},
+            "resolution_stats": {"ok": 0, "blocked": 0, "total": 0},
+        }
+    monkeypatch.setattr(_driver_module, "run_check_artbible", _stub_artbible_check_runner)
 
 
 def pytest_configure(config):

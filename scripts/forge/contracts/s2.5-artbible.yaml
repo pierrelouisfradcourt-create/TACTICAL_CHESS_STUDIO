@@ -95,6 +95,11 @@ mandatory_read:
     l'exécuteur — monde, personnages, lieux, objets : matière HÉRITÉE)"
 
 # --- 2bis. VALIDATION d'abord (amendement, miroir du §2bis de s9-build) ---
+# AUTORITÉ DE PREUVE (fiche 3, ratifiée Pierre 2026-08-30) : l'auto-contrôle décrit
+# ci-dessous est une DISCIPLINE DE TRAVAIL de l'agent, PAS une preuve. Le check qui
+# FAIT FOI est exécuté par le DRIVER après livraison (driver._run_artbible_check),
+# et son reçu vit à <run_dir>/evidence/check_artbible_<run_id>[_r2].json
+# (executed_by: "driver"). Un auto-contrôle de l'agent n'a aucune autorité.
 # AVANT de livrer, l'agent DOIT faire tourner
 # "node scripts/forge/check_artbible.mjs <art_bible.md> <asset_requests.json>" sur son
 # propre brouillon, ET VÉRIFIER `verdict === 'OK'` (pas seulement l'absence d'erreur de
@@ -145,6 +150,10 @@ objectif: >-
   si `verdict === 'BLOCKED'` avec `coverage.missing` non vide, AJOUTER la/les
   requête(s) manquante(s) et refaire ce contrôle jusqu'à `OK` (ou jusqu'à
   `no_assets_needed:true`, cf. cas préservé). Ne livrer QUE sur `verdict === 'OK'`.
+  Cet auto-contrôle est une discipline de travail SANS autorité de preuve : le
+  check faisant foi est ré-exécuté par le DRIVER après livraison, et c'est SON
+  reçu (evidence/check_artbible_<run_id>.json, executed_by: driver) qui gate
+  l'étape (fiche 3, ratifiée Pierre 2026-08-30).
 
   BOUCLE DE COMPLETION MUTUELLE (Lot F, 2026-08-23 ; canal durci Rupture 11,
   2026-08-23) : cette etape peut tourner deux fois dans le meme run, SUR CE MEME
@@ -206,7 +215,8 @@ out_of_scope: >-
 permissions: >-
   read: repo entier (dont knowledge_base/catalog.json). write: UNIQUEMENT
   art_bible.md et asset_requests.json du run. run: node scripts/forge/asset_request.mjs
-  et node scripts/forge/check_artbible.mjs (validation de son propre brouillon).
+  et node scripts/forge/check_artbible.mjs (auto-contrôle de travail SANS autorité
+  de preuve — le reçu faisant foi est produit par le DRIVER, fiche 3 2026-08-30).
   create: les deux fichiers de sortie uniquement. delete: aucun. INTERDIT:
   knowledge_base/** en écriture, tests/**.
 

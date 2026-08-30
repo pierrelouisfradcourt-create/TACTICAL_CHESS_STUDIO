@@ -234,3 +234,51 @@ def run_art_response_check(game_dir: Path, gm_path: Path | str | None,
         "problems": payload.get("problems", []),
         "stats": payload.get("stats", {}),
     }
+
+
+def run_check_artbible(
+    art_bible_path: Path, asset_requests_path: Path, *, timeout: float = 120,
+) -> dict:
+    """Sonde déterministe `check_artbible.mjs` (Node, --json) — fiche 3 (sas
+    ratifié Pierre 2026-08-30) : exécutée PAR LE DRIVER après une étape
+    `s2.5-artbible`/`-r2` rendue verte par l'exécuteur, plus jamais par
+    l'agent producteur lui-même (défaut mesuré aux runs kitten_clicker 8/9 :
+    c'était l'agent qui lançait le check via `Bash(node:*)`, et son reçu
+    atterrissait à un emplacement différent d'un run à l'autre — « le
+    producteur ne juge jamais sa production »). Même patron que
+    `run_art_response_check`/`run_amont_traversal_probe` ci-dessus : le spawn
+    de process vit ICI, dans oracle.py — jamais dans driver.py (invariant
+    `test_driver_ne_spawn_pas_directement`).
+
+    Vocabulaire du script lui-même (`check_artbible.mjs`) : exit 0 = `verdict`
+    "OK", exit 1 = "BLOCKED" (structure valide, couverture besoin<->requête
+    manquante), exit 2 = "FAIL" (forme invalide) OU usage/illisible — les
+    TROIS verdicts (OK/BLOCKED/FAIL) sont des MESURES réelles rendues comme
+    JSON exploitable ; SEUL un usage/illisible qui ne rend AUCUN JSON tombe
+    dans le cas panne ci-dessous. Toute panne (node absent, timeout, sortie
+    non-JSON, exit inattendu) rend `{"status": "NOT_MEASURED", "reason"}` —
+    jamais une exception, jamais un statut d'étape modifié directement ici
+    (le driver décide seul du gate à partir de ce reçu, voir
+    `ForgeDriver._run_artbible_check`)."""
+    script = Path(__file__).resolve().parent / "check_artbible.mjs"
+    cmd = ["node", str(script), str(art_bible_path), str(asset_requests_path), "--json"]
+    try:
+        cp = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", timeout=timeout)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {"status": "NOT_MEASURED", "reason": f"sonde injoignable: {exc}"}
+    if cp.returncode not in (0, 1, 2):
+        return {"status": "NOT_MEASURED",
+                "reason": f"exit {cp.returncode} inattendu: {(cp.stderr or '')[-400:]}"}
+    try:
+        payload = json.loads(cp.stdout)
+    except (json.JSONDecodeError, ValueError) as exc:
+        return {"status": "NOT_MEASURED",
+                "reason": f"sortie non JSON (exit {cp.returncode}): {exc} — "
+                          f"stderr: {(cp.stderr or '')[-400:]}"}
+    if not isinstance(payload, dict) or "verdict" not in payload:
+        return {"status": "NOT_MEASURED",
+                "reason": "sortie JSON non exploitable (champ verdict absent)"}
+    result = dict(payload)
+    result["status"] = "MEASURED"
+    return result

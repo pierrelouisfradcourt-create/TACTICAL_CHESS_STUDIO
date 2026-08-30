@@ -40,7 +40,11 @@ from pathlib import Path
 
 import yaml
 
-from forge.contract import ContractIncomplete, base_step as contract_base_step
+from forge.contract import (
+    ContractIncomplete,
+    base_step as contract_base_step,
+    step_round as contract_step_round,
+)
 from forge.dispatch import (
     EVENT_AUTHORIZED,
     EVENT_EXECUTED,
@@ -59,7 +63,7 @@ from forge.learning_memory import (
 )
 from forge.oracle import (
     OracleNotFound, OracleSpec, resolve_oracle, run_amont_traversal_probe,
-    run_art_response_check, run_oracle,
+    run_art_response_check, run_check_artbible, run_oracle,
 )
 from forge.mutation_proof import (
     emit_descriptor_mutation_receipt,
@@ -308,6 +312,7 @@ class ForgeDriver:
         player_loop_runner=None,
         art_response_runner=None,
         economy_bypass_runner=None,
+        artbible_check_runner=None,
         reference_guard_config_path: Path | str | None = None,
         reference_guard_baseline_path: Path | str | None = None,
         reference_guard_derogation_path: Path | str | None = None,
@@ -394,6 +399,12 @@ class ForgeDriver:
         # runners ci-dessus — par défaut la VRAIE `product_oracle_godot.
         # check_economy_bypass` (lecture statique pure, aucun spawn).
         self.economy_bypass_runner = economy_bypass_runner or check_economy_bypass
+        # Fiche 3 (sas ratifié Pierre 2026-08-30) : gate `check_artbible.mjs`
+        # exécutée PAR LE DRIVER après s2.5-artbible/-r2, jamais par l'agent
+        # producteur — injectable comme les runners ci-dessus, défaut le VRAI
+        # `oracle.run_check_artbible` (spawn Node, jamais un spawn direct dans
+        # driver.py — invariant `test_driver_ne_spawn_pas_directement`).
+        self.artbible_check_runner = artbible_check_runner or run_check_artbible
         # Tier 2 #5 (Concept A) : best-of-N réactif au même tier avant d'escalader de
         # modèle. pool_size<=1 désactive le pool (chaque FAIL escalade directement).
         self.pool_size = int(pool_size)
@@ -517,7 +528,7 @@ class ForgeDriver:
                 if is_deterministic_step(etape):
                     self._run_deterministic(state, etape)
                     self._record_design_state_best_effort(state, etape)
-                elif not self._run_llm(state, etape):
+                elif not self._run_llm_gated(state, etape):
                     # R1'' (GO Pierre 2026-08-13) : la promotion des lessons tourne
                     # AUSSI sur le chemin HALTED — prouvé nécessaire en vivo (run
                     # p2a-return-snapshot : premier `return.reason.DISCOVERED` réel
@@ -1707,6 +1718,163 @@ class ForgeDriver:
         }
 
     # --- étapes LLM (déléguées à l'exécuteur) --------------------------------
+
+    def _artbible_receipt_path(self, etape: str) -> Path:
+        """Chemin STANDARDISÉ UNIQUE du reçu `check_artbible` pour CETTE
+        étape (fiche 3) — `<run_dir>/evidence/check_artbible_<run_id>
+        [_r<N>].json`, round 1 sans suffixe (forme canonique, même patron que
+        `contract.step_round`), round >= 2 avec `_r<N>` — remplace les DEUX
+        emplacements divergents mesurés aux runs kitten_clicker 8/9 (racine du
+        run vs `evidence/`, jamais le même d'un run à l'autre)."""
+        round_ = contract_step_round(etape)
+        suffix = "" if round_ < 2 else f"_r{round_}"
+        return self.run_dir / "evidence" / f"check_artbible_{self.run_id}{suffix}.json"
+
+    def _run_artbible_check(self, etape: str) -> dict:
+        """Exécute `check_artbible.mjs` PAR LE DRIVER (fiche 3, sas ratifié
+        Pierre 2026-08-30) — jamais par l'agent producteur (défaut mesuré aux
+        runs kitten_clicker 8/9 : c'était l'agent lui-même qui lançait le
+        check via `Bash(node:*)`, sans trace `artbible_check` dans
+        `state.json`, et son reçu atterrissait à un emplacement différent
+        d'un run à l'autre). Délègue le spawn à `self.artbible_check_runner`
+        (défaut `oracle.run_check_artbible`, jamais un spawn direct ici —
+        invariant `test_driver_ne_spawn_pas_directement`). Écrit le reçu au
+        chemin STANDARDISÉ UNIQUE (`_artbible_receipt_path`) et retourne le
+        bloc `artbible_check` structuré, joint au detail de l'étape par
+        l'appelant (`_run_llm_gated`) — NE MASQUE JAMAIS `resolution_stats`
+        (piège de lecture vérifié au run 9 : `verdict: OK` affiché alors que
+        `resolution_stats` disait {ok:0, blocked:16}).
+
+        Sémantique de gate (structure SEULE, jamais la résolution catalogue) :
+        `verdict` du script "OK" ou "BLOCKED" (bien formé, même si la
+        couverture besoin<->requête manque — un défaut de COUVERTURE, pas de
+        FORME) => `verdict_structure: "PASS"` ; "FAIL" (forme invalide) =>
+        `"FAIL"` ; check inexécutable (node absent, crash, timeout, sortie
+        non-JSON) => `"NOT_MEASURED"` — fail-closed, jamais un silence.
+        `resolution_stats`/`coverage` restent TOUJOURS visibles au reçu,
+        quel que soit `verdict_structure` — jamais un critère de gate ici,
+        la consommation réelle est gatée en aval par `check_asset_consumption`
+        (fiche 2)."""
+        art_bible_path = self.run_dir / "art_bible.md"
+        asset_requests_path = self.run_dir / "asset_requests.json"
+        try:
+            probe = self.artbible_check_runner(
+                art_bible_path, asset_requests_path, timeout=120)
+        except Exception as exc:  # noqa: BLE001 — fail-closed, jamais une exception qui remonte
+            probe = {"status": "NOT_MEASURED",
+                     "reason": f"exception levée pendant la mesure: {exc}"}
+        if not isinstance(probe, dict):
+            probe = {"status": "NOT_MEASURED",
+                     "reason": "artbible_check_runner a rendu une valeur non exploitable"}
+
+        receipt_path = self._artbible_receipt_path(etape)
+        receipt_path_str: str | None
+        try:
+            receipt_path.parent.mkdir(parents=True, exist_ok=True)
+            receipt_path.write_text(
+                json.dumps(probe, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8", newline="\n",
+            )
+            receipt_path_str = str(receipt_path)
+        except OSError:
+            logger.warning(
+                "reçu check_artbible non écrit (run=%s étape=%s, non bloquant "
+                "sur l'écriture — la gate reste appliquée)",
+                self.run_id, etape, exc_info=True,
+            )
+            receipt_path_str = None
+
+        status = probe.get("status")
+        script_verdict = probe.get("verdict")
+        if status == "MEASURED" and script_verdict in ("OK", "BLOCKED"):
+            verdict_structure = "PASS"
+            reason = None
+        elif status == "MEASURED" and script_verdict == "FAIL":
+            verdict_structure = "FAIL"
+            findings = probe.get("findings") or []
+            reason = "; ".join(str(f) for f in findings) or (
+                "art_bible.md/asset_requests.json malformés (verdict FAIL, "
+                "aucun finding détaillé)")
+        else:
+            verdict_structure = "NOT_MEASURED"
+            reason = probe.get("reason", "check_artbible non exécutable")
+
+        # coverage_status : le BLOCKED du script ne disparaît JAMAIS dans un PASS nu
+        # (décision Pierre 2026-08-30 : « BLOCKED ne doit ni devenir FAIL
+        # artificiellement, ni devenir un faux OK ») — il reste visible ici jusqu'à
+        # la gate de consommation (check_asset_consumption, s10a).
+        if status == "MEASURED" and script_verdict in ("OK", "BLOCKED"):
+            coverage_status = script_verdict
+        else:
+            coverage_status = "NOT_MEASURED"
+        return {
+            "verdict_structure": verdict_structure,
+            "coverage_status": coverage_status,
+            "resolution_stats": probe.get(
+                "resolution_stats", {"ok": 0, "blocked": 0, "total": 0}),
+            "resolution_note": (
+                "advisory — la consommation réelle est gatée à s10a "
+                "(check_asset_consumption)"),
+            "receipt_path": receipt_path_str,
+            "executed_by": "driver",
+            "coverage": probe.get("coverage"),
+            "script_verdict": script_verdict,
+            "reason": reason,
+        }
+
+    def _run_llm_gated(self, state: dict, etape: str) -> bool:
+        """Wrapper autour de `_run_llm` : pour la base `s2.5-artbible` (ronde 1
+        ET `-r2`), ajoute la gate `check_artbible` (fiche 3) après l'étape
+        rendue verte par l'exécuteur. `verdict_structure` FAIL ou NOT_MEASURED
+        re-spawn la MÊME étape — même mécanique/cap que le retry de
+        matérialisation (`_run_llm`, `self.materialize_attempts_max`,
+        compteur `entry["attempts"]` PARTAGÉ entre les deux mécanismes,
+        jamais deux budgets distincts) : un artefact structurellement invalide
+        (ou une gate inexécutable, fail-closed) ne descend jamais en aval.
+        Toute autre étape est STRICTEMENT inchangée (retourne `_run_llm` tel
+        quel, aucune gate)."""
+        artbible_retries: list[dict] = []
+        while True:
+            if not self._run_llm(state, etape):
+                return False
+            entry = state["steps"][etape]
+            if self._base_step(etape) != "s2.5-artbible":
+                return True
+            gate = self._run_artbible_check(etape)
+            if gate["verdict_structure"] == "PASS":
+                entry["detail"]["artbible_check"] = gate
+                if artbible_retries:
+                    entry["detail"]["artbible_check_retries"] = artbible_retries
+                self._save(state)
+                return True
+            artbible_retries.append(gate)
+            if entry["attempts"] >= self.materialize_attempts_max:
+                entry["status"] = "BLOCKED"
+                entry["detail"]["artbible_check"] = gate
+                if len(artbible_retries) > 1:
+                    entry["detail"]["artbible_check_retries"] = artbible_retries[:-1]
+                reason = (
+                    f"check_artbible refusé à {etape} après {entry['attempts']} "
+                    f"tentatives (verdict_structure={gate['verdict_structure']}): "
+                    f"{gate.get('reason')}"
+                )
+                entry["ts"] = time.time()
+                state["run_status"] = "HALTED"
+                state["reason"] = reason
+                self._save(state)
+                logger.warning("driver HALTED: %s", reason)
+                self._journal_error(etape, reason)
+                self._record_failure_event(etape, reason)
+                return False
+            logger.warning(
+                "check_artbible refusé à %s (tentative %d/%d) — re-spawn même "
+                "étape: %s",
+                etape, entry["attempts"], self.materialize_attempts_max,
+                gate.get("reason"),
+            )
+            entry["status"] = "PENDING"
+            self._save(state)
+            continue
 
     def _run_llm(self, state: dict, etape: str) -> bool:
         """Retourne False si le run doit HALTER (exécuteur absent/en échec).
