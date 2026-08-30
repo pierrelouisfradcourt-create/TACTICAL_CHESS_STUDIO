@@ -538,7 +538,11 @@ class ForgeDriver:
                     # pour un profil qui contient effectivement la boucle
                     # (une étape de base s2.7-gm-worldscan, toute ronde) ;
                     # sinon comportement inchangé (profils sans boucle / runs
-                    # historiques).
+                    # historiques). SAS CORRECTIF C2 (2026-08-30) : la micro-
+                    # re-déclaration réelle tourne AVANT la gate, au même point
+                    # d'appel -- une déclaration périmée (antérieure à ses
+                    # réponses) doit être rafraîchie avant que la gate ne juge.
+                    self._maybe_run_micro_redeclarations(state)
                     halt_report = self._design_freeze_gate(state)
                     if halt_report is not None:
                         return halt_report
@@ -966,12 +970,39 @@ class ForgeDriver:
         "economy_loop", "skill_loop", "world_loop", "quest_loop", "meta_loop",
     )
 
+    # SAS CORRECTIF C1 (2026-08-30) : les 3 valeurs recevables de
+    # `answer.modification_locus.type` (C3, canal). Une valeur absente ou
+    # inconnue retombe sur "gm_worldscan" -- comportement HISTORIQUE (rétrocompat
+    # explicite, exigée par le sas : les fixtures p1_alpha "réponse SANS locus"
+    # doivent continuer à reproduire le HALT théâtre historique).
+    _MODIFICATION_LOCUS_TYPES = ("gm_worldscan", "art_bible", "aucune_requise")
+
+    @classmethod
+    def _answer_modification_locus(cls, answer: dict) -> str:
+        """Type de cible déclarée par LA RÉPONSE elle-même (`answer.modification_
+        locus.type`) -- jamais devinée depuis le loop_id de la question. Absent/
+        malformé/valeur hors énum -> "gm_worldscan" (rétrocompat : avant ce sas,
+        R3-lite ne connaissait qu'une seule cible, le bloc GM de la boucle)."""
+        locus = answer.get("modification_locus") if isinstance(answer, dict) else None
+        t = locus.get("type") if isinstance(locus, dict) else None
+        return t if t in cls._MODIFICATION_LOCUS_TYPES else "gm_worldscan"
+
     @staticmethod
     def _read_json_or_none(path: Path):
         """Lecture PURE, jamais d'exception qui remonte — fichier absent, JSON
         invalide, ou toute autre erreur d'I/O -> ``None``, jamais levée."""
         try:
             return json.loads(Path(path).read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001 — lecture pure, jamais d'exception qui remonte
+            return None
+
+    @staticmethod
+    def _read_text_or_none(path: Path):
+        """Même contrat que `_read_json_or_none` pour du texte brut (art_bible.md
+        et son archive round 1) -- SAS CORRECTIF C1 : jamais d'exception, fichier
+        absent/illisible -> None."""
+        try:
+            return Path(path).read_text(encoding="utf-8")
         except Exception:  # noqa: BLE001 — lecture pure, jamais d'exception qui remonte
             return None
 
@@ -1016,20 +1047,34 @@ class ForgeDriver:
         q_data = self._read_json_or_none(self.run_dir / "design_questions.json")
         archive_data = self._read_json_or_none(
             self.run_dir / "artifacts" / "gm_worldscan-r1.json")
+        # SAS CORRECTIF C1 (2026-08-30) : pendant ART (locus `art_bible`), la cible
+        # de vérification est le texte de art_bible.md vs son archive round 1 --
+        # déjà écrite par `run_real.claude_executor` (`_archive_round1_before_
+        # overwrite`, AVANT tout round >=2, mécanisme SYMÉTRIQUE déjà existant à
+        # gm_worldscan-r1.json, pas de nouvel écrivain requis ici).
+        art_bible_text = self._read_text_or_none(self.run_dir / "art_bible.md")
+        art_bible_r1_text = self._read_text_or_none(
+            self.run_dir / "artifacts" / "art_bible-r1.md")
 
         questions = q_data.get("questions") if isinstance(q_data, dict) else None
         if not isinstance(questions, list):
             questions = []
 
         open_by_loop: dict[str, int] = {}
-        blocking_answered_loops: set[str] = set()
+        # SAS CORRECTIF C1 (2026-08-30, findings pilote D1/L1) : la borne théâtre
+        # ne peut plus se réduire à UN SET de loop_id "répondu par une bloquante" --
+        # elle doit porter, PAR loop_id, la LISTE des réponses (pour lire chacune
+        # son propre `answer.modification_locus`, cf. `_answer_modification_locus`
+        # juste en dessous). Remplace l'ancien `blocking_answered_loops: set[str]`.
+        blocking_answers_by_loop: dict[str, list] = {}
         blocking_open_total = 0
         pillar_blocking_open = {"ART": False, "GM": False}
         for q in questions:
             if not isinstance(q, dict):
                 continue
             loop_id = q.get("loop_id")
-            answered = q.get("answer") is not None
+            answer = q.get("answer")
+            answered = answer is not None
             blocking = q.get("blocking") is True
             if not answered:
                 if isinstance(loop_id, str):
@@ -1042,7 +1087,8 @@ class ForgeDriver:
                     if frm == "GM" or to == "GM":
                         pillar_blocking_open["GM"] = True
             elif blocking and isinstance(loop_id, str):
-                blocking_answered_loops.add(loop_id)
+                blocking_answers_by_loop.setdefault(loop_id, []).append(
+                    answer if isinstance(answer, dict) else {})
 
         declarations = q_data.get("declarations") if isinstance(q_data, dict) else {}
         if not isinstance(declarations, dict):
@@ -1147,23 +1193,47 @@ class ForgeDriver:
                     loops_out[name] = {"status": "COMPLETE"}
                     complete_count += 1
 
-            # R3-lite : une réponse bloquante FERMÉE pour cette boucle doit avoir
-            # DIFFÉRÉ le contenu sérialisé de la boucle vs l'archive round 1 —
-            # sinon « théâtre de questions » : le statut est FORCÉ, quel que soit
-            # celui calculé ci-dessus.
-            if name in blocking_answered_loops and archive_gm_loops is not None:
-                archived_obj = archive_gm_loops.get(name)
-                if isinstance(loop_obj, dict) and isinstance(archived_obj, dict):
-                    current_ser = json.dumps(loop_obj, sort_keys=True, ensure_ascii=False)
-                    archived_ser = json.dumps(archived_obj, sort_keys=True, ensure_ascii=False)
-                    if current_ser == archived_ser:
-                        if loops_out[name]["status"] == "COMPLETE":
-                            complete_count -= 1
-                        theatre_loops.append(name)
-                        loops_out[name] = {
-                            "status": "OPEN(réponse sans modification)",
-                            "theatre": True,
-                        }
+            # R3-lite (SAS CORRECTIF C1, 2026-08-30) : une réponse bloquante FERMÉE
+            # pour cette boucle doit avoir DIFFÉRÉ la cible que LA RÉPONSE déclare
+            # avoir modifiée (`answer.modification_locus.type`), jamais aveuglément
+            # le bloc GM de la boucle — sinon « théâtre de questions » : le statut
+            # est FORCÉ, quel que soit celui calculé ci-dessus.
+            #   - locus "gm_worldscan" (ou absent -- rétrocompat historique) : diff
+            #     du bloc gm_worldscan[loop_id] sérialisé vs son archive round 1
+            #     (comportement INCHANGÉ, celui d'avant ce sas) ;
+            #   - locus "art_bible" : diff du texte art_bible.md vs son archive
+            #     round 1 (art_bible-r1.md) -- la boucle GM ciblée par la question
+            #     n'a AUCUNE raison de bouger si la réponse ne modifie QUE l'habillage ;
+            #   - locus "aucune_requise" : JAMAIS de théâtre pour cette réponse --
+            #     sa recevabilité (objet normatif amont + justification non vide)
+            #     est jugée AILLEURS, au canal (`_materialize_design_questions`,
+            #     C3) — R3-lite ne la rejuge jamais une 2e fois ici.
+            is_theatre = False
+            for answer in blocking_answers_by_loop.get(name, []):
+                locus = self._answer_modification_locus(answer)
+                if locus == "aucune_requise":
+                    continue
+                if locus == "art_bible":
+                    if art_bible_text is not None and art_bible_r1_text is not None:
+                        if art_bible_text == art_bible_r1_text:
+                            is_theatre = True
+                    continue
+                # "gm_worldscan" (défaut/rétrocompat) — comportement historique.
+                if archive_gm_loops is not None:
+                    archived_obj = archive_gm_loops.get(name)
+                    if isinstance(loop_obj, dict) and isinstance(archived_obj, dict):
+                        current_ser = json.dumps(loop_obj, sort_keys=True, ensure_ascii=False)
+                        archived_ser = json.dumps(archived_obj, sort_keys=True, ensure_ascii=False)
+                        if current_ser == archived_ser:
+                            is_theatre = True
+            if is_theatre:
+                if loops_out[name]["status"] == "COMPLETE":
+                    complete_count -= 1
+                theatre_loops.append(name)
+                loops_out[name] = {
+                    "status": "OPEN(réponse sans modification)",
+                    "theatre": True,
+                }
 
         denom = len(self._GM_LOOPS) - deferred_count
         shared_design_pct = round(100 * complete_count / denom) if denom > 0 else None
@@ -1309,6 +1379,227 @@ class ForgeDriver:
             ]
         except Exception:  # noqa: BLE001
             return []
+
+    # --- SAS CORRECTIF C2 (2026-08-30, finding pilote L1 p1_beta) : micro-
+    # re-déclaration déterministe -- après la ronde du répondant (gm-r2), un
+    # pilier dont la déclaration sur disque est ANTÉRIEURE aux réponses qu'il a
+    # reçues (topologie art-r2 -> gm-r2 : ART se déclare avant que GM ait
+    # répondu) reste figé sur un état périmé sans qu'aucun créneau ne le
+    # laisse se re-déclarer. Correctif : UNE VRAIE micro-exécution (spawn réel
+    # via `prepare_dispatch` + `self.executor`, alias de ronde `<base>-r<N>`,
+    # même contrat que l'étape de base du pilier) -- JAMAIS une mutation de
+    # state.json/design_questions.json qui ferait croire qu'une étape a tourné
+    # (interdit verbatim Pierre). Pas de ronde 3 GÉNÉRALE : seul le/les
+    # pilier(s) qui remplissent les 3 conditions sont re-déclenchés.
+    _MICRO_REDECLARE_BASE_STEP = {"ART": "s2.5-artbible", "GM": "s2.7-gm-worldscan"}
+
+    # Topologie FIXE de la boucle de complétion mutuelle (Lot F, INCHANGÉE par ce
+    # sas -- vérifiée dans TOUS les profils qui portent la boucle,
+    # `forge.dispatch.PROFILES`) : `s2.5-artbible-r2` (ART) tourne TOUJOURS avant
+    # `s2.7-gm-worldscan-r2` (GM) au sein d'un même round >=2. C'est CETTE
+    # asymétrie d'ordre qui rend un même numéro de round ambigu (finding pilote
+    # L1, p1_beta) : ART écrit sa déclaration round N puis GM répond à une
+    # question d'ART SOUS LE MÊME numéro round N, mais APRÈS -- la déclaration
+    # d'ART, bien que numériquement "round N", est chronologiquement antérieure
+    # à cette réponse round N. GM, lui, ne peut PAS être dans ce cas au sein d'un
+    # round donné (il joue toujours en dernier) : sa propre lecture d'une réponse
+    # d'ART au round N a nécessairement eu lieu AVANT que GM ne déclare au round N.
+    _MICRO_REDECLARE_ORDER = {"ART": 0, "GM": 1}
+
+    @staticmethod
+    def _pillar_blocking_involved_all_answered(questions: list, side: str) -> bool:
+        """Condition (1) : aucune question BLOQUANTE impliquant `side` (émise
+        PAR lui, `from==side`, OU reçue PAR lui, `to==side`) ne reste sans
+        réponse -- les deux sens, même périmètre que le « R1 étendu »
+        (`_validate_design_questions`, doctrine C.4 §"Les deux regles dures") :
+        une question bloquante qu'un pilier pose bloque AUSSI son propre état,
+        pas seulement celles qu'il reçoit."""
+        for q in questions:
+            if not isinstance(q, dict):
+                continue
+            if q.get("blocking") is not True or q.get("answer") is not None:
+                continue
+            if q.get("from") == side or q.get("to") == side:
+                return False
+        return True
+
+    @staticmethod
+    def _declaration_round(declarations: dict, side: str) -> "int | None":
+        d = declarations.get(side) if isinstance(declarations, dict) else None
+        r = d.get("round") if isinstance(d, dict) else None
+        return r if isinstance(r, int) else None
+
+    @staticmethod
+    def _max_answer_round_from(questions: list, side: str) -> "int | None":
+        """Round MAXIMAL parmi les réponses reçues par `side` À SES PROPRES
+        QUESTIONS (`from==side` -- l'AUTRE pilier a répondu) : c'est
+        l'INFORMATION NOUVELLE que `side` n'a pas pu voir avant sa propre
+        dernière déclaration. Une question que `side` REÇOIT et répond
+        lui-même (`to==side`) ne lui apprend rien de nouveau -- il en est
+        l'auteur, elle est délibérément EXCLUE ici (distinct de la condition
+        (1) ci-dessus, qui porte sur les DEUX sens). None si aucune réponse."""
+        rounds = [
+            q["answer"].get("round") for q in questions
+            if isinstance(q, dict) and q.get("from") == side
+            and isinstance(q.get("answer"), dict)
+            and isinstance(q["answer"].get("round"), int)
+        ]
+        return max(rounds) if rounds else None
+
+    def _micro_redeclaration_targets(self, q_data: dict) -> list[str]:
+        """Piliers (parmi ART/GM) à re-déclarer -- les 3 conditions C2 :
+        (1) `_pillar_blocking_involved_all_answered` ; (2) la déclaration
+        actuelle du pilier est ANTÉRIEURE aux réponses reçues à SES PROPRES
+        questions -- comparaison ASYMÉTRIQUE (topologie fixe ci-dessus) :
+        `decl_round <= answer_round` si le RÉPONDANT (l'autre pilier) joue
+        APRÈS `side` dans l'ordre du round (cas ART, répondu par GM -- même
+        round N possible sans contradiction, cf. p1_beta) ; `decl_round <
+        answer_round` (strict) sinon (cas GM, répondu par ART, qui joue
+        toujours AVANT GM -- une réponse round N d'ART est nécessairement déjà
+        visible quand GM déclare round N) ; (3) « aucune déclaration
+        post-réponses n'existe » -- capturé PAR (2) : `declarations[side]`
+        (Lot F) ne porte JAMAIS qu'UNE SEULE déclaration à la fois (la
+        dernière écrite par ce pilier) -- si elle échoue le test de fraîcheur
+        ci-dessus, aucune déclaration plus récente n'existe sur le disque par
+        définition. Jamais d'exception -- q_data malformé -> []."""
+        if not isinstance(q_data, dict):
+            return []
+        questions = q_data.get("questions")
+        questions = questions if isinstance(questions, list) else []
+        declarations = q_data.get("declarations")
+        declarations = declarations if isinstance(declarations, dict) else {}
+        targets: list[str] = []
+        for side in ("ART", "GM"):
+            if not self._pillar_blocking_involved_all_answered(questions, side):
+                continue
+            decl_round = self._declaration_round(declarations, side)
+            answer_round = self._max_answer_round_from(questions, side)
+            if decl_round is None or answer_round is None:
+                continue
+            other = "GM" if side == "ART" else "ART"
+            responder_plays_later = (
+                self._MICRO_REDECLARE_ORDER[other] > self._MICRO_REDECLARE_ORDER[side]
+            )
+            stale = (decl_round <= answer_round) if responder_plays_later \
+                else (decl_round < answer_round)
+            if stale:
+                targets.append(side)
+        return targets
+
+    def _run_micro_redeclaration(self, state: dict, side: str) -> dict:
+        """UNE VRAIE exécution bornée : `prepare_dispatch` (même contrat que
+        l'étape de base du pilier, alias `<base>-r<N>`, N = round document + 1
+        -- jamais une 3e ronde GÉNÉRALE, seulement CE pilier) puis
+        `self.executor`, avec son propre reçu (`spawn_authorized`/
+        `spawn_executed` via `_record_spawn_executed`) et son propre joint
+        (`_append_spawn_link_best_effort`). Best-effort au sens du RETOUR
+        (n'invalide jamais `run()`, une erreur devient `{"ok": False,
+        "reason": ...}` journalisée) -- MAIS jamais best-effort au sens de la
+        preuve : soit un spawn réel a eu lieu et son reçu existe sur disque,
+        soit rien n'a tourné et rien ne prétend le contraire."""
+        base = self._MICRO_REDECLARE_BASE_STEP.get(side)
+        if base is None:
+            return {"ok": False, "reason": f"pilier inconnu: {side!r}"}
+        q_data = self._read_json_or_none(self.run_dir / "design_questions.json")
+        doc_round = q_data.get("round") if isinstance(q_data, dict) else None
+        doc_round = doc_round if isinstance(doc_round, int) else 1
+        next_round = max(doc_round + 1, 2)
+        etape = f"{base}-r{next_round}"
+
+        if self.executor is None:
+            logger.warning(
+                "run=%s : micro-re-déclaration %s (%s) impossible -- aucun "
+                "exécuteur fourni au driver", self.run_id, side, etape)
+            return {"ok": False, "reason": "aucun exécuteur fourni au driver"}
+
+        try:
+            payload = prepare_dispatch(
+                etape, self.run_id, caps_path=self.caps_path, audit_path=self.audit_path,
+                run_dir=self.run_dir, profile=self.profile, attempt=1,
+                allow_unprofiled=True,
+                model_executed=state.get("model_override"),
+                reason="C2 micro-re-déclaration (sas correctif R3/freeze, "
+                       "ratifié Pierre 2026-08-30) : déclaration antérieure "
+                       "aux réponses reçues",
+            )
+        except ContractIncomplete as exc:
+            logger.warning(
+                "run=%s : micro-re-déclaration %s (%s) refusée -- contrat non "
+                "activable: %s", self.run_id, side, etape, exc)
+            return {"ok": False, "reason": f"contrat non activable à {etape}: {exc}"}
+
+        decision = route_step(payload)
+        context = {
+            "run_id": self.run_id,
+            "project": self.project,
+            "run_dir": str(self.run_dir),
+            "model_override": state.get("model_override"),
+            "dispatch_marker": f"FORGE_DISPATCH:{etape}:{self.run_id}:1",
+            "attempt": 1,
+            # Note bornée (C2) : le contrat de base (round>=2, texte déjà
+            # existant, non modifié par ce sas) suffit pour "réponds aux
+            # questions reçues OU déclare ready_for_freeze:false motivé" --
+            # cette entrée précise le CAS particulier (réponses déjà
+            # présentes sur design_questions.json, relis-les via ton accès
+            # Read repo entier avant de te re-déclarer).
+            "premortem": [
+                "[SAS CORRECTIF C2] Micro-re-déclaration bornée : ta dernière "
+                "déclaration (design_questions.json.declarations." + side + ") "
+                "est antérieure aux réponses que tu as reçues depuis. Relis "
+                "design_questions.json (réponses désormais présentes) et "
+                "re-déclare ton état réellement (ready_for_freeze/open_to_*) "
+                "-- un refus motivé (ready_for_freeze:false) est recevable. "
+                "Règle append-only : recopie TOUTES les questions existantes "
+                "sans en retirer aucune.",
+            ],
+            "project_bible": "",
+            "materialize_feedback": None,
+        }
+        try:
+            res = self.executor(payload, decision, context)
+        except Exception as exc:  # noqa: BLE001 — best-effort au sens du RETOUR
+            logger.warning(
+                "run=%s : micro-re-déclaration %s (%s) -- exécuteur en "
+                "exception", self.run_id, side, etape, exc_info=True)
+            res = {"ok": False, "reason": f"exécuteur en exception: {exc}"}
+
+        # Preuve d'action AVANT le jugement -- même discipline que le run loop
+        # principal (l.~2058-2065) : le spawn A EU LIEU, qu'il ait réussi ou non.
+        self._record_spawn_executed(etape, 1, payload, res)
+
+        if isinstance(res, dict) and res.get("ok"):
+            output = str(res.get("output", ""))
+            artifact = self.run_dir / "artifacts" / f"{etape}.txt"
+            try:
+                artifact.parent.mkdir(parents=True, exist_ok=True)
+                artifact.write_text(output, encoding="utf-8")
+            except OSError:
+                logger.warning(
+                    "run=%s : artefact micro-re-déclaration %s non écrit "
+                    "(non bloquant)", self.run_id, etape, exc_info=True)
+            self._append_spawn_link_best_effort(etape, 1, res, "OK", artifact)
+            return {"ok": True, "etape": etape, "side": side}
+
+        why = res.get("reason", "sans raison") if isinstance(res, dict) else "retour invalide"
+        self._append_spawn_link_best_effort(etape, 1, res, "HALTED")
+        logger.warning(
+            "run=%s : micro-re-déclaration %s (%s) en échec: %s",
+            self.run_id, side, etape, why)
+        return {"ok": False, "etape": etape, "side": side, "reason": why}
+
+    def _maybe_run_micro_redeclarations(self, state: dict) -> None:
+        """Point d'appel C2 (dans `run()`, juste avant `_design_freeze_gate`,
+        même garde `_design_loop_active` qu'elle) : déclenche la micro-
+        re-déclaration RÉELLE pour chaque pilier qui remplit les 3 conditions.
+        No-op silencieux si le design loop n'est pas actif pour ce profil, ou
+        si `design_questions.json` est absent/illisible -- rien à re-déclarer."""
+        if not self._design_loop_active():
+            return
+        q_data = self._read_json_or_none(self.run_dir / "design_questions.json")
+        if not isinstance(q_data, dict):
+            return
+        for side in self._micro_redeclaration_targets(q_data):
+            self._run_micro_redeclaration(state, side)
 
     def _default_observer_runner(self, project: str):
         """Comportement de PRODUCTION de `observer_runner` : `scripts/observer/

@@ -1504,6 +1504,56 @@ _C4_LOOP_NAMES = (
 )
 _C4_QUESTION_LOOP_IDS = _C4_LOOP_NAMES + ("art_gm",)
 
+# SAS CORRECTIF C1/C3 (2026-08-30, findings pilote D1/L1 RUN2 — voir
+# lab/forge_runs/p1_alpha/PILOT_STOP_20260830.md et
+# lab/forge_runs/p1_beta/CLOSURE_PILOTE_20260830.md) : `answer.modification_
+# locus.type` — la RÉPONSE
+# déclare elle-même l'objet qu'elle a modifié (ou non), au lieu que R3-lite
+# (driver._compute_loop_design_state) devine aveuglément que seul le bloc GM
+# de la boucle peut avoir bougé. Copie locale (même patron que `_C4_LOOP_NAMES`
+# ci-dessus, dupliqué dans `forge.driver` — la table y est PRIVÉE, `_MODIFICATION
+# _LOCUS_TYPES` du driver, aucun import croisé pour rester cohérent avec le
+# style déjà établi de ce fichier).
+_MODIFICATION_LOCUS_TYPES = ("gm_worldscan", "art_bible", "aucune_requise")
+
+# Marqueur textuel SIMPLE et HONNÊTE (C3, gate Pierre 2026-08-30) : `aucune_
+# requise` n'est recevable QUE si le Brief du projet déclare une contrainte de
+# structure normative en amont — détection littérale, jamais une interprétation
+# sémantique du brief (cf. `_project_declares_normative_structure` plus bas).
+_NORMATIVE_STRUCTURE_MARKER = "STRUCTURE IMPOSÉE NORMATIVE"
+
+
+def _project_declares_normative_structure(run_dir: "Path | None") -> bool:
+    """C3 : vrai ssi le Brief canonique du projet (`lab/forge_briefs/<projet>/
+    project_brief.yaml`, `project_brief_path`) porte le marqueur littéral
+    `_NORMATIVE_STRUCTURE_MARKER` ou la référence `structure_imposee` (nom du
+    fichier normatif annexe utilisé par p1_alpha, `structure_imposee.yaml`).
+
+    Choix DOCUMENTÉ (le sas demandait une détection "simple et honnête") : une
+    correspondance TEXTUELLE, pas une analyse de champs YAML — le Brief est de
+    la prose structurée (cf. `contraintes.project_specific.techniques`, une
+    liste de chaînes libres), une correspondance de sous-chaîne est donc la
+    lecture la plus honnête de ce qui est réellement là, sans prétendre à un
+    schéma de contrainte qui n'existe pas encore dans `FORGE_PROJECT_INPUT_V0`.
+
+    `projet` est dérivé de `run_dir` par `Path(run_dir).name` — convention
+    CANONIQUE du dépôt (`context_manifest.default_run_dir` place TOUJOURS un
+    run sous `lab/forge_runs/<projet>`, même racine que `project_brief_path`) ;
+    un `run_dir` hors convention (tests, run_dir de test isolé) ne trouve
+    simplement pas de brief -> False. `run_dir` absent ou brief illisible ->
+    False (fail-CLOSED, cohérent avec l'appelant : `aucune_requise` sans preuve
+    amont est refusé, jamais accepté par défaut). Jamais d'exception."""
+    if run_dir is None:
+        return False
+    try:
+        project = Path(run_dir).name
+    except Exception:  # noqa: BLE001
+        return False
+    text = _read_project_brief_text(project)
+    if not text:
+        return False
+    return _NORMATIVE_STRUCTURE_MARKER in text or "structure_imposee" in text
+
 
 def _other_pillar(pilier: str) -> str:
     return "GM" if pilier == "ART" else "ART"
@@ -1729,6 +1779,40 @@ def _validate_design_questions(data: dict, run_dir: "Path | None" = None) -> str
             if run_dir is not None and not _resolve_design_question_address(by, ref, run_dir):
                 return (f"question {qid!r} : 'answer.ref' {ref!r} ne resout pas dans "
                         f"l'artefact du repondant ({by})")
+            # SAS CORRECTIF C3 (2026-08-30) : `answer.modification_locus` -- OPTIONNEL
+            # (rétrocompat -- une réponse SANS ce champ, cas des runs historiques
+            # p1_alpha/p1_beta et de tout run antérieur à ce sas, reste valide ;
+            # R3-lite, cf. `forge.driver._answer_modification_locus`, la lit alors
+            # comme "gm_worldscan", comportement HISTORIQUE inchangé). Quand PRÉSENT,
+            # forme et recevabilité sont jugées ICI, au canal, fail-CLOSED :
+            #   - doit être un objet {"type": ..., "justification"?: str} ;
+            #   - "type" doit être l'une des 3 valeurs de `_MODIFICATION_LOCUS_TYPES` ;
+            #   - "type"=="aucune_requise" n'est recevable QUE si (a) une justification
+            #     non vide est fournie ET (b) le Brief du projet déclare l'objet
+            #     questionné normatif/immuable en amont (`_project_declares_
+            #     normative_structure`) -- sinon REFUS NOMMÉ, jamais un laisser-passer
+            #     advisory (exigence verbatim Pierre : « refusé... rendre les refs
+            #     hors-GM advisory »).
+            modification_locus = answer.get("modification_locus")
+            if modification_locus is not None:
+                if not isinstance(modification_locus, dict):
+                    return (f"question {qid!r} : 'answer.modification_locus' doit "
+                            "etre un objet ou absent")
+                m_type = modification_locus.get("type")
+                if m_type not in _MODIFICATION_LOCUS_TYPES:
+                    return (f"question {qid!r} : 'answer.modification_locus.type' "
+                            "doit etre l'un de gm_worldscan|art_bible|aucune_requise "
+                            f"(recu: {m_type!r})")
+                if m_type == "aucune_requise":
+                    justification = modification_locus.get("justification")
+                    if not isinstance(justification, str) or not justification.strip():
+                        return (f"question {qid!r} : 'answer.modification_locus.type'"
+                                "='aucune_requise' exige 'justification' non vide")
+                    if not _project_declares_normative_structure(run_dir):
+                        return (f"question {qid!r} : 'answer.modification_locus.type'"
+                                "='aucune_requise' refuse -- aucune contrainte de "
+                                "structure normative declaree en amont (Brief du "
+                                "projet, cf. _project_declares_normative_structure)")
         else:
             unanswered_received[to].append(qid)
             unanswered_sent[frm] += 1

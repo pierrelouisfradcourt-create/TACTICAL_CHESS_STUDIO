@@ -189,7 +189,20 @@ objectif: >-
   {"round": 1, "ready_for_freeze": false, "open_to_art": 0}}}
   ```
   `answer.ref` (round 2) pointe lui aussi TON artefact (la section
-  d'art_bible.md ou tu as repondu). Une sortie SANS ce fence, ou dont le fence
+  d'art_bible.md ou tu as repondu).
+
+  SAS CORRECTIF C1/C3 (2026-08-30) -- `answer.modification_locus` (OPTIONNEL,
+  retrocompat : une reponse sans ce champ reste valide) : quand tu repondS a
+  une question BLOQUANTE, precise l'objet que TA REPONSE a reellement modifie
+  -- `{"type": "gm_worldscan"|"art_bible"|"aucune_requise", "justification":
+  "..."}`. `"art_bible"` si tu as modifie ta propre section d'art_bible.md
+  (comportement historique pour une reponse Artiste). `"gm_worldscan"` si la
+  modification induite vit dans le `game_master` du GM et NULLE PART dans ton
+  propre art_bible.md. `"aucune_requise"` UNIQUEMENT si l'objet questionne est
+  declare normatif/immuable par le Brief du projet ET que tu fournis une
+  `justification` non vide -- sinon ta reponse est REFUSEE au canal
+  (fail-closed, jamais un laisser-passer silencieux).
+  Une sortie SANS ce fence, ou dont le fence
   n'est ni JSON ni YAML structure, ou dont une question ne porte pas de
   `loop_id` valide, est REFUSEE et rejouee avec le retour du materialiseur
   (cf. forge.driver._is_materialize_refusal_reason) -- lis le retour du
