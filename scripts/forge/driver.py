@@ -34,7 +34,7 @@ import os
 import re
 import sys
 import time
-from dataclasses import asdict
+from dataclasses import asdict, replace as dataclass_replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -85,7 +85,13 @@ from forge.product_oracle_godot import (
     run_player_loop,
     run_runtime_alive,
 )
-from forge.runtime import RUNNER_CLAUDE_BLIND, RUNNER_QWEN, route_step, run_qwen_step
+from forge.runtime import (
+    RUNNER_CLAUDE_BLIND,
+    RUNNER_QWEN,
+    qwen_available,
+    route_step,
+    run_qwen_step,
+)
 from forge.standard_oracles import (
     check_budget,
     check_collisions,
@@ -164,6 +170,19 @@ SPAWN_LINK_SCHEMA = "forge.spawn_link.v1"
 # quand la boucle atteint la première d'entre elles (tous les oracles du profil
 # sont alors terminaux — même point de décision que skill.md, mais en code).
 _POST_ORACLE = ("s11-redteam-code", "s12-verdict")
+
+# FICHE 5 (sas ratifié Pierre 2026-08-30) : sous CES profils, s11-redteam-code doit
+# être exécuté par un reviewer RÉELLEMENT distinct du builder (Qwen/lmstudio),
+# jamais Claude — même si `contracts/roles.yaml` résout `redteam_code` -> claude-opus
+# (ce fichier reste INCHANGÉ ; la résolution contractuelle du rôle redteam_code pour
+# tout AUTRE profil est donc strictement identique à avant). Mesuré 2026-08-29/30 sur
+# les runs de référence (kitten 8/9, TD) : `redteam_ran: false`,
+# `redteam_reviewer: claude-opus-4-8` — l'indépendance n'a JAMAIS existé à s11 tant
+# que le run se limitait au chemin `route_step` normal. Aucun fallback claude-blind
+# n'est autorisé pour CETTE étape sous CES profils : LM Studio indisponible ou un
+# appel Qwen qui échoue en cours de route BLOQUENT le run plutôt que de fabriquer un
+# succès substitué (8 exigences Pierre, décision 2026-08-29/30).
+REDTEAM_INDEPENDENT_PROFILES = ("full_content",)
 
 # Profils qui suivent la topologie STANDARD (squelette figé scripts/forge/standard/ :
 # tests en 07_TESTS/, wiremap en 09_WIREMAP/) — ENSEMBLE NOMMÉ, jamais une égalité de
@@ -1902,6 +1921,11 @@ class ForgeDriver:
         # (mesuré run 10c : Art R2 a refait la même prose que R1). None tant qu'
         # aucun refus n'a eu lieu — la 1re tentative ne porte jamais ce champ.
         materialize_feedback: dict | None = None
+        # FICHE 5 : figé pour toute la méthode — etape/self.profile ne changent pas
+        # d'une tentative à l'autre, jamais recalculé dans la boucle de retry.
+        s11_independent = (
+            etape == "s11-redteam-code" and self.profile in REDTEAM_INDEPENDENT_PROFILES
+        )
 
         while True:
             entry["attempts"] = entry.get("attempts", 0) + 1
@@ -1937,7 +1961,28 @@ class ForgeDriver:
                 return self._halt_step(state, entry, f"contrat non activable à {etape}: {exc}",
                                        etape=etape)
 
-            decision = route_step(payload)
+            if s11_independent:
+                # Exigence 5 (Pierre 2026-08-29/30) : disponibilité vérifiée AVANT
+                # tout appel — même sonde que `route_step` (`qwen_available`,
+                # monkeypatchable), aucun ping réimplémenté. Indisponible => BLOCKED
+                # + HALT immédiat, raison EXACTE exigée, jamais un fallback Claude.
+                if not qwen_available():
+                    return self._halt_step(
+                        state, entry,
+                        "red-team indépendant requis (full_content) : "
+                        "LM Studio indisponible",
+                        etape=etape, payload=payload,
+                    )
+                # Exigence 1/6 : le chemin `route_step` normal (contrat `redteam_code`
+                # -> claude-opus, roles.yaml INCHANGÉ) est court-circuité pour CETTE
+                # étape sous CE profil — jamais un modèle Claude, jamais claude-blind.
+                decision = dataclass_replace(
+                    route_step(payload), runner=RUNNER_QWEN,
+                    reason="s11 full_content : reviewer indépendant forcé "
+                           "(Qwen/lmstudio, ADR-002 gate 4)",
+                )
+            else:
+                decision = route_step(payload)
             runner, reviewer, qwen_ok = decision.runner, decision.reviewer, False
             output: str | None = None
             blocked, findings = False, []
@@ -1948,13 +1993,35 @@ class ForgeDriver:
             cache_creation_tokens, cache_read_tokens = 0, 0
 
             if decision.runner == RUNNER_QWEN:
-                res = run_qwen_step(payload)
+                # Exigence 7 : sous s11_independent, `payload.model` porte le modèle
+                # contractuel de `redteam_code` (claude-opus, résolu par roles.yaml) —
+                # PAS l'identité qui va réellement tourner. `dataclass_replace(...,
+                # model="")` force `run_qwen_step` à retomber sur SON PROPRE modèle
+                # Qwen canonique (`forge.runtime._QWEN_FALLBACK_MODEL`), jamais sur
+                # l'id Claude du contrat : le `reviewer` restitué est l'identité RÉELLE
+                # de ce qui a tourné, jamais un nom hérité d'un autre chemin.
+                qwen_payload = (
+                    dataclass_replace(payload, model="") if s11_independent else payload
+                )
+                res = run_qwen_step(qwen_payload)
                 if res["ok"]:
                     output, reviewer, qwen_ok = res["output"], res["reviewer"], True
                     # L'exécution a réellement eu lieu ET rendu un résultat : preuve d'action.
                     # `res` (chemin Qwen) ne porte pas d'amont `spawn_link` : le bornage
                     # réel y reste `null` — non mesuré, jamais supposé (A3).
                     self._record_spawn_executed(etape, entry["attempts"], payload, res)
+                elif s11_independent:
+                    # Exigence 6/8 : AUCUN fallback claude-blind pour s11 sous ce
+                    # profil — un échec Qwen (indisponibilité découverte pendant
+                    # l'appel, quota, exception réseau) BLOQUE le run, il ne bascule
+                    # jamais vers un succès fabriqué par substitution.
+                    return self._halt_step(
+                        state, entry,
+                        "red-team indépendant requis (full_content) : appel Qwen "
+                        f"en échec à {etape} — aucun fallback autorisé pour cette "
+                        f"étape sous ce profil ({res.get('reason', 'sans raison')})",
+                        etape=etape, payload=payload, res=res,
+                    )
                 else:
                     runner, reviewer = RUNNER_CLAUDE_BLIND, res["reviewer"]
 
@@ -2128,6 +2195,13 @@ class ForgeDriver:
             "cache_creation_tokens": cache_creation_tokens,
             "cache_read_tokens": cache_read_tokens,
         }
+        # FICHE 5 (Pierre 2026-08-29/30) — exigence 7 : reçu identifiable/vérifiable
+        # de l'indépendance forcée. Ajout CONDITIONNEL, même patron additif que
+        # `materialize_retries`/`markdown_check` plus bas : une étape qui n'est PAS
+        # s11 sous `REDTEAM_INDEPENDENT_PROFILES` ne gagne aucune clé nouvelle — 0
+        # changement bit-à-bit pour tout autre profil/étape.
+        if s11_independent:
+            entry["detail"]["independent"] = True
         # Correctif « rupture 10 » (2026-08-23) : une étape qui a fini par PASSER
         # après un ou plusieurs refus de matérialisation garde le reçu des
         # tentatives ratées — même littéral `entry["detail"]` FIXE que le reste
