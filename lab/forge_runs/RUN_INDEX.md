@@ -293,3 +293,6 @@ résultat         : projet=kitten_clicker · statut=HALTED · verdict=BLOCKED ·
 
 ## tower_defense_sonde-20260829-build — 2026-08-29
 résultat         : projet=tower_defense_sonde · statut=HALTED · verdict=BLOCKED · ts=2026-08-29T10:34:10Z
+
+## chain_probe_v1-20260830-run1 — 2026-08-30
+résultat         : projet=chain_probe_v1 · statut=HALTED · verdict=BLOCKED · ts=2026-08-30T08:45:59Z
