@@ -296,3 +296,9 @@ résultat         : projet=tower_defense_sonde · statut=HALTED · verdict=BLOCK
 
 ## chain_probe_v1-20260830-run1 — 2026-08-30
 résultat         : projet=chain_probe_v1 · statut=HALTED · verdict=BLOCKED · ts=2026-08-30T08:45:59Z
+
+## p1_alpha-20260830-run1 — 2026-08-30
+résultat         : projet=p1_alpha · statut=HALTED · verdict=BLOCKED · ts=2026-08-30T14:19:04Z
+
+## p1_beta-20260830-run1 — 2026-08-30
+résultat         : projet=p1_beta · statut=HALTED · verdict=BLOCKED · ts=2026-08-30T14:37:37Z
