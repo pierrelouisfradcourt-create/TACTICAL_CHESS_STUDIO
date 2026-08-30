@@ -2,7 +2,7 @@
 
 Date : 2026-08-29 · Statut : **décisions du sas ratifiées Pierre 2026-08-29** (verdicts GO du sas
 Project Input) ; la forme fine du schéma reste ouverte au sas suivant.
-Référence normative : `docs/forge/FORGE_DESIGN_FREEDOM_SPEC_V0_PROPOSED.md` — **ratification
+Référence normative : `docs/forge/FORGE_DESIGN_FREEDOM_SPEC_V0.md` — **ratification
 séparée mais référencée** (décision Pierre). Hiérarchie :
 
 ```

@@ -1325,3 +1325,24 @@ nécessaire même après un audit.
 
 **Critères de révision** : 
 ```
+
+## 2026-08-30 — Ratification FORGE_DESIGN_FREEDOM_SPEC_V0
+
+**Décision** : la spécification `docs/forge/FORGE_DESIGN_FREEDOM_SPEC_V0.md` (ex-_PROPOSED) est
+RATIFIÉE par Pierre. Portée exacte : N1-N4 + N7-N9 applicables au Project Brief / RUN 1 ;
+**N5 (séparation concepteur/instrumenteur) et N6 (fidélité charter→build) restent fog /
+non mécanisées** — la ratification ne les transforme pas en exigences soudainement mesurées.
+Motif : le Project Brief canonique (`chain_probe_v1`, contrat FORGE_PROJECT_INPUT_V0) référence
+cette spec ; lancer RUN 1 avec une source normative encore PROPOSED serait une contradiction de
+statut (chaîne mécaniquement valide mais normativement instable).
+
+**Contexte** : spec rédigée le 2026-08-29 (synthèse sur le run tower_defense_sonde) ; sas Project
+Input ratifié 2026-08-29/30 ; Brief chain_probe_v1 validé mécaniquement (check_project_brief PASS,
+project_brief_gate None) le 2026-08-30.
+
+**Alternatives rejetées** :
+- Lancer RUN 1 avec la spec PROPOSED-référencée (contradiction de statut).
+- Ratifier N1-N9 en bloc comme exigences mesurées (N5/N6 n'ont pas d'instrument).
+
+**Critères de révision** : mécanisation de N5 (passe adversariale des critères de preuve) et de
+N6 (contrôle de fidélité charter→build) — chacune rouvrira la portée via son propre sas.
