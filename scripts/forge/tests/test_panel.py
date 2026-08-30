@@ -39,6 +39,16 @@ def _snapshot(label: str, tag: str) -> str:
     return _SNAPSHOT_TEMPLATE.format(label=label, tag=tag)
 
 
+def _control_snapshot(label: str, tag: str) -> str:
+    """Sortie de CONTRÔLE réaliste : même contrat que la voie simple, donc porte
+    TOUJOURS le bloc ```json``` structuré (FICHE 4, 2026-08-29) — les lenses,
+    elles, restent narratives (`_snapshot`), le panel n'attend rien de JSON de
+    leur côté (`panel.extract_json_fence` n'est appelé QUE sur le contrôle)."""
+    return _snapshot(label, tag) + (
+        '\n```json\n{"exigences": [{"id": "a_goal", "source": "EXPECTED"}]}\n```\n'
+    )
+
+
 @pytest.fixture
 def charter_path(tmp_path):
     p = tmp_path / "charter.yaml"
@@ -88,7 +98,7 @@ def test_panel_run_reel_succes_produit_le_document_recombine(tmp_path, charter_p
             return _snapshot("ceo", "solvabilite prouvee")
         if "lens=" in prompt:
             return _snapshot("autre-lens", "determinisme")
-        return _snapshot("controle", "SOLVABILITE PROUVEE et DETERMINISME")
+        return _control_snapshot("controle", "SOLVABILITE PROUVEE et DETERMINISME")
     executor = panel_prisme_executor(claude_call, charter_path, tmp_path, lenses=("ceo", "front"))
     res = executor(_payload(), None, {})
     assert res["ok"] is True, res
@@ -98,6 +108,10 @@ def test_panel_run_reel_succes_produit_le_document_recombine(tmp_path, charter_p
     assert (tmp_path / "prisme_control.md").exists()
     assert (tmp_path / "prisme_lens_ceo.md").exists()
     assert (tmp_path / "prisme_lens_front.md").exists()
+    # FICHE 4 : le bloc structure du controle est repris verbatim en dernier bloc
+    # ```json``` fence de la sortie fusionnee (materialisable par run_real._materialize_artifact).
+    assert res["output"].rstrip().endswith("```")
+    assert '"exigences"' in res["output"]
 
 
 def test_panel_lens_partiellement_echoue_continue_avec_le_reste(tmp_path, charter_path):
@@ -106,7 +120,7 @@ def test_panel_lens_partiellement_echoue_continue_avec_le_reste(tmp_path, charte
             return None  # ce lens echoue
         if "lens=" in prompt:
             return _snapshot("front", "solvabilite prouvee")
-        return _snapshot("controle", "SOLVABILITE PROUVEE")
+        return _control_snapshot("controle", "SOLVABILITE PROUVEE")
     executor = panel_prisme_executor(claude_call, charter_path, tmp_path, lenses=("ceo", "front"))
     res = executor(_payload(), None, {})
     assert res["ok"] is True
@@ -118,12 +132,27 @@ def test_panel_lens_mal_forme_signale_par_check_prisme_mais_ne_bloque_pas_le_mer
     def claude_call(prompt, model):
         if "lens=" in prompt:
             return "# lens incomplet\n\nrien de conforme ici.\n"  # rate check_prisme
-        return _snapshot("controle", "SOLVABILITE PROUVEE")
+        return _control_snapshot("controle", "SOLVABILITE PROUVEE")
     executor = panel_prisme_executor(claude_call, charter_path, tmp_path, lenses=("ceo",))
     res = executor(_payload(), None, {})
     assert res["ok"] is True                 # le merge tourne quand meme (advisory)
     assert res["blocked"] is True             # mais le signal est remonte, jamais tu
     assert res["findings"]
+
+
+def test_panel_controle_sans_bloc_json_echoue_prisme_non_materialisable(tmp_path, charter_path):
+    """FICHE 4 : fail-closed — sans bloc ```json``` exploitable dans le controle,
+    l'etape echoue au lieu de produire une sortie que run_real._materialize_
+    artifact ne pourrait jamais transformer en prisme.json (le bug mesure)."""
+    def claude_call(prompt, model):
+        if "lens=" in prompt:
+            return _snapshot("ceo", "solvabilite prouvee")
+        return _snapshot("controle", "SOLVABILITE PROUVEE")  # PAS de bloc json
+    executor = panel_prisme_executor(claude_call, charter_path, tmp_path, lenses=("ceo",))
+    res = executor(_payload(), None, {})
+    assert res["ok"] is False
+    assert "json" in res["reason"].lower()
+    assert "materialisable" in res["reason"].lower() or "matérialisable" in res["reason"].lower()
 
 
 class _Payload:

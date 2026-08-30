@@ -461,6 +461,7 @@ def build_execution_manifest_record(
     model_windows_path: Path | None = None,
     tools_effective: tuple[str, ...] = (),
     tools_disallowed_count: int = 0,
+    project_brief_sha256: str | None = None,
 ) -> dict:
     """Corps NON SIGNÉ de la ligne 'execution'.
 
@@ -476,6 +477,12 @@ def build_execution_manifest_record(
         "final_prompt_sha256": _sha256_text(final_prompt),
         "final_prompt_chars": len(final_prompt),
         "premortem_sha256": _sha256_text(premortem_section) if premortem_section else None,
+        # FORGE_PROJECT_INPUT_V0 §3 (ratifié Pierre 2026-08-29) : empreinte du
+        # Brief injecté ENTIER à s0-contrat (cf. run_real.claude_executor). Champ
+        # TOUJOURS présent, None si aucun Brief à cette étape — même convention
+        # que premortem_sha256 ci-dessus (le lecteur ne distingue jamais "non
+        # mesuré" de "absent" par l'absence de clé).
+        "project_brief_sha256": project_brief_sha256,
         # P7 (lot dégel 2, docs/forge/FORGE_CONTEXT_COMPACT_V1.md §05.6) :
         # `context_budget` ne mesurait QUE le prompt contractuel (~8 % du
         # contexte réellement reçu, ~2,6-3k tk) — un nom qui promettait plus
@@ -521,6 +528,7 @@ def append_execution_manifest(
     ts: float | None = None, model_windows_path: Path | None = None,
     tools_effective: tuple[str, ...] = (),
     tools_disallowed_count: int = 0,
+    project_brief_sha256: str | None = None,
 ) -> dict:
     """Construit, signe et APPEND la ligne 'execution' du Context Manifest de
     cette étape."""
@@ -528,6 +536,7 @@ def append_execution_manifest(
         run_id, etape, final_prompt, model=model, premortem_section=premortem_section,
         ts=ts, model_windows_path=model_windows_path,
         tools_effective=tools_effective, tools_disallowed_count=tools_disallowed_count,
+        project_brief_sha256=project_brief_sha256,
     )
     record["hmac"] = _sign(record, key_file)
     _append_line(manifest_path(run_dir, etape), record)

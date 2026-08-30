@@ -95,6 +95,7 @@ from forge.standard_oracles import (
 )
 from forge.static_oracles import (
     check_architecture,
+    check_asset_consumption,
     check_e2e_harness,
     check_feature_set_frozen,
     check_harness_no_hardcoded_flags,
@@ -2778,6 +2779,29 @@ class ForgeDriver:
         # via un red-team tardif (pattern déjà constaté 2 fois, bi-projet).
         harness_flags = check_harness_no_hardcoded_flags(self.src_root)
         detail["harness_no_hardcoded_flags"] = harness_flags
+        # FICHE 2 (GO Pierre 2026-08-29) : gate fail-closed de CONSOMMATION des
+        # asset_requests — chaque `request.id` produit par s2.5-artbible doit être
+        # resolved ou blocked avec justification vérifiable dans
+        # `asset_resolution.json` (écrit par s9 dans src_root), sinon FAIL. Mesuré
+        # au run kitten_clicker (full_godot_content) : 16 requêtes, AUCUNE gate,
+        # verdict OK affichant resolution_stats {ok:0, blocked:16}. SKIPPED motivé
+        # (jamais bloquant, aucune contribution au FAIL) quand la chaîne amont n'a
+        # produit aucun asset_requests.json — non-régression absolue pour les
+        # profils sans s2.5 (full/patch/micro/standard*).
+        asset_requests_path = self.run_dir / "asset_requests.json"
+        if asset_requests_path.exists():
+            asset_requests_data = self._read_json(asset_requests_path)
+            asset_resolution_data = self._read_json(self.src_root / "asset_resolution.json")
+            asset_consumption = check_asset_consumption(
+                asset_requests_data, asset_resolution_data or {}, self.src_root)
+            asset_consumption_active = True
+        else:
+            asset_consumption = {
+                "status": "SKIPPED", "checked": False,
+                "reason": "aucun asset_requests.json produit par la chaîne amont",
+            }
+            asset_consumption_active = False
+        detail["asset_consumption"] = asset_consumption
         # Advisory (Tier 1 #2) : ne gate jamais oracle_ok — reuse_ratio mesure,
         # il ne prouve rien. L'absence de câblage reste visible dans le reçu signé
         # (verdict.json), au lieu de dépendre de la seule citation du builder.
@@ -3026,7 +3050,8 @@ class ForgeDriver:
         elif (status == "FAIL" or not e2e_ok or not solvability["passed"]
               or not harness_flags["passed"] or receipt.receipt.status != "OK"
               or runtime_dead or detail["loop_dead"]
-              or detail["art_response_dead"] or detail["economy_bypass_dead"]):
+              or detail["art_response_dead"] or detail["economy_bypass_dead"]
+              or (asset_consumption_active and not asset_consumption["passed"])):
             final = "FAIL"  # rouge mécanique => alimente la boucle d'escalade
         else:
             # Auto-contrôle structurel AVANT de poser un OK : une preuve qui ne se

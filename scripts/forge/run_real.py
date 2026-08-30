@@ -442,13 +442,16 @@ def _derive_disallowed(allowed: tuple[str, ...]) -> tuple[str, ...]:
 # substitution de worker ne peut être décidée sur preuve (constat 2026-08-03 :
 # 5 workers sur 6 non mesurables, tous absents de cette table).
 #
-# LIMITE CONNUE, NON FERMÉE ICI : `s1-prisme` n'est matérialisée que sur le chemin
-# de l'exécuteur standard (`claude_executor`). Le chemin PANEL
-# (`forge.panel.panel_prisme_executor`, 5 lentilles + contrôle) appelle `claude_call`
-# directement et ne passe pas par `_materialize_artifact` : lancée par le panel,
-# l'étape n'écrit toujours pas de prisme.json. Déboucher le panel est un chantier
-# distinct (le merger échoue en silence, cf. handoff 2026-08-03) — pas une rustine
-# à poser au passage ici.
+# FICHE 4 (GO Pierre 2026-08-29) : `s1-prisme` est matérialisée sur LES DEUX
+# chemins. Le chemin PANEL (`forge.panel.panel_prisme_executor`, 5 lentilles +
+# contrôle) n'appelle plus `claude_call` en aval sans passer par cette table : sa
+# sortie fusionnée porte, en dernier bloc ```json``` fencé, le bloc structuré du
+# CONTRÔLE repris verbatim (`panel.extract_json_fence`) ; le branchement `--charter`
+# de `main()` route cette sortie à travers les MÊMES fonctions module-level
+# (`_materialize_artifact`, `_materialize_markdown`, `_materialize_loop_spec`) que
+# la voie simple — zéro nouveau writer, `_validate_prisme` reste le seul juge du
+# schéma. Échec de matérialisation (contrôle sans bloc JSON exploitable, ou schéma
+# invalide) = échec de l'étape, jamais un run qui continue sans prisme.json.
 _ARTIFACT_BY_STEP: dict[str, str] = {
     "s2-worldscan": "worldscan.json",
     "s4-archi": "blueprint.json",
@@ -2928,9 +2931,27 @@ def _timeout_effectif(profile: str, etape: str, step_timeout: float) -> float:
     return step_timeout_for(profile, etape, DEFAULT_STEP_TIMEOUT_S)
 
 
+def project_brief_path(project: str) -> Path:
+    """Chemin canonique du Brief (FORGE_PROJECT_INPUT_V0 §1) — SEULE entrée
+    projet, jamais dupliqué en une seconde constante ailleurs."""
+    return REPO_ROOT / "lab" / "forge_briefs" / project / "project_brief.yaml"
+
+
+def _read_project_brief_text(project: str) -> str:
+    """Texte brut du Brief canonique de `project`, ou "" s'il est absent/illisible
+    (best-effort strict, même patron que la Project Bible ci-dessus : une absence
+    n'est PAS une anomalie ici — le pré-vol fail-closed (`project_brief_gate`) a
+    déjà tranché AVANT le lancement pour les profils qui l'exigent ; cette lecture
+    ne rejoue jamais ce jugement, elle sert uniquement l'injection prompt)."""
+    try:
+        return project_brief_path(project).read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
 def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
                     step_timeout: float = DEFAULT_STEP_TIMEOUT_S,
-                    profile: str = "full"):
+                    profile: str = "full", project: str = ""):
     """Fabrique un executor(payload, decision, context) -> dict pour ForgeDriver.
 
     Un seul canal réel (`claude -p`) pour claude et claude-blind : les deux sont
@@ -2938,6 +2959,9 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
 
     `profile` sert UNIQUEMENT à résoudre le timeout par étape (cf.
     `_timeout_effectif`) : il ne change ni le prompt, ni le modèle, ni les outils.
+    `project` sert UNIQUEMENT à résoudre le chemin du Brief canonique pour
+    l'injection s0-contrat (cf. plus bas) — absent/vide => pas d'injection,
+    comportement inchangé pour tout le reste.
     """
 
     def executor(payload, decision, context) -> dict:
@@ -2979,6 +3003,21 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
         bible = context.get("project_bible") or ""
         if bible:
             parts.append("## PROJECT BIBLE (mémoire de décision du projet)\n" + bible)
+        # FORGE_PROJECT_INPUT_V0 §3 (câblage s0, GO Pierre 2026-08-29) : le Brief
+        # canonique (lab/forge_briefs/<project>/project_brief.yaml) est injecté
+        # ENTIER dans le prompt s0-contrat comme SOURCE DE COMMANDE UNIQUE — au
+        # NIVEAU EXÉCUTEUR (pas driver), même patron que le pré-mortem ci-dessus,
+        # PAS le patron project_bible (celle-ci vit dans context, fournie par le
+        # driver ; le Brief est relu ici directement, comme le doc l'exige pour
+        # ce paquet). Brief absent/étape != s0-contrat => "" => aucune section,
+        # comportement inchangé pour tout le reste. Le pré-vol (project_brief_gate,
+        # cf. main()) a déjà VALIDÉ ce fichier AVANT le lancement pour tout profil
+        # qui l'exige — cette lecture ne rejoue jamais ce jugement.
+        project_brief_text = _read_project_brief_text(project) if etape == "s0-contrat" else ""
+        if project_brief_text:
+            parts.append(
+                "## PROJECT BRIEF (source de commande unique — "
+                f"lab/forge_briefs/{project}/project_brief.yaml)\n" + project_brief_text)
         # Rupture 11 (2026-08-23) : retour du matérialiseur sur rejeu Lot G — sans
         # ceci, l'agent rejoué reçoit EXACTEMENT le même prompt qu'à sa tentative
         # refusée et reproduit la même sortie (mesuré sur run 10c, Art R2 a refait
@@ -3009,6 +3048,12 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
                 model=payload.model, premortem_section=premortem_section,
                 tools_effective=_effective_step_tools(etape),
                 tools_disallowed_count=len(_STEP_DISALLOWED),
+                # FORGE_PROJECT_INPUT_V0 §3 : empreinte du Brief injecté (None si
+                # pas de Brief à cette étape — même convention que premortem_sha256).
+                project_brief_sha256=(
+                    hashlib.sha256(project_brief_text.encode("utf-8")).hexdigest()
+                    if project_brief_text else None
+                ),
             )
         except Exception:
             logger.warning(
@@ -3474,6 +3519,75 @@ def stale_run_dir_reason(run_dir: Path) -> str | None:
     return None
 
 
+def project_brief_gate(profile: str, project: str) -> str | None:
+    """Pré-vol fail-closed du Brief canonique (FORGE_PROJECT_INPUT_V0 §3, ratifié
+    Pierre 2026-08-29) : pour tout profil dont l'ORDRE (`dispatch.PROFILES[profile]`)
+    contient `s0-contrat` — une chaîne qui DÉMARRE un projet —
+    `lab/forge_briefs/<project>/project_brief.yaml` DOIT exister et passer
+    `check_project_brief` AVANT toute dépense LLM.
+
+    Retourne le message ASCII à écrire sur stderr si le pré-vol échoue (YAML absent,
+    illisible, invalide, ou brief structurellement refusé), sinon None — même
+    convention de retour que `stale_run_dir_reason`. Un profil dont l'ordre NE porte
+    PAS `s0-contrat` (patch, micro, proof_only, review, artbible…) n'est PAS
+    concerné : il opère sur un projet existant, comportement STRICTEMENT inchangé
+    (retour None sans même lire le disque).
+
+    Factorisée hors `main()` pour rester testable sans subprocess/argv (extraite à
+    la demande du charter de ce paquet)."""
+    order = PROFILES.get(profile, ())
+    if "s0-contrat" not in order:
+        return None
+
+    brief_path = project_brief_path(project)
+    doc_ref = "reference : docs/forge/FORGE_PROJECT_INPUT_V0.md paragraphe 3"
+
+    if not brief_path.is_file():
+        return (
+            "PRE-VOL ECHOUE -- campagne NON lancee (aucune activation LLM depensee).\n"
+            f"projet : {project}\n"
+            f"raison : Brief canonique absent ({brief_path})\n"
+            f"{doc_ref} -- profil '{profile}' porte s0-contrat, un Brief valide "
+            "est exige AVANT le lancement (aucune dependance LLM)."
+        )
+
+    try:
+        raw = brief_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return (
+            "PRE-VOL ECHOUE -- campagne NON lancee (aucune activation LLM depensee).\n"
+            f"projet : {project}\n"
+            f"raison : Brief illisible ({brief_path}) : {exc}\n"
+            f"{doc_ref}"
+        )
+
+    import yaml  # deja dependance de forge.contract
+
+    try:
+        brief = yaml.safe_load(raw)
+    except yaml.YAMLError as exc:
+        return (
+            "PRE-VOL ECHOUE -- campagne NON lancee (aucune activation LLM depensee).\n"
+            f"projet : {project}\n"
+            f"raison : Brief YAML invalide ({brief_path}) : {exc}\n"
+            f"{doc_ref}"
+        )
+
+    from forge.static_oracles import check_project_brief
+
+    report = check_project_brief(brief)
+    if not report["passed"]:
+        raisons = "; ".join(report["raisons"]) or "aucune raison rapportee"
+        return (
+            "PRE-VOL ECHOUE -- campagne NON lancee (aucune activation LLM depensee).\n"
+            f"projet : {project}\n"
+            f"raison : check_project_brief FAIL ({brief_path})\n"
+            f"raisons : {raisons}\n"
+            f"{doc_ref}"
+        )
+    return None
+
+
 def main(argv: list[str] | None = None) -> None:
     # F3 : durcissement console AVANT tout print — le rapport final porte du texte
     # LLM (humangate_flags Prisme, stderr claude) qui crashait en cp1252.
@@ -3512,6 +3626,14 @@ def main(argv: list[str] | None = None) -> None:
         )
         sys.exit(1)
 
+    # FORGE_PROJECT_INPUT_V0 §3 (ratifié Pierre 2026-08-29) : même étage que le
+    # pré-vol oracle ci-dessus — AVANT task_by_step/executor/ForgeDriver, aucune
+    # dépense LLM sur un Brief absent/invalide pour un profil qui DÉMARRE un projet.
+    brief_gate_failure = project_brief_gate(args.profile, args.project)
+    if brief_gate_failure is not None:
+        print(brief_gate_failure, file=sys.stderr)
+        sys.exit(1)
+
     # (f) tâches : défauts non vides (toutes les étapes LLM du profil full) <- CLI
     # (non vide seulement) <- tasks-file (par-dessus tout).
     file_tasks: dict[str, str] = {}
@@ -3532,7 +3654,7 @@ def main(argv: list[str] | None = None) -> None:
 
     simple_executor = claude_executor(
         add_dir=src_root, task_by_step=task_by_step, step_timeout=args.step_timeout,
-        profile=args.profile,
+        profile=args.profile, project=args.project,
     )
 
     if args.charter:
@@ -3544,7 +3666,31 @@ def main(argv: list[str] | None = None) -> None:
 
         def executor(payload, decision, context):
             if payload.etape == "s1-prisme":
-                return panel_executor(payload, decision, context)
+                res = panel_executor(payload, decision, context)
+                # FICHE 4 (GO Pierre 2026-08-29) : le chemin panel appelait
+                # `claude_call` directement et court-circuitait TOUTE la
+                # matérialisation déterministe que `claude_executor` fait pour la
+                # voie simple (prisme.json jamais écrit — limite déclarée, fermée
+                # ici). Câblage MINIMAL : mêmes fonctions module-level que celles
+                # invoquées à l'intérieur de `claude_executor` pour s1-prisme
+                # (`_materialize_artifact` -> prisme.json, `_materialize_markdown`
+                # -> product_snapshot.md, `_materialize_loop_spec` -> loop.json),
+                # zéro nouveau writer, zéro duplication de logique de schéma.
+                if res.get("ok"):
+                    step_run_dir = Path(context["run_dir"])
+                    failure = _materialize_artifact(
+                        payload.etape, str(res.get("output", "")), step_run_dir)
+                    if failure is not None:
+                        failure.setdefault("output", str(res.get("output", "")))
+                        return failure
+                    md_receipt = _materialize_markdown(
+                        payload.etape, str(res.get("output", "")), step_run_dir)
+                    if md_receipt is not None:
+                        res["markdown_check"] = md_receipt
+                    loop_receipt = _materialize_loop_spec(payload.etape, step_run_dir)
+                    if loop_receipt is not None:
+                        res["loop_check"] = loop_receipt
+                return res
             return simple_executor(payload, decision, context)
     else:
         executor = simple_executor

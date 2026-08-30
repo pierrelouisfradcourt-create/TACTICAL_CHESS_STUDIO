@@ -1156,6 +1156,189 @@ def check_charter(charter: dict) -> dict:
     return {"passed": not raisons, "raisons": raisons}
 
 
+# --- oracle PROJECT BRIEF (FORGE_PROJECT_INPUT_V0, ratifié Pierre 2026-08-29) ------
+# `project_brief.yaml` (lab/forge_briefs/<projet>/) est l'entrée UNIQUE d'un projet —
+# hiérarchie FORGE_DESIGN_FREEDOM_SPEC_V0 -> project_brief.yaml -> s0 -> charter (cf.
+# doc §1). Même doctrine que `check_charter` (docstring imité à l'identique) : FAIL
+# honnête avec raisons, jamais d'exception sur entrée malformée. Question que
+# l'oracle doit savoir trancher pour toute contrainte (doc §2) : vient-elle d'une
+# règle normative connue, d'une décision propre au projet, ou de nulle part ? « De
+# nulle part » = FAIL, jamais une invention de l'agent.
+KNOWN_NORMATIVE_SPECS = ("FORGE_DESIGN_FREEDOM_SPEC_V0",)
+
+_BRIEF_STRING_FIELDS = ("projet", "intention", "cible")
+_BRIEF_DICT_FIELDS = ("contraintes", "provenance")
+_BRIEF_LIST_FIELDS = ("criteres_sortie", "libertes_deleguees")
+_CONTRAINTES_ALLOWED_KEYS = ("normative_refs", "project_specific")
+_PROJECT_SPECIFIC_LIST_FIELDS = ("techniques", "experimentales")
+_RULE_ID_RE = re.compile(r"^N\d+$")
+_FOG_PROVENANCE_PREFIX = "FOG_HUMANGATE"
+
+
+def _scan_todo_anywhere(value, path: str, raisons: list[str]) -> None:
+    """« à définir » n'importe où dans le Brief = FAIL (doc §2) — parcours générique,
+    en complément (pas en remplacement) des messages nommés par champ ci-dessous."""
+    if isinstance(value, str):
+        if _is_todo_placeholder(value):
+            raisons.append(f"{path} contient un « à définir » résiduel : {value!r}")
+    elif isinstance(value, dict):
+        for k, v in value.items():
+            _scan_todo_anywhere(v, f"{path}.{k}", raisons)
+    elif isinstance(value, list):
+        for i, v in enumerate(value):
+            _scan_todo_anywhere(v, f"{path}[{i}]", raisons)
+
+
+def check_project_brief(brief: dict) -> dict:
+    """project_brief.yaml porte-t-il TOUS ses champs obligatoires, remplis, sans
+    « à définir » résiduel, et ses contraintes viennent-elles toutes soit d'une règle
+    normative connue soit d'une décision propre au projet — jamais de nulle part ?
+
+    Retourne {passed, raisons[]}. Jamais d'exception sur entrée malformée (brief n'est
+    pas un mapping, champ d'un type inattendu...) — FAIL honnête avec raison
+    explicite, même doctrine que `check_charter` (voir son docstring, imité ici).
+
+    Champs requis :
+    - chaînes non vides : projet, intention, cible
+    - mappings non vides : contraintes, provenance
+    - listes NON VIDES de chaînes non vides : criteres_sortie, libertes_deleguees
+    - `references_autorisees` : liste ; peut être vide UNIQUEMENT si
+      `provenance.references_autorisees` est une chaîne qui explique le fog (préfixe
+      FOG_HUMANGATE) ; sinon chaque entrée est un mapping {ref, source} tous deux non
+      vides — source absente = FAIL (le fog explicite se déclare au niveau provenance,
+      pas en laissant une entrée sans source).
+    - `contraintes` : EXACTEMENT les clés `normative_refs` (list) et
+      `project_specific` (dict à `techniques`/`experimentales`, listes) — toute autre
+      clé de premier niveau = FAIL « contrainte venue de nulle part » (doc §2).
+      Chaque `normative_refs[i]` : {spec, rules} — `spec` doit appartenir au registre
+      `KNOWN_NORMATIVE_SPECS` ; `rules` non vide, chaque règle au format `N<chiffres>`.
+
+    « à définir » est détecté insensible aux accents ET à la casse, n'importe où dans
+    le document (scan générique en complément des messages nommés par champ).
+    """
+    if not isinstance(brief, dict):
+        return {"passed": False,
+                "raisons": [f"brief n'est pas un mapping (reçu {type(brief).__name__})"]}
+
+    raisons: list[str] = []
+
+    for field in _BRIEF_STRING_FIELDS:
+        value = brief.get(field)
+        if not isinstance(value, str) or not value.strip():
+            raisons.append(f"'{field}' absent ou vide")
+        elif _is_todo_placeholder(value):
+            raisons.append(f"'{field}' contient un « à définir » résiduel : {value!r}")
+
+    for field in _BRIEF_DICT_FIELDS:
+        value = brief.get(field)
+        if not isinstance(value, dict) or not value:
+            raisons.append(f"'{field}' absent ou vide (mapping non vide attendu)")
+
+    for field in _BRIEF_LIST_FIELDS:
+        value = brief.get(field)
+        if not isinstance(value, list) or not value:
+            raisons.append(f"'{field}' absent ou vide (liste non vide attendue)")
+            continue
+        for i, item in enumerate(value):
+            if not isinstance(item, str) or not item.strip():
+                raisons.append(f"'{field}[{i}]' absent ou vide")
+            elif _is_todo_placeholder(item):
+                raisons.append(f"'{field}[{i}]' contient un « à définir » résiduel : {item!r}")
+
+    provenance = brief.get("provenance")
+
+    # references_autorisees : liste, vide tolérée UNIQUEMENT avec fog explicite tracé
+    # dans provenance.references_autorisees (doc §1 : "vient d'où" jamais fabriqué).
+    refs = brief.get("references_autorisees")
+    if not isinstance(refs, list):
+        raisons.append("'references_autorisees' absent ou n'est pas une liste")
+    elif not refs:
+        fog = provenance.get("references_autorisees") if isinstance(provenance, dict) else None
+        if not (isinstance(fog, str) and fog.strip().upper().startswith(_FOG_PROVENANCE_PREFIX)):
+            raisons.append(
+                "'references_autorisees' vide sans 'provenance.references_autorisees' "
+                f"expliquant le fog (préfixe {_FOG_PROVENANCE_PREFIX} attendu)")
+    else:
+        for i, item in enumerate(refs):
+            if not isinstance(item, dict):
+                raisons.append(f"'references_autorisees[{i}]' n'est pas un mapping")
+                continue
+            ref = item.get("ref")
+            if not isinstance(ref, str) or not ref.strip():
+                raisons.append(f"'references_autorisees[{i}].ref' absent ou vide")
+            elif _is_todo_placeholder(ref):
+                raisons.append(f"'references_autorisees[{i}].ref' contient un « à "
+                               f"définir » résiduel : {ref!r}")
+            source = item.get("source")
+            if not isinstance(source, str) or not source.strip():
+                raisons.append(f"'references_autorisees[{i}].source' absent ou vide")
+            elif _is_todo_placeholder(source):
+                raisons.append(f"'references_autorisees[{i}].source' contient un « à "
+                               f"définir » résiduel : {source!r}")
+
+    # contraintes : bac fermé — normative_refs + project_specific, rien d'autre.
+    contraintes = brief.get("contraintes")
+    if isinstance(contraintes, dict) and contraintes:
+        extra_keys = sorted(set(contraintes.keys()) - set(_CONTRAINTES_ALLOWED_KEYS))
+        if extra_keys:
+            raisons.append(
+                f"'contraintes' porte des clés hors schéma {extra_keys} — contrainte "
+                "venue de nulle part (doc §2 : normative_refs ou project_specific "
+                "uniquement)")
+
+        normative_refs = contraintes.get("normative_refs")
+        if not isinstance(normative_refs, list):
+            raisons.append("'contraintes.normative_refs' absent ou n'est pas une liste")
+        else:
+            for i, nr in enumerate(normative_refs):
+                if not isinstance(nr, dict):
+                    raisons.append(f"'contraintes.normative_refs[{i}]' n'est pas un mapping")
+                    continue
+                spec = nr.get("spec")
+                if not isinstance(spec, str) or not spec.strip():
+                    raisons.append(f"'contraintes.normative_refs[{i}].spec' absent ou vide")
+                elif spec not in KNOWN_NORMATIVE_SPECS:
+                    raisons.append(
+                        f"'contraintes.normative_refs[{i}].spec' {spec!r} hors du "
+                        f"registre connu {list(KNOWN_NORMATIVE_SPECS)} — contrainte "
+                        "venue de nulle part")
+                rules = nr.get("rules")
+                if not isinstance(rules, list) or not rules:
+                    raisons.append(
+                        f"'contraintes.normative_refs[{i}].rules' absent ou vide "
+                        "(liste non vide attendue)")
+                else:
+                    for j, rule in enumerate(rules):
+                        if not isinstance(rule, str) or not _RULE_ID_RE.match(rule):
+                            raisons.append(
+                                f"'contraintes.normative_refs[{i}].rules[{j}]' "
+                                f"{rule!r} mal formé (attendu N<chiffres>)")
+
+        project_specific = contraintes.get("project_specific")
+        if not isinstance(project_specific, dict):
+            raisons.append("'contraintes.project_specific' absent ou n'est pas un mapping")
+        else:
+            for sub in _PROJECT_SPECIFIC_LIST_FIELDS:
+                sub_val = project_specific.get(sub)
+                if not isinstance(sub_val, list):
+                    raisons.append(
+                        f"'contraintes.project_specific.{sub}' absent ou n'est pas "
+                        "une liste")
+                else:
+                    for i, item in enumerate(sub_val):
+                        if not isinstance(item, str) or not item.strip():
+                            raisons.append(
+                                f"'contraintes.project_specific.{sub}[{i}]' absent ou vide")
+                        elif _is_todo_placeholder(item):
+                            raisons.append(
+                                f"'contraintes.project_specific.{sub}[{i}]' contient "
+                                f"un « à définir » résiduel : {item!r}")
+
+    _scan_todo_anywhere(brief, "brief", raisons)
+
+    return {"passed": not raisons, "raisons": raisons}
+
+
 # --- §7.2 · s2.7-gm-worldscan (GO Pierre 2026-08-14) --------------------------------
 # Les 8 dimensions de calibration que `s2-worldscan` ne structure PAS. Les 3 autres
 # (modes/joueurs, solvabilité, boucles) vivent déjà dans worldscan.json et ne sont
@@ -1389,3 +1572,153 @@ def check_story_bible(data: dict) -> dict:
             raisons.append(f"section '{sec}' présente {n} fois (une seule attendue)")
 
     return {"passed": not raisons, "raisons": raisons}
+
+
+# --- §7.2 (FICHE 2, GO Pierre 2026-08-29) · s9-build consomme s2.5-artbible ----------
+# Mesuré au run kitten_clicker (full_godot_content) : s2.5-artbible a produit
+# `asset_requests.json` (16 requêtes) ; le builder a écrit 16 SVG par coïncidence de
+# discipline, AUCUNE gate ne le vérifiait, et le reçu artbible affichait
+# `resolution_stats {ok:0, blocked:16}` sous un verdict OK. Décision Pierre :
+# « chaque request.id doit être resolved ou blocked avec justification vérifiable.
+# Un request silencieusement non consommé = FAIL. »
+def check_asset_consumption(asset_requests: dict, resolution: dict, src_root: Path) -> dict:
+    """Chaque `asset_requests.json.requests[].id` est-il RÉELLEMENT consommé — résolu
+    avec un fichier existant et non vide, ou bloqué avec une raison non vide ?
+
+    Retourne {passed, raisons[], resolved, blocked, missing[], checked}. Jamais
+    d'exception sur entrée malformée — FAIL honnête avec raison explicite, même
+    doctrine que `check_charter` (voir son docstring, imité ici à l'identique).
+
+    Ce que cet oracle vérifie — FORME et TRAÇABILITÉ, jamais la qualité de l'asset :
+      - `no_assets_needed: true` avec `reason` non vide ET `requests` vide =>
+        cas légitime, passed True ;
+      - sinon, pour CHAQUE `requests[].id` il doit exister une entrée dans
+        `resolution` (le `asset_resolution.json` écrit par s9 dans `src_root`) ;
+      - `status: "resolved"` => `path` (relatif à `src_root`) requis, non vide, le
+        fichier `src_root/path` doit EXISTER et être NON VIDE (taille > 0) —
+        sinon raison « resolved sans fichier » ;
+      - `status: "blocked"` => `reason` non vide, sinon FAIL ;
+      - id présent dans `requests` mais absent de `resolution` => FAIL
+        (« request silencieusement non consommé ») ;
+      - id présent dans `resolution` mais absent de `requests` => FAIL
+        (« résolution orpheline » — pas d'invention côté builder).
+
+    Ce qu'il NE vérifie PAS : que le fichier produit corresponde VISUELLEMENT à
+    `acceptance_tests` — un oracle de forme ne juge pas le contenu d'un SVG/PNG,
+    même limite assumée que `check_charter` sur la provenance de `reference_jeu`.
+    """
+    if not isinstance(asset_requests, dict):
+        return {"passed": False,
+                "raisons": [f"asset_requests n'est pas un mapping "
+                           f"(reçu {type(asset_requests).__name__})"],
+                "resolved": 0, "blocked": 0, "missing": [], "checked": True}
+    if not isinstance(resolution, dict):
+        return {"passed": False,
+                "raisons": [f"asset_resolution n'est pas un mapping "
+                           f"(reçu {type(resolution).__name__})"],
+                "resolved": 0, "blocked": 0, "missing": [], "checked": True}
+
+    raisons: list[str] = []
+    requests = asset_requests.get("requests")
+    no_assets_needed = asset_requests.get("no_assets_needed")
+    reason_top = asset_requests.get("reason")
+
+    if not isinstance(requests, list):
+        return {"passed": False,
+                "raisons": ["'requests' absent ou n'est pas une liste"],
+                "resolved": 0, "blocked": 0, "missing": [], "checked": True}
+
+    if not requests:
+        if no_assets_needed is True and isinstance(reason_top, str) and reason_top.strip():
+            return {"passed": True, "raisons": [], "resolved": 0, "blocked": 0,
+                    "missing": [], "checked": True}
+        raisons.append("'requests' vide sans 'no_assets_needed: true' motivé par "
+                       "'reason' — une absence de besoin se déclare, elle ne se tait pas")
+        return {"passed": False, "raisons": raisons, "resolved": 0, "blocked": 0,
+                "missing": [], "checked": True}
+
+    # Index des requêtes par id, en détectant les entrées malformées sans lever.
+    request_ids: list[str] = []
+    for i, r in enumerate(requests):
+        if not isinstance(r, dict):
+            raisons.append(f"requests[{i}] n'est pas un mapping")
+            continue
+        rid = r.get("id")
+        if not isinstance(rid, str) or not rid.strip():
+            raisons.append(f"requests[{i}] : 'id' absent ou vide")
+            continue
+        request_ids.append(rid)
+
+    # Décision Pierre (FICHE Project Input, 2026-08-29) : la tolérance
+    # `resolutions|requests` (fiche 2) est levée — clé UNIQUE canonique
+    # `asset_resolution.requests`. Un fichier portant `resolutions` est un FAIL
+    # nommé, pas une forme tolérée en silence.
+    if "resolutions" in resolution:
+        return {"passed": False,
+                "raisons": ["clé non canonique 'resolutions' — le contrat est "
+                           "asset_resolution.requests"],
+                "resolved": 0, "blocked": 0, "missing": [], "checked": True}
+    entries = resolution.get("requests")
+    if not isinstance(entries, list):
+        entries = []
+
+    by_id: dict[str, dict] = {}
+    for i, e in enumerate(entries):
+        if not isinstance(e, dict):
+            raisons.append(f"asset_resolution.requests[{i}] n'est pas un mapping")
+            continue
+        eid = e.get("id")
+        if not isinstance(eid, str) or not eid.strip():
+            raisons.append(f"asset_resolution.requests[{i}] : 'id' absent ou vide")
+            continue
+        if eid in by_id:
+            raisons.append(f"asset_resolution : id {eid!r} dupliqué")
+            continue
+        by_id[eid] = e
+
+    resolved_n = 0
+    blocked_n = 0
+    missing: list[str] = []
+    request_id_set = set(request_ids)
+
+    for rid in request_ids:
+        entry = by_id.get(rid)
+        if entry is None:
+            missing.append(rid)
+            raisons.append(f"'{rid}' : request silencieusement non consommé "
+                           "(absent de asset_resolution.json)")
+            continue
+        status = entry.get("status")
+        if status == "resolved":
+            path = entry.get("path")
+            if not isinstance(path, str) or not path.strip():
+                raisons.append(f"'{rid}' : resolved sans 'path'")
+                continue
+            asset_path = src_root / path
+            try:
+                exists = asset_path.is_file()
+                size = asset_path.stat().st_size if exists else 0
+            except OSError:
+                exists = False
+                size = 0
+            if not exists or size <= 0:
+                raisons.append(f"'{rid}' : resolved sans fichier "
+                               f"({path!r} absent ou vide sous {src_root})")
+                continue
+            resolved_n += 1
+        elif status == "blocked":
+            reason = entry.get("reason")
+            if not isinstance(reason, str) or not reason.strip():
+                raisons.append(f"'{rid}' : blocked sans 'reason'")
+                continue
+            blocked_n += 1
+        else:
+            raisons.append(f"'{rid}' : status {status!r} invalide (resolved | blocked)")
+
+    for eid in by_id:
+        if eid not in request_id_set:
+            raisons.append(f"'{eid}' : résolution orpheline (absente de "
+                           "asset_requests.json.requests)")
+
+    return {"passed": not raisons, "raisons": raisons, "resolved": resolved_n,
+            "blocked": blocked_n, "missing": missing, "checked": True}

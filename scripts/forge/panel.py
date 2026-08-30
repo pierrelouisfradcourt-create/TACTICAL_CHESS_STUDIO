@@ -17,6 +17,7 @@ s1-prisme du profil ``full`` — jamais sur le chemin s9-build/patch quotidien.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -41,6 +42,31 @@ _LENS_INSTRUCTIONS = {
     "joueur": "Point de vue Joueur réel : ce qu'il ressent en jouant, ce qui le "
               "frustrerait ou le satisferait, en langage non technique.",
 }
+
+
+_FENCED_JSON = re.compile(r"```json\s*(.*?)```", re.S)
+
+
+def extract_json_fence(text: str) -> str | None:
+    """Retourne le texte VERBATIM (sans les balises ```json``` / ```) du DERNIER
+    bloc fencé qui parse comme un objet JSON, ou None si aucun ne convient.
+
+    Même règle que `run_real.select_artifact_payload` (dernier bloc dict valide
+    du texte) — réimplémentée ici en local, déterministe, sans dépendance sur
+    run_real (qui importe déjà ce module : un import inverse serait circulaire).
+    Aucun jugement de schéma ici (pas de vérification `exigences` etc.) — c'est
+    le rôle de `run_real._validate_prisme`, appelé une seule fois, en aval,
+    quand `_materialize_artifact` traite la sortie fusionnée de l'étape.
+    """
+    blocks = _FENCED_JSON.findall(text or "")
+    for raw in reversed(blocks):
+        try:
+            data = json.loads(raw)
+        except ValueError:
+            continue
+        if isinstance(data, dict):
+            return raw
+    return None
 
 
 def lens_prompt(lens: str, contract_prompt: str, charter_text: str) -> str:
@@ -102,9 +128,40 @@ def panel_prisme_executor(claude_call, charter_path: Path, run_dir: Path, lenses
         if merged.returncode != 0:
             return {"ok": False, "reason": f"merge_prisme.mjs a échoué: {merged.stderr[-2000:]}"}
 
+        # Matérialisation de prisme.json (FICHE 4, GO Pierre 2026-08-29) : merge_
+        # prisme.mjs recombine la PROSE (product_snapshot, criteres_succes cités,
+        # règles observables) — il ne touche JAMAIS au schéma `{"exigences": [...]}`
+        # attendu de prisme.json (ancien format cible, WFL-02 ; le contrat réel
+        # produit désormais un bloc ```json``` structuré, voir prisme.json
+        # historiques dans lab/forge_runs/). Les lenses sont des points de vue
+        # NARRATIFS uniquement (cf. lens_prompt) — le panel n'invente donc aucune
+        # exigence : le bloc structuré du CONTRÔLE (seul artefact réel produit avec
+        # le même contrat que la voie simple) est repris VERBATIM, tel quel, en
+        # dernier bloc fencé de la sortie fusionnée. `run_real._materialize_
+        # artifact` (même chemin de code que la voie simple, zéro nouveau writer)
+        # retrouve ce bloc par sa propre règle "dernier ```json``` dict valide" et
+        # le valide via `_validate_prisme` — AUCUNE duplication de schéma ici.
+        #
+        # Fail-closed : si le contrôle n'a produit aucun bloc ```json``` objet
+        # exploitable, l'étape ÉCHOUE ici — jamais un run qui continue sans
+        # artefact structuré sous panel (c'était le bug mesuré : prisme.json
+        # jamais écrit, s3-decompo bloqué en aval).
+        control_json = extract_json_fence(control_out)
+        if control_json is None:
+            return {"ok": False,
+                    "reason": "panel Prisme: le contrôle n'a produit aucun bloc "
+                              "```json``` exploitable (objet JSON valide attendu) — "
+                              "prisme.json non matérialisable (aucun fichier écrit)"}
+
+        fused_output = (
+            merged.stdout.rstrip()
+            + "\n\n## Artefact structuré (issu du contrôle, repris verbatim par le panel)\n\n"
+            + "```json\n" + control_json.strip() + "\n```\n"
+        )
+
         return {
             "ok": True,
-            "output": merged.stdout,
+            "output": fused_output,
             "blocked": bool(findings),
             "findings": findings,
         }

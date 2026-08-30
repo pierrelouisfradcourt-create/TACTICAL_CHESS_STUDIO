@@ -439,6 +439,37 @@ PROFILES = {
         "s11-redteam-code",
         "s12-verdict",
     ),
+    # full_content (GO Pierre 2026-08-29, consolidation post-audit cartographie) —
+    # COMPOSITION, aucune station neuve : la chaîne de CONCEPTION de full_godot_content
+    # (story → art → gm → boucle r2/design_questions → design_freeze, briques génériques
+    # mesurées comme telles par l'audit du 2026-08-29) + le build WEB de `full`
+    # (s9-build + s10a/b/c), SANS les consommateurs Godot (ni s9-build-godot-standard,
+    # ni s10s-oracle-standard, ni product_oracle_godot/sondes GPU — niveau 3 « ne pas
+    # rapatrier comme vérité »). La gate design_freeze s'arme d'elle-même (présence de
+    # s2.7 dans l'ordre, cf. driver._design_loop_active). Timeout : AUCUNE entrée dans
+    # PROFILE_STEP_TIMEOUTS_S — aucun couple (full_content, étape) n'a jamais été
+    # mesuré, et la doctrine de la table (« une entrée = une mesure ») interdit d'en
+    # inventer ; le lanceur passe --step-timeout explicitement (RUN 1).
+    "full_content": (
+        "s0-contrat",
+        "s2-worldscan",
+        "s2.6-story-bible",
+        "s2.5-artbible",
+        "s2.7-gm-worldscan",
+        "s2.5-artbible-r2",
+        "s2.7-gm-worldscan-r2",
+        "s1-prisme",
+        "s3-decompo",
+        "s4-archi",
+        "s5-wiremap",
+        "s6-redteam-plan",
+        "s9-build",
+        "s10a-oracle-code",
+        "s10b-oracle-archi",
+        "s10c-oracle-wiremap",
+        "s11-redteam-code",
+        "s12-verdict",
+    ),
 }
 
 
