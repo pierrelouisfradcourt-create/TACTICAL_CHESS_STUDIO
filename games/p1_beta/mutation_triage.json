@@ -1,0 +1,10 @@
+[
+  {
+    "file": "engine.mjs",
+    "name": "and->or",
+    "line": 149,
+    "expression": "if (!this.terminal && this.light >= this.emitterCost) {",
+    "justification": "Mutating `&&` to `||` on `step()`'s auto-buy guard (`!this.terminal && this.light >= this.emitterCost`) is provably unobservable: the ONLY case where the mutant's truth value diverges from the original is `this.terminal === true && this.light >= this.emitterCost` (original: false, guard skipped; mutant: true, guard entered — the guarded call is `this.buyEmitter()`). But `buyEmitter()` opens with its OWN independent terminal guard (`if (this.terminal) return false;`, engine.mjs line 61) as its FIRST statement, before any state mutation. So entering the block under the mutant only reaches a call that immediately no-ops and returns false — zero observable state change in `light`, `emitterCount`, or anything else. Verified empirically, not just by inspection: manually mutated this exact line to `||`, constructed a state with `terminal=true, light=5000>=cost=15`, called `step(1)` — light/emitterCount/terminal identical before and after (5000/0/true, unchanged) — then re-ran the FULL suite (logic.test.mjs + properties.test.mjs, 60/60) under the mutant: bit-identical PASS, no assertion distinguishes it. Reverted immediately after verification (git-clean diff). This is a structural redundancy (defense-in-depth: both the caller and the callee guard the terminal invariant), not a gap in test coverage.",
+    "_verification": "manual mutation + targeted probe (terminal=true, light>=cost) + full 60-test suite re-run, 2026-08-30, reverted after verification"
+  }
+]

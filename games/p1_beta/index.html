@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>p1_beta — Embrasement</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0; min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+      background: #14102e;
+      color: #f2ecff;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    #field {
+      width: 100%; min-height: 100vh; position: relative;
+      background-color: rgb(20, 14, 46);
+      transition: background-color 200ms linear;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 24px 16px 60px;
+    }
+
+    #objective {
+      font-size: 16px; opacity: 0.85; margin-bottom: 8px; text-align: center;
+    }
+
+    #light-counter {
+      font-family: 'Consolas', 'Cascadia Mono', monospace;
+      font-variant-numeric: tabular-nums;
+      font-size: 56px; font-weight: 700; letter-spacing: 1px;
+      margin: 4px 0 4px; z-index: 20;
+    }
+    #light-counter-label { font-size: 13px; opacity: 0.7; letter-spacing: 2px; text-transform: uppercase; }
+
+    #progress-gauge {
+      width: 320px; height: 10px; border-radius: 5px;
+      background: rgba(255,255,255,0.12); overflow: hidden; margin: 10px 0 26px;
+    }
+    #progress-gauge-fill {
+      height: 100%; width: 0%; background: linear-gradient(90deg, #ff8a3d, #ffc93c);
+      transition: width 150ms linear;
+    }
+
+    #milestone-marker {
+      position: absolute; top: 150px; font-size: 13px; color: #ffd98a;
+      opacity: 0; transition: opacity 400ms ease; pointer-events: none;
+    }
+
+    #hearth-zone { position: relative; width: 240px; height: 240px; margin: 10px 0 30px; }
+    #emitters { position: absolute; top: 0; left: 0; width: 240px; height: 240px; }
+    #hearth {
+      position: absolute; left: 90px; top: 90px; width: 60px; height: 60px;
+      border-radius: 50%; background: #ff8a3d; cursor: pointer;
+      border: 3px solid #ffd6a8; box-shadow: 0 0 20px rgba(255,140,60,0.5);
+      transition: background-color 150ms, opacity 150ms;
+    }
+
+    #buy-button {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 10px 22px; border-radius: 10px; border: 2px solid #00000033;
+      background: #5a5a66; color: #14102e; font-weight: 700; cursor: not-allowed;
+      opacity: 0.5; margin-bottom: 10px;
+    }
+    #locked-glyph { font-size: 11px; font-weight: 500; opacity: 0.85; }
+    #locked-glyph[hidden] { display: none; }
+
+    #overlay {
+      position: fixed; inset: 0; background: rgba(10, 6, 24, 0.88);
+      display: flex; align-items: center; justify-content: center; z-index: 999;
+    }
+    #overlay.hidden { display: none !important; }
+    #overlay-inner {
+      background: linear-gradient(160deg, #2a1a52, #6b2f4a);
+      border-radius: 16px; padding: 36px 44px; text-align: center;
+      box-shadow: 0 0 60px rgba(255,180,120,0.35);
+    }
+    #overlay-title { margin: 0 0 18px; font-size: 26px; color: #ffe3b0; }
+    #ascension-altar {
+      display: block; width: 100%; padding: 12px 26px; margin-bottom: 12px;
+      border-radius: 8px; border: none; background: #e6d9ff; color: #2a1a52;
+      font-weight: 700; cursor: pointer; font-size: 15px;
+    }
+    #restart {
+      background: none; border: none; color: #cbb8ff; text-decoration: underline;
+      cursor: pointer; font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div id="field">
+    <div id="objective">Chargement...</div>
+    <div id="light-counter-label">Lumiere</div>
+    <div id="light-counter">0</div>
+    <div id="progress-gauge"><div id="progress-gauge-fill"></div></div>
+    <div id="milestone-marker"></div>
+
+    <div id="hearth-zone">
+      <div id="emitters"></div>
+      <div id="hearth"></div>
+    </div>
+    <div style="font-size:12px;opacity:0.7;margin-bottom:14px;">Émetteurs: <span id="emitter-count">0</span></div>
+
+    <button id="buy-button">
+      <span id="buy-button-label">Émetteur — 15 lumiere</span>
+      <span id="locked-glyph"></span>
+    </button>
+  </div>
+
+  <div id="overlay" class="hidden">
+    <div id="overlay-inner">
+      <h2 id="overlay-title">Embrasement complet</h2>
+      <button id="ascension-altar">Franchir l'autel d'ascension</button>
+      <button id="restart">Recommencer une partie neuve</button>
+    </div>
+  </div>
+
+  <script type="module" src="./main.mjs"></script>
+</body>
+</html>
