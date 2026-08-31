@@ -1,0 +1,220 @@
+{
+  "dispatch": "FORGE_DISPATCH:s9-build:p2_alpha-20260830-run1:4",
+  "builder": "Sonnet 5 (subagent)",
+  "stage": "s9-build",
+  "date": "2026-08-31",
+  "status": "COMPLETE",
+  "note": "Attempt 4 : redispatch sur le run_dir de l'attempt 3. Re-execution independante dans cette session (oracle 33/33 avec --e2e --mutation, 31/31 sans flags, reuse_ratio.mjs rejoue, imports d'ownership revérifiés, wiremap.json/wiremap_frozen.json revérifiés) — aucune divergence trouvée, AUCUN fichier de code modifié. Voir l'addendum attempt 4 dans FINAL_REPORT.md pour le détail. Le reste de ce manifest (contenu attempt 3) reste exact et inchangé.",
+  "summary": {
+    "modules": 5,
+    "tests_passing": 33,
+    "solvability_ticks": 47845,
+    "budget_ticks": 72000,
+    "ownership_files": [
+      "economy.mjs",
+      "render.mjs",
+      "input.mjs",
+      "main.mjs",
+      "solvability.mjs"
+    ]
+  },
+  "files_delivered": {
+    "game_code": [
+      {
+        "path": "games/p2_alpha/index.html",
+        "size": "~1.5 KB",
+        "purpose": "Canvas harness + window.__game exposure"
+      },
+      {
+        "path": "games/p2_alpha/main.mjs",
+        "size": "~2 KB",
+        "purpose": "Game loop orchestration + initialization",
+        "module": "main"
+      },
+      {
+        "path": "games/p2_alpha/economy.mjs",
+        "size": "~5 KB",
+        "purpose": "Economic logic (pure, deterministic, milli-R integers)",
+        "module": "economy"
+      },
+      {
+        "path": "games/p2_alpha/render.mjs",
+        "size": "~10 KB",
+        "purpose": "Canvas rendering (read-only economy state)",
+        "module": "render"
+      },
+      {
+        "path": "games/p2_alpha/input.mjs",
+        "size": "~2 KB",
+        "purpose": "Input handling (no render imports)",
+        "module": "input"
+      },
+      {
+        "path": "games/p2_alpha/solvability.mjs",
+        "size": "~3 KB",
+        "purpose": "Bot solvability proof (reaches S5 in 47845 ticks)",
+        "module": "solvability"
+      }
+    ],
+    "test_code": [
+      {
+        "path": "games/p2_alpha/logic.test.mjs",
+        "tests": 14,
+        "status": "ALL PASS",
+        "purpose": "Unit tests (strict ==, no >= tautologies)"
+      },
+      {
+        "path": "games/p2_alpha/properties.test.mjs",
+        "tests": 15,
+        "status": "ALL PASS",
+        "purpose": "Property tests + mutation gates"
+      },
+      {
+        "path": "games/p2_alpha/e2e.mjs",
+        "status": "PASSING (réellement exécuté, Chromium headless réel)",
+        "purpose": "Playwright harness (browser automation, real DOM click-through)"
+      },
+      {
+        "path": "games/p2_alpha/server.mjs",
+        "status": "NEW (absent en attempt 1)",
+        "purpose": "Serveur statique local (contrat de jouabilité, 'interface jouable')"
+      },
+      {
+        "path": "games/p2_alpha/run-oracle.mjs",
+        "status": "ORCHESTRATOR PASS (phase E2E réécrite, spawn réel au lieu d'un import jamais invoqué)",
+        "purpose": "Test orchestration + phases (unit, property, solvability, e2e, mutation)"
+      },
+      {
+        "path": "games/p2_alpha/asset_resolution.json",
+        "status": "NEW (absent en attempt 1)",
+        "purpose": "13/13 asset_requests.json.requests[].id tracés (blocked, rendu procédural)"
+      }
+    ],
+    "documentation": [
+      {
+        "path": "games/p2_alpha/EXECUTION_RECEIPT.md",
+        "purpose": "Evidence of code execution + test results"
+      },
+      {
+        "path": "games/p2_alpha/FINAL_REPORT.md",
+        "purpose": "Builder final report + RETURN_LINEAGE"
+      },
+      {
+        "path": "games/p2_alpha/DELIVERY_MANIFEST.json",
+        "purpose": "This file — manifest of deliverables"
+      }
+    ]
+  },
+  "wiremap_update": {
+    "file": "lab/forge_runs/p2_alpha/wiremap.json",
+    "action": "9/25 entrées corrigées : `fonction` ne correspondait à aucun identifiant réel (check_wiremap FAIL, rejoué et confirmé avant correction). 6 extraites en fonctions nommées réelles, 3 re-pointées vers le nom existant.",
+    "features_updated": 25,
+    "status": "IMPLEMENTED — check_wiremap rejoué : passed=True, 0 fonctions_renommées (v1.1.0 sur les 9 entrées corrigées, v1.0.0 inchangé ailleurs)",
+    "date": "2026-08-31"
+  },
+  "ownership_verification": {
+    "economy": {
+      "owned_files": ["economy.mjs"],
+      "dependencies": [],
+      "no_forbidden_edges": true
+    },
+    "render": {
+      "owned_files": ["render.mjs"],
+      "dependencies": ["economy"],
+      "no_forbidden_edges": true
+    },
+    "input": {
+      "owned_files": ["input.mjs"],
+      "dependencies": ["economy"],
+      "no_forbidden_edges": true
+    },
+    "main": {
+      "owned_files": ["main.mjs", "index.html"],
+      "dependencies": ["economy", "render", "input"],
+      "no_forbidden_edges": true
+    },
+    "solvability": {
+      "owned_files": ["solvability.mjs"],
+      "dependencies": ["economy"],
+      "no_forbidden_edges": true
+    }
+  },
+  "conformance_checklist": {
+    "structure_imposed_v2_yaml_ratified_20260830": true,
+    "tick_ms_100": true,
+    "budget_ticks_72000": true,
+    "gain_clic_initial_1R": true,
+    "cost_base_exact": true,
+    "prod_per_sec_exact": true,
+    "growth_factor_1_12": true,
+    "thresholds_s1_to_s5": true,
+    "milli_r_accounting": true,
+    "no_artificial_failure_states": true,
+    "solvability_proven": true,
+    "all_tests_passing": true,
+    "no_hardcoded_flags": true,
+    "no_ge_tautologies": true,
+    "evidence_path_provided": true
+  },
+  "test_results_summary": {
+    "unit_tests": {
+      "file": "logic.test.mjs",
+      "tests": 14,
+      "passed": 14,
+      "failed": 0,
+      "status": "ALL PASS"
+    },
+    "property_tests": {
+      "file": "properties.test.mjs",
+      "tests": 15,
+      "passed": 15,
+      "failed": 0,
+      "status": "ALL PASS"
+    },
+    "solvability": {
+      "file": "solvability.mjs",
+      "result": true,
+      "ticks_to_victory": 47845,
+      "budget": 72000,
+      "margin_ticks": 24155,
+      "margin_percent": 33.6,
+      "status": "PASS"
+    },
+    "e2e": {
+      "file": "e2e.mjs",
+      "status": "PASS (réellement exécuté cette session, Chromium headless, serveur réel :4603)",
+      "assertions": "10 clics réels #coeur-de-lumen, achat réel #buy-g1, disabled/abordable observé, production automatique sans clic, franchissement de seuil forcé -> #buy-g2 + #threshold-reveal, victoire -> #victory-overlay + arrêt boucle, #rejouer -> reset strict + relance boucle"
+    },
+    "mutation_gates": {
+      "click_gain_mutation": "CAUGHT (kills +1001 mutant)",
+      "cost_formula_mutation": "CAUGHT (kills 1.15 mutant)",
+      "victory_threshold_mutation": "CAUGHT (kills 999999 mutant)"
+    },
+    "variance": {
+      "samples": 5,
+      "mean_ticks": 50241.4,
+      "variance": 535400.24,
+      "status": "PROVEN"
+    }
+  },
+  "known_issues": {
+    "E12_ADVANTAGE_vs_charter_run_unique": {
+      "status": "EXPECTED CONSTRAINT",
+      "manifest_reference": "[manifest-b8a9f731ccc164ce]",
+      "reason": "GAMEPLAY CONTRACT E12 presumes prestige mechanics; p2_alpha charter forbids inter-run persistence (run-unique)",
+      "action": "NO_ACTION_REQUIRED - documented tension, not a defect"
+    }
+  },
+  "verdicts": {
+    "software_verdict": "OK",
+    "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
+    "claim_verdict": "NO_CLAIM_ALLOWED"
+  },
+  "next_steps": [
+    "verify_run (stage s10-oracle-verify)",
+    "red_team (stage s11-prisme)",
+    "verdict_sign (stage s12-verdict)"
+  ],
+  "no_commits": "Per charter: git commit/push blocked without explicit HumanGate approval. All files written to working tree only.",
+  "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\games\\p2_alpha\\EXECUTION_RECEIPT.md"
+}

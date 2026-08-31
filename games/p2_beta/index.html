@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P2 Beta — cycle borné</title>
+  <style>
+    /* Palette FERME de l'Art Bible (lab/forge_runs/p2_beta/art_bible.md).
+       Aucune teinte thématique en dur : le chrome reste re-skinnable tant que
+       le sujet de production (q_art_001) n'est pas tranché par le HumanGate. */
+    :root {
+      --field-deep: #1E1B18;
+      --panel: #2A2622;
+      --separator: #3A342E;
+      --value: #F5A623;
+      --currency: #FFCE54;
+      --clickable: #3BB6A6;
+      --milestone: #8E6FE0;
+      --alert: #E8604C;
+      --text: #F3ECE2;
+      --text-muted: #A79E92;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, 'Segoe UI', Arial, sans-serif;
+      /* req_background — le champ chaud calme, sous les nombres, jamais en
+         concurrence avec eux (Art Bible § ui_readability). */
+      background: var(--field-deep) url('assets/background.svg') center / cover no-repeat fixed;
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 24px 16px;
+      font-variant-numeric: tabular-nums;
+    }
+    #game-container {
+      background: var(--panel);
+      border: 1px solid var(--separator);
+      border-radius: 14px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+      padding: 22px;
+      max-width: 640px;
+      width: 100%;
+    }
+    #click-target { display: block; margin: 0 auto; }
+    #click-target img { filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.45)); }
+    #click-target:hover img { filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.55)); }
+    #generator-row button:enabled:hover { box-shadow: 0 4px 12px rgba(59, 182, 166, 0.3); }
+    /* La classe `hidden` est le signal de visibilité lu par l'e2e
+       (scripts/forge/contracts/PLAYABLE_CONTRACT.md). */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="game-container"></div>
+  <script type="module" src="main.mjs"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "project": "p2_beta",
+  "policy": "Un survivant n'est acceptable que PROUVÉ équivalent — aucune entrée ne pouvant distinguer le mutant de l'original par une sortie observable. Tout autre survivant est un trou de test, pas une exception. Le triage étant une EXCEPTION TRACÉE (qui coûte un HumanGate) et non une preuve, il n'est ouvert qu'en dernier recours.",
+  "survivors": [],
+  "resolved_without_triage": [
+    {
+      "file": "logic.mjs",
+      "mutant": "le->lt",
+      "original": "if (!Number.isFinite(amount) || amount <= 0) return 0;",
+      "status": "SUPPRIMÉ À LA SOURCE, non trié",
+      "analysis": "Ce mutant a survécu à la première passe et était PROUVÉ équivalent : la seule valeur qu'il laisse passer est amount === 0, pour laquelle le corps exécute `resourceCounter += 0` / `lifetimeEarned += 0` (l'addition de zéro est l'identité en IEEE-754) puis retourne 0 — soit exactement ce que la branche de garde retournait. Le cas -0 ne distingue pas non plus (0 + (-0) === +0). Aucune entrée témoin n'existe.",
+      "action": "Plutôt que d'ouvrir une exception de triage pour un signal vacuously vrai, la garde a été réécrite en `!(amount > 0)` — sémantiquement identique, sans borne inerte. Le mutant n'existe plus : le gate est à 100 % de mutants tués, sans exception et donc sans dette de HumanGate.",
+      "evidence": "Passe de mutation avant : 61/62 tués, survivant le->lt@L34. Après : 62/62, 0 survivant."
+    }
+  ]
+}

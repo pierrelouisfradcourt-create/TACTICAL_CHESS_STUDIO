@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>p2_alpha — Incremental Clicker</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    #gameContainer {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    #canvasWrap {
+      position: relative;
+      width: 800px;
+      height: 600px;
+    }
+    canvas {
+      border: 3px solid #FFD700;
+      display: block;
+      background-color: #0B0E17;
+    }
+    #info {
+      color: #FFD700;
+      font-size: 14px;
+      text-align: center;
+      max-width: 800px;
+    }
+    .hidden {
+      display: none;
+    }
+
+    /* Calque overlay : géométrie SYNCHRONISÉE avec render.mjs::LAYOUT (source de
+       vérité). pointer-events:none sur le calque, auto sur chaque affordance —
+       le canvas reste visible et cliquable ailleurs. */
+    #overlay-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    #overlay-layer button {
+      position: absolute;
+      pointer-events: auto;
+      cursor: pointer;
+      font: bold 12px Arial;
+      border: none;
+    }
+    #coeur-de-lumen {
+      left: 340px; top: 240px; width: 120px; height: 120px;
+      border-radius: 50%;
+      background: transparent;
+    }
+    .buy-generator {
+      top: 480px; width: 150px; height: 40px;
+      background: transparent;
+    }
+    #buy-g1 { left: 50px; }
+    #buy-g2 { left: 220px; }
+    #buy-g3 { left: 390px; }
+    #buy-g4 { left: 560px; }
+    #upgrade-container {
+      position: absolute;
+      left: 50px; top: 540px;
+      display: flex; gap: 10px;
+      pointer-events: none;
+    }
+    #upgrade-container button {
+      position: static;
+      pointer-events: auto;
+      width: 120px; height: 30px;
+      background: transparent;
+    }
+    #rejouer {
+      left: 325px; top: 370px; width: 150px; height: 50px;
+      background: transparent;
+    }
+    #victory-overlay.hidden #rejouer { pointer-events: none; }
+
+    /* Miroirs texte accessibles/testables — l'information est déjà dessinée
+       sur le canvas ; ces éléments existent pour l'e2e (textContent lisible)
+       sans dupliquer visuellement le HUD (opacity quasi nulle). */
+    .sr-mirror {
+      position: absolute;
+      opacity: 0.01;
+      pointer-events: none;
+      font-size: 1px;
+    }
+    #r_counter { left: 20px; top: 30px; }
+    #objectif { left: 300px; top: 30px; }
+    #colonne_generateurs {
+      position: absolute;
+      left: 650px; top: 200px;
+      pointer-events: none;
+      opacity: 0.01;
+      font-size: 1px;
+    }
+    #progress-meter {
+      position: absolute;
+      left: 580px; top: 30px;
+      width: 0%;
+      height: 20px;
+      opacity: 0.01;
+      pointer-events: none;
+    }
+    #threshold-reveal {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+      background: #fff;
+    }
+    #victory-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <div id="canvasWrap">
+      <canvas id="gameCanvas" width="800" height="600"></canvas>
+      <div id="overlay-layer">
+        <button id="coeur-de-lumen" aria-label="Coeur de Lumen"></button>
+        <button id="buy-g1" class="buy-generator hidden" data-gen="0"></button>
+        <button id="buy-g2" class="buy-generator hidden" data-gen="1"></button>
+        <button id="buy-g3" class="buy-generator hidden" data-gen="2"></button>
+        <button id="buy-g4" class="buy-generator hidden" data-gen="3"></button>
+        <div id="upgrade-container" class="hidden"></div>
+        <div id="r_counter" class="sr-mirror">0</div>
+        <div id="objectif" class="sr-mirror"></div>
+        <div id="colonne_generateurs"></div>
+        <div id="progress-meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+        <div id="threshold-reveal"></div>
+        <div id="victory-overlay" class="hidden">
+          <button id="rejouer"></button>
+        </div>
+      </div>
+    </div>
+    <div id="info">
+      <p>Cliquez sur le Cœur de Lumen pour gagner des R.</p>
+      <p>Achetez des générateurs pour augmenter la production automatique.</p>
+      <p>Atteignez 1 000 000 R pour remporter la victoire!</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initGame, startGame } from './main.mjs';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initGame('gameCanvas', (reason) => {
+        console.log(`[GameEvent] ${reason}`);
+      });
+      startGame();
+      console.log('[Harness] Game initialized and started');
+      console.log('[Harness] window.__game available for testing');
+    });
+  </script>
+</body>
+</html>

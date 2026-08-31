@@ -1,0 +1,123 @@
+{
+  "_note_maj_s9": "Colonnes fichiers/fonction/version/preuve/statut tenues à jour par s9-build. Le JEU DE RÈGLES (la liste des 13 features et leurs libellés) est FIGÉ par wiremap_frozen.json et n'a PAS été touché : aucune feature ajoutée, renommée ni supprimée. La colonne `couvre` est la sortie de s5 et n'a pas été réécrite ici — elle porte encore des identifiants gabarit sur R1/R4 (`id_capacite_requise_1`, « ids de capacités requises »), défaut AMONT signalé et non corrigé par le builder (hors ownership).",
+  "_preuve_globale": "run-oracle.mjs (scripts/forge/oracles.json: node run-oracle.mjs, cwd games/p2_beta) enchaîne logic.test.mjs (40 tests), properties.test.mjs (35 propriétés), e2e.mjs (Chromium réel) et solvability.mjs. Gate mutation : 61/61 mutants tués sur data/input/logic/main/render, 0 survivant.",
+  "features": [
+    {
+      "feature": "R1 Premier objectif au lancement",
+      "fonction": "createState",
+      "fichiers": ["main.mjs", "logic.mjs", "render.mjs", "data.mjs"],
+      "version": "s9-build-r5",
+      "statut": "PROUVÉ",
+      "preuve": "logic.test.mjs « R1: createState pose l'objectif initial sur data.GOALS[0] » (index 0, GOALS[0] identique) + « R1: le libellé d'objectif initial est une chaîne NON VIDE ». Frame 0 dans un VRAI navigateur : e2e.mjs lit #goal-label avant toute interaction et échoue si le texte est vide — mesuré « Récolte de quoi acheter ton premier générateur ».",
+      "couvre": ["id_capacite_requise_1", "id_capacite_requise_2"]
+    },
+    {
+      "feature": "R2 Clic producteur (entree)",
+      "fonction": "applyClick",
+      "fichiers": ["input.mjs", "logic.mjs"],
+      "version": "s9-build-r5",
+      "statut": "PROUVÉ",
+      "preuve": "logic.test.mjs « R2: N clics donnent EXACTEMENT N * valueClick » (égalité STRICTE à chaque n de 1 à 5, jamais un >=) + « R2: le compteur ne bouge PAS entre deux clics » (un step complet sans générateur laisse le total inchangé, cps == 0) + « R2: input route click_target -> logic.applyClick ». e2e.mjs : 15 clics réels, 0 -> 15.",
+      "couvre": ["applyClick"]
+    },
+    {
+      "feature": "R3 Feedback de clic (effet)",
+      "fonction": "renderClickFeedback",
+      "fichiers": ["render.mjs"],
+      "version": "s9-build-r5",
+      "statut": "PROUVÉ",
+      "preuve": "properties.test.mjs « feedback de clic absent au tick précédent » : au tick n-1 la capture vaut {floaters: 0, pressed: false} et le DOM ne contient NI flotteur NI vfx NI classe `pressed` ; au tick du clic les DEUX apparaissent ensemble (flotteur '+1' + classe `pressed` + asset click_feedback_vfx.svg). « le feedback expire à son échéance exacte » verrouille la durée de vie aux bornes.",
+      "couvre": ["renderClickFeedback"]
+    },
+    {
+      "feature": "R4 Recompense persistante (effet)",
+      "fonction": "accrue",
+      "fichiers": ["logic.mjs"],
+      "version": "s9-build-r5",
+      "statut": "PROUVÉ",
+      "preuve": "logic.test.mjs « R4: accrue est le SEUL écrivain du gain » (0, -5 et NaN ne créditent rien ; 7 crédite exactement 7 sur resourceCounter ET lifetimeEarned) + « R4: la récompense PERSISTE au frame suivant, sans décroître » (égalité stricte sur 2 frames). properties.test.mjs « accrue est le seul crédit » : un achat DÉBITE resourceCounter sans jamais toucher lifetimeEarned.",
+      "couvre": ["ids de capacités requises"]
+    },
+    {
+      "feature": "R5 Decision d'allocation",
+      "fonction": "step",
+      "fichiers": ["logic.mjs"],
+      "version": "s9-build-r5",
+      "statut": "PROUVÉ",
+      "preuve": "logic.test.mjs « R5: deux politiques divergent STRICTEMENT sur 300 frames » (idle reste à 0, active domine) + « R5: acheter change la trajectoire ». Preuve FORTE au niveau de l'issue : solvability.mjs mesure trois politiques sur le budget complet — jouer 100 %, clic-seul 72.5 %, inactif 0 % — trois valeurs distinctes, donc le choix d'allocation décide RÉELLEMENT de la victoire.",
+      "couvre": ["R5 Decision d'allocation"]
+    },
+    {
+      "feature": "R6 Deverrouillage generateur (entree)",
+      "fonction": "buyGenerator",
+      "fichiers": ["input.mjs", "logic.mjs", "data.mjs"],
+      "version": "s9-build-r5",
+      "statut": "PROUVÉ",
+      "preuve": "logic.test.mjs « R6: buyGenerator débite le coût EXACT et fait passer cps de 0 à >0 » + « canAfford vrai AU coût exact, faux un cran en dessous » + « refuse sans les fonds et ne touche à RIEN » + « input route buy_generator ». properties.test.mjs « les tuiles vivent dans la rangée » (5 tuiles réellement dans #generator-row) et « tuile payable au coût exact ». e2e.mjs achète dans le navigateur et vérifie la rangée.",
+      "couvre": ["buyGenerator"]
+    },
+    {
+      "feature": "R7 Objectif #2 (effet visible)",
+      "fonction": "advanceObjective",
+      "fichiers": ["logic.mjs", "render.mjs", "data.mjs"],
+      "version": "s9-build-r5",
+      "statut": "PROUVÉ",
+      "preuve": "logic.test.mjs « R7: après le PREMIER achat, l'objectif devient data.GOALS[1], texte distinct » — l'avancement est déclenché par un descripteur structuré (data.GOALS[].condition), jamais par une correspondance de sous-chaîne sur le texte affiché. Le libellé rendu est assert NON identique au précédent.",
+      "couvre": ["advanceObjective"]
+    },
+    {
+      "feature": "R8 Objectif #3 (effet visible)",
+      "fonction": "advanceObjective",
+      "fichiers": ["logic.mjs", "render.mjs", "data.mjs"],
+      "version": "s9-build-r5",
+      "statut": "PROUVÉ",
+      "preuve": "logic.test.mjs « R8: après le DEUXIÈME achat, l'objectif devient un TROISIÈME texte distinct » — les trois libellés sont comptés par un Set dont la taille doit valoir exactement 3. « objectiveSatisfied: chaque genre de condition est évalué AU seuil, pas avant » couvre les 5 genres de condition et le genre inconnu.",
+      "couvre": ["advanceObjective"]
+    },
+    {
+      "feature": "R9 Relance bornee (entree)",
+      "fonction": "prestigeReset",
+      "fichiers": ["input.mjs", "logic.mjs"],
+      "version": "s9-build-r5",
+      "statut": "PROUVÉ",
+      "preuve": "logic.test.mjs « R9: input route prestige_reset -> resourceCounter EXACTEMENT 0 » (strictement positif AVANT, exactement 0 APRÈS) + « refusée SOUS le seuil, état intact » + « bloquée EXACTEMENT à maxPrestigeCount » + « vide les générateurs mais PAS la marche vers la fin ». Dans l'UI : #prestige-button n'apparaît QUE lorsque la relance est réellement possible (properties.test.mjs).",
+      "couvre": ["prestigeReset"]
+    },
+    {
+      "feature": "R10 Jauge de fin persistante",
+      "fonction": "endGauge",
+      "fichiers": ["logic.mjs", "render.mjs", "data.mjs"],
+      "version": "s9-build-r5",
+      "statut": "PROUVÉ",
+      "preuve": "logic.test.mjs « R10: endGauge est monotone NON DÉCROISSANTE sur toute une partie jouée » (2000 ticks, assertion à CHAQUE tick) + « une RELANCE ne fait jamais redescendre la jauge » + « endGauge vaut 0 à vide, 1 à la cible, borné à 1 au-delà » + « le stage suit les crans de jauge et ne redescend jamais ». properties.test.mjs « jauge non décroissante à travers les relances » (1200 ticks avec relances réelles) et « crans de stage exacts ». Rendu : la jauge est un bandeau persistant, distinct du compteur en position/forme/taille, qui vire au violet jalon exactement à 90 %.",
+      "couvre": ["endGauge"]
+    },
+    {
+      "feature": "R11 Ecran de victoire",
+      "fonction": "isVictory",
+      "fichiers": ["logic.mjs", "render.mjs"],
+      "version": "s9-build-r5",
+      "statut": "PROUVÉ",
+      "preuve": "logic.test.mjs « R11: isVictory bascule EXACTEMENT à endGauge == 1, pas avant » (cible-1 => faux, cible => vrai). VRAI CHANGEMENT DE SCÈNE, pas une overlay : properties.test.mjs « la victoire REMPLACE la surface de jeu » vérifie que #play-surface est ABSENT du DOM à la victoire tandis que #overlay/#overlayTitle/#restart/#final-totals sont présents ; e2e.mjs refait la même vérification dans Chromium après forceEnd().",
+      "couvre": ["isVictory"]
+    },
+    {
+      "feature": "R12 Repetition de boucle (rejeu)",
+      "fonction": "step",
+      "fichiers": ["logic.mjs"],
+      "version": "s9-build-r5",
+      "statut": "PROUVÉ",
+      "preuve": "solvability.mjs : un bot rejoue la boucle clic->réponse->récompense->achat et atteint endGauge = 100 % en 9146 ticks, sous le budget de 72000. Doublé en unitaire par logic.test.mjs « R12: la boucle jouée atteint 100 % dans le budget de ticks ». Contre-épreuve indispensable : « R12: sans jouer, la boucle ne progresse JAMAIS » — 5000 ticks d'inaction laissent la jauge à 0, ce qui établit que la boucle PROGRESSE parce qu'elle est jouée, et non parce que le temps passe.",
+      "couvre": ["R2", "R3", "R4", "R6"]
+    },
+    {
+      "feature": "R13 Avantage post-relance (rejeu)",
+      "fonction": "prestigeMultiplier",
+      "fichiers": ["logic.mjs"],
+      "version": "s9-build-r5",
+      "statut": "PROUVÉ",
+      "preuve": "logic.test.mjs « R13: le delta par clic post-relance est STRICTEMENT supérieur au delta initial » — assertion stricte deltaAfter > deltaBefore, doublée d'une égalité exacte deltaAfter == deltaBefore * resetMultiplier (donc l'avantage est celui annoncé, pas un simple « plus grand »). « R13: le multiplicateur s'applique AUSSI au revenu passif » couvre computeCPS.",
+      "couvre": ["prestigeMultiplier"]
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "schema_note": "Clé canonique UNIQUE `requests` (jamais `resolutions`). `status` vaut EXACTEMENT 'resolved' ou 'blocked'. Un 'resolved' porte un `path` relatif au dossier du jeu, pointant sur un fichier réel et non vide ; un 'blocked' porte une `reason` non vide. Aucun statut intermédiaire : un placeholder livré EST un asset résolu (le fichier existe et est consommé), un besoin non couvert EST un blocage assumé.",
+  "requests": [
+    {
+      "id": "req_click_target",
+      "status": "resolved",
+      "path": "assets/click_target.svg",
+      "consumed_by": "data.ASSETS.clickTarget -> render.buildPlaySurface (#click-target)",
+      "note": "warm-tactile-illustration, palette Art Bible. Silhouette ronde pleine, liseré sarcelle d'affordance, ombre douce courte."
+    },
+    {
+      "id": "req_resource_counter",
+      "status": "resolved",
+      "path": "assets/resource_counter_frame.svg",
+      "consumed_by": "data.ASSETS.resourceCounterFrame -> render.buildPlaySurface (#resource-panel)",
+      "note": "flat-vector-ui. Cadre du total, élément dominant du HUD."
+    },
+    {
+      "id": "req_generator_icon",
+      "status": "resolved",
+      "path": "assets/generator_icon.svg",
+      "consumed_by": "data.ASSETS.generatorIcon -> render.buildPlaySurface (tuiles de #generator-row)",
+      "note": "warm-tactile-illustration. Lisible en petite taille dans la rangée."
+    },
+    {
+      "id": "req_upgrade_icon",
+      "status": "blocked",
+      "reason": "Aucun système d'améliorations n'existe dans ce jeu : le grey block `gb_upgrade` du Game Master n'est porté par AUCUNE exigence du Prisme, écart mesuré et remonté à s3-decompo (« amender le Prisme OU descoper — décision HumanGate », next_reason s3-decompo). Livrer l'icône ici produirait un asset sans consommateur, exactement le défaut que la garde de consommation existe pour détecter. L'achat répété d'un même générateur tient le rôle d'amélioration dans la boucle livrée, et se rend avec `generator_icon` ; il n'appelle pas d'icône distincte.",
+      "escalation": "HumanGate — trancher gb_upgrade (amender le Prisme ou descoper) avant de produire cet asset."
+    },
+    {
+      "id": "req_buy_button",
+      "status": "resolved",
+      "path": "assets/buy_button.svg",
+      "consumed_by": "data.ASSETS.buyButton -> render.buildPlaySurface (chaque tuile de générateur)",
+      "note": "flat-vector-ui. L'état non payable est porté par la luminosité et le coût en corail côté render, jamais par l'asset (code colorblind-safe)."
+    },
+    {
+      "id": "req_currency_symbol",
+      "status": "resolved",
+      "path": "assets/currency_symbol.svg",
+      "consumed_by": "data.ASSETS.currencySymbol -> render.buildPlaySurface (#resource-panel)",
+      "note": "flat-vector-ui. Forme hexagonale distincte : lisible sans la teinte seule."
+    },
+    {
+      "id": "req_click_feedback_vfx",
+      "status": "resolved",
+      "path": "assets/click_feedback_vfx.svg",
+      "consumed_by": "data.ASSETS.clickFeedbackVfx -> render.renderClickFeedback (#click-fx-layer)",
+      "note": "soft-glow-vfx. Rendu UNIQUEMENT au tick du clic — absent du tick précédent (propriété « feedback de clic absent au tick précédent »)."
+    },
+    {
+      "id": "req_transient_bonus_token",
+      "status": "blocked",
+      "reason": "Le jeton de bonus transitoire (type golden cookie) relève du grey block `gb_bonus_token`, second écart mesuré à s3-decompo : aucune exigence du Prisme ne le porte, aucune boucle livrée ne le consomme. La méta-boucle de ce jeu est le prestige (relance contre multiplicateur permanent), requalification déjà assumée en amont — le bonus transitoire n'y a pas de place mécanique. Produire le sprite en ferait un fichier mort.",
+      "escalation": "HumanGate — même décision que gb_upgrade : amender le Prisme ou descoper explicitement."
+    },
+    {
+      "id": "req_progress_end_indicator",
+      "status": "resolved",
+      "path": "assets/progress_end_indicator.svg",
+      "consumed_by": "data.ASSETS.progressEndIndicator -> render.buildPlaySurface (#end-gauge-container)",
+      "note": "flat-vector-ui. Bandeau fin, persistant, distinct du compteur en position/forme/taille ; les 4 crans marquent les seuils de stage."
+    },
+    {
+      "id": "req_victory_screen",
+      "status": "resolved",
+      "path": "assets/victory_screen.svg",
+      "consumed_by": "data.ASSETS.victoryScreen -> render.buildVictoryScene (#overlay)",
+      "note": "flat-vector-ui plein écran. La scène REMPLACE la surface de jeu (#play-surface est retiré du DOM), ce n'est pas une couche posée dessus — vérifié par l'e2e et par la propriété « la victoire REMPLACE la surface de jeu »."
+    },
+    {
+      "id": "req_stage_scene",
+      "status": "resolved",
+      "path": "assets/stage_scene_1.svg",
+      "family": [
+        "assets/stage_scene_1.svg",
+        "assets/stage_scene_2.svg",
+        "assets/stage_scene_3.svg",
+        "assets/stage_scene_4.svg",
+        "assets/stage_scene_5.svg"
+      ],
+      "consumed_by": "data.ASSETS.stageScenes -> render.stageSceneFor -> render.buildPlaySurface",
+      "note": "Famille de 5 scènes, une par stage, chacune avec sa silhouette et sa teinte dominante (ambre -> sarcelle -> miel -> violet -> clôture). Le franchissement d'un cran change de LIEU, jamais un simple pourcentage (propriété « la scène suit le stage »). `path` désigne la première de la famille, exigée non vide par la garde ; `family` porte les cinq."
+    },
+    {
+      "id": "req_quest_tracker",
+      "status": "resolved",
+      "path": "assets/quest_tracker.svg",
+      "consumed_by": "data.ASSETS.questTracker -> render.buildPlaySurface (#quest-tracker, abrite #goal-label)",
+      "note": "flat-vector-ui. Forme et position distinctes du compteur de ressource et de la jauge : jamais confondu avec le total."
+    },
+    {
+      "id": "req_background",
+      "status": "resolved",
+      "path": "assets/background.svg",
+      "consumed_by": "index.html — `background: var(--field-deep) url('assets/background.svg')` sur body",
+      "note": "warm-tactile-illustration. Champ chaud calme : le fond ne rivalise jamais avec les chiffres."
+    }
+  ],
+  "summary": {
+    "total_requests": 13,
+    "resolved": 11,
+    "blocked": 2,
+    "blocked_ids": ["req_upgrade_icon", "req_transient_bonus_token"],
+    "blocked_cause": "Les DEUX blocages pointent la même cause amont, non tranchée : les grey blocks `gb_upgrade` et `gb_bonus_token` conçus par le Game Master ne sont portés par aucune exigence du Prisme (écart mesuré et remonté par s3-decompo, décision HumanGate en attente). Ce ne sont pas des renoncements de production : ce sont deux unités de contenu sans consommateur mécanique dans la featuremap livrée.",
+    "verification": "Les 11 chemins 'resolved' existent et sont non vides sous games/p2_beta ; l'e2e charge la page réelle et échoue si un seul <img> ne se charge pas (18 assets chargés, 0 cassé)."
+  }
+}
