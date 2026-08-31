@@ -4,6 +4,25 @@ full_content prouvée, verdict AUTHENTIQUE HUMANGATE_READY) après consolidation
 Project Input · 2026-08-29 — run tower_defense_sonde COMPLET puis CLOS. Archive :
 `journal/context-archive-2026-08-29-avant-audit-paquetA.md`.)*
 
+## Analyse M1-M7 paire pilote (2026-08-30) — **CLOSE** (`p1_beta/ANALYSE_PAIRE_M1M7_20260830.md`)
+- Grille pré-enregistrée exécutée (4 revues contexte propre + M2/M3 mécanique + M7 aveugle
+  Pierre AVANT descellement : (a) envie de jouer = D1 · (b) ratifiable = L1, caveats consignés).
+- AUCUN claim L/D. 5 observations de protocole → amendement V1 : findings 1-3 (corrigés au sas
+  R3/freeze) · n°4 matérialisation charter advisory · n°5 instruments d'analyse (masquage à
+  durcir, M7(a) sur artefacts post-conception, la revue attrape les défauts de l'ENTRÉE imposée).
+- Ordre ratifié : amender le PROTOCOLE RUN 2 → sas de pré-enregistrement → décider paire 2.
+
+## Sas correctif R3/freeze (2026-08-30) — **CLOS, C1/C2/C3 TESTED (ratifiés Pierre)**
+- C1 : R3-lite vérifie la cible DÉCLARÉE par la réponse (`answer.modification_locus` :
+  gm_worldscan/art_bible/aucune_requise) — variante « hors-GM advisory » REFUSÉE ; rétrocompat
+  (sans locus = diff GM, HALT historique D1 reproductible). C2 : micro-re-déclaration réelle
+  après la ronde du répondant (3 conditions, vrai spawn/reçu — jamais de mutation state.json).
+  C3 : `aucune_requise` fail-closed (justification + objet normatif au Brief). Contrats
+  s2.5/s2.7 : ajout locus borné. Preuve centrale : R3 ne force plus la modification d'une
+  structure interdite de modification (fixtures = artefacts réels p1_alpha/p1_beta).
+- 28 fixtures + T0 2431 verts zéro rouge · retrait `p1_alpha` d'oracles.json (GO Pierre,
+  résidu pilote). Commit 6e5e7da poussé. **M1-M7 / nouvelle paire / claim L/D : gates Pierre.**
+
 ## Paire pilote RUN 2 L/D (2026-08-30) — **CLÔTURÉE par Pierre** (pièces aux 2 run_dirs)
 - Protocole pré-enregistré `docs/forge/RUN2_PILOTE_PROTOCOLE_V0.md` : p1_alpha=D1 (structure
   imposée ratifiée), p1_beta=L1 (libre), parallèle strict, même HEAD f8c50a0, tripwire.

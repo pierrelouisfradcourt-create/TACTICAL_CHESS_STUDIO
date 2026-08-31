@@ -1388,3 +1388,23 @@ lab/forge_runs/p1_alpha/PILOT_STOP_20260830.md.
 
 **Critères de révision** : sas correctif R3/freeze (3 findings comme spec) AVANT toute analyse
 M1-M7 et toute nouvelle paire.
+
+## 2026-08-30 — Clôture de l'analyse M1-M7 de la paire pilote
+
+**Décision** : analyse CLOSE (grille + M7 + 5 observations consignées :
+lab/forge_runs/p1_beta/ANALYSE_PAIRE_M1M7_20260830.md, paquet aveugle archivé m7_blind/).
+Les résultats ne sont PAS transformés en claim L/D. M7 (aveugle, avant descellement) :
+(a) envie de jouer = X/D1 · (b) ratifiable tel quel = Y/L1 — caveats d'auto-préférence et
+d'asymétrie constitutive consignés avec la donnée. Ordre ratifié : amender le protocole RUN 2
+(observations 1-5, pas le moteur au-delà des findings) → sas de pré-enregistrement → seulement
+après, décider si une paire 2 vaut le coût.
+
+**Contexte** : grille pré-enregistrée exécutée par 4 revues à contexte propre + M2/M3 mécanique ;
+convergences inter-lentilles (budget-de-ticks orphelin L1 ; S9 incalculable D1) ; la grille a
+aussi détecté 3 défauts de la grammaire IMPOSÉE ratifiée et 2 artefacts du masquage.
+
+**Alternatives rejetées** : conclure L vs D (paire dégradée, n=1, aveugle imparfait) ;
+amender le moteur de production au-delà des findings.
+
+**Critères de révision** : validation du protocole amendé (sas de pré-enregistrement) avant
+toute paire 2.
