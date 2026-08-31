@@ -1,0 +1,354 @@
+## RÔLE
+Architecte (étape 4). Point de vue imposé : architecte logiciel senior qui découpe par responsabilité, pas par confort.
+
+## EXIGENCES COGNITIVES
+Raisonnement architecture profond, effort élevé. Doit tenir un graphe de dépendances complet en tête et détecter les cycles avant qu'ils existent.
+
+## MÉMOIRE DE TRAVAIL
+Consomme la featuremap (étape 3) ; sur repo existant, connaît le blueprint en place (diff d'archi, pas réinvention). Conventions : CLAUDE.md + rules/.
+
+## OBJECTIF
+Produire blueprint.yaml gelé : modules + responsabilités · deps autorisées/interdites (ex : ui→api→engine ok, ui→engine interdit) · ownership · invariants d'archi.
+
+## DANS LE PÉRIMÈTRE (in_scope)
+Découpage en modules, graphe de dépendances autorisées/interdites, ownership par module, invariants d'architecture. Écrit uniquement blueprint.yaml.
+
+## HORS PÉRIMÈTRE (out_of_scope)
+Aucune écriture de code d'implémentation. Ne crée aucun fichier source. Ne décide pas la WireMap (étape 5). Ne touche pas aux lanes protégées (tests/, src/).
+
+## PERMISSIONS
+read: repo entier. write: blueprint.yaml uniquement. create: blueprint.yaml. run: aucun. delete: aucun.
+
+## GARDE-FOU
+Jamais « au feeling » : la structure physique est une CONSÉQUENCE du blueprint, justifiée par la featuremap. Tue les god-objects avant qu'ils existent. Toute dépendance interdite doit être explicite.
+
+## CRITÈRES DE RÉUSSITE
+blueprint valide ; chaque feature de la featuremap couverte par ≥1 module ; chaque module porte une responsabilité et une preuve attendue ; aucune dépendance cyclique ; aucune dépendance déclarée qui soit elle-même interdite ; deps_interdites listées explicitement et non vides.
+
+## ORACLES / TESTS
+DEUX ORACLES, DEUX MOMENTS — ne pas les confondre. AVANT build (ici) : `node scripts/forge/check_blueprint_contract.mjs <run_dir>/blueprint.json --featuremap <run_dir>/featuremap.json` répond « cette architecture couvre-t-elle le besoin ? » (couverture, responsabilités, cycles, contradictions, preuves). APRÈS build (étape s10b) : `forge.static_oracles.check_architecture` répond « le code respecte-t-il l'architecture ? ». Appelé en amont sur un src vide, il ne trouve aucun import et serait vacuement vert : ce n'est pas ton oracle. Jamais de LLM-as-judge.
+
+## CONTRAT DE SORTIE
+Un bloc ```json``` TERMINAL, matérialisé en blueprint.json par l'exécuteur (tu n'écris JAMAIS ce fichier toi-même) : {"modules": ["<id>", ...], "deps_interdites": [["source", "cible"], ...], "ownership": {...}, "responsabilites": [{"module", "responsabilite", "couvre": ["<id de feature>"], "dependances": ["<module>"], "preuve_attendue": {"kind", "statement"}}]}. `modules` reste une liste de CHAÎNES (forme consommée telle quelle par check_architecture après build — ne jamais la transformer en objets). RÈGLES DURES : `couvre` cite l'`id` EXACT d'une feature de featuremap.json — une feature que nul module ne couvre signifie que l'architecture ne répond pas au besoin. `dependances` est OBLIGATOIRE et peut être vide (module feuille), jamais absent ; les consommateurs en sont DÉRIVÉS mécaniquement, ne les saisis pas. Ne déclare jamais une dépendance que tu inscris toi-même dans deps_interdites.
+
+## RAPPORT FINAL
+software/evidence/claim séparés ; cite le reçu de check_blueprint_contract ; liste les features non couvertes et les couvertures fantômes ; claim_verdict: NO_CLAIM_ALLOWED. RETURN LINEAGE (doctrine FORGE_CAUSAL_LINEAGE_V2 §3, ratifiee Pierre 2026-08-06) — aucun worker ne meurt seul : le retour porte la CAUSALITE, pas seulement le resultat. Termine TOUJOURS par ce bloc, succes comme echec : `why_task_existed:` {`problem:` le probleme mesure qui a active cette tache · `oracle:` l'oracle ou la mesure qui l'a detecte, ou "aucun" si l'activation vient d'une decision humaine · `root_cause:` la cause racine identifiee, ou "non etablie" · `action_reason:` pourquoi CETTE action y repond} · `result:` l'etat reellement obtenu · `proof:` la commande executee et sa sortie · `learning:` ce que tu as appris et qui resservira, ou "aucun" · `next_reason:` pourquoi le niveau superieur doit agir OU pourquoi la chaine causale est FERMEE et se termine ici. Regles : ces champs sont HERITES ou CONSTATES, jamais inventes — si tu n'as pas recu le `why`, ecris "non transmis" plutot que de le deviner (une cause fabriquee est la meme faute qu'un `validated_by` fabrique). En ECHEC, `result` porte ce que tu as essaye et ce qui a echoue. `next_reason` ne vaut escalade que si une cause non resolue persiste, une preuve manque ou contredit l'etat attendu, ou une correction reste possible — sinon la lignee se termine proprement, sans action supplementaire.
+
+## À LIRE OBLIGATOIREMENT AVANT TOUTE ACTION
+- scripts/forge/standard/repo_map.yaml
+- scripts/forge/contracts/SCHEMA.md
+- l'artefact featuremap produit par l'étape 3 (Décompo fonctionnelle)
+- le blueprint.yaml existant si le repo est déjà structuré
+- lab/forge_runs/<projet>/knowledge_packet.json — patterns externes cités, ADVISORY jamais prescriptif
+- lab/forge_runs/<projet>/charter.yaml — INTENT LINEAGE : intention humaine, invariants, hors_scope, et le bloc `provenance` (source Pierre, fog_humangate). HERITE, jamais reecrit : l'etape verifie que sa decision la respecte, ou remonte le conflit.
+- scripts/forge/standard/repo_map.yaml — TABLE FIGEE des racines et des gabarits d'adresse. Realite verifiable, pas une intention : toute adresse decidee ici y est confrontee (defaut mesure 2026-08-05 : racine 04_CONTENT inventee, 232 019 tokens de reprise).
+
+## RÈGLE DE RESTITUTION — Chaque affirmation du final_report doit citer l'oracle/l'ancre non-LLM qui l'appuie. Appuyée par un oracle => software_verdict (OK/FAIL/BLOCKED) + evidence_verdict: MECHANICAL_VALIDATION_ONLY. Sans oracle disponible => claim_verdict: NO_CLAIM_ALLOWED et remonte un besoin HumanGate (fog), jamais un claim auto-certifié. Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement. En dernier lieu, une section finale SKIPPED_VALIDATION, structurée et EXPLICITE : pour chaque validation que tu n'as PAS faite, liste l'item de validation (quoi), le périmètre concerné (où), le statut (ex. non fait / partiel / hors délai) et la raison (pourquoi). Rien sauté => écris `SKIPPED_VALIDATION: aucun` — une décision assumée, jamais un silence. Le silence sur cette section est traité comme un oubli, pas comme 'rien à signaler'. TOUTE DERNIÈRE LIGNE DU RAPPORT, OBLIGATOIRE — lignée Return : une ligne unique `RETURN_REASON: {"status": "NOT_DISCOVERED"}` si tu n'as découvert AUCUN problème pendant ce travail. Si (et SEULEMENT si) tu as réellement découvert un problème — défaut rencontré, cause d'un échec, écart mesuré — écris à la place `RETURN_REASON: {"status": "DISCOVERED", "problem": "<le problème, factuel>", "root_cause": "<la cause racine si connue, sinon omets ce champ>"}`. JSON valide sur UNE seule ligne, aucun texte après. N'invente JAMAIS un problème pour remplir ce champ : un NOT_DISCOVERED honnête vaut mieux qu'un DISCOVERED de complaisance.
+
+## MARQUEUR DE DISPATCH (ne pas modifier)
+FORGE_DISPATCH:s4-archi:p2_beta-20260830-run1:1
+
+## TÂCHE CONCRÈTE (p2_beta-20260830-run1 / s4-archi)
+Conçois l'architecture du projet 'p2_beta' (code à créer sous games/p2_beta). Termine ta réponse par UN bloc ```json ... ``` contenant EXACTEMENT un objet de la forme {"modules": ["<dossier ou fichier de premier niveau sous la racine du code>", ...], "deps_interdites": [["<module_source>", "<module_cible>"], ...]} — format lu par forge.static_oracles.check_architecture. deps_interdites est OBLIGATOIRE et NON VIDE : déclare au minimum la séparation logique→rendu et logique→input (un blueprint sans dépendance interdite est rejeté par l'exécuteur — un tel projet relève du fog HumanGate, pas d'un oracle vide). Tu n'écris AUCUN fichier : l'exécuteur matérialise lui-même blueprint.json depuis ce bloc.
+
+## ARTEFACTS AMONT (run_dir)
+
+### charter.yaml (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_beta\charter.yaml)
+why_task_existed:
+  problem: Le bras Libre (L2) de la PAIRE 2 doit démarrer par un charter matérialisé
+    (A1) ; sans lui le bras est INVALIDE (condition de validité de bras, protocole
+    V1). Le pilote (p1_*) n'a donné qu'une paire dégradée ; la paire 2 vise la première
+    paire VALIDE.
+  oracle: aucun — activation par décision humaine (GO paire 2, Pierre 2026-08-30,
+    RUN2_PROTOCOLE_V1.md). La validité de bras sera ensuite mesurée par le validateur
+    de schéma charter (driver).
+  root_cause: non établie — activation par protocole/décision humaine, pas par un
+    défaut mesuré.
+  action_reason: 's0-contrat est le point d''entrée de la chaîne : produire le contrat-cadre
+    (charter) qui borne la production aval SANS préempter la STRUCTURE déléguée (variable
+    expérimentale du bras Libre).'
+result: charter.yaml matérialisé (bloc yaml), 7/7 champs remplis, 0 « à définir »
+  ; design-intent (plateforme_cible, reference_jeu, criteres_demo) tracé à des sources
+  Pierre ; STRUCTURE explicitement DÉLÉGUÉE à l'aval (N2), non inventée ici.
+proof: 'Inspection du bloc yaml produit : 7 champs requis présents et non vides, aucune
+  occurrence de « à définir ». Validation mécanique = validateur de schéma charter,
+  executed_by: driver au gate s0 — NON exécutée par cet agent (permissions run: aucun
+  ; Bash indisponible).'
+learning: 'Dans un bras Libre, s0 ne doit PAS inventer de valeurs structurelles (M2a
+  inventé-silencieux = défaut) : il pose le CADRE et les CONTRAINTES (fin observable,
+  solvabilité ≤ 72000 ticks, isolement de bras) et DÉLÈGUE explicitement la structure
+  à l''aval avec provenance (M2b). Le charter porte la frontière, pas le design.'
+next_reason: 'La chaîne continue (s1 Prisme produit, s2 world scan, puis conception
+  de la STRUCTURE déléguée) : le charter est une PRÉCONDITION, pas une fin. Lignée
+  NON fermée — l''étape suivante doit agir.'
+
+
+### artifacts/s3-decompo.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_beta\artifacts\s3-decompo.txt)
+I now have everything I need: the full oracle (`check_decompo.mjs`), the shared schema (`upstream_schema.mjs`), the real `prisme.json` (13 exigences) and `gm_worldscan.json` (8 grey blocks). I traced the gating rules exactly rather than guessing. Here is the decomposition.
+
+## RAPPORT — s3-decompo / p2_beta-20260830-run1
+
+### Ce que les artefacts amont imposent (tracé sur le code des oracles, non deviné)
+- **Couverture** : chaque exigence de `prisme.json` doit être portée par ≥1 feuille — SAUF `ex_h_repeat` (REPEAT) et `ex_j_advantage` (ADVANTAGE), qui sont des **rejeux** (`rejouables` dans `check_decompo.mjs:216-257`) et n'exigent aucune feuille propre, à condition que leurs `replay`/`replay_ref` visent des exigences couvertes.
+- **V4 maillons B/F/I** : toute feuille sourcée sur une exigence `acteur:PLAYER` + `affordance` (`ex_b_action`, `ex_f_unlock`, `ex_i_meta`) DOIT avoir `kind:bot_action` **et** un `statement` contenant `main.tscn`, sinon `boucle_sans_entree`.
+- **V4 maillon G** : `ex_g_goal1`/`ex_g_goal2` (NEXT_GOAL) exigent ≥1 feuille sourcée avec `kind ∈ {visual, file_write}` — j'hérite le prédicat `new_distinct` mais **impose `kind:visual`** (règle G), le `bot_action` de l'énoncé Prisme ferait échouer `boucle_sans_effet`.
+- **Grey blocks (`--gm`)** : les 8 `game_master.grey_blocks[].id` doivent apparaître en `id` OU `source_ref` d'une feuille.
+
+### Décomposition en règles (R1..R13) — nom · comportement observable · condition de preuve
+
+| # | Règle | Comportement observable | Preuve attendue (héritée) | source_ref |
+|---|---|---|---|---|
+| R1 | Premier objectif au lancement | `objectif` non vide au frame 0 | bot_action (objectif nonempty) | ex_a_goal |
+| R2 | Clic producteur (ENTRÉE) | clic `click_target` → `resource_counter` +N, seul gain avant achat | bot_action **depuis main.tscn** | ex_b_action |
+| R3 | Feedback de clic (EFFET) | flotteur +N + animation d'appui au tick | visual | ex_c_response |
+| R4 | Récompense persistante (EFFET) | total strictement croissant et persistant | bot_action | ex_d_reward |
+| R5 | Décision d'allocation | trajectoires idle vs actif divergent sur 300 frames | bot_action | ex_e_decision |
+| R6 | Déverrouillage générateur (ENTRÉE, F) | clic `buy_generator` → rangée `generateurs` + `cps_readout` >0 | bot_action **depuis main.tscn** | ex_f_unlock |
+| R7 | Objectif #2 (EFFET VISIBLE, G) | `objectif` devient un texte nouveau distinct | **visual** | ex_g_goal1 |
+| R8 | Objectif #3 (EFFET VISIBLE, G) | `objectif` devient un 3ᵉ texte distinct | **visual** | ex_g_goal2 |
+| R9 | Relance bornée (ENTRÉE, I) | clic `prestige_reset` → `resource_counter` = 0 | bot_action **depuis main.tscn** | ex_i_meta |
+| R10 | Jauge de fin persistante | `end_gauge` visible, monotone → 100 % | visual | ex_n_endgauge |
+| R11 | Écran de victoire | à 100 %, scène plein écran remplace la surface | visual | ex_n_victory |
+| R12 | REPEAT (rejeu, sans feuille propre) | rejoue R2·R3·R4·R6 sur un total plus haut | rejeu → cibles couvertes | ex_h_repeat |
+| R13 | ADVANTAGE (rejeu, sans feuille propre) | delta/clic post-relance > delta initial | rejeu → ex_b_action couvert | ex_j_advantage |
+
+### Grey blocks du Game Master — couverture 6/8, et **2 impossibles à décomposer honnêtement**
+Portés par une feuille (`id`) : `gb_click_target`, `gb_generator`, `gb_quest_tracker`, `gb_end_gauge`, `gb_stage_gate`, `gb_victory_screen`.
+
+**NON portés — DISCOVERED :** `gb_upgrade` et `gb_bonus_token` n'ont **aucune exigence dans `prisme.json`**. Aucune règle du Prisme ne les cite (au contraire, `ex_b_action` pose que le clic est « le seul gain possible avant achat », ce qui **exclut** structurellement un jeton bonus précoce). Les rattacher à une exigence sans lien serait une **invention de traçabilité** (violation de la RÈGLE DURE `source_ref`). Je refuse de fabriquer : je les laisse non couverts et je remonte le fog.
+
+### Tension de contrat déclarée (grey blocks PLAYER-affordance)
+Pour `gb_click_target` (sur `ex_b_action`) et `gb_generator` (sur `ex_f_unlock`), la règle B « `builder_contract` recopié TEL QUEL dans `expected_proof.statement` » est **structurellement incompatible** avec la règle V4 oracle-gatée (preuve `bot_action` mentionnant `main.tscn`). J'ai satisfait la règle **oracle-gatée** et porté le grey block via `leaf.id` ; le `builder_contract` reste résoluble via l'id du grey block dans `gm_worldscan.json`. Pour les 4 grey blocks SYSTEM/PLAYER_GOAL (quest_tracker, end_gauge, stage_gate, victory_screen), le `builder_contract` **est** recopié verbatim (règle B honorée).
+
+### Verdicts
+- **software_verdict: BLOCKED** — `permissions run: aucun` : je n'ai **pas exécuté** `check_decompo.mjs`. Le reçu est produit par l'exécuteur (`run_real.py`, `_ARTIFACT_BY_STEP["s3-decompo"]="featuremap.json"`) après matérialisation. Analyse statique (code lu intégralement) : **avec `--gm` → FAIL** (2× `grey_block_non_decompose` : gb_upgrade, gb_bonus_token) ; **sans `--gm` → OK** (couverture 11/11, non-invention 15/15, maillons F=1 G=2 H=1 I=1 J=1). Cette prédiction n'est PAS un claim de vert.
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — ne s'applique qu'au reçu exécuteur, non revendiqué par moi.
+- **claim_verdict: NO_CLAIM_ALLOWED** — la décision (Prisme à amender pour couvrir gb_upgrade/gb_bonus_token, OU descoper ces 2 grey blocks) appartient au HumanGate. **Fog remonté à Pierre.**
+
+**Exigences non couvertes :** aucune (les 13 sont portées ou rejouées).
+
+[tronqué]
+```json
+{
+  "game_id": "p2_beta",
+  "systemes": [
+    {
+      "id": "sys_core_loop",
+      "features": [
+        {
+          "id": "feat_goal_prompt",
+          "capacites": [
+            {
+              "id": "cap_a_first_goal",
+              "capacite": "Afficher un premier objectif non vide dès le frame 0, avant toute interaction du joueur.",
+              "source_ref": "ex_a_goal",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot ouvre le jeu et lit le HUD `objectif` au frame 0 : la chaîne d'objectif est non vide avant toute interaction."
+              }
+            },
+            {
+              "id": "gb_quest_tracker",
+              "capacite": "Traqueur d'objectifs (grey block gb_quest_tracker) : liste montrant l'objectif courant et sa récompense, pilotant l'attention du joueur.",
+              "source_ref": "ex_a_goal",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "liste de quetes montrant l'objectif courant + sa recompense; s'incremente a la completion et revele le suivant (nouvelle interaction: un objectif cliquable/suivable qui pilote l'attention)"
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_click_input",
+          "capacites": [
+            {
+              "id": "gb_click_target",
+              "capacite": "Le joueur presse la cible centrale `click_target` (capacité d'ENTRÉE) ; au premier écran chaque clic est le seul gain d'unités possible (grey block gb_click_target).",
+              "source_ref": "ex_b_action",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot ouvre `main.tscn` et clique `click_target` N fois sans posséder de générateur ; `resource_counter` passe de 0 à N × valeur_clic et ne bouge pas entre deux clics."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_click_response",
+          "capacites": [
+            {
+              "id": "cap_c_click_feedback",
+              "capacite": "Réagir visiblement au tick même du clic : flotteur +N et animation d'appui de la cible (capacité d'EFFET perceptif).",
+              "source_ref": "ex_c_response",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Une capture au tick du clic montre le flotteur +N et l'animation d'appui de `click_target`, tous deux absents de la capture du tick précédent."
+              }
+            },
+            {
+              "id": "cap_d_click_reward",
+              "capacite": "Accumuler le gain de clic de façon persistante : le total monte strictement et le reste (capacité d'EFFET de récompense).",
+              "source_ref": "ex_d_reward",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot lit `resource_counter` avant et après un clic : la valeur après est strictement supérieure et persiste au frame suivant."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_economy",
+      "features": [
+        {
+          "id": "feat_allocation_decision",
+          "capacites": [
+            {
+              "id": "cap_e_decision",
+              "capacite": "Présenter un choix cliquer-maintenant vs attendre-et-acheter à conséquence mesurable sur le total.",
+              "source_ref": "ex_e_decision",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Deux bots (idle : aucun clic ; actif : clique `click_target` tous les 3 frames) jouent 300 frames ; leurs trajectoires de `resource_counter` divergent, prouvant que le choix porte à conséquence."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_generator_unlock",
+          "capacites": [
+            {
+              "id": "gb_generator",
+              "capacite": "Le joueur achète son premier générateur en cliquant `buy_generator` (capacité d'ENTRÉE, maillon F/UNLOCK) ; une rangée `generateurs` apparaît et le revenu passif démarre (grey block gb_generator).",
+              "source_ref": "ex_f_unlock",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot, depuis `main.tscn`, accumule le coût puis clique `buy_generator` ; une rangée du groupe `generateurs` apparaît à l'écran et `cps_readout` passe de 0 à >0."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_progression_goals",
+      "features": [
+        {
+          "id": "feat_next_goals",
+          "capacites": [
+            {
+              "id": "cap_g1_next_goal",
+              "capacite": "Remplacer l'objectif par un texte nouveau distinct après le premier achat (maillon G/NEXT_GOAL, capacité d'EFFET VISIBLE).",
+              "source_ref": "ex_g_goal1",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Après l'achat du premier générateur, le label `objectif` du HUD affiche un texte nouveau ('acheter ta première amélioration'), textuellement distinct de l'objectif de départ."
+              }
+            },
+            {
+              "id": "cap_g2_next_goal",
+              "capacite": "Remplacer l'objectif par un troisième texte distinct après la première amélioration (maillon G/NEXT_GOAL, capacité d'EFFET VISIBLE).",
+              "source_ref": "ex_g_goal2",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Après l'achat de la première amélioration, le label `objectif` affiche un troisième texte ('franchir le premier seuil de palier'), textuellement distinct des deux précédents."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_meta_end",
+      "features": [
+        {
+          "id": "feat_prestige_reset",
+          "capacites": [
+            {
+              "id": "cap_i_meta_reset",
+              "capacite": "Le joueur déclenche la relance bornée en cliquant `prestige_reset` (capacité d'ENTRÉE, maillon I/META_LOOP) ; le total retombe à zéro.",
+              "source_ref": "ex_i_meta",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot, depuis `main.tscn`, déclenche `prestige_reset` ; `resource_counter` vaut 0 au frame suivant, contre sa valeur d'avant-relance strictement positive."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_end_gauge",
+          "capacites": [
+            {
+              "id": "cap_n_endgauge",
+              "capacite": "Afficher une jauge de fin persistante, toujours visible et distincte du compteur, monotone croissante vers 100 %.",
+              "source_ref": "ex_n_endgauge",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Sur un run de référence, `end_gauge` est présente à chaque capture et sa valeur est monotone croissante jusqu'à 100 %, sans jamais décroître."
+              }
+            },
+            {
+              "id": "gb_end_gauge",
+              "capacite": "Jauge de fin (grey block gb_end_gauge) : barre persistante distincte du compteur, se remplissant vers la fin observable et déclenchant la victoire à 100 %.",
+              "source_ref": "ex_n_endgauge",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "barre de progression persistante vers la fin observable; se remplit a mesure que stages/quetes/ticks s'accumulent; a 100% declenche l'ecran de victoire (element de scene toujours visible et distinct du compteur de ressource)"
+              }
+            },
+            {
+              "id": "gb_stage_gate",
+              "capacite": "Transitions de stage (grey block gb_stage_gate) : 5 seuils qui changent la surface de jeu — mécanisme sous-jacent à la montée de la jauge de fin, dont l'énoncé de ex_n_endgauge cite explicitement l'accumulation de stages.",
+              "source_ref": "ex_n_endgauge",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "transitions de stage (5 stages) qui changent visiblement la surface de jeu quand les seuils sont atteints - une nouvelle scene avec un jeu de producteurs different, pas un +X%"
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_victory",
+          "capacites": [
+            {
+              "id": "cap_n_victory",
+              "capacite": "À end_gauge=100 %, remplacer la surface de jeu par une scène de victoire plein écran affichant les totaux finaux.",
+              "source_ref": "ex_n_victory",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "À `end_gauge` = 100 %, une capture montre l'écran de victoire plein écran ayant remplacé la surface de jeu, avec les totaux finaux affichés."
+              }
+            },
+            {
+              "id": "gb_victory_screen",
+              "capacite": "Écran de victoire (grey block gb_victory_screen) : état de fin plein écran qui remplace réellement la surface de jeu.",
+              "source_ref": "ex_n_victory",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "etat de fin plein-ecran quand end-progress atteint 100%; montre les totaux finaux; remplace reellement la surface de jeu (vrai changement de scene, pas une overlay cosmetique)"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+## PRÉ-MORTEM (erreurs des runs passés)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [s2.7-gm-worldscan] échec d'une tentative précédente à s2.7-gm-worldscan → ✅ RÉPARÉ: réparé à la tentative 2 (tier opus)
+- [s2.5-artbible-r2] échec d'une tentative précédente à s2.5-artbible-r2 → ✅ RÉPARÉ: réparé à la tentative 2 (tier opus)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [manifest-992c3455782fd579] Le sujet/theme de production de p2_beta est structurellement indefini a l'entree de s2.7 : la Story Bible est NOT_GROUNDED sur 6/8 sections (characters/factions/events...) et aucune valeur de design-intent (plateforme/reference/theme) n'est materialisee dans les artefacts amont. La mecanique (9 boucles, economie, fin bornee <=72000 ticks) est concevable agnostiquement au theme, mais l'identite visuelle concrete des entites-cles (cible de clic, generateurs, jeton, transitions de stage) reste bloquee et devient 3 questions bloquantes GM->Artiste, plus le theme lui-meme (q_art_001) en besoin HumanGate. — cause: Le bras de conception Libre delegue explicitement la STRUCTURE a l'aval et le charter transmis est un rapport de retour s0 sans champs de design-intent valides ; aucune valeur de theme n'est donc disponible a ce point de la chaine. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-8161506f54a87956] Tension structurelle non triviale a resoudre en amont du design: le charter impose une fin observable bornee (<=72000 ticks, story_bible:coherence_rules) alors que le genre de reference est explicitement sans fin (worldscan:games[0].objectives[0].has_win_state=false) et repose massivement sur une prestige endless (worldscan:games[0]/[2].retention_answer). La meta-boucle du genre (reset infini) est donc incompatible telle quelle; je l'ai requalifiee en conversion-vers-la-fin, choix de design a valider. — cause: Le bras libre delegue la STRUCTURE a l'aval tout en fixant une contrainte de fin bornee, et aucun design/calibration.md n'a ete injecte en run1 pour arbitrer prestige vs fin observable — l'arbitrage retombe sur le Game Master sans invariant amont. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-3be946517a59e302] q_art_001 (theme/sujet, bloquante) ne pouvait etre fermee qu'en DECLINANT de fabriquer un theme et en le deferant au HumanGate : le jeu est entierement specifie et constructible de maniere theme-agnostique (distinction de contenu fonctionnelle + transformations formelles de l'Artiste), mais l'identite visuelle concrete reste un fog HumanGate non resolu, pas une sortie de design. En consequence, GM peut declarer ready_for_freeze mais le freeze CONJOINT de la paire n'est pas atteignable dans le protocole a 2 rounds (derniere auto-declaration Artiste = false, faite avant mes reponses, sans round-3 pour re-confirmer) et devient une decision HumanGate. — cause: Bras free-design : le charter delegue la STRUCTURE a l'aval et l'entree recue est sa forme de retour meta (rapport s0), sans champs de design-intent materialises ; plateforme_cible/theme/reference_jeu ne sont pas dans l'artefact recu et story_bible characters/factions/events sont NOT_GROUNDED, rendant le sujet concret structurellement indecidable au niveau GM. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-1d06880dd3f1773d] Le charter injecte en amont a s2.6 est le rapport de retour s0 (why_task_existed/result/proof/learning/next_reason), pas le charter a champs de design-intent : il MENTIONNE que plateforme_cible/reference_jeu/criteres_demo ont ete traces a des sources Pierre, sans en porter les VALEURS. s2.6 ne peut donc ancrer ni plateforme, ni jeu de reference, ni criteres, au-dela du genre issu du worldscan ; 6/8 sections narratives sont structurellement NOT_GROUNDED. — cause: Le bras Libre delegue explicitement la STRUCTURE a l'aval et le contenu du charter transmis est sa forme de retour meta, non ses champs de charter valides par check_charter — l'univers est intentionnellement indefini a ce point de la chaine, et aucune valeur de design-intent n'est materialisee dans l'entree recue. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-cc68858b38282d82] content_requirements.md (C.5, listee 'a lire obligatoirement' dans le contrat s2.5) n'a pas ete injectee dans le run p2_beta (absente du run_dir et de design/), et le charter injecte est le rapport de retour s0 sans ses champs de design-intent materialises (plateforme_cible/reference_jeu/criteres_demo) : l'Art Director a donc travaille sans la Gameplay Map et a du DERIVER le runtime au lieu de le lire. — cause: Le bras Libre delegue la STRUCTURE a l'aval et transmet la forme meta du charter (why/result/proof/learning), pas ses champs valides par check_charter ; la carte de contenu C.5 n'existe pas encore a ce point de la chaine full_content, en amont de la conception de structure. -- GENERATION_DIFFERENTE_A_REEXAMINER
+
+FORGE_DISPATCH:s4-archi:p2_beta-20260830-run1:1

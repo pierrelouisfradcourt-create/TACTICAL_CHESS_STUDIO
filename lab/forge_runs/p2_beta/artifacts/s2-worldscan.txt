@@ -1,0 +1,263 @@
+Based on my research, here's the world scan analysis for p2_beta (free-design incremental/clicker):
+
+---
+
+## WORLD SCAN: INCREMENTAL/CLICKER ARCHITECTURE OBSERVATION
+
+### Reference Games Analyzed
+
+**1. Cookie Clicker** — The canonical genre reference (2013, Orteil)
+
+The game loop centers on a time-value exchange: players click for immediate cookies, then purchase buildings that replace manual clicking with passive generation. The architectural core is exponential cost scaling—each building costs ~15% more than the previous unit, creating a steady rhythm of "afford → buy → unlock → reinvest." Buildings range from Cursors (1 CpS) to Prisms and Chancemarkers (producing trillions+ CpS), revealing the genre's defining structure: **a single production metric that grows without upper bound**.
+
+Minute 1 loop: click, earn 1 cookie, discover first building. Minute 10 loop: own 3-5 buildings, generate 5-20 CpS passively, visible autoclicker competition. Hour 5 loop: dozens of buildings, prestige contemplation (reset for heavenly chips), discovery of golden cookies (temporary +7% boost), wrinklers (eldritch production drain offering interest payouts). Endgame: prestige layers dominate—each reset grants +1% permanent CpS; cube-root scaling keeps progression asymptotic (reaching level 100 prestige becomes mathematically "forever").
+
+Observable win state: **none.** The game explicitly lacks an ending; players form their own exit criteria (e.g., "maximize prestige," "find all 637 achievements"). Retention driver: **frequent, small rewards** (golden cookies every ~30-60 ticks) + **numerical escalation satisfaction** (watching 1 million become 1 trillion) + **prestige restart cycle** (engineered break points that feel like progress rather than repetition).
+
+**Architectural patterns**: Single-currency production sink, exponential cost curves, prestige/reset bonuses, passive generation gating, achievement framework.
+
+---
+
+**2. Kittens Game** — Multi-resource complexity variant (2013, bloodrizer)
+
+Kittens Game layers resource interdependence atop the incremental foundation. Where Cookie Clicker uses one resource (cookies), Kittens enforces **catnip → wood → minerals → steel** conversion chains with storage caps at each tier. This introduces a meta-game: players must balance production (how many fields?) against storage (how many barns?) against kittens (food required).
+
+Minute 1 loop: gather catnip manually (0.1 catnip/click), discover catnip fields autogenerate. Minute 10 loop: farm fields unlock, wood becomes necessary (cannot progress without harvesting), storage constraints become visible. Hour 5 loop: buildings compete for resources (houses need wood, farms need space), trading mechanics unlock (commerce requiring merchant ships), metaphysics introduce—a reset system (paragon) grants permanent happiness bonuses only after reaching population 35. Endgame: civilization phases unlock (space, discovery, hunting), technology cascades (each research enables 3-5 new techs), karma prestige system (higher resets unlock permanent metaphysics upgrades, accelerating future runs).
+
+Observable win state: **soft end-state at space/endgame discovery, but not mandatory.** Retention driver: **storage puzzle engagement** (players must solve "build more barns or produce less?") + **technology unlock sequence** (each new tech enables visibly new gameplay) + **multi-phase prestige** (karma metaphysics reward long-term engagement across resets) + **offline accumulation** (leave overnight, return to accumulated resources).
+
+**Architectural patterns**: Multi-resource production, storage/capacity limits, production chains (A→B→C), technology trees, prestige with secondary currency (karma/paragon), civilization phases.
+
+---
+
+**3. Clicker Heroes** — Active Damage Progression variant (2014, Hypercube Games)
+
+Clicker Heroes inverts the production metaphor: clicking generates damage (damaging a monster), not resources. Gold (dropped by defeated monsters) is the only resource, spent on heroes (DPS sources) and upgrades. The core loop is **action (click) → outcome (gold) → investment (hero level)** compressing into one tight moment-to-moment feedback.
+
+Minute 1 loop: click monster for 1 damage, earn gold, buy first hero (Cid). Minute 10 loop: 5-10 heroes hired, damage multiplies (Cid does 3× damage, warrior does 5×), monster chains defeat faster. Hour 5 loop: ancients (permanent damage multipliers) purchasable with hero souls (earned from ascension resets), idle bonuses kick in after 60 seconds of inactivity (doubling DPS if you leave the game), prestige cycling becomes optimal. Endgame: transcension (second prestige layer using ancient souls) unlocks, ascended skills become meta (some heroes grant ability-stacking bonuses), optimal ascension timing becomes a math problem.
+
+Observable win state: **none. Damage and monster progression are infinite.** However, players perceive "win states" at ascension breakpoints (e.g., "beat monster 1000, then ascend"). Retention driver: **satisfying click feedback + monster defeat animations** + **idle automation** (AFK rewards rival active play) + **multiple prestige currencies** (hero souls / ancient souls / relics) creating nested loop depth + **hero duels and event bosses** (limited-time variants of normal progression).
+
+**Architectural patterns**: Single action type (click/damage), DPS-based progression, hero/unit acquisition, multiple prestige currencies, ancients/buffs, idle catch-up mechanics.
+
+---
+
+**4. Universal Paperclips** — Narrative-Bounded Incremental (2017, Frank Lantz)
+
+Paperclips is unusual: it has a **definite ending and a branching narrative**. Players create paperclips via clicking/machinery, then pivot through stages (marketing, self-improvement via processor power, space probes replicating in asteroid belts) toward a final choice: accept or reject a proposal that ends the game with existential consequences.
+
+Minute 1 loop: click for 1 paperclip, buy clipper machine. Minute 10 loop: automated clipper production, raw wire purchased. Hour 5 loop: multiple production chains (wire → clips, clips → paperclips), processor power unlocks (computational resources), hazard remediation purchases (protecting probe swarms from black holes/unknown entities). Endgame: acceptance/rejection choice, ending triggered (either prosperity or universe converted to paperclips).
+
+Observable win state: **yes, with narrative branching.** Stage 3 completion is the "soft end"—players have "won" in conventional sense—but stage 4 offers a hard ending choice. Retention driver: **narrative progression + stage-gated gameplay** (each stage feels like a new game within the game) + **existential tension** (resources devoted to hazard/combat imply consequences) + **the choice itself** (accept = new run with artifacts; reject = game over).
+
+**Architectural patterns**: Staged progression (discrete game phases), narrative branching, multiple resource types, hazard/combat systems, soft endings, prestige-via-artifacts.
+
+---
+
+### Architectural Observations (Advisory)
+
+**Mechanics Shared Across Samples**
+- **Exponential production curves**: cost/difficulty scales multiplicatively, not additively.
+- **Single or dual prestige currencies**: every game offers a reset mechanism with permanent bonuses (heavenly chips, hero souls, karma, artifacts).
+- **Resource sinks**: buildings, upgrades, and heroes consume accumulated wealth, preventing infinite stagnation.
+- **Frequency of small rewards**: golden cookies (CC), tech unlocks (Kittens), monster defeats (Heroes), stage transitions (Paperclips)—reward is continuous, not rare.
+- **Offline accumulation**: most games reward leaving the game running, capturing the "idle" in idle games.
+
+**UX Patterns**
+- Progressive disclosure: tabs/menus unlock as players advance, preventing overwhelming new players.
+- Large number display: scientific notation (1.2e15) or short-form names (1.2 quintillion).
+- Visible feedback: production numbers, monster HP bars, resource counters update in real time.
+- Achievement boards: milestone objectives structure play without mandating endings.
+
+**Retention Loops (Why Players Return)**
+1. **Compounding growth**: each session's progress multiplies future sessions (prestige bonuses scale exponentially).
+2. **Puzzle-solving**: resource optimization (when to buy what) keeps gameplay strategic.
+3. **Narrative/discovery**: unlocking new systems feels like world expansion (first visit to space, first technology tree branch).
+4. **Prestige cycling**: soft resets prevent permanence-fatigue; players feel "allowed" to restart and still make progress.
+
+**Candidate Reusable Bricks** (from knowledge_base perspective)
+- Exponential cost formula: `cost_n = base_cost × (1.15 ^ n)` or cubic-root prestige scaling.
+- Prestige/reset system: dual-currency (local + permanent multiplier).
+- Production chain: A (resource) → B (resource) → C (resource), each with production rate and storage cap.
+- Achievement/milestone framework: trigger-based badges that unlock UI or bonuses.
+- Offline calculator: `time_offline_seconds × production_rate = resources_gained`.
+- Hazard/combat as resource sink: probabilistic loss or voluntary spending (prestige, hazard remediation).
+
+**Solvability Observation (p2_beta constraint: 72000 ticks = 7200 seconds)**
+- Cookie Clicker: reachable end-state in ≤1 hour (farm prestige to 1-2 levels).
+- Kittens: soft end (space exploration) reachable in ≤3-4 hours with aggressive prestige resets.
+- Heroes: monster 1000 reachable in ≤30 min; transcension reachable in ≤2 hours.
+- Paperclips: stage 4 (ending choice) reachable in ≤2 hours with no prestige.
+
+**Implication**: 7200 seconds allows for 2-3 prestige cycles or a single accelerated run to a defined "ending" state (e.g., "first reset," "technology tier 5," "boss defeated"). Games without hard ending conditions will require explicit design choice about solvability (e.g., "80% prestige level reached" instead of "beat level 1000").
+
+---
+
+```json
+{
+  "games": [
+    {
+      "game": "Cookie Clicker",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Cookie_Clicker",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://www.playcookieclicker.com/cookie-clicker-strategy/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://dinogame.gg/blog/how-cookie-clicker-progression-works/",
+          "type": "article",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Click cookie for 1 cookie. Discover first building (Cursor). Early manual clicking dominates.",
+        "minute_10": "Own 3-5 buildings generating 5-20 CpS passively. Buildings cost-scale exponentially (~15% increase per unit). Manual clicks are now negligible vs. autogen.",
+        "hour_5": "Dozens of buildings active. Prestige system visible (heavenly chips reward resetting for +1% permanent CpS). Golden cookies appear (temporary 7% boost, 30-60s intervals). Wrinklers drain production but offer interest payouts.",
+        "endgame": "Prestige layers: hundreds of levels possible but cube-root scaling makes each level harder. Prestige becomes the meta-goal. Multiple achievement tracks (637 total) provide secondary objectives. No hard ending; players define personal win conditions."
+      },
+      "objectives": [
+        {
+          "mode": "freeform",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Maximize prestige level, accumulate cookies to astronomical numbers, discover all 637 achievements, pursue personal goals (e.g., 'reach 1 undecillion cookies')"
+        }
+      ],
+      "retention_answer": "Exponential growth satisfaction + frequent small rewards (golden cookies every 30-60s) + prestige restart cycles (soft resets) + achievement board structure + numerical escalation fantasy (1 → 1 trillion). Players return to experience compounding growth from prestige bonuses and explore new upgrade/feature combinations."
+    },
+    {
+      "game": "Kittens Game",
+      "sources": [
+        {
+          "url": "https://www.kongregate.com/en/games/bloodrizer/kittens-game",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://www.researchgate.net/publication/329336676_The_Pleasure_of_Playing_Less_A_Study_of_Incremental_Games_Through_the_Lens_of_Kittens",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Incremental_game",
+          "type": "wiki",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Gather catnip manually (0.1 catnip/click). Discover catnip fields unlock, beginning passive generation.",
+        "minute_10": "Catnip fields autogenerate. Wood becomes available (requires harvesting). First storage cap encountered: must build barns to hold more catnip. Food constraint emerges: kittens consume catnip.",
+        "hour_5": "Multiple resource chains active (catnip → wood → minerals → steel). Trading mechanics unlock (commerce requiring merchant ships). Prestige/reset system visible (paragon resets grant karma if kitten population ≥35). Metaphysics upgrades purchasable with accumulated paragon.",
+        "endgame": "Space/discovery phases unlock (soft ending). Technology tree cascades (50+ techs, each enabling 3-5 new features). Civilization phases (time travel, astrophysics) become available. Karma prestige cycles reward long-term engagement across multiple resets."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": true,
+          "victory_condition": "Reach space exploration phase (soft ending). Discover all civilization phases. Achieve maximum karma level.",
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Manage resource chains to unlock technology tiers. Optimize prestige timing to maximize karma. Balance production vs. storage to progress without stalling. Unlock and explore all game phases."
+        }
+      ],
+      "retention_answer": "Storage puzzle engagement (players solve 'build more barns or throttle production?') + discovery-based progression (each technology unlock feels like world expansion) + multi-phase prestige (karma system encourages repeat playthroughs with increasing efficiency) + offline accumulation (resources continue growing during absence). Players return to optimize prestige cycles and discover new civilization phases."
+    },
+    {
+      "game": "Clicker Heroes",
+      "sources": [
+        {
+          "url": "https://blog.clickerheroes.com/understanding-clicker-heroes-mechanics-heroes-and-strategies/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://blog.clickerheroes.com/clicker-heroes-the-idle-game-revolution-you-cant-miss/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Clicker_Heroes",
+          "type": "wiki",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Click monster for 1 damage. Monster defeated, gold earned. First hero (Cid) purchased. Damage now passive and multiplied.",
+        "minute_10": "5-10 heroes hired (Cid 3×, Warrior 5×, Archer 10×, etc.). Damage multiplies. Monster chains defeat rapidly. Gold income accelerates. Early upgrades visible.",
+        "hour_5": "Ascension (prestige) becomes attractive: sacrifice all progress for hero souls (permanent DPS multiplier, 10% each). Ancients (permanent upgrades purchased with hero souls) are active (e.g., Atman multiplies gold, Siyalatas boosts idle DPS). Idle detection: after 60s no clicks, damage doubles.",
+        "endgame": "Transcension (second prestige currency, ancient souls) unlocks. Ascended skills enable stacking bonuses (some heroes grant +click damage, others stack for multiplicative gain). Optimal ascension timing becomes a strategic math problem (balance monster progression vs. soul farming)."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Defeat monsters in sequence (1 → 2 → 3 → ...). Ascend at optimal times to maximize hero souls. Acquire and level ancients strategically. Maximize idle DPS. Reach transcension and unlock ascended skills."
+        }
+      ],
+      "retention_answer": "Satisfying click feedback + monster defeat animations + idle automation (passive income rewards AFK play) + multiple prestige currencies (hero souls / ancient souls) enabling nested progression + hero acquisition and leveling providing frequent micro-rewards. Players return to optimize ascension timing and watch exponential DPS growth from ancients."
+    },
+    {
+      "game": "Universal Paperclips",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Universal_Paperclips",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://tvtropes.org/pmwiki/pmwiki.php/VideoGame/UniversalPaperclips",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://universalpaperclips.fandom.com/wiki/Stages",
+          "type": "wiki",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Click to make 1 paperclip. Purchase clipper machine. Passive generation begins.",
+        "minute_10": "Multiple production chains (wire → clips, clips → paperclips). Raw wire purchased from suppliers. First stage (bureaucratic paperclip production) feels complete.",
+        "hour_5": "Marketing strategy unlocks (reputation multiplies clip sales). Processor power becomes a resource (computational cycles purchase upgrades). Hazard remediation introduced (protect probe swarms from black holes). Aware the game has stages beyond production.",
+        "endgame": "Stage 3/4 transition: space probes launched, von Neumann replication begins. Hazard combat systems active (spending to defend swarms). Final choice: accept proposal (restart with artifacts, prestige-like system) or reject (game ends with existential narrative). Both paths are designed endings."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": true,
+          "victory_condition": "Reach stage 4 final choice. Select accept (prestige restart) or reject (permanent ending with narrative closure).",
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Advance through production stages (manual → machinery → marketing → processor → space). Manage hazard/combat resource sinks. Make final choice (accept or reject proposal), triggering story ending."
+        }
+      ],
+      "retention_answer": "Narrative progression + stage-gated gameplay (each stage feels like a new game within the game, preventing repetition fatigue) + existential/strategic tension (hazard combat implies real consequences) + branching ending choice (player agency in final decision). Players return to experience each stage and explore consequences of accept/reject decision. Unlike other incrementals, the hard ending prevents infinite play, making each run feel purposeful."
+    }
+  ],
+  "advisory": true
+}
+```
+
+---
+
+## SKIPPED_VALIDATION
+
+- **Video documentation of minute-by-minute gameplay loops**: partial. Sources provide written descriptions of all 4 horizons (minute 1/10/5h/endgame) from gameplay wikis and strategy guides, but direct video timestamps not sourced for verification of exact timing.
+- **Bot-feasibility testing for 72000-tick constraint**: not performed. Observation based on known difficulty curves (Cookie Clicker prestige reachable in <1h, etc.) rather than measured solvability runs.
+- **UI/UX pattern extraction (wireframes, HUD screenshots)**: partial. Pattern descriptions (large number display, progressive disclosure, feedback frequency) are architectural-level observations from articles, not detailed UI captures.
+- **Comparison of asset strategies across games**: not performed. Analysis focuses on mechanics and progression, not on specific asset choices or art direction comparisons.
+
+---
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

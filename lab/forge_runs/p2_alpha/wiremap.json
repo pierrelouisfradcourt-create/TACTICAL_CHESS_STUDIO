@@ -1,0 +1,357 @@
+{
+  "features": [
+    {
+      "feature": "R1 objectif terminal affiché dès le tick 0",
+      "fonction": "currentObjective",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs 'R1: au tick 0 ...' : currentObjective(etatInitial) == 'Atteindre 100 R pour debloquer G2 - objectif final 1000000 R' (egalite de chaine EXACTE) et cite le seuil terminal '1000000' ; e2e.mjs verifie la meme chaine dans #objectif au tick 0 via un navigateur reel. Unites corrigees : l'affichage est en R (etat en milli-R), plus de suffixe 'k' abusif.",
+      "couvre": [
+        "currentObjective"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.1.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R2 recompense stricte +gain_clic par clic (comptabilite milli-R entiers)",
+      "fonction": "click",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs 'R2:' : apres 1 puis 6 appels click(), solde_mR == 1000 puis 6000 EXACTEMENT (gain_clic_initial 1 R = 1000 mR) et Number.isInteger sur solde_mR/cumul_mR ; e2e.mjs : 10 clics Playwright reels => delta STRICT +10000 mR.",
+      "couvre": [
+        "logic.test.mjs: apres N appels click() sans achat, solde_mR === N*1000 EXACTEMENT (gain_clic_initial=1 R = 1000 mR ; egalite stricte, jamais >=) ; aucun flottan…"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R3 achat strict d'un generateur : R diminue du cout exact cout_base x 1.12^n",
+      "fonction": "buyGenerator",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs 'R3:' : pour G1..G4 et n=0..2, getCost(gen,n) == floor(cout_base*1.12^n) et buyGenerator debite ce montant EXACT (solde ramene a 0) avec count n -> n+1 ; retour true assert.",
+      "couvre": [
+        "buyGenerator"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R4 refus strict d'achat quand R insuffisant : etat inchange (arbitrage observable)",
+      "fonction": "canAfford",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs 'R4:' : a cout-1 mR canAfford == false et buyGenerator est un no-op TOTAL (JSON.stringify de l'etat identique avant/apres) et rend false ; a cout EXACT canAfford == true et l'achat aboutit.",
+      "couvre": [
+        "requires"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R5 production passive deterministe par tick (milli-R entiers)",
+      "fonction": "applyProduction",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs 'R5:' : avec counts [2,3,1,1], applyProduction ajoute EXACTEMENT 2*10+3*100+1*800+1*4700 mR, deux fois de suite (determinisme) ; 'R5b' : sans generateur la production est EXACTEMENT 0.",
+      "couvre": [
+        "applyProduction"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R6 divergence de decision idle vs actif (variance non triviale)",
+      "fonction": "step",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs 'R6:' : deux trajectoires seedees sur 300 frames (repos vs clic 1/3) donnent solde_mR == 3000 et 103000 EXACTEMENT, ecart mesure 100000 mR non trivial.",
+      "couvre": [
+        "logic.test.mjs: deux trajectoires seedees sur horizon 300 frames (politique 'repos' click=null vs 'actif' click toutes les 3 frames, cf loop.json E6) => solde_m…"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R7 deblocage de G2 au franchissement de S1 (et G3/G4 aux seuils suivants)",
+      "fonction": "unlockedGenerators",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs 'R7:' : unlockedGenerators deep-egal [0] puis [0,1], [0,1,2], [0,1,2,3] ; teste a S(i)-1 (inchange) ET a S(i) EXACT (une entree de plus) pour i=1..3.",
+      "couvre": [
+        "unlock_G2_at_S1",
+        "unlock_G3_at_S2",
+        "unlock_G4_at_S3"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R8 amelioration x2 (famille clic puis famille production, debloquee a S4)",
+      "fonction": "buyUpgrade",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs 'R8/R8b..R8f' : clic_x2 puis clic_x4 doublent gain_clic_mR (1000->2000->4000, debit EXACT) ; clic_x4 refusee sans son prerequis ; une amelioration possedee est refusee (aucun double effet) ; prod_g1_x2 exige S4 ET le solde, testes chacun a un mR pres, effet x2 verifie sur applyProduction (10 -> 20 mR/tick) ; unlockedUpgrades deep-egal a chaque etape.",
+      "couvre": [
+        "buyUpgrade"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.1.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R9 changement d'objectif apres chaque seuil franchi (S1 puis S2)",
+      "fonction": "currentObjective",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs 'R9:' : currentObjective a 0, S1, S2, S3, S4 et S5 compare par EGALITE DE CHAINE ; chaque franchissement change la chaine caractere pour caractere ; S1 cite '1000 R'+G3, S2 cite '12000 R'+G4. Corrige : entre S4 et S5 l'objectif n'annonce plus la victoire.",
+      "couvre": [
+        "currentObjective"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.1.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R10 victoire au cumul >= 1 000 000 R ; aucun etat d'echec (statut calcule)",
+      "fonction": "isVictory",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs 'R10:' : isVictory false a S5-1 mR, true a S5 EXACT, valeur CALCULEE depuis cumul_mR ; aucune fonction de defaite n'existe (0 occurrence) et e2e.mjs verifie l'absence de #game-over/#defeat dans le DOM.",
+      "couvre": [
+        "isVictory"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R11 reset du solde a 0 au rejouer (nouveau run)",
+      "fonction": "reset",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs 'R11:' : depuis un etat post-victoire, reset(state) rend un etat deep-egal a createState() (upgrades_owned comprise) ; isVictory redevient false ; aucun report inter-run.",
+      "couvre": [
+        "reset"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R12 entree clic sur le Coeur de Lumen (affordance coeur_de_lumen)",
+      "fonction": "handleCoreClick",
+      "fichiers": [
+        "input.mjs"
+      ],
+      "preuve": "properties.test.mjs 'R12:' : handleCoreClick credite 1000 mR et notifie onCoreClick/onStateChanged exactement une fois ; 'R12-R14' : un clic reel rejoue sur le calque DOM (#coeur-de-lumen) passe par economy ; e2e.mjs confirme en navigateur reel (10 clics => +10000 mR STRICT).",
+      "couvre": [
+        "handleCoreClick"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R13 entree achat generateur/amelioration (affordances acheter_generateur, acheter_generateur_g2)",
+      "fonction": "handleBuy",
+      "fichiers": [
+        "input.mjs"
+      ],
+      "preuve": "properties.test.mjs 'R13/R13b' : un achat refuse (un mR sous le cout) rend false et ne notifie AUCUN changement d'etat ; au cout EXACT il rend true, notifie une fois et count 0->1 ; e2e.mjs : clic Playwright sur #buy-g1 => count delta STRICT 1 et debit de 15000 mR.",
+      "couvre": [
+        "acheter_generateur",
+        "acheter_generateur_g2"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R14 entree rejouer depuis l'ecran de victoire (affordance rejouer)",
+      "fonction": "handleReplay",
+      "fichiers": [
+        "input.mjs"
+      ],
+      "preuve": "properties.test.mjs 'R14' et 'R23d' : handleReplay delegue au rappel (et ne casse pas sans rappel) ; un clic reel sur #rejouer depuis l'ecran de victoire ramene solde_mR et cumul_mR a EXACTEMENT 0 et relance la boucle ; e2e.mjs le rejoue en navigateur reel.",
+      "couvre": [
+        "handleReplay"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R15 compteur R permanent lisible en continu",
+      "fonction": "renderRCounter",
+      "fichiers": [
+        "render.mjs"
+      ],
+      "preuve": "properties.test.mjs 'R15/R15b' : le contexte 2D enregistreur montre que renderRCounter dessine 'R: <floor(solde_mR/1000)>' a chaque frame, de 0 a 1 000 000 R ; syncOverlay ecrit la meme valeur dans #r_counter ; l'etat economy est deep-inchange apres rendu (le rendu ne mute jamais).",
+      "couvre": [
+        "renderRCounter"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.1.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R16 VFX de clic (+N) sur le Coeur de Lumen",
+      "fonction": "renderClickBurst",
+      "fichiers": [
+        "render.mjs"
+      ],
+      "preuve": "properties.test.mjs 'R16/R16b' : avec lastClickBurst {gain:3000, age:0}, le texte '+3' est dessine et l'age avance EXACTEMENT de 16 ms par frame ; sans clic (null) ou a age==600 aucun '+N' n'est dessine et renderFrame ne leve rien.",
+      "couvre": [
+        "renderClickBurst"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.1.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R17 bouton d'achat a deux etats : achetable vs grise (refus observable)",
+      "fonction": "renderBuyButtons",
+      "fichiers": [
+        "render.mjs"
+      ],
+      "preuve": "properties.test.mjs 'R17' : a cout-1 mR #buy-g1.disabled === true et la classe .disabled est posee ; au cout EXACT disabled === false ; le libelle est 'G1: 15R' ; e2e.mjs verifie les deux etats en navigateur reel.",
+      "couvre": [
+        "renderBuyButtons"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.1.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R18 colonne des generateurs + apparition visible de G2 au franchissement de S1",
+      "fonction": "renderGeneratorColumn",
+      "fichiers": [
+        "render.mjs"
+      ],
+      "preuve": "properties.test.mjs 'R18/R18b' : la colonne contient 1 enfant a S1-1 mR, 2 a S1 EXACT (entree 'G2: 0' auparavant absente), 4 a S3 ; chaque palier a un repere de couleur DISTINCTE (4 couleurs) ; e2e.mjs confirme l'apparition de #buy-g2 a S1.",
+      "couvre": [
+        "renderGeneratorColumn"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R19 VFX de franchissement de seuil",
+      "fonction": "renderThresholdReveal",
+      "fichiers": [
+        "render.mjs"
+      ],
+      "preuve": "properties.test.mjs 'R19' et 'R23c' : thresholdRevealOpacity passe de 1 a 0.95 par frame (DECROISSANCE stricte) ; syncOverlay reporte l'opacite reelle dans #threshold-reveal ; le flash est arme par gameLoop au franchissement d'un seuil provoque par la PRODUCTION seule, sans aucun clic ; e2e.mjs observe opacity > 0 en navigateur reel.",
+      "couvre": [
+        "renderThresholdReveal"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.1.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R20 jauge de proximite vers le prochain seuil (arbitrage acheter/epargner)",
+      "fonction": "renderProgressMeter",
+      "fichiers": [
+        "render.mjs"
+      ],
+      "preuve": "properties.test.mjs 'R20/R20b' : la largeur de #progress-meter vaut 0 % au sortir d'un seuil, 50 % a mi-chemin, 100 % juste avant le suivant, repart a 0 % au seuil franchi, et 100 % (jamais NaN) une fois tout franchi ; monotonie non decroissante verifiee sur 20 points intra-palier ; la jauge n'est plus dessinee (0 strokeRect) a S5 EXACT. Corrige : l'index venait d'un quotient par S1, la jauge etait fausse des 100 R.",
+      "couvre": [
+        "renderProgressMeter"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.1.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R21 fond ascendant s'eclaircissant d'un cran a chaque seuil franchi",
+      "fonction": "renderBackground",
+      "fichiers": [
+        "render.mjs"
+      ],
+      "preuve": "properties.test.mjs 'R21' : les 6 paliers (0 puis S1..S5) donnent 6 couleurs de fond DISTINCTES, de luminance STRICTEMENT croissante, base '#0B0E17' ; a S1-1 mR le fond est encore celui du depart. Corrige : la clarte suivait cumul/S1 et saturait des 500 R au lieu d'un cran par seuil.",
+      "couvre": [
+        "renderBackground"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.1.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R22 ecran de victoire au franchissement de S5 ; aucun ecran de defaite",
+      "fonction": "renderVictory",
+      "fichiers": [
+        "render.mjs"
+      ],
+      "preuve": "properties.test.mjs 'R22/R22b/R22c' : aucun 'VICTORY!' a S5-1 mR, ecran + bouton 'Rejouer' dessines a S5 EXACT, #victory-overlay demasque au meme instant ; les boutons d'amelioration distinguent leurs deux etats par des teintes propres ; e2e.mjs verifie en navigateur reel que la boucle s'arrete et qu'aucun element de defaite n'existe. La regle de victoire est celle d'economy (isVictory), plus dupliquee dans render.",
+      "couvre": [
+        "renderVictory"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.1.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R23 boucle de tick, cablage input->economy->render, exposition window.__game, transitions victoire/reset",
+      "fonction": "gameLoop",
+      "fichiers": [
+        "main.mjs"
+      ],
+      "preuve": "properties.test.mjs 'R23..R23e' (harnais DOM/canvas reel) : initGame expose window.__game et laisse running === false ; startGame execute un tick (state.tick 0->1, +10 mR de production SANS clic) ; stopGame arrete puis la boucle peut repartir ; le franchissement de seuil est detecte a un tick quelconque ; la victoire met running a false et emet 'victory' ; le rejeu remet a 0, re-masque l'overlay et relance la boucle ; un canvas absent leve. e2e.mjs rejoue le tout en navigateur reel.",
+      "couvre": [
+        "gameLoop"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.2.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R24 solvabilite runtime : un bot scripte atteint S5 en <= 72000 ticks",
+      "fonction": "solvabilityProof",
+      "fichiers": [
+        "solvability.mjs"
+      ],
+      "preuve": "logic.test.mjs 'R24..R24d' + solvability.mjs cable dans run-oracle.mjs : solvabilityProof() ATTEINT reellement cumul >= 1 000 000 000 mR en 47845 ticks (<= 72000), jalons S1..S5 = [830, 4580, 12089, 27916, 47845], rejeu identique (aucun alea) ; statut CALCULE (isVictory), jamais un litteral ; avec un budget de 100 ticks la preuve ECHOUE (solveSuccessful false, ticksToVictory null) -- l'oracle peut donc rougir ; botDecide/botApply/recordMilestones sont eprouves a la frontiere EXACTE de chaque cout et de chaque seuil ; measureVariance rend 5 valeurs DISTINCTES [44432, 45369, 46093, 46686, 47220].",
+      "couvre": [
+        "solvabilityProof"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.2.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R25 avantage de rejeu : politique optimale > politique naive au meme horizon (fog HumanGate)",
+      "fonction": "compareRunAdvantage",
+      "fichiers": [
+        "solvability.mjs"
+      ],
+      "preuve": "logic.test.mjs 'R25' + run-oracle.mjs (volet bloquant) : sur un horizon IDENTIQUE de 3000 ticks et au MEME rythme de clic, la politique qui reinvestit atteint 532310 mR contre 300000 mR pour celle qui thesaurise, ecart EXACT +232310 mR, croissant avec l'horizon (26830 a 1000 ticks) : une seule variable differe, le reinvestissement. PORTEE HONNETE : divergence INTRA-run entre deux politiques, PAS un avantage de rejeu inter-run -- le charter interdit toute meta-progression persistante, aucun report n'existe donc ni n'est mesure (fog E12 remontee a HumanGate).",
+      "couvre": [
+        "compareRunAdvantage"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.1.0",
+      "implemented_at": "2026-08-31"
+    }
+  ]
+}

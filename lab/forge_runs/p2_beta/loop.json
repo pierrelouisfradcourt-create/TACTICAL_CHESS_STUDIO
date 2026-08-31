@@ -1,0 +1,135 @@
+{
+ "schema_version": 1,
+ "game_id": "p2_beta",
+ "steps": [
+  {
+   "role": "PLAYER_GOAL",
+   "ref": "ex_a_goal",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "nonempty"
+   }
+  },
+  {
+   "role": "PLAYER_ACTION",
+   "ref": "ex_b_action",
+   "affordance": "click_target",
+   "repeat": 1,
+   "observe": {
+    "hud": "resource_counter",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "GAME_RESPONSE",
+   "ref": "ex_c_response",
+   "repeat": 1,
+   "observe": {
+    "hud": "resource_counter",
+    "predicate": "changes"
+   }
+  },
+  {
+   "role": "REWARD",
+   "ref": "ex_d_reward",
+   "repeat": 1,
+   "observe": {
+    "hud": "resource_counter",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "DECISION",
+   "ref": "ex_e_decision",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "changes"
+   },
+   "options": [
+    "ex_b_action",
+    "ex_f_unlock"
+   ],
+   "metric": "resource_counter",
+   "horizon_frames": 300,
+   "policies": [
+    {
+     "name": "idle",
+     "click": null,
+     "every_frames": 0
+    },
+    {
+     "name": "actif",
+     "click": "click_target",
+     "every_frames": 3
+    }
+   ]
+  },
+  {
+   "role": "UNLOCK",
+   "ref": "ex_f_unlock",
+   "affordance": "buy_generator",
+   "repeat": 1,
+   "observe": {
+    "hud": "cps_readout",
+    "predicate": "increases",
+    "appears": "generateurs"
+   }
+  },
+  {
+   "role": "NEXT_GOAL",
+   "ref": "ex_g_goal1",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   }
+  },
+  {
+   "role": "NEXT_GOAL",
+   "ref": "ex_g_goal2",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   }
+  },
+  {
+   "role": "REPEAT",
+   "ref": "ex_h_repeat",
+   "repeat": 1,
+   "observe": {
+    "hud": "resource_counter",
+    "predicate": "increases"
+   },
+   "replay": [
+    "ex_b_action",
+    "ex_c_response",
+    "ex_d_reward",
+    "ex_f_unlock"
+   ]
+  },
+  {
+   "role": "META_LOOP",
+   "ref": "ex_i_meta",
+   "affordance": "prestige_reset",
+   "repeat": 1,
+   "observe": {
+    "hud": "resource_counter",
+    "predicate": "resets"
+   }
+  },
+  {
+   "role": "ADVANTAGE",
+   "ref": "ex_j_advantage",
+   "affordance": "click_target",
+   "repeat": 1,
+   "observe": {
+    "hud": "resource_counter",
+    "predicate": "increases_more_than:ex_b_action"
+   },
+   "replay_ref": "ex_b_action"
+  }
+ ]
+}

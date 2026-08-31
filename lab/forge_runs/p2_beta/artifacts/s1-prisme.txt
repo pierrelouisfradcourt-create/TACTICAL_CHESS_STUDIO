@@ -1,0 +1,236 @@
+# Product Snapshot — p2_beta
+
+*Incremental / clicker à fin observable bornée, conçu agnostique au thème (le sujet concret — cible, générateurs, jeton — est un fog HumanGate délibéré du bras Libre, jamais fabriqué ici). Ce document décrit le produit FINI tel que le joueur le vit, dans l'ordre où il le vit.*
+
+## 1. CE QUE LE JOUEUR VOIT
+
+Au lancement, l'écran est dominé par une grande **cible centrale pressable** (`click_target`), l'élément le plus chaud et le plus grand, trouvable sans recherche. En haut, un **compteur d'unités** (`resource_counter`) affiche le total courant, et à côté un **lecteur de production passive** (`cps_readout`) qui vaut zéro tant qu'aucun générateur n'est possédé. Un **suivi d'objectif** (`objectif`) est présent dès le frame 0 : il affiche toujours un but courant non vide et le remplace, palier après palier, par un but textuellement différent.
+
+Sur le côté, une **colonne d'achat** montre les générateurs et améliorations dans trois états visuellement redondants (au-delà de la teinte : opacité, forme, mouvement) : verrouillé (grisé, cadenas, raison + aperçu fantôme du débit), abordable (pleine couleur, bouton sarcelle en pulsation), possédé (badge ×N, rangée qui anime son débit). Une **jauge de fin** (`end_gauge`) persistante, distincte en position et forme du compteur de ressource, est visible en permanence et progresse de façon monotone vers 100 %. Les transitions de palier ne sont jamais un pourcentage : elles **remplacent toute la surface de jeu** (`stage_scene`) par une phase visiblement différente. À 100 %, un **écran de victoire plein écran** remplace réellement la scène et affiche les totaux finaux.
+
+## 2. CE QUE LE JOUEUR FAIT
+
+Le joueur **presse la cible centrale** pour produire ses premières unités — au premier écran, c'est le seul geste qui rapporte. Quand il en a assez, il **achète un générateur** (`buy_generator`), ce qui fait apparaître une rangée de production passive : le jeu commence à jouer à sa place. À partir de là, chaque cycle lui pose une **décision réelle** : continuer à cliquer maintenant, ou attendre et réinvestir dans plus de générateurs / une amélioration multiplicatrice. Ces deux politiques mènent à des trajectoires de total mesurablement différentes.
+
+Il **franchit des seuils** qui déverrouillent de nouvelles familles de contenu (distinguées par leur rôle de production, pas par un thème), traverse **cinq paliers de scène** jusqu'à la fin observable, et poursuit une suite d'**objectifs affichés** qui lui disent toujours le prochain pas. Au terme, il peut **conclure** à l'écran de victoire, ou déclencher une **relance bornée unique** (`prestige_reset`) : le compteur retombe à zéro, mais une graine de relance lui confère un avantage de départ mesurable, si bien qu'un clic rejoué produit un gain strictement supérieur à son gain initial.
+
+## 3. CE QUE LE JOUEUR RESSENT
+
+La satisfaction est celle de l'escalade numérique et des récompenses fréquentes de faible valeur : chaque appui répond immédiatement (flotteur +N, animation), et le passage du clic manuel au revenu passif procure le soulagement de « la machine travaille pour moi ». La colonne d'achat entretient une tension économique lisible — abordable ou pas, ce que je débloque, ce que ça coûtera après — qui rend chaque décision réinvestir-ou-attendre concrète et non cosmétique. Les changements de scène ponctuent le run de nouveauté franche, empêchant la fatigue de répétition. Surtout, contrairement à l'endlessness canonique du genre, la jauge de fin donne un **sentiment de destination** : le joueur avance vers une fin conçue et atteignable, pas vers un vide infini — et la relance bornée récompense sans promettre un grind sans terme.
+
+## 4. RÈGLES OBSERVABLES
+
+- **R1 — Clic productif** : au premier écran, cliquer `click_target` augmente `resource_counter` d'exactement la valeur de clic courante, et c'est le seul moyen de gagner des unités avant tout achat.
+- **R2 — Réponse immédiate** : chaque clic émet un flotteur +N et une animation d'appui visibles au tick du clic, absents au tick précédent.
+- **R3 — Déverrouillage du passif** : acheter via `buy_generator` fait apparaître une rangée du groupe `generateurs` et fait passer `cps_readout` de 0 à une valeur strictement positive.
+- **R4 — Coût exponentiel** : le coût du n-ième générateur vaut `base × 1.15^n` exactement (invariant repris tel quel du Game Master, `m_economy_cost_mult`).
+- **R5 — Objectifs distincts** : le HUD `objectif` est non vide dès le frame 0 et affiche des buts successifs textuellement différents les uns des autres (nouvelle chaîne, pas seulement une valeur qui change).
+- **R6 — Décision conséquente** : sur ≥ 300 frames, une politique « clic actif » et une politique « attente » produisent des trajectoires de `resource_counter` mesurablement divergentes.
+- **R7 — Paliers de scène** : cinq seuils de palier remplacent la surface de jeu (`stage_scene`) par une phase visiblement différente — jamais rendus par un nombre.
+- **R8 — Fin bornée visible** : `end_gauge` est présente à chaque capture, croît de façon monotone, et atteint 100 % en ≤ 72000 ticks.
+- **R9 — Victoire perceptible** : à `end_gauge` = 100 %, un écran de victoire plein écran remplace réellement la surface de jeu et montre les totaux finaux.
+- **R10 — Relance avantageuse bornée** : `prestige_reset` remet `resource_counter` à 0 ; après cette relance unique, rejouer `click_target` donne un delta par clic strictement supérieur au delta du run initial.
+
+```json
+{
+  "game_id": "p2_beta",
+  "exigences": [
+    {
+      "id": "ex_a_goal",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_quest_tracker",
+      "acteur": "PLAYER",
+      "loop_role": "PLAYER_GOAL",
+      "observation": "Le Game Master définit gb_quest_tracker comme une liste d'objectifs affichant le but courant et sa récompense, dont le rôle est de piloter l'attention du joueur.",
+      "claim": "Un premier objectif doit être lisible dès le tout premier frame, sinon le joueur fait face à la cible centrale sans but énoncé et n'a aucune raison d'agir.",
+      "enonce": "Au lancement, le HUD `objectif` affiche un premier but non vide ('produire tes premières unités') avant tout clic du joueur.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot ouvre le jeu et lit le HUD `objectif` au frame 0 : la chaîne d'objectif est non vide avant toute interaction."},
+      "observe": {"hud": "objectif", "predicate": "nonempty"},
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "ex_b_action",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_click_target",
+      "acteur": "PLAYER",
+      "loop_role": "PLAYER_ACTION",
+      "affordance": "click_target",
+      "observation": "Le Game Master décrit gb_click_target comme un sprite pressable central qui, à l'appui, émet un flotteur +N et incrémente les unités.",
+      "claim": "Le clic manuel doit rester la seule entrée productrice d'unités tant qu'aucun générateur n'est possédé, sinon le premier écran n'a pas d'action motivée.",
+      "enonce": "Le joueur presse la cible centrale en cliquant `click_target` ; au premier écran, chaque clic augmente `resource_counter` d'exactement la valeur de clic courante et c'est le seul gain possible avant achat.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot clique `click_target` N fois sans posséder de générateur ; `resource_counter` passe de 0 à N × valeur_clic et ne bouge pas entre deux clics."},
+      "observe": {"hud": "resource_counter", "predicate": "increases"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_c_response",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.loops.core_loop.core_feedback",
+      "acteur": "SYSTEM",
+      "loop_role": "GAME_RESPONSE",
+      "observation": "Le Game Master pose core_feedback : la cible réagit visiblement (animation d'appui) confirmant l'entrée, et le total change au tick du clic.",
+      "claim": "La réaction doit être perceptible au tick même du clic pour que l'entrée soit ressentie comme un impact, sinon le clic paraît sans effet et casse le feel tactile.",
+      "enonce": "À chaque clic, `resource_counter` change au tick du clic et un flotteur +N accompagné de l'animation d'appui de `click_target` apparaît, absents au tick précédent.",
+      "expected_proof": {"kind": "visual", "statement": "Une capture au tick du clic montre le flotteur +N et l'animation d'appui de `click_target`, tous deux absents de la capture du tick précédent."},
+      "observe": {"hud": "resource_counter", "predicate": "changes"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_d_reward",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.loops.core_loop.core_reward",
+      "acteur": "SYSTEM",
+      "loop_role": "REWARD",
+      "observation": "Le Game Master pose core_reward : un flotteur +N et le total qui monte confirment le gain de la boucle de clic.",
+      "claim": "Le gain doit se lire comme une accumulation persistante (le total qui monte), distincte de la simple réaction instantanée, sinon rien ne récompense la répétition du clic.",
+      "enonce": "Après un clic, la valeur affichée de `resource_counter` est strictement supérieure à sa valeur d'avant-clic et le reste (accumulation persistante).",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot lit `resource_counter` avant et après un clic : la valeur après est strictement supérieure et persiste au frame suivant."},
+      "observe": {"hud": "resource_counter", "predicate": "increases"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_e_decision",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.loops.economy_loop.eco_decision",
+      "acteur": "PLAYER",
+      "loop_role": "DECISION",
+      "observation": "Le Game Master pose eco_decision : acheter le générateur bon marché maintenant ou économiser pour un tier supérieur — un choix d'allocation posé au joueur.",
+      "claim": "Ce choix doit porter à conséquence mesurable sur le total, sinon 'décider' est cosmétique et la boucle n'a pas de point de décision réel.",
+      "enonce": "Entre la récompense et le déverrouillage, le jeu présente un choix cliquer-maintenant vs attendre-et-acheter dont les deux trajectoires de `resource_counter` divergent sur l'horizon mesuré.",
+      "expected_proof": {"kind": "bot_action", "statement": "Deux bots (idle : aucun clic ; actif : clique `click_target` tous les 3 frames) jouent 300 frames ; leurs trajectoires de `resource_counter` divergent, prouvant que le choix porte à conséquence."},
+      "observe": {"hud": "objectif", "predicate": "changes"},
+      "options": ["ex_b_action", "ex_f_unlock"],
+      "metric": "resource_counter",
+      "horizon_frames": 300,
+      "policies": [
+        {"name": "idle", "click": null, "every_frames": 0},
+        {"name": "actif", "click": "click_target", "every_frames": 3}
+      ],
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_f_unlock",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_generator",
+      "acteur": "PLAYER",
+      "loop_role": "UNLOCK",
+      "affordance": "buy_generator",
+      "observation": "Le Game Master décrit gb_generator : une ligne d'achat locked -> affordable -> owned ; acheter dépense des unités et ajoute une source de revenu passif à la scène.",
+      "claim": "Le premier achat doit rendre le passif immédiatement visible (une rangée qui apparaît et un débit non nul), sinon le joueur ne perçoit pas la transition clic-manuel -> production automatique qui définit le genre.",
+      "enonce": "Le joueur achète son premier générateur en cliquant `buy_generator` ; une rangée du groupe `generateurs` apparaît et `cps_readout` passe de 0 à une valeur strictement positive.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot accumule le coût puis clique `buy_generator` ; une rangée du groupe `generateurs` apparaît à l'écran et `cps_readout` passe de 0 à >0."},
+      "observe": {"hud": "cps_readout", "predicate": "increases", "appears": "generateurs"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_g_goal1",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_quest_tracker",
+      "acteur": "SYSTEM",
+      "loop_role": "NEXT_GOAL",
+      "observation": "Le Game Master pose gb_quest_tracker : s'incrémente à la complétion et révèle le suivant, pilotant l'attention vers le prochain pas.",
+      "claim": "Après le premier achat, un nouvel objectif textuellement distinct doit remplacer le précédent, sinon le joueur ignore quoi viser ensuite et la boucle n'enchaîne pas.",
+      "enonce": "Après l'achat du premier générateur, le HUD `objectif` affiche un objectif textuellement nouveau ('acheter ta première amélioration'), distinct de l'objectif initial.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot achète le premier générateur puis lit le HUD `objectif` : la chaîne affichée diffère textuellement de l'objectif de départ."},
+      "observe": {"hud": "objectif", "predicate": "new_distinct"},
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "ex_g_goal2",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.loops.quest_loop.quest_progression",
+      "acteur": "SYSTEM",
+      "loop_role": "NEXT_GOAL",
+      "observation": "Le Game Master pose quest_progression : 3 à 12 objectifs enchaînent le joueur vers la jauge de fin.",
+      "claim": "Un troisième objectif encore distinct doit suivre le second, sinon la chaîne d'objectifs se réduit à un seul palier et le guidage s'arrête trop tôt.",
+      "enonce": "Après l'achat de la première amélioration, le HUD `objectif` affiche un troisième but ('franchir le premier seuil de palier'), textuellement distinct des deux précédents.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot achète la première amélioration puis lit le HUD `objectif` : la chaîne affichée diffère textuellement des deux objectifs précédents."},
+      "observe": {"hud": "objectif", "predicate": "new_distinct"},
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "ex_h_repeat",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.loops.progression_loop.prog_progression",
+      "acteur": "SYSTEM",
+      "loop_role": "REPEAT",
+      "observation": "Le Game Master pose prog_progression : les tiers se déverrouillent sur une cadence, chaque franchissement rouvrant la boucle d'achat dans un état plus élevé.",
+      "claim": "La boucle doit réellement recommencer (mêmes gestes rejoués, effets du même type sur un compteur plus élevé), sinon la progression est une convention affichée et non une boucle vécue.",
+      "enonce": "Dans l'état post-palier, les étapes clic -> réponse -> récompense -> achat de générateur se rejouent et produisent chacune le même type d'effet observable qu'au premier cycle, sur un `resource_counter` plus élevé.",
+      "expected_proof": {"kind": "bot_action", "statement": "Après un franchissement de palier, un bot rejoue ex_b_action, ex_c_response, ex_d_reward, ex_f_unlock ; chaque étape produit son effet observable attendu et `resource_counter` continue de croître."},
+      "observe": {"hud": "resource_counter", "predicate": "increases"},
+      "replay": ["ex_b_action", "ex_c_response", "ex_d_reward", "ex_f_unlock"],
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_i_meta",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.loops.meta_loop.meta_decision",
+      "acteur": "PLAYER",
+      "loop_role": "META_LOOP",
+      "affordance": "prestige_reset",
+      "observation": "Le Game Master pose meta_decision : conclure à l'écran de victoire ou entamer un unique nouveau cycle borné, dont la sortie inclut une graine de relance bornée qui repart à zéro.",
+      "claim": "La relance doit se voir comme une remise à zéro perceptible du total, sinon 'recommencer' est indistinct du run courant et le geste de méta-boucle n'a aucun repère visible.",
+      "enonce": "Le joueur déclenche la relance bornée en cliquant `prestige_reset` ; `resource_counter` retombe à zéro au frame suivant.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot déclenche `prestige_reset` ; `resource_counter` vaut 0 au frame suivant, contre sa valeur d'avant-relance strictement positive."},
+      "observe": {"hud": "resource_counter", "predicate": "resets"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_j_advantage",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_victory_screen",
+      "acteur": "PLAYER",
+      "loop_role": "ADVANTAGE",
+      "affordance": "click_target",
+      "observation": "Le Game Master décrit gb_victory_screen dont le next_goal est 'Conclure, ou entamer un unique cycle borné' : la relance est une graine de cycle bornée, non un prestige infini.",
+      "claim": "Pour que la relance bornée ait un intérêt, sa graine doit conférer un avantage de départ mesurable (un head-start unique), sinon relancer n'est que de la répétition pure sans raison de la prendre — avantage à ratifier par HumanGate car le Game Master n'a pas conçu de bonus permanent.",
+      "enonce": "Le joueur rejoue le clic sur `click_target` après la relance bornée ; le gain par clic sur `resource_counter` est strictement supérieur au gain par clic du run initial.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot mesure le delta par clic de `click_target` en run initial (ex_b_action), déclenche `prestige_reset`, puis rejoue `click_target` ; le delta par clic post-relance est strictement supérieur au delta initial."},
+      "observe": {"hud": "resource_counter", "predicate": "increases_more_than:ex_b_action"},
+      "replay_ref": "ex_b_action",
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_n_endgauge",
+      "source": "EXPECTED",
+      "source_role": "world_scan",
+      "reference": "worldscan:games[3].objectives[0].victory_condition",
+      "acteur": "SYSTEM",
+      "loop_role": "NONE",
+      "observation": "Universal Paperclips atteint une fin conçue (stage 4 final choice), et le charter du bras impose une fin observable bornée (<=72000 ticks) contre l'endlessness canonique du genre.",
+      "claim": "La proximité de la fin doit être portée par une jauge persistante toujours visible et distincte du compteur de ressource, sinon le joueur ne peut pas savoir combien il reste avant la fin bornée.",
+      "enonce": "Une `end_gauge` persistante est visible à tout instant et croît de façon monotone vers 100 % à mesure que stages et ticks s'accumulent.",
+      "expected_proof": {"kind": "visual", "statement": "Sur un run de référence, `end_gauge` est présente à chaque capture et sa valeur est monotone croissante jusqu'à 100 %, sans jamais décroître."},
+      "observe": {"hud": "end_gauge", "predicate": "increases"},
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "ex_n_victory",
+      "source": "EXPECTED",
+      "source_role": "world_scan",
+      "reference": "worldscan:games[3].objectives[0].victory_condition",
+      "acteur": "SYSTEM",
+      "loop_role": "NONE",
+      "observation": "Universal Paperclips se termine par un écran de fin conçu ; le genre canonique (Cookie Clicker) n'a au contraire aucun état de victoire.",
+      "claim": "La fin doit être un vrai remplacement de scène plein écran (pas un overlay cosmétique), sinon 'la fin' n'est pas perceptiblement atteinte et la promesse de fin bornée reste invérifiable.",
+      "enonce": "Quand `end_gauge` atteint 100 %, une scène de victoire plein écran remplace la surface de jeu (`stage_scene` change) et affiche les totaux finaux.",
+      "expected_proof": {"kind": "visual", "statement": "À `end_gauge` = 100 %, une capture montre l'écran de victoire plein écran ayant remplacé la surface de jeu, avec les totaux finaux affichés."},
+      "observe": {"hud": "stage_scene", "predicate": "changes"},
+      "destination": "s9-build"
+    }
+  ]
+}
+```
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le maillon J (ADVANTAGE) du Gameplay Contract exige qu'une action PLAYER_ACTION rejouee apres la relance (prestige_reset) porte un delta strictement superieur au delta initial, alors que le Game Master a tranche (design_questions q_art_002) l'absence de toute monnaie de prestige permanente et de cumul inter-run. J'ai reconcilie en bornant J a une graine de relance UNIQUE conferant un head-start mesurable (non un prestige endless), ancree sur gb_victory_screen ('entamer un unique cycle borne'), mais cette graine-avantage n'est pas explicitement concue par le GM et reste un choix de design a ratifier par HumanGate.", "root_cause": "Le Gameplay Contract impose les 10 maillons A..J y compris ADVANTAGE, tandis que le charter du bras Libre impose une fin bornee <=72000 ticks incompatible avec la prestige endless dont J est l'heritage ; l'arbitrage graine-avantage vs pure repetition n'a aucun invariant amont (aucun design/calibration.md injecte en run1)."}

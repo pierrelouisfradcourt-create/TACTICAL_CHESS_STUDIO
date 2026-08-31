@@ -1,0 +1,324 @@
+I've been dispatched as the Game Master (`s2.7-gm-worldscan`, round 1) for `p2_beta`. This is a subagent execution against a validated Forge contract — I'll produce the terminal artifact directly, no file writes (my permissions are read + WebSearch only; the executor materializes `gm_worldscan.json`).
+
+## RAPPORT FINAL — s2.7-gm-worldscan / p2_beta-20260830-run1 (round 1)
+
+**Ancres amont réellement consommées (injectées dans mon contexte) :**
+- `worldscan.json` (`artifacts/s2-worldscan.txt`) — observation de genre, `advisory:true`, 4 incrementals de référence. Ancre des 8 dimensions et des cadences du genre.
+- `story_bible.json` — `context` (genre libre) + `coherence_rules` (fin observable, solvabilité ≤ 72000 ticks). C'est la **contrainte structurante** de ce jeu : divergence assumée de l'*endlessness* canonique.
+- `art_bible.md` — `affordance_rules`, `ui_readability`, `visual_language`, `world_constraints`. Ancre des `grey_blocks` et `artist_requirements`.
+- **Absents en run1** (déclarés, non compensés) : `heritage/gm_worldscan.json`, `heritage/art_response.json`, `design/calibration.md`, `design_intent.md`. Aucun invariant de calibration injecté → j'ancre chaque métrique sur genre + charter, jamais sur un nombre inventé présenté comme fait.
+
+**Section 1 — 8 dimensions :** 7 `MEASURED` (combat, progression, economy, rng, bonus, metagame, construction), 1 `NOT_MEASURED`.
+- `rarity` = **NOT_MEASURED**, raison : les incrementals canoniques observés produisent de façon déterministe, sans système de drops à paliers de rareté ; aucune distribution chiffrée n'est documentée dans les sources accessibles. Fabriquer une distribution serait une fausse mesure.
+
+**Section 2 — `game_master` :** COMPLET et **agnostique au thème** (le sujet concret reste ouvert, `story_bible:context` NOT_GROUNDED). 9 boucles reliées (chaque `produces` consommé par ≥1 autre boucle — R2a), chaque `transformation_perceptible` prouvée par un `proof_ref` non-`humangate` (R2b), `meta_loop` conçu comme **conversion-vers-la-fin bornée**, pas comme prestige endless. Deux questions **bloquantes** à l'Artiste (représentation) closent le round — mon `ready_for_freeze` reste `false` (R1, questions propres ouvertes).
+
+**Verdicts :**
+- `software_verdict:` **BLOCKED** — je n'exécute aucun oracle (permissions `run: WebSearch/WebFetch` seul ; pas de `node`/pytest ici). `check_gm_worldscan`, `_validate_gm_worldscan`, `game_master_schema.mjs` et `_validate_game_master_block` seront exécutés par `run_real.py` à la matérialisation. Ma conformité est construite **contre** le schéma décrit au contrat, pas prouvée par exécution.
+- `evidence_verdict:` **MECHANICAL_VALIDATION_ONLY** — ne s'applique qu'au reçu de l'exécuteur, non revendiqué par moi.
+- `claim_verdict:` **NO_CLAIM_ALLOWED** — pertinence des valeurs et représentabilité = red-team/HumanGate.
+
+**SKIPPED_VALIDATION :**
+- item: exécution de `check_gm_worldscan` + `_validate_gm_worldscan` · périmètre: `gm_worldscan.json` · statut: non fait · raison: `run` oracle indisponible dans cette session ; appartient à l'exécuteur.
+- item: exécution de `game_master_schema.mjs --json` · périmètre: bloc `game_master` · statut: non fait · raison: pas de `node` ; construit contre le schéma du contrat, validé en aval.
+- item: vérification web live des grandeurs de dimensions · périmètre: `dimensions[]` · statut: partiel · raison: valeurs canoniques citées par URL/titre vérifiables ; les grandeurs incertaines (nombre de bâtiments Kittens, cadence golden cookie) portent `observed:false` plutôt qu'une live-fetch.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Tension structurelle non triviale a resoudre en amont du design: le charter impose une fin observable bornee (<=72000 ticks, story_bible:coherence_rules) alors que le genre de reference est explicitement sans fin (worldscan:games[0].objectives[0].has_win_state=false) et repose massivement sur une prestige endless (worldscan:games[0]/[2].retention_answer). La meta-boucle du genre (reset infini) est donc incompatible telle quelle; je l'ai requalifiee en conversion-vers-la-fin, choix de design a valider.", "root_cause": "Le bras libre delegue la STRUCTURE a l'aval tout en fixant une contrainte de fin bornee, et aucun design/calibration.md n'a ete injecte en run1 pour arbitrer prestige vs fin observable — l'arbitrage retombe sur le Game Master sans invariant amont."}
+
+```json
+{
+  "genre": "incremental/clicker",
+  "games_observed": ["Cookie Clicker", "Kittens Game", "Clicker Heroes", "Universal Paperclips"],
+  "dimensions": [
+    {
+      "id": "combat",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "base_click_damage", "value": 1, "unit": "damage/click", "source": "Clicker Heroes (Playsaurus, 2014) — https://en.wikipedia.org/wiki/Clicker_Heroes", "observed": true},
+        {"name": "hero_soul_dps_bonus", "value": 10, "unit": "% DPS per hero soul", "source": "https://blog.clickerheroes.com/understanding-clicker-heroes-mechanics-heroes-and-strategies/", "observed": true},
+        {"name": "idle_dps_multiplier", "value": 2, "unit": "x DPS after ~60s idle", "source": "https://en.wikipedia.org/wiki/Clicker_Heroes", "observed": true}
+      ]
+    },
+    {
+      "id": "progression",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "building_cost_growth", "value": 1.15, "unit": "cost ratio per unit", "source": "Cookie Clicker (Orteil, 2013) — https://en.wikipedia.org/wiki/Cookie_Clicker", "observed": true},
+        {"name": "prestige_permanent_cps", "value": 1, "unit": "% permanent CpS per heavenly chip", "source": "https://en.wikipedia.org/wiki/Cookie_Clicker", "observed": true},
+        {"name": "prestige_scaling", "value": "cube-root", "unit": "chips->prestige-level curve", "source": "https://dinogame.gg/blog/how-cookie-clicker-progression-works/", "observed": false}
+      ]
+    },
+    {
+      "id": "economy",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "primary_currency_count", "value": 1, "unit": "currencies (Cookie Clicker)", "source": "https://en.wikipedia.org/wiki/Cookie_Clicker", "observed": true},
+        {"name": "resource_chain_depth", "value": 4, "unit": "tiers (catnip->wood->minerals->steel)", "source": "Kittens Game (bloodrizer, 2013) — https://en.wikipedia.org/wiki/Incremental_game", "observed": true},
+        {"name": "storage_cap_mechanic", "value": "per-tier caps", "unit": "mechanic present", "source": "https://www.kongregate.com/en/games/bloodrizer/kittens-game", "observed": true}
+      ]
+    },
+    {
+      "id": "rng",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "random_bonus_present", "value": "yes (golden cookies)", "unit": "mechanic present", "source": "https://en.wikipedia.org/wiki/Cookie_Clicker", "observed": true},
+        {"name": "golden_cookie_cadence", "value": "30-60", "unit": "seconds between spawns (approx, randomized)", "source": "https://www.playcookieclicker.com/cookie-clicker-strategy/", "observed": false}
+      ]
+    },
+    {
+      "id": "rarity",
+      "status": "NOT_MEASURED",
+      "reason": "Les incrementals canoniques observes (Cookie Clicker, Kittens Game, Universal Paperclips) produisent de maniere DETERMINISTE, sans systeme de drops a paliers de rarete. Clicker Heroes possede des reliques de qualite variable, mais aucune distribution de rarete chiffree n'est documentee dans les sources accessibles. Declarer une distribution serait une fabrication; la dimension n'est pas porteuse dans le genre de reference."
+    },
+    {
+      "id": "bonus",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "transient_boost_frenzy", "value": 7, "unit": "x production during Frenzy (Cookie Clicker)", "source": "https://en.wikipedia.org/wiki/Cookie_Clicker", "observed": true},
+        {"name": "idle_bonus_multiplier", "value": 2, "unit": "x DPS after 60s idle (Clicker Heroes)", "source": "https://en.wikipedia.org/wiki/Clicker_Heroes", "observed": true},
+        {"name": "hero_soul_bonus", "value": 10, "unit": "% DPS per soul (Clicker Heroes)", "source": "https://blog.clickerheroes.com/understanding-clicker-heroes-mechanics-heroes-and-strategies/", "observed": true}
+      ]
+    },
+    {
+      "id": "metagame",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "nested_prestige_layers", "value": 2, "unit": "prestige currencies (hero souls / ancient souls)", "source": "https://en.wikipedia.org/wiki/Clicker_Heroes", "observed": true},
+        {"name": "prestige_permanent_bonus", "value": 1, "unit": "% permanent CpS per heavenly chip (Cookie Clicker)", "source": "https://en.wikipedia.org/wiki/Cookie_Clicker", "observed": true},
+        {"name": "prestige_unlock_threshold", "value": 35, "unit": "kitten population before karma reset (Kittens Game)", "source": "https://www.kongregate.com/en/games/bloodrizer/kittens-game", "observed": true}
+      ]
+    },
+    {
+      "id": "construction",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "production_stages", "value": 4, "unit": "sequential production stages (Universal Paperclips)", "source": "https://universalpaperclips.fandom.com/wiki/Stages", "observed": true},
+        {"name": "building_type_count", "value": "40+", "unit": "distinct buildings (Kittens Game)", "source": "https://www.kongregate.com/en/games/bloodrizer/kittens-game", "observed": false},
+        {"name": "tech_tree_size", "value": "50+", "unit": "technologies, each enabling 3-5 features (Kittens Game)", "source": "https://en.wikipedia.org/wiki/Incremental_game", "observed": false}
+      ]
+    }
+  ],
+  "sources_consumed": {
+    "worldscan": [
+      "worldscan:games[0].loops.minute_1",
+      "worldscan:games[0].loops.minute_10",
+      "worldscan:games[0].retention_answer",
+      "worldscan:games[1].loops.hour_5",
+      "worldscan:games[2].loops.minute_10",
+      "worldscan:games[3].loops.endgame",
+      "worldscan:games[0].objectives[0].has_win_state"
+    ],
+    "story_bible": [
+      "story_bible:context",
+      "story_bible:coherence_rules"
+    ],
+    "art_bible": [
+      "art_bible:affordance_rules",
+      "art_bible:ui_readability",
+      "art_bible:visual_language",
+      "art_bible:world_constraints"
+    ]
+  },
+  "game_master": {
+    "world_interpretation": [
+      {"fact": "La boucle d'entree universelle du genre est: cliquer -> +1 unite, puis acheter une generation passive.", "source": "worldscan:games[0].loops.minute_1"},
+      {"fact": "La retention tient a l'escalade numerique et a des recompenses transitoires frequentes (jeton ~30-60s).", "source": "worldscan:games[0].retention_answer"},
+      {"fact": "Ce jeu DIVERGE de l'endlessness canonique du genre: il exige une fin observable et une solvabilite bornee (<=72000 ticks).", "source": "story_bible:coherence_rules"},
+      {"fact": "Cookie Clicker n'a aucun etat de victoire (has_win_state=false); la fin conçue est donc une decision de design, appuyee sur le precedent Universal Paperclips.", "source": "worldscan:games[0].objectives[0].has_win_state"},
+      {"fact": "Le cliquable se lit a trois signaux redondants (couleur, luminosite, forme), jamais la teinte seule.", "source": "art_bible:affordance_rules"},
+      {"fact": "Le sujet/theme concret du jeu est indefini a ce stade; l'identite visuelle a ete decidee agnostique au theme.", "source": "story_bible:context"}
+    ],
+    "loops": {
+      "core_loop": {
+        "steps": [
+          {"id": "core_action", "kind": "action", "actor": "PLAYER", "why": "le joueur presse le producteur central pour generer 1 unite", "metric_ref": "m_core_yield", "proof_ref": "proof_core", "affordance": "gb_core_producer"},
+          {"id": "core_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "un nombre flottant +1 monte et le producteur joue l'etat pressed", "metric_ref": "m_core_yield", "proof_ref": "proof_core", "hud": "gb_resource_counter"},
+          {"id": "core_reward", "kind": "reward", "actor": "SYSTEM", "why": "le compteur-heros s'incremente visiblement, satisfaction d'escalade", "metric_ref": "m_core_yield", "proof_ref": "proof_core"},
+          {"id": "core_progression", "kind": "progression", "actor": "SYSTEM", "why": "les unites s'accumulent vers le cout du premier generateur", "metric_ref": "m_core_yield", "proof_ref": "proof_core"},
+          {"id": "core_decision", "kind": "decision", "actor": "PLAYER", "why": "continuer a cliquer ou epargner pour un premier achat", "metric_ref": "m_core_yield", "proof_ref": "proof_core"}
+        ],
+        "produces": "unites de production + momentum de clic",
+        "consumes": ["meta_loop"],
+        "unlocks": ["gameplay_loop"],
+        "transformation_perceptible": {"text": "le producteur central reagit a chaque pression (etat pressed + nombre flottant) et le compteur-heros grimpe", "proof_ref": "proof_core"},
+        "metric_propre": "m_core_yield"
+      },
+      "gameplay_loop": {
+        "steps": [
+          {"id": "gp_action", "kind": "action", "actor": "PLAYER", "why": "le joueur achete un generateur abordable", "metric_ref": "m_passive_rate", "proof_ref": "proof_gameplay", "affordance": "gb_buy_button"},
+          {"id": "gp_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le generateur possede apparait et pulse a chaque tick de production", "metric_ref": "m_passive_rate", "proof_ref": "proof_gameplay", "hud": "gb_generator"},
+          {"id": "gp_reward", "kind": "reward", "actor": "SYSTEM", "why": "le total croit desormais sans clic, le rythme s'accelere", "metric_ref": "m_passive_rate", "proof_ref": "proof_gameplay"},
+          {"id": "gp_progression", "kind": "progression", "actor": "SYSTEM", "why": "le taux passif rapproche des prochains achats", "metric_ref": "m_passive_rate", "proof_ref": "proof_gameplay"},
+          {"id": "gp_decision", "kind": "decision", "actor": "PLAYER", "why": "choisir quel generateur acheter selon cout/rendement", "metric_ref": "m_passive_rate", "proof_ref": "proof_gameplay"}
+        ],
+        "produces": "taux de production passive (unites/tick)",
+        "consumes": ["core_loop", "economy_loop"],
+        "unlocks": ["economy_loop", "progression_loop"],
+        "transformation_perceptible": {"text": "apres un achat, le total monte tout seul et un generateur pulse a chaque tick sans intervention du joueur", "proof_ref": "proof_gameplay"},
+        "metric_propre": "m_passive_rate"
+      },
+      "progression_loop": {
+        "steps": [
+          {"id": "prog_action", "kind": "action", "actor": "PLAYER", "why": "le joueur pousse la production vers le seuil du palier", "metric_ref": "m_tier_time", "proof_ref": "proof_progression"},
+          {"id": "prog_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "la barre du palier se remplit et le prochain palier verrouille se montre", "metric_ref": "m_tier_time", "proof_ref": "proof_progression", "hud": "gb_tier_gate"},
+          {"id": "prog_reward", "kind": "reward", "actor": "SYSTEM", "why": "franchir le seuil deverrouille une nouvelle colonne de contenu", "metric_ref": "m_tier_time", "proof_ref": "proof_progression"},
+          {"id": "prog_progression", "kind": "progression", "actor": "SYSTEM", "why": "chaque palier rapproche de la condition de fin bornee", "metric_ref": "m_tier_time", "proof_ref": "proof_progression"},
+          {"id": "prog_decision", "kind": "decision", "actor": "PLAYER", "why": "foncer vers le palier suivant ou consolider l'economie avant", "metric_ref": "m_tier_time", "proof_ref": "proof_progression"}
+        ],
+        "produces": "franchissements de paliers + avance de la jauge de fin",
+        "consumes": ["gameplay_loop", "economy_loop", "quest_loop", "skill_loop"],
+        "unlocks": ["content_loop", "world_loop"],
+        "transformation_perceptible": {"text": "franchir un seuil deverrouille une nouvelle colonne de contenu auparavant grisee", "proof_ref": "proof_progression"},
+        "metric_propre": "m_tier_time"
+      },
+      "content_loop": {
+        "steps": [
+          {"id": "cnt_action", "kind": "action", "actor": "PLAYER", "why": "le joueur decouvre et achete un nouveau type de generateur/upgrade", "metric_ref": "m_content_unlocked", "proof_ref": "proof_content", "affordance": "gb_generator"},
+          {"id": "cnt_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "une nouvelle famille d'icones apparait dans le panneau", "metric_ref": "m_content_unlocked", "proof_ref": "proof_content"},
+          {"id": "cnt_reward", "kind": "reward", "actor": "SYSTEM", "why": "la variete relance l'interet et ouvre de nouvelles combinaisons", "metric_ref": "m_content_unlocked", "proof_ref": "proof_content"},
+          {"id": "cnt_progression", "kind": "progression", "actor": "SYSTEM", "why": "le nombre de types debloques suit l'avancee des paliers", "metric_ref": "m_content_unlocked", "proof_ref": "proof_content"},
+          {"id": "cnt_decision", "kind": "decision", "actor": "PLAYER", "why": "investir dans le nouveau contenu ou renforcer l'ancien", "metric_ref": "m_content_unlocked", "proof_ref": "proof_content"}
+        ],
+        "produces": "nouveaux types de contenu achetables (generateurs/upgrades)",
+        "consumes": ["progression_loop"],
+        "unlocks": ["skill_loop"],
+        "transformation_perceptible": {"text": "une nouvelle famille d'icones de generateurs/upgrades apparait dans le panneau", "proof_ref": "proof_content"},
+        "metric_propre": "m_content_unlocked"
+      },
+      "economy_loop": {
+        "steps": [
+          {"id": "eco_action", "kind": "action", "actor": "PLAYER", "why": "le joueur depense des unites, subissant le cout croissant x1.15", "metric_ref": "m_cost_growth", "proof_ref": "proof_economy", "affordance": "gb_buy_button"},
+          {"id": "eco_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le cout affiche du prochain exemplaire augmente visiblement", "metric_ref": "m_cost_growth", "proof_ref": "proof_economy"},
+          {"id": "eco_reward", "kind": "reward", "actor": "SYSTEM", "why": "un achat reussi debloque un palier de rendement", "metric_ref": "m_cost_growth", "proof_ref": "proof_economy"},
+          {"id": "eco_progression", "kind": "progression", "actor": "SYSTEM", "why": "l'ecart cout/solde structure le rythme d'achat", "metric_ref": "m_cost_growth", "proof_ref": "proof_economy"},
+          {"id": "eco_decision", "kind": "decision", "actor": "PLAYER", "why": "acheter en largeur (nouveau generateur) ou en profondeur (empiler)", "metric_ref": "m_cost_growth", "proof_ref": "proof_economy"}
+        ],
+        "produces": "solde depensable sous cout exponentiel",
+        "consumes": ["core_loop", "gameplay_loop"],
+        "unlocks": ["progression_loop"],
+        "transformation_perceptible": {"text": "le cout affiche du prochain exemplaire augmente visiblement d'un achat a l'autre (x1.15)", "proof_ref": "proof_economy"},
+        "metric_propre": "m_cost_growth"
+      },
+      "skill_loop": {
+        "steps": [
+          {"id": "skl_action", "kind": "action", "actor": "PLAYER", "why": "le joueur achete une amelioration qui multiplie une production", "metric_ref": "m_skill_multiplier", "proof_ref": "proof_skill", "affordance": "gb_upgrade_tile"},
+          {"id": "skl_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "la tuile passe a l'etat possede et le rendement affiche double", "metric_ref": "m_skill_multiplier", "proof_ref": "proof_skill"},
+          {"id": "skl_reward", "kind": "reward", "actor": "SYSTEM", "why": "un saut de production perceptible recompense le choix", "metric_ref": "m_skill_multiplier", "proof_ref": "proof_skill"},
+          {"id": "skl_progression", "kind": "progression", "actor": "SYSTEM", "why": "les multiplicateurs cumulent une trajectoire de puissance", "metric_ref": "m_skill_multiplier", "proof_ref": "proof_skill"},
+          {"id": "skl_decision", "kind": "decision", "actor": "PLAYER", "why": "quelle categorie multiplier en priorite", "metric_ref": "m_skill_multiplier", "proof_ref": "proof_skill"}
+        ],
+        "produces": "choix de multiplicateurs (trajectoire de build)",
+        "consumes": ["content_loop"],
+        "unlocks": ["meta_loop"],
+        "transformation_perceptible": {"text": "a l'achat d'une amelioration, le rendement affiche d'une categorie double d'un coup", "proof_ref": "proof_skill"},
+        "metric_propre": "m_skill_multiplier"
+      },
+      "world_loop": {
+        "steps": [
+          {"id": "wld_action", "kind": "action", "actor": "PLAYER", "why": "le joueur franchit le palier qui revele une nouvelle phase", "metric_ref": "m_phase_count", "proof_ref": "proof_world"},
+          {"id": "wld_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "un nouveau panneau de scene/fond apparait, absent avant", "metric_ref": "m_phase_count", "proof_ref": "proof_world", "hud": "gb_world_phase"},
+          {"id": "wld_reward", "kind": "reward", "actor": "SYSTEM", "why": "la nouvelle phase offre ses propres generateurs a explorer", "metric_ref": "m_phase_count", "proof_ref": "proof_world"},
+          {"id": "wld_progression", "kind": "progression", "actor": "SYSTEM", "why": "chaque phase franchie compte vers les 4 phases jusqu'a la fin", "metric_ref": "m_phase_count", "proof_ref": "proof_world"},
+          {"id": "wld_decision", "kind": "decision", "actor": "PLAYER", "why": "exploiter la phase courante ou pousser vers la suivante", "metric_ref": "m_phase_count", "proof_ref": "proof_world"}
+        ],
+        "produces": "expansion de scene (phases) revelees",
+        "consumes": ["progression_loop"],
+        "unlocks": ["quest_loop"],
+        "transformation_perceptible": {"text": "un nouveau panneau de scene (phase) avec son fond propre se revele, absent auparavant", "proof_ref": "proof_world"},
+        "metric_propre": "m_phase_count"
+      },
+      "quest_loop": {
+        "steps": [
+          {"id": "qst_action", "kind": "action", "actor": "PLAYER", "why": "le joueur accepte et poursuit un objectif affiche", "metric_ref": "m_quest_reward", "proof_ref": "proof_quest"},
+          {"id": "qst_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "une jauge d'objectif progresse et son avancee s'affiche", "metric_ref": "m_quest_reward", "proof_ref": "proof_quest"},
+          {"id": "qst_reward", "kind": "reward", "actor": "SYSTEM", "why": "la completion verse une recompense de 2 a 5 fois son cout", "metric_ref": "m_quest_reward", "proof_ref": "proof_quest"},
+          {"id": "qst_progression", "kind": "progression", "actor": "SYSTEM", "why": "les objectifs completes jalonnent la route vers la fin", "metric_ref": "m_quest_reward", "proof_ref": "proof_quest"},
+          {"id": "qst_decision", "kind": "decision", "actor": "PLAYER", "why": "prioriser un objectif rentable ou un objectif de deblocage", "metric_ref": "m_quest_reward", "proof_ref": "proof_quest"}
+        ],
+        "produces": "objectifs jalonnes + recompenses de completion",
+        "consumes": ["world_loop"],
+        "unlocks": ["meta_loop"],
+        "transformation_perceptible": {"text": "une jauge d'objectif se remplit puis verse une recompense visible a la completion", "proof_ref": "proof_quest"},
+        "metric_propre": "m_quest_reward"
+      },
+      "meta_loop": {
+        "steps": [
+          {"id": "meta_action", "kind": "action", "actor": "PLAYER", "why": "le joueur declenche une conversion qui accelere vers la fin", "metric_ref": "m_end_reach", "proof_ref": "proof_meta"},
+          {"id": "meta_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "la jauge de fin bondit et un bonus persistant s'affiche", "metric_ref": "m_end_reach", "proof_ref": "proof_meta", "hud": "gb_completion_meter"},
+          {"id": "meta_reward", "kind": "reward", "actor": "SYSTEM", "why": "un bonus permanent booste le clic et la production de base", "metric_ref": "m_end_reach", "proof_ref": "proof_meta"},
+          {"id": "meta_progression", "kind": "progression", "actor": "SYSTEM", "why": "chaque conversion rapproche mesurablement de la fin <=72000 ticks", "metric_ref": "m_end_reach", "proof_ref": "proof_meta"},
+          {"id": "meta_decision", "kind": "decision", "actor": "PLAYER", "why": "convertir maintenant (progres immediat) ou accumuler encore", "metric_ref": "m_end_reach", "proof_ref": "proof_meta"}
+        ],
+        "produces": "bonus permanent de production + avance persistante vers la fin",
+        "consumes": ["skill_loop", "world_loop", "quest_loop"],
+        "unlocks": ["core_loop"],
+        "transformation_perceptible": {"text": "la jauge de fin fait un bond et un bonus permanent s'ajoute au clic de base, visible immediatement", "proof_ref": "proof_meta"},
+        "metric_propre": "m_end_reach"
+      }
+    },
+    "economy_model": {
+      "resources": [
+        {"id": "units", "unit": "unit", "sources": ["clic sur gb_core_producer", "generateurs passifs"], "sinks": ["achat de generateurs", "achat d'upgrades", "conversion meta"], "initial_stock": 0},
+        {"id": "bonus_charge", "unit": "multiplier-seconds", "sources": ["ramassage gb_bonus_token"], "sinks": ["decompte temporel"], "initial_stock": 0}
+      ],
+      "formulas": [
+        {"id": "generator_cost", "text": "cost(n) = base_cost * growth^n", "params": {"base_cost": 15, "growth": 1.15}},
+        {"id": "passive_rate", "text": "rate = somme(count_i * yield_i)", "params": {"base_yield": 1}},
+        {"id": "completion_progress", "text": "progress = total_produced / end_target", "params": {"end_target": 1000000, "tick_budget": 72000}},
+        {"id": "upgrade_multiplier", "text": "yield_i *= mult a l'achat de l'upgrade i", "params": {"mult": 2}}
+      ]
+    },
+    "progression_metrics": [
+      {"id": "m_core_yield", "kind": "invariant", "value": 1, "unit": "unit/click", "why": "clic de base produit exactement 1 unite — boucle d'entree du genre (worldscan:games[0].loops.minute_1)"},
+      {"id": "m_passive_rate", "kind": "observation", "unit": "unit/tick", "why": "taux de production passive mesure apres achats — generation passive achetee (worldscan:games[0].loops.minute_10)"},
+      {"id": "m_cost_growth", "kind": "invariant", "value": 1.15, "unit": "cost ratio", "why": "cout x1.15 par achat successif — convention exponentielle mesuree (Cookie Clicker, worldscan:games[0].loops.minute_10)"},
+      {"id": "m_tier_time", "kind": "target", "range": {"min": 600, "max": 1200}, "unit": "ticks", "why": "duree cible entre deux paliers, calibree pour un rythme lisible dans un run borne <=72000 ticks"},
+      {"id": "m_content_unlocked", "kind": "observation", "unit": "count", "why": "nombre de types de contenu (generateurs/upgrades) debloques — variete du genre (worldscan:games[1].loops.hour_5)"},
+      {"id": "m_skill_multiplier", "kind": "invariant", "value": 2, "unit": "x production", "why": "un achat d'amelioration multiplie une categorie de production par 2 — upgrades du genre (worldscan:games[2].loops.minute_10)"},
+      {"id": "m_phase_count", "kind": "invariant", "value": 4, "unit": "phases", "why": "4 phases de production sequentielles vers la fin — precedent Universal Paperclips (worldscan:games[3].loops.endgame)"},
+      {"id": "m_quest_reward", "kind": "target", "range": {"min": 2, "max": 5}, "unit": "x cost", "why": "recompense d'objectif comprise entre 2 et 5 fois son cout — incitation sans casser l'economie"},
+      {"id": "m_end_reach", "kind": "target", "range": {"min": 36000, "max": 72000}, "unit": "ticks", "why": "la fin observable doit etre atteignable dans [36000,72000] ticks — borne dure du charter <=72000 (story_bible:coherence_rules)"},
+      {"id": "m_bonus_interval", "kind": "target", "range": {"min": 1800, "max": 3600}, "unit": "ticks", "why": "jeton transitoire toutes les 1800-3600 ticks (~30-60s @60tps) — recompenses frequentes, pilier de retention (worldscan:games[0].retention_answer)"}
+    ],
+    "proof_model": [
+      {"id": "proof_core", "measures": "m_core_yield", "how": "player_loop", "expected": "un clic ajoute exactement 1 unite au total (assert strict ==, jamais >=)"},
+      {"id": "proof_gameplay", "measures": "m_passive_rate", "how": "hud", "expected": "apres 1 achat le taux passif > 0 et croit avec le nombre de generateurs"},
+      {"id": "proof_economy", "measures": "m_cost_growth", "how": "registry", "expected": "cout(n+1)/cout(n) == 1.15 sur 5 achats consecutifs"},
+      {"id": "proof_progression", "measures": "m_tier_time", "how": "player_loop", "expected": "intervalle inter-palier dans [600,1200] ticks sur un run bot"},
+      {"id": "proof_content", "measures": "m_content_unlocked", "how": "registry", "expected": ">=1 nouveau type de contenu debloque par palier franchi"},
+      {"id": "proof_skill", "measures": "m_skill_multiplier", "how": "registry", "expected": "achat d'un upgrade multiplie la production de sa categorie par 2 exactement"},
+      {"id": "proof_world", "measures": "m_phase_count", "how": "registry", "expected": "4 phases distinctes atteignables, chacune ajoute un panneau a la scene"},
+      {"id": "proof_quest", "measures": "m_quest_reward", "how": "player_loop", "expected": "recompense/cout d'un objectif complete dans [2,5]"},
+      {"id": "proof_meta", "measures": "m_end_reach", "how": "player_loop", "expected": "un bot atteint la condition de fin en <=72000 ticks (SOLVABILITE prouvee, pas mecaniques isolees)"},
+      {"id": "proof_bonus", "measures": "m_bonus_interval", "how": "hud", "expected": "le jeton transitoire apparait toutes les 1800-3600 ticks"}
+    ],
+    "grey_blocks": [
+      {"id": "gb_core_producer", "type": "ACTOR", "role": "AFFORDANCE", "state": "AVAILABLE", "requires": [], "player_meaning": "Je vois immediatement l'objet a presser pour produire.", "builder_contract": "Placer au centre un acteur pressable; au clic il joue l'etat pressed, emet une gerbe de particules et fait apparaitre un +1 flottant; c'est la seule cible de clic de l'ecran de depart.", "proof_ref": "proof_core", "unlock": ["gb_buy_button"], "next_goal": "Accumuler de quoi acheter le premier generateur."},
+      {"id": "gb_resource_counter", "type": "UI", "role": "FEEDBACK", "state": "AVAILABLE", "requires": [], "player_meaning": "Je vois mon total grandir a chaque action.", "builder_contract": "Afficher en tete un compteur tabular-nums surdimensionne qui s'incremente a chaque production et s'abrege au-dela de 1e3 (1.00K, 1.00M...).", "proof_ref": "proof_core"},
+      {"id": "gb_buy_button", "type": "UI", "role": "AFFORDANCE", "state": "LOCKED", "requires": ["m_cost_growth"], "player_meaning": "Je comprends si je peux acheter, et sinon pourquoi.", "builder_contract": "Bouton a trois etats: idle (sarcelle plein), hover (ombre accentuee), disabled (desature + cout affiche en corail quand solde<cout); au clic solvable il deduit le cout et instancie un generateur dans la scene.", "proof_ref": "proof_economy", "unlock": ["gb_generator"], "next_goal": "Amasser le solde du prochain achat."},
+      {"id": "gb_generator", "type": "ITEM", "role": "CONTENT", "state": "LOCKED", "requires": ["m_cost_growth"], "player_meaning": "Chaque generateur achete produit tout seul; je vois le rythme s'accelerer.", "builder_contract": "Ajouter a la scene une tuile de generateur possede qui pulse a chaque tick de production et augmente le taux passif; empilable en N exemplaires avec un badge de compte.", "proof_ref": "proof_gameplay"},
+      {"id": "gb_upgrade_tile", "type": "ITEM", "role": "CONTENT", "state": "LOCKED", "requires": ["m_skill_multiplier"], "player_meaning": "Je choisis une amelioration qui change durablement ma production.", "builder_contract": "Tuile d'upgrade achetable une seule fois; a l'achat elle multiplie par 2 la production d'une categorie et bascule en icone d'etat possede.", "proof_ref": "proof_skill"},
+      {"id": "gb_tier_gate", "type": "RULE", "role": "PROGRESSION_GATE", "state": "LOCKED", "requires": ["m_tier_time"], "player_meaning": "Je vois le prochain palier verrouille et ce qu'il me faut pour l'ouvrir.", "builder_contract": "Regle: au franchissement d'un seuil de total, deverrouiller le panneau de tier suivant (nouvelle colonne de generateurs visible); tant que verrouille, montrer l'etat grise avec sa condition chiffree.", "proof_ref": "proof_progression", "unlock": ["gb_world_phase"], "next_goal": "Atteindre le seuil de total du palier suivant."},
+      {"id": "gb_world_phase", "type": "LOCATION", "role": "PROGRESSION_GATE", "state": "LOCKED", "requires": ["gb_tier_gate"], "player_meaning": "Une nouvelle zone de jeu apparait, differente de la precedente.", "builder_contract": "Au franchissement du palier, revealer un nouveau panneau de scene (phase) avec son fond propre et ses generateurs, absent auparavant; le joueur peut desormais y interagir et acheter.", "proof_ref": "proof_world", "unlock": ["gb_completion_meter"], "next_goal": "Progresser dans la nouvelle phase vers la fin."},
+      {"id": "gb_completion_meter", "type": "UI", "role": "PROGRESSION_GATE", "state": "AVAILABLE", "requires": ["m_end_reach"], "player_meaning": "Je vois combien il me reste avant la fin observable.", "builder_contract": "Afficher une jauge d'objectif de fin, distincte du compteur de ressource, qui se remplit avec la progression globale et reste visible en permanence.", "proof_ref": "proof_meta", "unlock": ["gb_victory_screen"], "next_goal": "Remplir la jauge de fin sous 72000 ticks."},
+      {"id": "gb_victory_screen", "type": "UI", "role": "REWARD", "state": "LOCKED", "requires": ["gb_completion_meter"], "player_meaning": "Quand j'atteins la fin, le jeu me le montre clairement.", "builder_contract": "Au remplissage de la jauge de fin, afficher un ecran plein celebrant l'atteinte de la fin observable et figer l'etat de jeu; proposer un bouton de conversion/rejouer.", "proof_ref": "proof_meta"},
+      {"id": "gb_bonus_token", "type": "ITEM", "role": "REWARD", "state": "AVAILABLE", "requires": ["m_bonus_interval"], "player_meaning": "De temps en temps un jeton apparait; je me depeche de le ramasser.", "builder_contract": "Faire apparaitre a intervalle 1800-3600 ticks un jeton ramassable a une position aleatoire; au clic il accorde un bonus temporaire visible (multiplicateur affiche qui decompte).", "proof_ref": "proof_bonus"}
+    ],
+    "artist_requirements": [
+      {"id": "ar_core_producer", "grey_block": "gb_core_producer", "states_to_show": ["AVAILABLE"], "visible_reason": true, "visible_requirement": "aucune — disponible des le depart", "preview": false, "affordance_visual": "acteur central chaud, micro-pulsation au repos, etat pressed enfonce + particules", "readability": "element le plus grand et le plus chaud, trouve sans recherche"},
+      {"id": "ar_resource_counter", "grey_block": "gb_resource_counter", "states_to_show": ["AVAILABLE"], "visible_reason": true, "visible_requirement": "aucune", "preview": false, "affordance_visual": "plaque + chiffre tabular-nums surdimensionne, symbole de monnaie", "readability": "au moins 2x la taille de tout autre texte"},
+      {"id": "ar_buy_button", "grey_block": "gb_buy_button", "states_to_show": ["LOCKED", "AVAILABLE"], "visible_reason": true, "visible_requirement": "solde >= cout du generateur", "preview": true, "affordance_visual": "3 etats idle/hover/disabled, cout en corail si non payable", "readability": "contraste froid sarcelle sur champ chaud"},
+      {"id": "ar_generator", "grey_block": "gb_generator", "states_to_show": ["LOCKED", "AVAILABLE", "OWNED"], "visible_reason": true, "visible_requirement": "solde >= cout courant (x1.15 par achat)", "preview": true, "affordance_visual": "famille d'icones de generateurs, badge de compte possede, pulsation au tick", "readability": "distinct des tuiles d'upgrade"},
+      {"id": "ar_upgrade_tile", "grey_block": "gb_upgrade_tile", "states_to_show": ["LOCKED", "AVAILABLE", "OWNED"], "visible_reason": true, "visible_requirement": "solde >= cout d'upgrade", "preview": true, "affordance_visual": "glyphe plat distinct, etat possede marque", "readability": "lisible en petit (16px)"},
+      {"id": "ar_world_phase", "grey_block": "gb_world_phase", "states_to_show": ["LOCKED", "AVAILABLE"], "visible_reason": true, "visible_requirement": "seuil de total du palier atteint", "preview": true, "affordance_visual": "nouveau panneau/fond de phase revele, visuellement distinct", "readability": "la nouvelle phase se distingue nettement de la precedente"},
+      {"id": "ar_completion_meter", "grey_block": "gb_completion_meter", "states_to_show": ["AVAILABLE"], "visible_reason": true, "visible_requirement": "progression globale vers la fin", "preview": true, "affordance_visual": "jauge d'objectif de fin distincte du compteur, code violet jalon", "readability": "lisible en permanence sans masquer les chiffres"},
+      {"id": "ar_victory_screen", "grey_block": "gb_victory_screen", "states_to_show": ["LOCKED", "AVAILABLE"], "visible_reason": true, "visible_requirement": "jauge de fin remplie", "preview": false, "affordance_visual": "plaque plein-ecran de victoire", "readability": "sans ambiguite sur l'atteinte de la fin"},
+      {"id": "ar_bonus_token", "grey_block": "gb_bonus_token", "states_to_show": ["AVAILABLE", "CONSUMED"], "visible_reason": true, "visible_requirement": "apparait a intervalle 1800-3600 ticks", "preview": false, "affordance_visual": "jeton chaud brillant ramassable", "readability": "attire l'oeil sans masquer les chiffres du total"}
+    ]
+  }
+}
+```
+
+```design_questions
+{"schema_version": 1, "round": 1, "questions": [{"id": "q_gm_001", "from": "GM", "to": "ART", "round": 1, "about": "gm_worldscan:game_master.loops.core_loop", "loop_id": "core_loop", "missing": ["identite concrete (sujet/theme) du producteur central, des generateurs et du jeton — laissee agnostique faute de theme ancre (story_bible:context NOT_GROUNDED)"], "why": "j'ai concu les 9 boucles de maniere agnostique au theme. La representation concrete (ce que PRESSE le joueur, ce que PRODUISENT les generateurs, la forme du jeton) a besoin d'un sujet decide pour que l'affordance 'objet a presser' soit evidente plutot qu'abstraite. Quel sujet rend cette production lisible, sans que je l'invente moi-meme ?", "blocking": true, "answer": null}, {"id": "q_gm_002", "from": "GM", "to": "ART", "round": 1, "about": "gm_worldscan:game_master.loops.meta_loop", "loop_id": "meta_loop", "missing": ["representation qui distingue une CONVERSION-vers-la-fin d'un reset endless du genre"], "why": "le charter impose une fin observable <=72000 ticks (story_bible:coherence_rules), en tension avec la prestige endless du genre (worldscan:games[0].objectives[0].has_win_state=false). J'ai fait de meta_loop une conversion qui ACCELERE vers la fin, jamais un recommencement a zero. Quelle representation rend evident que convertir est un PROGRES vers la fin, et non un retour en arriere ?", "blocking": true, "answer": null}], "declarations": {"ART": {"round": 1, "ready_for_freeze": false, "open_to_gm": 0}, "GM": {"round": 1, "ready_for_freeze": false, "open_to_art": 2}}}
+```

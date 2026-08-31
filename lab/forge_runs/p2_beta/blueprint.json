@@ -1,0 +1,144 @@
+{
+ "modules": [
+  "main",
+  "logic",
+  "input",
+  "render",
+  "data"
+ ],
+ "deps_interdites": [
+  [
+   "logic",
+   "render"
+  ],
+  [
+   "logic",
+   "input"
+  ],
+  [
+   "logic",
+   "main"
+  ],
+  [
+   "render",
+   "input"
+  ],
+  [
+   "input",
+   "render"
+  ],
+  [
+   "data",
+   "logic"
+  ],
+  [
+   "data",
+   "render"
+  ],
+  [
+   "data",
+   "input"
+  ],
+  [
+   "data",
+   "main"
+  ]
+ ],
+ "ownership": {
+  "main": "Point d'entree et racine de composition (main.tscn+main.gd ou index.html+main.mjs selon moteur): montage de l'arbre, cablage input->logic et logic->render par signaux. Aucune regle de jeu.",
+  "logic": "Etat et regles de la simulation, deterministe et headless: resource_counter, valeur_clic, economie generateurs + cps, machine d'objectifs, transitions de stage, valeur end_gauge, condition de victoire, prestige_reset.",
+  "input": "Gestionnaires de gestes joueur: click_target, buy_generator, prestige_reset -> commandes vers logic. Ne dessine rien.",
+  "render": "HUD et scenes: label objectif, resource_counter, cps_readout, flotteur +N + animation d'appui, rangee generateurs, traqueur de quetes, jauge de fin, transitions de stage, ecran de victoire. Observe logic.",
+  "data": "Ressources de contenu/config statiques: couts et rendements des generateurs, seuils des 5 stages, textes des objectifs successifs, seuil de fin/victoire, constantes de calibration."
+ },
+ "responsabilites": [
+  {
+   "module": "main",
+   "responsabilite": "Racine de composition: assemble le point d'entree du jeu (celui que tout bot ouvre), cable input->logic et logic->render par signaux, ne porte AUCUNE regle de jeu ni etat metier.",
+   "couvre": [
+    "feat_goal_prompt"
+   ],
+   "dependances": [
+    "logic",
+    "render",
+    "input",
+    "data"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot ouvre le point d'entree du jeu; au frame 0 l'arbre est monte et l'objectif initial est non vide, et check_architecture confirme que seul `main` importe simultanement logic, render et input."
+   }
+  },
+  {
+   "module": "logic",
+   "responsabilite": "Simulation pure et deterministe: compteur de ressource, valeur de clic, economie des generateurs et revenu passif (cps), machine a etats des objectifs, transitions de stage, valeur de la jauge de fin, condition de victoire et relance (prestige). Aucune dependance a render ni input: surface de solvabilite pilotable en headless.",
+   "couvre": [
+    "feat_goal_prompt",
+    "feat_click_input",
+    "feat_allocation_decision",
+    "feat_generator_unlock",
+    "feat_next_goals",
+    "feat_prestige_reset",
+    "feat_end_gauge",
+    "feat_victory"
+   ],
+   "dependances": [
+    "data"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot pilote logic en headless (sans render ni input) via ses commandes et son etat et atteint end_gauge=100% (solvabilite bornee); check_architecture confirme que logic n'importe ni render ni input."
+   }
+  },
+  {
+   "module": "input",
+   "responsabilite": "Couche de gestes joueur: traduit les affordances (presser click_target, acheter buy_generator, declencher prestige_reset) en commandes vers logic par signaux. Ne dessine rien et n'importe pas render.",
+   "couvre": [
+    "feat_click_input",
+    "feat_generator_unlock",
+    "feat_prestige_reset"
+   ],
+   "dependances": [
+    "logic"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot declenche chaque affordance via la couche input; l'etat de logic change en consequence (resource_counter +N au clic, rangee generateur + cps>0 a l'achat, resource_counter=0 apres prestige); check_architecture confirme que input n'importe pas render."
+   }
+  },
+  {
+   "module": "render",
+   "responsabilite": "Presentation: HUD (label objectif, resource_counter, cps_readout), feedback de clic (flotteur +N + animation d'appui), rangee `generateurs`, traqueur de quetes, jauge de fin persistante, transitions visuelles de stage et ecran de victoire plein ecran. Observe l'etat de logic; jamais importe par logic ni input.",
+   "couvre": [
+    "feat_goal_prompt",
+    "feat_click_response",
+    "feat_generator_unlock",
+    "feat_next_goals",
+    "feat_end_gauge",
+    "feat_victory"
+   ],
+   "dependances": [
+    "logic",
+    "data"
+   ],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "Des captures montrent le HUD refletant l'etat de logic (flotteur +N et animation au tick du clic, rangee generateur + cps, objectif renouvele, end_gauge monotone jusqu'a 100%, ecran de victoire remplacant la surface); check_architecture confirme qu'aucun module hors main ne peut importer render et que render n'importe pas input."
+   }
+  },
+  {
+   "module": "data",
+   "responsabilite": "Contenu et configuration statiques, feuille du graphe: couts et rendements des generateurs, seuils des 5 stages, textes des objectifs successifs, seuil de fin/victoire, constantes de calibration. N'importe rien: tue les nombres magiques et empeche la logique de fuir dans la donnee.",
+   "couvre": [
+    "feat_generator_unlock",
+    "feat_next_goals",
+    "feat_end_gauge"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "file_write",
+    "statement": "Les ressources de configuration existent comme fichiers de donnees lus par logic et render (couts generateurs, seuils de stage, textes d'objectif, seuil de victoire); check_architecture confirme que data n'importe aucun autre module (feuille)."
+   }
+  }
+ ]
+}

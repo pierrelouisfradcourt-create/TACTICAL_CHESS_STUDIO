@@ -1,0 +1,139 @@
+I now have everything I need, traced on the oracle code rather than assumed:
+
+- **`featureIds()` returns feature-level ids** (`feat_*`), so my `couvre[]` must cite those 9 exact ids.
+- **`check_blueprint_contract.mjs` (my gate, AVANT build)** never touches the filesystem — it validates `modules`/`deps_interdites`/`responsabilites` against `featuremap.json` (coverage, cycles, self-contradiction, proofs). It **requires** a non-empty `responsabilites[]`; a bare `{modules, deps_interdites}` would FAIL it.
+- **`check_architecture` (APRÈS build, s10b)** does `set(blueprint["modules"])` and reads `deps_interdites` pairs `[source, cible]` = "source must not import target", matching real import/preload path segments to module names. It ignores extra keys — so one `blueprint.json` legitimately carries both forms (this is the explicit design in the mjs header).
+- **`oracles.json:260` wires p2_beta as `node run-oracle.mjs` (WEB topology)** while the s3 featuremap's proofs say `main.tscn` (Godot). Real cross-artifact inconsistency — surfaced below as fog; my decomposition is engine-agnostic so it does not block.
+
+I could not read `knowledge_packet.json` (absent) or any existing blueprint (Bash/Glob/Grep all disabled; none exist for this new project). Below is the architecture, then the terminal blueprint block.
+
+---
+
+## RAPPORT — s4-archi / p2_beta-20260830-run1
+
+### Décomposition (5 modules, découpés par responsabilité)
+
+| module | responsabilité | dépend de | interdit d'importer |
+|---|---|---|---|
+| `main` | Racine de composition : monte l'arbre/point d'entrée, câble input→logic et logic→render par signaux. **Zéro règle de jeu.** | logic, render, input, data | (source uniquement) |
+| `logic` | Simulation pure déterministe : compteur, valeur de clic, économie générateurs+cps, machine d'objectifs, stages, jauge de fin, victoire, prestige. **Surface de solvabilité headless.** | data | render, input, main |
+| `input` | Couche de gestes joueur : `click_target`, `buy_generator`, `prestige_reset` → commandes vers logic. Ne dessine rien. | logic | render |
+| `render` | Présentation : HUD, feedback de clic, rangée générateurs, traqueur, jauge de fin, transitions de stage, écran de victoire. Observe logic. | logic, data | input |
+| `data` | Contenu/config statiques (coûts, seuils de stage, textes d'objectif, seuil de victoire, constantes). **Feuille** — tue les nombres magiques. | — | logic, render, input, main |
+
+### Invariants d'architecture (deps_interdites, direction `[source, cible]` = "source ne doit pas importer cible")
+- `logic ↛ render`, `logic ↛ input` — **séparation logique→rendu et logique→input exigée** : la simulation reste pilotable en headless (condition de la solvabilité bornée du charter).
+- `logic ↛ main` — empêche l'inversion qui créerait le cycle `main↔logic`.
+- `render ↛ input`, `input ↛ render` — le rendu observe l'état, la couche de gestes commande logic ; ni l'un ni l'autre ne se connaît.
+- `data ↛ {logic, render, input, main}` — la donnée est une feuille : la config ne réimporte jamais le comportement (anti-cycle, anti-god-object caché dans « data »).
+
+### Vérifications de couverture et de cohérence (tracées sur `checkBlueprintDoc`)
+- **Couverture 9/9** : `feat_goal_prompt`(main,logic,render) · `feat_click_input`(input,logic) · `feat_click_response`(render) · `feat_allocation_decision`(logic) · `feat_generator_unlock`(input,logic,render,data) · `feat_next_goals`(logic,render,data) · `feat_prestige_reset`(input,logic) · `feat_end_gauge`(logic,render,data) · `feat_victory`(logic,render). **Aucune feature non couverte.**
+- **Couvertures fantômes : aucune** — chaque id de `couvre` est un `feat.id` exact de la featuremap.
+- **Aucune dépendance déclarée n'est elle-même interdite** (vérifié paire par paire).
+- **Aucun cycle** : `main`=source pure, `data`=puits pur ; `logic→data`, `input→logic→data`, `render→{logic,data}`.
+- **Charter respecté** : la victoire bornée (`end_gauge`→100 %) et le prestige borné coexistent SANS que j'arbitre la calibration prestige-endless vs fin-observable (tension GM déléguée, hors de mon périmètre).
+
+### Verdicts (Règle de restitution)
+- **software_verdict: BLOCKED** — `permissions run: aucun` + Bash/Glob/Grep désactivés : je n'ai **pas exécuté** `check_blueprint_contract.mjs`. Le reçu est produit par l'exécuteur après matérialisation de `blueprint.json`. Analyse statique (oracle lu intégralement) : **prédiction OK** (modules non vides/uniques ; deps_interdites non vides, paires valides, modules connus ; 5 responsabilités bien formées ; 9/9 couvertes ; 0 fantôme ; 0 cycle ; 0 auto-contradiction). **Ce n'est PAS un claim de vert.**
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — ne vaut que pour le reçu de l'exécuteur, non revendiqué par moi.
+- **claim_verdict: NO_CLAIM_ALLOWED** — l'incohérence moteur (web vs Godot) et l'arbitrage prestige/fin relèvent du HumanGate. **Fog remonté à Pierre.**
+
+### Fog → HumanGate
+1. **Moteur indéterminé** : `oracles.json` câble p2_beta en `run-oracle.mjs` (web/ES-modules) mais la featuremap prouve via `main.tscn` (Godot). s5-wiremap/s9-build doivent trancher un moteur cohérent avec le harnais d'oracle. Mon blueprint est agnostique (check_architecture gère `.gd` comme `.mjs`), donc il ne bloque pas — mais la liaison concrète est un fog.
+2. **prestige-endless vs fin bornée** (déjà remonté par GM/s3) : le blueprint expose les deux features sans arbitrer la calibration.
+
+### SKIPPED_VALIDATION
+- **Exécution de `check_blueprint_contract.mjs`** — périmètre : le blueprint produit — statut : **non fait** — raison : `run: aucun` et Bash/Glob/Grep désactivés ; l'exécuteur le lance après matérialisation.
+- **Lecture de `knowledge_packet.json`** — périmètre : patterns externes advisory — statut : **non fait** — raison : fichier **absent** du run_dir (advisory, non bloquant).
+- **Diff d'archi vs blueprint existant** — périmètre : repo p2_beta — statut : **sans objet** — raison : projet neuf, aucun blueprint préexistant.
+- **Inspection de la structure d'un jeu Godot forgé de référence** — périmètre : `games/snake` etc. — statut : **non fait** — raison : outils de recherche/listing désactivés ; compensé en traçant `static_oracles.check_architecture` sur le code.
+
+### RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2 §3)
+- **why_task_existed**:
+  - **problem**: la chaîne p2_beta (bras Libre L2, PAIRE 2) a produit une featuremap 9-features (s3) sans structure de code ; sans blueprint, s5-wiremap n'a ni modules ni frontières à câbler.
+  - **oracle**: `check_decompo.mjs` en amont (featuremap validée) ; l'activation de s4 vient de la place de l'étape dans la chaîne (décision de protocole), pas d'un défaut mesuré.
+  - **root_cause**: non établie — activation par séquence de chaîne/décision humaine.
+  - **action_reason**: s4 est le point où la STRUCTURE déléguée par le bras Libre est effectivement conçue : découpe par responsabilité + frontières interdites, sans décider la WireMap (s5).
+- **result**: blueprint à 5 modules, 8 paires interdites, 9/9 features couvertes, 0 cycle, 0 auto-contradiction (prédiction statique OK ; reçu oracle non exécuté = BLOCKED).
+- **proof**: lecture intégrale de `check_blueprint_contract.mjs` + `upstream_schema.mjs` (`featureIds`=niveau feature) + `static_oracles.check_architecture` (module=1er dossier, paire `[source,cible]`) ; couverture et acyclicité vérifiées à la main. Aucune commande exécutée (perms).
+- **learning**: `featureIds()` cible le niveau **feature**, pas capacité/système — un `couvre` qui citerait un id de capacité (`gb_*`, `cap_*`) serait une couverture fantôme. Et un `blueprint.json` unique satisfait les DEUX oracles (`modules`/`deps_interdites` pour check_architecture ; `responsabilites[]` pour le contrat), l'enrichissement passant par un champ séparé.
+- **next_reason**: lignée **NON fermée** — s5-wiremap doit câbler chaque feature à des fonctions réelles dans ces modules, et le HumanGate doit trancher le fog moteur (web vs Godot) avant s9-build, sinon le harnais d'oracle et le code divergeront.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "oracles.json cable p2_beta en run-oracle.mjs (topologie web) alors que la featuremap s3 prouve via main.tscn (Godot) — incoherence moteur inter-artefacts que s5/s9 heriteront", "root_cause": "bras Libre: la STRUCTURE est deleguee a l'aval et aucun moteur n'est materialise dans le charter; le descripteur d'oracle p2_beta a ete pre-ensemence en web comme p1_beta/p2_alpha tandis que le Prisme/GM amont raisonnait en grey_blocks Godot"}
+
+```json
+{
+  "modules": ["main", "logic", "input", "render", "data"],
+  "deps_interdites": [
+    ["logic", "render"],
+    ["logic", "input"],
+    ["logic", "main"],
+    ["render", "input"],
+    ["input", "render"],
+    ["data", "logic"],
+    ["data", "render"],
+    ["data", "input"],
+    ["data", "main"]
+  ],
+  "ownership": {
+    "main": "Point d'entree et racine de composition (main.tscn+main.gd ou index.html+main.mjs selon moteur): montage de l'arbre, cablage input->logic et logic->render par signaux. Aucune regle de jeu.",
+    "logic": "Etat et regles de la simulation, deterministe et headless: resource_counter, valeur_clic, economie generateurs + cps, machine d'objectifs, transitions de stage, valeur end_gauge, condition de victoire, prestige_reset.",
+    "input": "Gestionnaires de gestes joueur: click_target, buy_generator, prestige_reset -> commandes vers logic. Ne dessine rien.",
+    "render": "HUD et scenes: label objectif, resource_counter, cps_readout, flotteur +N + animation d'appui, rangee generateurs, traqueur de quetes, jauge de fin, transitions de stage, ecran de victoire. Observe logic.",
+    "data": "Ressources de contenu/config statiques: couts et rendements des generateurs, seuils des 5 stages, textes des objectifs successifs, seuil de fin/victoire, constantes de calibration."
+  },
+  "responsabilites": [
+    {
+      "module": "main",
+      "responsabilite": "Racine de composition: assemble le point d'entree du jeu (celui que tout bot ouvre), cable input->logic et logic->render par signaux, ne porte AUCUNE regle de jeu ni etat metier.",
+      "couvre": ["feat_goal_prompt"],
+      "dependances": ["logic", "render", "input", "data"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Un bot ouvre le point d'entree du jeu; au frame 0 l'arbre est monte et l'objectif initial est non vide, et check_architecture confirme que seul `main` importe simultanement logic, render et input."
+      }
+    },
+    {
+      "module": "logic",
+      "responsabilite": "Simulation pure et deterministe: compteur de ressource, valeur de clic, economie des generateurs et revenu passif (cps), machine a etats des objectifs, transitions de stage, valeur de la jauge de fin, condition de victoire et relance (prestige). Aucune dependance a render ni input: surface de solvabilite pilotable en headless.",
+      "couvre": ["feat_goal_prompt", "feat_click_input", "feat_allocation_decision", "feat_generator_unlock", "feat_next_goals", "feat_prestige_reset", "feat_end_gauge", "feat_victory"],
+      "dependances": ["data"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Un bot pilote logic en headless (sans render ni input) via ses commandes et son etat et atteint end_gauge=100% (solvabilite bornee); check_architecture confirme que logic n'importe ni render ni input."
+      }
+    },
+    {
+      "module": "input",
+      "responsabilite": "Couche de gestes joueur: traduit les affordances (presser click_target, acheter buy_generator, declencher prestige_reset) en commandes vers logic par signaux. Ne dessine rien et n'importe pas render.",
+      "couvre": ["feat_click_input", "feat_generator_unlock", "feat_prestige_reset"],
+      "dependances": ["logic"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "Un bot declenche chaque affordance via la couche input; l'etat de logic change en consequence (resource_counter +N au clic, rangee generateur + cps>0 a l'achat, resource_counter=0 apres prestige); check_architecture confirme que input n'importe pas render."
+      }
+    },
+    {
+      "module": "render",
+      "responsabilite": "Presentation: HUD (label objectif, resource_counter, cps_readout), feedback de clic (flotteur +N + animation d'appui), rangee `generateurs`, traqueur de quetes, jauge de fin persistante, transitions visuelles de stage et ecran de victoire plein ecran. Observe l'etat de logic; jamais importe par logic ni input.",
+      "couvre": ["feat_goal_prompt", "feat_click_response", "feat_generator_unlock", "feat_next_goals", "feat_end_gauge", "feat_victory"],
+      "dependances": ["logic", "data"],
+      "preuve_attendue": {
+        "kind": "visual",
+        "statement": "Des captures montrent le HUD refletant l'etat de logic (flotteur +N et animation au tick du clic, rangee generateur + cps, objectif renouvele, end_gauge monotone jusqu'a 100%, ecran de victoire remplacant la surface); check_architecture confirme qu'aucun module hors main ne peut importer render et que render n'importe pas input."
+      }
+    },
+    {
+      "module": "data",
+      "responsabilite": "Contenu et configuration statiques, feuille du graphe: couts et rendements des generateurs, seuils des 5 stages, textes des objectifs successifs, seuil de fin/victoire, constantes de calibration. N'importe rien: tue les nombres magiques et empeche la logique de fuir dans la donnee.",
+      "couvre": ["feat_generator_unlock", "feat_next_goals", "feat_end_gauge"],
+      "dependances": [],
+      "preuve_attendue": {
+        "kind": "file_write",
+        "statement": "Les ressources de configuration existent comme fichiers de donnees lus par logic et render (couts generateurs, seuils de stage, textes d'objectif, seuil de victoire); check_architecture confirme que data n'importe aucun autre module (feuille)."
+      }
+    }
+  ]
+}
+```

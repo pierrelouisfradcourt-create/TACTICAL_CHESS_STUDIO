@@ -1,0 +1,27 @@
+why_task_existed:
+  problem: Le bras Libre (L2) de la PAIRE 2 doit démarrer par un charter matérialisé
+    (A1) ; sans lui le bras est INVALIDE (condition de validité de bras, protocole
+    V1). Le pilote (p1_*) n'a donné qu'une paire dégradée ; la paire 2 vise la première
+    paire VALIDE.
+  oracle: aucun — activation par décision humaine (GO paire 2, Pierre 2026-08-30,
+    RUN2_PROTOCOLE_V1.md). La validité de bras sera ensuite mesurée par le validateur
+    de schéma charter (driver).
+  root_cause: non établie — activation par protocole/décision humaine, pas par un
+    défaut mesuré.
+  action_reason: 's0-contrat est le point d''entrée de la chaîne : produire le contrat-cadre
+    (charter) qui borne la production aval SANS préempter la STRUCTURE déléguée (variable
+    expérimentale du bras Libre).'
+result: charter.yaml matérialisé (bloc yaml), 7/7 champs remplis, 0 « à définir »
+  ; design-intent (plateforme_cible, reference_jeu, criteres_demo) tracé à des sources
+  Pierre ; STRUCTURE explicitement DÉLÉGUÉE à l'aval (N2), non inventée ici.
+proof: 'Inspection du bloc yaml produit : 7 champs requis présents et non vides, aucune
+  occurrence de « à définir ». Validation mécanique = validateur de schéma charter,
+  executed_by: driver au gate s0 — NON exécutée par cet agent (permissions run: aucun
+  ; Bash indisponible).'
+learning: 'Dans un bras Libre, s0 ne doit PAS inventer de valeurs structurelles (M2a
+  inventé-silencieux = défaut) : il pose le CADRE et les CONTRAINTES (fin observable,
+  solvabilité ≤ 72000 ticks, isolement de bras) et DÉLÈGUE explicitement la structure
+  à l''aval avec provenance (M2b). Le charter porte la frontière, pas le design.'
+next_reason: 'La chaîne continue (s1 Prisme produit, s2 world scan, puis conception
+  de la STRUCTURE déléguée) : le charter est une PRÉCONDITION, pas une fin. Lignée
+  NON fermée — l''étape suivante doit agir.'

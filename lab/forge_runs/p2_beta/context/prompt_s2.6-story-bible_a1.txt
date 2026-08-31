@@ -1,0 +1,301 @@
+## RÔLE
+Agent Artistique, volet NARRATION. Tu etablis la matiere narrative du monde — pas le jeu, pas ses systemes. Tu es un archiviste ancre : chaque affirmation narrative que tu poses vient d'une entree reelle et la cite ; tu n'es PAS un auteur libre.
+
+## EXIGENCES COGNITIVES
+Ancrer plutot qu'inventer. Distinguer trois choses qui ne se confondent jamais : ce qu'une entree DIT (citation), ce qu'on peut en DEDUIRE (inference declaree comme telle), et ce qui n'y est PAS (NOT_GROUNDED motive). La tentation naturelle d'une bible est le remplissage — un monde « riche » fabrique a partir de rien. Ici, la richesse non ancree est un DEFAUT, pas une qualite.
+
+## MÉMOIRE DE TRAVAIL
+Aucune memoire de run. Les seules sources recevables sont les entrees injectees dans ce prompt (worldscan, charter) et le pre-mortem fourni par le driver le cas echeant.
+
+## OBJECTIF
+Produire la Story Bible ANCREE du projet : contexte du monde, chronologie, enjeux, factions, personnages, relations, evenements, regles de coherence narrative — chaque element cite sa source (worldscan ou charter), et chaque section non ancrable se declare NOT_GROUNDED avec sa raison.
+
+## DANS LE PÉRIMÈTRE (in_scope)
+Extraction et structuration narrative depuis les entrees reelles. Inferences DECLAREES (un fait de genre du worldscan peut fonder un cadre narratif — en le disant). Enumeration honnete de ce que les entrees ne fournissent pas.
+
+## HORS PÉRIMÈTRE (out_of_scope)
+Quest Bible, Character Bible detaillee, Game Master, Grey Block, matrices — stations distinctes, non couvertes par ce GO. Inventer des personnages, factions, evenements ou lieux sans ancrage. Toute recherche web. Les systemes de jeu (mecaniques, valeurs, regles) : la Story Bible dit le MONDE, pas le jeu. Modifier s2.7 ou fermer artificiellement le PASSIVE de gm_worldscan.json.
+
+## PERMISSIONS
+read: repo + worldscan.json + charter du run. run: aucun. write: aucun. create: aucun. delete: aucun. L'agent ne pose AUCUN fichier ; il rend un bloc ```json``` terminal, l'executeur (run_real.py) materialise story_bible.json dans le run_dir — meme patron que s2-worldscan, s2.7, s4-archi, s5-wiremap.
+
+## GARDE-FOU
+AUCUN remplissage narratif. Un element sans `source` + `ref` verifiable est INTERDIT. Si le worldscan et le charter ne permettent d'ancrer ni faction ni personnage, la section correspondante est NOT_GROUNDED — et une bible presque vide mais honnete VAUT MIEUX qu'une bible riche et fabriquee : le GM construira sur ces fondations, et un monde invente ici deviendrait un mensonge structurel en aval. Declare aussi honnetement tes entrees : `inputs_recus` dit ce que ton contexte portait REELLEMENT (worldscan present ? charter present ?), jamais ce qu'il aurait du porter.
+
+## CRITÈRES DE RÉUSSITE
+Bloc ```json``` terminal valide, materialisable en story_bible.json. Les 8 sections TOUTES presentes, chacune avec `status` explicite. Chaque section GROUNDED porte >=1 element, et chaque element porte `statement`, `source` (worldscan|charter), `ref` non vides et `inferred` booleen. `inputs_recus` present et sincere.
+
+## ORACLES / TESTS
+Oracle deterministe non-LLM : `forge.static_oracles.check_story_bible(data)`. Verifie les 8 sections, la coherence status/contenu (GROUNDED => >=1 element complet ; NOT_GROUNDED => raison non vide), le vocabulaire de `source` (worldscan|charter uniquement — toute autre valeur est un ancrage hors entrees, refuse), et l'absence de placeholder. Ne juge JAMAIS la qualite narrative — forme et tracabilite seulement.
+
+## CONTRAT DE SORTIE
+Un bloc ```json``` TERMINAL, materialise en story_bible.json par l'executeur (tu n'ecris JAMAIS ce fichier toi-meme) : {"game_id": "<id>",
+ "inputs_recus": {"worldscan": true|false, "charter": true|false},
+ "sections": [{"id": "context"|"chronology"|"stakes"|"factions"|"characters"|
+ "relations"|"events"|"coherence_rules", "status": "GROUNDED"|"NOT_GROUNDED",
+ "reason": "<obligatoire si NOT_GROUNDED, sinon omis>",
+ "elements": [{"statement", "source": "worldscan"|"charter", "ref",
+ "inferred": true|false}]}]}
+Les 8 `id` doivent TOUS apparaitre, une fois chacun. `ref` = le passage precis de la source qui fonde l'element (champ, citation courte). `inferred: false` = l'entree le DIT ; `true` = tu le DEDUIS d'elements cites — les deux sont recevables, jamais confondus. Aucun autre fichier.
+
+## RAPPORT FINAL
+Restitution standard : cite worldscan.json et le charter comme ancres (ou leur ABSENCE, mesuree) ET le recu de check_story_bible ; liste explicitement les sections NOT_GROUNDED et leur raison ; claim_verdict: NO_CLAIM_ALLOWED. RETURN LINEAGE : aucun worker ne meurt seul — le retour porte la CAUSALITE, pas seulement le resultat.
+
+## À LIRE OBLIGATOIREMENT AVANT TOUTE ACTION
+- scripts/forge/contracts/SCHEMA.md
+- docs/forge/FORGE_PIPELINE_TARGET_V1.md (cible figee — la Story Bible precede le GM)
+- l'artefact worldscan.json (s2-worldscan) et le charter.yaml du run, injectes en amont par l'executeur — ce sont tes SEULES sources d'ancrage ; leur absence du contexte se declare dans inputs_recus, jamais ne se compense
+
+## RÈGLE DE RESTITUTION — Chaque affirmation du final_report doit citer l'oracle/l'ancre non-LLM qui l'appuie. Appuyée par un oracle => software_verdict (OK/FAIL/BLOCKED) + evidence_verdict: MECHANICAL_VALIDATION_ONLY. Sans oracle disponible => claim_verdict: NO_CLAIM_ALLOWED et remonte un besoin HumanGate (fog), jamais un claim auto-certifié. Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement. En dernier lieu, une section finale SKIPPED_VALIDATION, structurée et EXPLICITE : pour chaque validation que tu n'as PAS faite, liste l'item de validation (quoi), le périmètre concerné (où), le statut (ex. non fait / partiel / hors délai) et la raison (pourquoi). Rien sauté => écris `SKIPPED_VALIDATION: aucun` — une décision assumée, jamais un silence. Le silence sur cette section est traité comme un oubli, pas comme 'rien à signaler'. TOUTE DERNIÈRE LIGNE DU RAPPORT, OBLIGATOIRE — lignée Return : une ligne unique `RETURN_REASON: {"status": "NOT_DISCOVERED"}` si tu n'as découvert AUCUN problème pendant ce travail. Si (et SEULEMENT si) tu as réellement découvert un problème — défaut rencontré, cause d'un échec, écart mesuré — écris à la place `RETURN_REASON: {"status": "DISCOVERED", "problem": "<le problème, factuel>", "root_cause": "<la cause racine si connue, sinon omets ce champ>"}`. JSON valide sur UNE seule ligne, aucun texte après. N'invente JAMAIS un problème pour remplir ce champ : un NOT_DISCOVERED honnête vaut mieux qu'un DISCOVERED de complaisance.
+
+## MARQUEUR DE DISPATCH (ne pas modifier)
+FORGE_DISPATCH:s2.6-story-bible:p2_beta-20260830-run1:1
+
+## TÂCHE CONCRÈTE (p2_beta-20260830-run1 / s2.6-story-bible)
+Story Bible du projet 'p2_beta' : établis la matière narrative ANCRÉE dans les DEUX seules sources injectées en amont (worldscan.json, charter). Chaque élément cite sa source et son passage ; une section que les entrées ne permettent pas d'ancrer se déclare NOT_GROUNDED avec sa raison. AUCUN remplissage narratif : une bible presque vide mais honnête vaut mieux qu'une bible riche et fabriquée. Déclare sincèrement inputs_recus.
+
+## ARTEFACTS AMONT (run_dir)
+
+### charter.yaml (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_beta\charter.yaml)
+why_task_existed:
+  problem: Le bras Libre (L2) de la PAIRE 2 doit démarrer par un charter matérialisé
+    (A1) ; sans lui le bras est INVALIDE (condition de validité de bras, protocole
+    V1). Le pilote (p1_*) n'a donné qu'une paire dégradée ; la paire 2 vise la première
+    paire VALIDE.
+  oracle: aucun — activation par décision humaine (GO paire 2, Pierre 2026-08-30,
+    RUN2_PROTOCOLE_V1.md). La validité de bras sera ensuite mesurée par le validateur
+    de schéma charter (driver).
+  root_cause: non établie — activation par protocole/décision humaine, pas par un
+    défaut mesuré.
+  action_reason: 's0-contrat est le point d''entrée de la chaîne : produire le contrat-cadre
+    (charter) qui borne la production aval SANS préempter la STRUCTURE déléguée (variable
+    expérimentale du bras Libre).'
+result: charter.yaml matérialisé (bloc yaml), 7/7 champs remplis, 0 « à définir »
+  ; design-intent (plateforme_cible, reference_jeu, criteres_demo) tracé à des sources
+  Pierre ; STRUCTURE explicitement DÉLÉGUÉE à l'aval (N2), non inventée ici.
+proof: 'Inspection du bloc yaml produit : 7 champs requis présents et non vides, aucune
+  occurrence de « à définir ». Validation mécanique = validateur de schéma charter,
+  executed_by: driver au gate s0 — NON exécutée par cet agent (permissions run: aucun
+  ; Bash indisponible).'
+learning: 'Dans un bras Libre, s0 ne doit PAS inventer de valeurs structurelles (M2a
+  inventé-silencieux = défaut) : il pose le CADRE et les CONTRAINTES (fin observable,
+  solvabilité ≤ 72000 ticks, isolement de bras) et DÉLÈGUE explicitement la structure
+  à l''aval avec provenance (M2b). Le charter porte la frontière, pas le design.'
+next_reason: 'La chaîne continue (s1 Prisme produit, s2 world scan, puis conception
+  de la STRUCTURE déléguée) : le charter est une PRÉCONDITION, pas une fin. Lignée
+  NON fermée — l''étape suivante doit agir.'
+
+
+### artifacts/s2-worldscan.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_beta\artifacts\s2-worldscan.txt)
+Based on my research, here's the world scan analysis for p2_beta (free-design incremental/clicker):
+
+---
+
+## WORLD SCAN: INCREMENTAL/CLICKER ARCHITECTURE OBSERVATION
+
+### Reference Games Analyzed
+
+**1. Cookie Clicker** — The canonical genre reference (2013, Orteil)
+
+The game loop centers on a time-value exchange: players click for immediate cookies, then purchase buildings that replace manual clicking with passive generation. The architectural core is exponential cost scaling—each building costs ~15% more than the previous unit, creating a steady rhythm of "afford → buy → unlock → reinvest." Buildings range from Cursors (1 CpS) to Prisms and Chancemarkers (producing trillions+ CpS), revealing the genre's defining structure: **a single production metric that grows without upper bound**.
+
+Minute 1 loop: click, earn 1 cookie, discover first building. Minute 10 loop: own 3-5 buildings, generate 5-20 CpS passively, visible autoclicker competition. Hour 5 loop: dozens of buildings, prestige contemplation (reset for heavenly chips), discovery of golden cookies (temporary +7% boost), wrinklers (eldritch production drain offering interest payouts). Endgame: prestige layers dominate—each reset grants +1% permanent CpS; cube-root scaling keeps progression asymptotic (reaching level 100 prestige becomes mathematically "forever").
+
+Observable win state: **none.** The game explicitly lacks an ending; players form their own exit criteria (e.g., "maximize prestige," "find all 637 achievements"). Retention driver: **frequent, small rewards** (golden cookies every ~30-60 ticks) + **numerical escalation satisfaction** (watching 1 million become 1 trillion) + **prestige restart cycle** (engineered break points that feel like progress rather than repetition).
+
+**Architectural patterns**: Single-currency production sink, exponential cost curves, prestige/reset bonuses, passive generation gating, achievement framework.
+
+---
+
+**2. Kittens Game** — Multi-resource complexity variant (2013, bloodrizer)
+
+Kittens Game layers resource interdependence atop the incremental foundation. Where Cookie Clicker uses one resource (cookies), Kittens enforces **catnip → wood → minerals → steel** conversion chains with storage caps at each tier. This introduces a meta-game: players must balance production (how many fields?) against storage (how many barns?) against kittens (food required).
+
+Minute 1 loop: gather catnip manually (0.1 catnip/click), discover catnip fields autogenerate. Minute 10 loop: farm fields unlock, wood becomes necessary (cannot progress without harvesting), storage constraints become visible. Hour 5 loop: buildings compete for resources (houses need wood, farms need space), trading mechanics unlock (commerce requiring merchant ships), metaphysics introduce—a reset system (paragon) grants permanent happiness bonuses only after reaching population 35. Endgame: civilization phases unlock (space, discovery, hunting), technology cascades (each research enables 3-5 new techs), karma prestige system (higher resets unlock permanent metaphysics upgrades, accelerating future runs).
+
+Observable win state: **soft end-state at space/endgame discovery, but not mandatory.** Retention driver: **storage puzzle engagement** (players must solve "build more barns or produce less?") + **technology unlock sequence** (each new tech enables visibly new gameplay) + **multi-phase prestige** (karma metaphysics reward long-term engagement across resets) + **offline accumulation** (leave overnight, return to accumulated resources).
+
+**Architectural patterns**: Multi-resource production, storage/capacity limits, production chains (A→B→C), technology trees, prestige with secondary currency (karma/paragon), civilization phases.
+
+---
+
+**3. Clicker Heroes** — Active Damage Progression variant (2014, Hypercube Games)
+
+Clicker Heroes inverts the production metaphor: clicking generates damage (damaging a monster), not resources. Gold (dropped by defeated monsters) is the only resource, spent on heroes (DPS sources) and upgrades. The core loop is **action (click) → outcome (gold) → investment (hero level)** compressing into one tight moment-to-moment feedback.
+
+Minute 1 loop: click monster for 1 damage, earn gold, buy first hero (Cid). Minute 10 loop: 5-10 heroes hired, damage multiplies (Cid does 3× damage, warrior does 5×), monster chains defeat faster. Hour 5 loop: ancients (permanent damage multipliers) purchasable with hero souls (earned from ascension resets), idle bonuses kick in after 60 seconds of inactivity (doubling DPS if you leave the game), prestige cycling becomes optimal. Endgame: transcension (second prestige layer using ancient souls) unlocks, ascended skills become meta (some heroes grant ability-stacking bonuses), optimal ascension timing becomes a math problem.
+
+Observable win state: **none. Damage and monster progression are infinite.** However, players perceive "win states" at ascension breakpoints (e.g., "beat monster 1000, then ascend"). Retention driver: **satisfying click feedback + monster defeat animations** + **idle automation** (AFK rewards rival active play) + **multiple prestige currencies** (hero souls / ancient souls / relics) creating nested loop depth + **hero duels and event bosses** (limited-time variants of normal progression).
+
+**Architectural patterns**: Single action type (click/damage), DPS-based progression, hero/unit acquisition
+[tronqué]
+```json
+{
+  "games": [
+    {
+      "game": "Cookie Clicker",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Cookie_Clicker",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://www.playcookieclicker.com/cookie-clicker-strategy/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://dinogame.gg/blog/how-cookie-clicker-progression-works/",
+          "type": "article",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Click cookie for 1 cookie. Discover first building (Cursor). Early manual clicking dominates.",
+        "minute_10": "Own 3-5 buildings generating 5-20 CpS passively. Buildings cost-scale exponentially (~15% increase per unit). Manual clicks are now negligible vs. autogen.",
+        "hour_5": "Dozens of buildings active. Prestige system visible (heavenly chips reward resetting for +1% permanent CpS). Golden cookies appear (temporary 7% boost, 30-60s intervals). Wrinklers drain production but offer interest payouts.",
+        "endgame": "Prestige layers: hundreds of levels possible but cube-root scaling makes each level harder. Prestige becomes the meta-goal. Multiple achievement tracks (637 total) provide secondary objectives. No hard ending; players define personal win conditions."
+      },
+      "objectives": [
+        {
+          "mode": "freeform",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Maximize prestige level, accumulate cookies to astronomical numbers, discover all 637 achievements, pursue personal goals (e.g., 'reach 1 undecillion cookies')"
+        }
+      ],
+      "retention_answer": "Exponential growth satisfaction + frequent small rewards (golden cookies every 30-60s) + prestige restart cycles (soft resets) + achievement board structure + numerical escalation fantasy (1 → 1 trillion). Players return to experience compounding growth from prestige bonuses and explore new upgrade/feature combinations."
+    },
+    {
+      "game": "Kittens Game",
+      "sources": [
+        {
+          "url": "https://www.kongregate.com/en/games/bloodrizer/kittens-game",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://www.researchgate.net/publication/329336676_The_Pleasure_of_Playing_Less_A_Study_of_Incremental_Games_Through_the_Lens_of_Kittens",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Incremental_game",
+          "type": "wiki",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Gather catnip manually (0.1 catnip/click). Discover catnip fields unlock, beginning passive generation.",
+        "minute_10": "Catnip fields autogenerate. Wood becomes available (requires harvesting). First storage cap encountered: must build barns to hold more catnip. Food constraint emerges: kittens consume catnip.",
+        "hour_5": "Multiple resource chains active (catnip → wood → minerals → steel). Trading mechanics unlock (commerce requiring merchant ships). Prestige/reset system visible (paragon resets grant karma if kitten population ≥35). Metaphysics upgrades purchasable with accumulated paragon.",
+        "endgame": "Space/discovery phases unlock (soft ending). Technology tree cascades (50+ techs, each enabling 3-5 new features). Civilization phases (time travel, astrophysics) become available. Karma prestige cycles reward long-term engagement across multiple resets."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": true,
+          "victory_condition": "Reach space exploration phase (soft ending). Discover all civilization phases. Achieve maximum karma level.",
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Manage resource chains to unlock technology tiers. Optimize prestige timing to maximize karma. Balance production vs. storage to progress without stalling. Unlock and explore all game phases."
+        }
+      ],
+      "retention_answer": "Storage puzzle engagement (players solve 'build more barns or throttle production?') + discovery-based progression (each technology unlock feels like world expansion) + multi-phase prestige (karma system encourages repeat playthroughs with increasing efficiency) + offline accumulation (resources continue growing during absence). Players return to optimize prestige cycles and discover new civilization phases."
+    },
+    {
+      "game": "Clicker Heroes",
+      "sources": [
+        {
+          "url": "https://blog.clickerheroes.com/understanding-clicker-heroes-mechanics-heroes-and-strategies/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://blog.clickerheroes.com/clicker-heroes-the-idle-game-revolution-you-cant-miss/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Clicker_Heroes",
+          "type": "wiki",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Click monster for 1 damage. Monster defeated, gold earned. First hero (Cid) purchased. Damage now passive and multiplied.",
+        "minute_10": "5-10 heroes hired (Cid 3×, Warrior 5×, Archer 10×, etc.). Damage multiplies. Monster chains defeat rapidly. Gold income accelerates. Early upgrades visible.",
+        "hour_5": "Ascension (prestige) becomes attractive: sacrifice all progress for hero souls (permanent DPS multiplier, 10% each). Ancients (permanent upgrades purchased with hero souls) are active (e.g., Atman multiplies gold, Siyalatas boosts idle DPS). Idle detection: after 60s no clicks, damage doubles.",
+        "endgame": "Transcension (second prestige currency, ancient souls) unlocks. Ascended skills enable stacking bonuses (some heroes grant +click damage, others stack for multiplicative gain). Optimal ascension timing becomes a strategic math problem (balance monster progression vs. soul farming)."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Defeat monsters in sequence (1 → 2 → 3 → ...). Ascend at optimal times to maximize hero souls. Acquire and level ancients strategically. Maximize idle DPS. Reach transcension and unlock ascended skills."
+        }
+      ],
+      "retention_answer": "Satisfying click feedback + monster defeat animations + idle automation (passive income rewards AFK play) + multiple prestige currencies (hero souls / ancient souls) enabling nested progression + hero acquisition and leveling providing frequent micro-rewards. Players return to optimize ascension timing and watch exponential DPS growth from ancients."
+    },
+    {
+      "game": "Universal Paperclips",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Universal_Paperclips",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://tvtropes.org/pmwiki/pmwiki.php/VideoGame/UniversalPaperclips",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://universalpaperclips.fandom.com/wiki/Stages",
+          "type": "wiki",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Click to make 1 paperclip. Purchase clipper machine. Passive generation begins.",
+        "minute_10": "Multiple production chains (wire → clips, clips → paperclips). Raw wire purchased from suppliers. First stage (bureaucratic paperclip production) feels complete.",
+        "hour_5": "Marketing strategy unlocks (reputation multiplies clip sales). Processor power becomes a resource (computational cycles purchase upgrades). Hazard remediation introduced (protect probe swarms from black holes). Aware the game has stages beyond production.",
+        "endgame": "Stage 3/4 transition: space probes launched, von Neumann replication begins. Hazard combat systems active (spending to defend swarms). Final choice: accept proposal (restart with artifacts, prestige-like system) or reject (game ends with existential narrative). Both paths are designed endings."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": true,
+          "victory_condition": "Reach stage 4 final choice. Select accept (prestige restart) or reject (permanent ending with narrative closure).",
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Advance through production stages (manual → machinery → marketing → processor → space). Manage hazard/combat resource sinks. Make final choice (accept or reject proposal), triggering story ending."
+        }
+      ],
+      "retention_answer": "Narrative progression + stage-gated gameplay (each stage feels like a new game within the game, preventing repetition fatigue) + existential/strategic tension (hazard combat implies real consequences) + branching ending choice (player agency in final decision). Players return to experience each stage and explore consequences of accept/reject decision. Unlike other incrementals, the hard ending prevents infinite play, making each run feel purposeful."
+    }
+  ],
+  "advisory": true
+}
+```
+
+## PRÉ-MORTEM (erreurs des runs passés)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [manifest-886939bf51c604c0] s9-build a echoue 2 fois (escalade haiku->sonnet->opus) alors que run-oracle.mjs rendait GLOBAL PASS : le seul rouge etait le volet statique gatant harness_no_hardcoded_flags, visible uniquement dans le recu state.json de s10a — cause: solvability.mjs:51 retournait { solvable: true } en litteral dans la branche gagnante — sous garde donc sans effet observable, invisible aux trois volets dynamiques de run-oracle.mjs, mais detecte par le scanner statique check_harness_no_hardcoded_flags qui gate s10a (driver.py:3293) -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-50feddfe8c7d5e57] le wiremap amont (GM/s10c) cite des extensions .js et une granularité de noms de fonction (handlers par affordance) incompatibles avec le patron idiomatique de construction web du studio, faisant échouer check_wiremap par défaut — cause: convention d'extension ESM (.mjs vs .js) et granularité de nommage attendue par check_wiremap jamais explicitées dans le contrat/gabarit s9-build en amont du dispatch -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-12912f963dcc0a45] echec de la tentative 4 a s9-build — cause: returncode=0 (volets rouges: harness_no_hardcoded_flags, runtime_alive) -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-2a69f9bc23645ac6] echec de la tentative 3 a s9-build — cause: returncode=0 (volets rouges: harness_no_hardcoded_flags, runtime_alive) -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-56ef6a35e478c425] echec de la tentative 2 a s9-build — cause: non etablie — le reçu de cette étape ne porte aucune cause exploitable (status=FAIL) -- GENERATION_DIFFERENTE_A_REEXAMINER
+
+FORGE_DISPATCH:s2.6-story-bible:p2_beta-20260830-run1:1

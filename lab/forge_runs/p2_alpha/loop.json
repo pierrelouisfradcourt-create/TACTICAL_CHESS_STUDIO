@@ -1,0 +1,144 @@
+{
+ "schema_version": 1,
+ "game_id": "p2_alpha",
+ "steps": [
+  {
+   "role": "PLAYER_GOAL",
+   "ref": "E1",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "nonempty"
+   }
+  },
+  {
+   "role": "PLAYER_ACTION",
+   "ref": "E2",
+   "affordance": "coeur_de_lumen",
+   "repeat": 1,
+   "observe": {
+    "hud": "r_counter",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "PLAYER_ACTION",
+   "ref": "E3",
+   "affordance": "acheter_generateur",
+   "repeat": 1,
+   "observe": {
+    "hud": "r_counter",
+    "predicate": "decreases"
+   }
+  },
+  {
+   "role": "GAME_RESPONSE",
+   "ref": "E4",
+   "repeat": 1,
+   "observe": {
+    "hud": "r_counter",
+    "predicate": "changes"
+   }
+  },
+  {
+   "role": "REWARD",
+   "ref": "E5",
+   "repeat": 1,
+   "observe": {
+    "hud": "taux_rs",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "DECISION",
+   "ref": "E6",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "changes"
+   },
+   "options": [
+    "E2",
+    "E3"
+   ],
+   "metric": "r_counter",
+   "horizon_frames": 300,
+   "policies": [
+    {
+     "name": "repos",
+     "click": null,
+     "every_frames": 0
+    },
+    {
+     "name": "actif",
+     "click": "coeur_de_lumen",
+     "every_frames": 3
+    }
+   ]
+  },
+  {
+   "role": "UNLOCK",
+   "ref": "E7",
+   "affordance": "acheter_generateur_g2",
+   "repeat": 1,
+   "observe": {
+    "hud": "colonne_generateurs",
+    "predicate": "new_distinct",
+    "appears": "generateurs"
+   }
+  },
+  {
+   "role": "NEXT_GOAL",
+   "ref": "E8",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   }
+  },
+  {
+   "role": "NEXT_GOAL",
+   "ref": "E9",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   }
+  },
+  {
+   "role": "REPEAT",
+   "ref": "E10",
+   "repeat": 1,
+   "observe": {
+    "hud": "r_counter",
+    "predicate": "increases"
+   },
+   "replay": [
+    "E2",
+    "E3",
+    "E5",
+    "E7"
+   ]
+  },
+  {
+   "role": "META_LOOP",
+   "ref": "E11",
+   "affordance": "rejouer",
+   "repeat": 1,
+   "observe": {
+    "hud": "r_counter",
+    "predicate": "resets"
+   }
+  },
+  {
+   "role": "ADVANTAGE",
+   "ref": "E12",
+   "repeat": 1,
+   "observe": {
+    "hud": "r_counter",
+    "predicate": "increases_more_than:E2"
+   },
+   "replay_ref": "E2"
+  }
+ ]
+}

@@ -1,0 +1,122 @@
+All sources read. I have everything needed: the schema, the project brief (with full Pierre-traceable provenance), the normative `structure_imposee_v2.yaml`, and the sealed assignment (p2_alpha = D2). No Project Bible exists (from-scratch project — expected). Every design-intent field has a traceable Pierre source, so no fog is required.
+
+Here is the charter, materialized as required by A1 (protocole V1) — text only, no file written.
+
+---
+
+## charter.yaml (matérialisé par s0 — A1)
+
+```yaml
+# charter.yaml — p2_alpha (bras DIRIGÉ D2, PAIRE 2) — rédigé par s0-contrat
+# run: p2_alpha-20260830-run1 · dispatch: FORGE_DISPATCH:s0-contrat:p2_alpha-20260830-run1:1
+# NB: matérialisé en bloc YAML (aucun fichier écrit — TÂCHE CONCRÈTE "texte seul")
+
+objectif: >
+  Créer de zéro, sous games/p2_alpha, un jeu WEB incremental/clicker JOUABLE dont la
+  structure économique est INTÉGRALEMENT imposée par lab/forge_briefs/p2_alpha/
+  structure_imposee_v2.yaml (grammaire v2 ratifiée Pierre 2026-08-30), puis fermer la
+  chaîne de preuve full_content jusqu'au verdict signé + verify_run AUTHENTIQUE.
+  Rôle expérimental : bras DIRIGÉ (D2) de la PAIRE 2 — la variable manipulée est
+  l'AUTEUR DE LA STRUCTURE (grammaire ratifiée), PAS l'auteur de l'univers.
+  CONDITION DE VICTOIRE : total cumulé de R produit ≥ 1 000 000 (seuil S5), fin
+  OBSERVABLE, sans état d'échec (fidèle au genre).
+  JOUEUR : nominalement un joueur web solo d'incremental/clicker (boucle d'arbitrage
+  « acheter maintenant vs épargner ») — caractérisation DÉRIVÉE du genre ratifié, NON
+  une décision démographique de Pierre. L'ACTEUR DE MESURE de ce run est un bot scripté
+  qui doit atteindre S5 en ≤ 72000 ticks (obligation de solvabilité runtime).
+  La qualité ludique n'est PAS jugée dans ce run (donnée M7).
+
+plateforme_cible: >
+  web — HTML + JS (canvas). Socle sonde web N1 : déterminisme seedé, window.__game
+  exposé, harnais complet à la racine du dossier jeu. SOURCE PIERRE : project_brief.yaml
+  champ `cible: web (HTML+JS canvas)` + protocole RUN2_PROTOCOLE_V1.md ratifié Pierre
+  2026-08-30 (règle N1).
+
+reference_jeu: >
+  Genre incremental/clicker (grammaire de genre à la Cookie Clicker — GRAMMAIRE
+  UNIQUEMENT, aucune copie d'asset, de nom ni de contenu), dont la structure économique
+  est NORMATIVEMENT et intégralement fixée par lab/forge_briefs/p2_alpha/
+  structure_imposee_v2.yaml. SOURCE PIERRE : genre FIXÉ PAR PIERRE (paire pilote
+  2026-08-30, reconduit paire 2) ; structure = grammaire v2 proposée Fable, RATIFIÉE
+  Pierre 2026-08-30 (sas de pré-enregistrement). Distinction verrouillée : proposée par
+  Fable, ratifiée par Pierre — la variable expérimentale du bras D est l'auteur de la
+  STRUCTURE, pas l'auteur de l'UNIVERS.
+
+criteres_succes:
+  - "charter.yaml matérialisé par s0 en bloc ```yaml (A1 — condition de validité de bras) ; tous champs remplis, aucun « à définir »."
+  - "Structure du jeu == structure_imposee_v2.yaml (croissance 1.12, cout_base [15,100,1100,12000], prod [0.1,1,8,47], gain_clic_initial 1, mapping des 6 améliorations, seuils_cumules [100,1000,12000,150000,1000000], tick_ms 100, comptabilité milli-R entiers) ; toute déviation déclarée en champ structuré (M3), jamais silencieuse."
+  - "Invariant comptable exact : solde_mR == Σ(gains_clic_mR) + Σ(production_mR) − Σ(dépenses_mR), en milli-R entiers, aucun flottant dans l'état ; affichage = floor(solde_mR/1000)."
+  - "SOLVABILITÉ RUNTIME : un bot scripté atteint S5 (≥ 1 000 000 R cumulés) en ≤ 72000 ticks ; bots de mesure à variance NON triviale (temps-jusqu'à-S5 en ticks, jalons S1..S5). Le desk-check ne compte pas comme preuve."
+  - "Chaîne full_content complète : verdict signé + verify_run AUTHENTIQUE."
+  - "design_questions / r2 / design_freeze exercés ; modification_locus utilisé pour toute réponse (aucune_requise justifié si l'objet est normatif)."
+  - "Chaque asset_request.id resolved-avec-fichier ou blocked-justifié (check_asset_consumption)."
+  - "check_artbible exécuté par le driver (executed_by: driver)."
+  - "product_snapshot.md matérialisé (exigible M7(a), protocole V1 A3)."
+  - "s11 red-team Qwen réel, independent: true ; LM Studio down => HALT sans fallback."
+  - "Socle sonde web N1 en place : HTML+JS, déterminisme seedé, window.__game, harnais complet à la racine."
+
+actions_interdites:
+  - "Modifier une valeur de structure_imposee_v2.yaml sans la déclarer comme écart en champ structuré (M3) — toute déviation silencieuse est interdite."
+  - "Inventer/choisir un modèle de jeu (reference_jeu) ou une plateforme (plateforme_cible) autres que ceux fixés par Pierre."
+  - "Introduire une ressource autre que R, un revenu hors clic+générateurs, ou une dépense hors achats (aucune vente)."
+  - "Ajouter un état d'échec ou une défaite artificielle."
+  - "Hardcoder un résultat d'oracle ou un flag de harnais (pré-mortem : solvability.mjs renvoyant { solvable: true } littéral ; check_harness_no_hardcoded_flags)."
+  - "Écrire un test avec un >= tautologique : asserter le comportement STRICT (le clic ajoute exactement gain_clic, coûts == cout_base×1.12^n, victoire à == 1 000 000)."
+  - "Transmettre un reçu code sans evidence_path (=> BLOCKED en s12)."
+  - "Fallback LLM sur s11 red-team si LM Studio est down (=> HALT)."
+  - "git commit / git push (gate Pierre explicite requis)."
+  - "Toucher tests/, src/, autopilot.py ou la lane STUDIO gelée."
+  - "Émettre un jugement ou un claim de qualité ludique / fun (donnée M7, hors périmètre de ce run)."
+
+hors_scope:
+  - "Le thème, l'univers, les personnages/entités et leur nommage, la direction artistique, les assets, le HUD et les micro-interactions non couverts par la structure : libertés déléguées aux étapes aval, non fixées par ce charter."
+  - "L'architecture technique du jeu (étape s4)."
+  - "Le world scan (étape s2)."
+  - "L'écriture de code (ce charter ne produit QUE le contrat produit ; aucun fichier écrit)."
+  - "Le jugement de qualité ludique / fun (donnée M7)."
+  - "Toute mécanique hors grammaire imposée : état d'échec, ressource secondaire, revenu/dépense non prévus."
+
+criteres_demo:
+  - "Un compteur de R visible en permanence à l'écran et qui augmente."
+  - "Un clic manuel produit à l'écran une hausse visible de R égale à gain_clic courant."
+  - "Après l'achat d'un générateur, R augmente AUTOMATIQUEMENT à chaque tick sans clic (production auto visible)."
+  - "Un bouton d'achat GRISÉ quand R est insuffisant : le refus est observable et l'état reste inchangé."
+  - "Le franchissement d'un seuil (S1 révèle G2, S2 G3, S3 G4, S4 les améliorations ×2 prod) débloque VISIBLEMENT le nouvel élément."
+  - "Un écran/état de VICTOIRE observable au franchissement de S5 (total cumulé ≥ 1 000 000 R) ; AUCUN écran de défaite."
+  # SOURCE : critères OBSERVABLES dérivés de structure_imposee_v2.yaml (ratifiée Pierre
+  # 2026-08-30) — la surface visible de la structure imposée, pas des inventions.
+```
+
+---
+
+## RAPPORT FINAL
+
+**Oracle cité** : Oracle CHARTER déterministe non-LLM = validateur de schéma qui parse `charter.yaml` et échoue si un champ requis (objectif, hors_scope[], criteres_succes[], actions_interdites[], plateforme_cible, reference_jeu, criteres_demo[]) est vide, absent ou contient « à définir ». **Cet oracle est exécuté par le driver/gate en aval — je ne l'exécute pas (permission `run: aucun`).** Ce que je peux appuyer mécaniquement se limite à une **auto-inspection structurelle** du bloc que je viens de produire.
+
+**software_verdict: OK** — auto-inspection structurelle : les 7 champs requis sont présents et non vides ; aucun « à définir », aucun blanc résiduel ; les tableaux (`hors_scope`, `criteres_succes`, `actions_interdites`, `criteres_demo`) portent ≥ 1 entrée réelle chacun.
+**evidence_verdict: MECHANICAL_VALIDATION_ONLY** — limité à l'inspection structurelle du texte ci-dessus ; l'ancre signée (schéma parsé) est produite par le driver, hors de ma portée.
+**claim_verdict: NO_CLAIM_ALLOWED**
+
+**Flous du prompt — résolus vs remontés** :
+- `plateforme_cible` — **RÉSOLU** avec source Pierre (project_brief.yaml `cible`, N1, RUN2_PROTOCOLE_V1.md ratifié 2026-08-30).
+- `reference_jeu` — **RÉSOLU** avec source Pierre traçable (genre fixé Pierre paire pilote 2026-08-30 ; structure = grammaire v2 ratifiée Pierre 2026-08-30). **Aucun choix unilatéral d'agent** (leçon AutoBattler respectée). → **AUCUN fog HumanGate requis.**
+- `criteres_demo[]` — **RÉSOLU** par dérivation observable de `structure_imposee_v2.yaml` (objet ratifié Pierre), pas par invention.
+- `joueur cible` — **RÉSOLU par dérivation du genre ratifié**, explicitement marqué comme NON une décision démographique de Pierre. N'est pas un champ de schéma exigeant une source Pierre (garde-fou limité à plateforme_cible / reference_jeu / criteres_demo), donc pas de fog. Signalé honnêtement dans `objectif`.
+- `condition de victoire` — **RÉSOLU** : S5 = ≥ 1 000 000 R cumulés, fin observable, pas d'échec (structure_imposee_v2.yaml, ratifiée Pierre).
+
+**SKIPPED_VALIDATION** :
+- item : exécution de l'oracle CHARTER (schéma) · où : validation du bloc charter produit · statut : non fait · raison : permission `run: aucun` — l'oracle de schéma est exécuté par le driver/gate en aval ; je ne fournis qu'une auto-inspection structurelle.
+- item : vérification mécanique de la provenance Pierre de `reference_jeu` · où : gate · statut : non fait (non mécaniquement vérifiable par le validateur de schéma) · raison : fait de gate, pas de schéma — ici la provenance EST tracée (project_brief.yaml `provenance`), donc rapportée comme traçable, sans claim auto-certifié.
+
+**RETURN LINEAGE** (FORGE_CAUSAL_LINEAGE_V2 §3) :
+- `why_task_existed:`
+  - `problem:` non transmis — l'activation de s0 vient d'une décision humaine (GO paire 2, protocole V1), pas d'un défaut mesuré.
+  - `oracle:` aucun (activation par décision humaine).
+  - `root_cause:` non établie (pas d'échec en amont ; s0 est le point d'entrée de la boucle).
+  - `action_reason:` A1 exige un charter matérialisé par s0 pour qu'un bras de paire soit valide ; sans lui, D2 est invalide.
+- `result:` charter.yaml complet matérialisé en bloc ```yaml ; 7 champs remplis ; design-intent tracé à des sources Pierre ; aucun « à définir » ; aucun fichier écrit (conforme à « texte seul »).
+- `proof:` lectures sources — `scripts/forge/contracts/SCHEMA.md`, `lab/forge_briefs/p2_alpha/project_brief.yaml`, `lab/forge_briefs/p2_alpha/structure_imposee_v2.yaml`, `lab/forge_briefs/PAIRE2_SEALED_assignment.json` (`{"p2_alpha":"D2","p2_beta":"L2"}`) ; auto-inspection structurelle du bloc ci-dessus (7/7 champs non vides). Oracle de schéma non exécuté (run: aucun).
+- `learning:` la structure_imposee_v2.yaml fournit directement des critères de démo OBSERVABLES (compteur R, refus grisé, déblocage de seuil, victoire S5) — dérivation propre, aucun besoin d'inventer un thème pour remplir criteres_demo.
+- `next_reason:` chaîne causale OUVERTE par construction (s0 amorce la boucle) — l'étape suivante (world scan / architecture puis build) doit consommer ce charter ; les critères de solvabilité runtime (bot atteint S5 ≤ 72000 ticks) et full_content restent à prouver en aval. Aucun défaut non résolu à escalader de ma part.
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

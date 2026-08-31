@@ -1,0 +1,323 @@
+{
+ "game_id": "p2_alpha",
+ "exigences": [
+  {
+   "id": "E1",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme",
+   "reference": "gm_worldscan:game_master.grey_blocks.gb_progress_meter",
+   "acteur": "SYSTEM",
+   "loop_role": "PLAYER_GOAL",
+   "observation": "gb_progress_meter (UI/FEEDBACK) affiche une jauge de proximite vers le prochain seuil S1..S5 et materialise l'arbitrage acheter-maintenant vs epargner-vers-le-seuil.",
+   "claim": "Un objectif chiffre affiche en permanence donne au joueur un but immediat et lisible des la premiere seconde, sans tutoriel.",
+   "enonce": "Le HUD `objectif` affiche en continu le prochain seuil a atteindre (ex. 100 R pour reveler un nouveau generateur) et n'est jamais vide.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Au chargement, le HUD `objectif` contient un texte de but non vide citant un seuil chiffre."
+   },
+   "observe": {
+    "hud": "objectif",
+    "predicate": "nonempty"
+   },
+   "destination": "s5-wiremap"
+  },
+  {
+   "id": "E2",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme",
+   "reference": "gm_worldscan:game_master.loops.core_loop.core_action",
+   "acteur": "PLAYER",
+   "loop_role": "PLAYER_ACTION",
+   "affordance": "coeur_de_lumen",
+   "observation": "core_loop.core_action decrit un PLAYER qui tape le Coeur pour produire du R manuellement, cible core_click_target.",
+   "claim": "Le clic manuel doit produire un gain de R immediat et strictement positif, sinon le geste fondateur du genre n'a aucune consequence mesurable.",
+   "enonce": "Le joueur peut cliquer la cible `coeur_de_lumen` ; a chaque clic, le compteur `r_counter` augmente de gain_clic strictement superieur a zero.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot clique `coeur_de_lumen` une fois ; `r_counter` passe de v a v+gain_clic avec gain_clic>0."
+   },
+   "observe": {
+    "hud": "r_counter",
+    "predicate": "increases"
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "E3",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme",
+   "reference": "gm_worldscan:game_master.loops.gameplay_loop.gp_action",
+   "acteur": "PLAYER",
+   "loop_role": "PLAYER_ACTION",
+   "affordance": "acheter_generateur",
+   "observation": "gameplay_loop.gp_action decrit un PLAYER qui achete un generateur (G1 en premier) via buy_button, ressource R.",
+   "claim": "L'achat doit debiter R du cout courant et n'etre possible que si R suffit, sinon l'economie d'accumulation n'a pas de puits.",
+   "enonce": "Le joueur peut acheter un generateur en cliquant la cible `acheter_generateur` quand R est superieur ou egal au cout ; R diminue du cout et un generateur est acquis.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot avec R>=15 clique `acheter_generateur` ; R diminue de 15 et le nombre de G1 possedes passe a 1."
+   },
+   "observe": {
+    "hud": "r_counter",
+    "predicate": "decreases"
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "E4",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme",
+   "reference": "gm_worldscan:game_master.grey_blocks.gb_click_burst",
+   "acteur": "SYSTEM",
+   "loop_role": "GAME_RESPONSE",
+   "observation": "gb_click_burst (UI/FEEDBACK) specifie un VFX instantane au clic : eclat radial + nombre flottant +N egal au gain_clic courant.",
+   "claim": "Un retour visuel instantane et chiffre au clic est necessaire pour que le joueur relie son geste a son effet.",
+   "enonce": "A chaque clic sur `coeur_de_lumen`, le systeme affiche un +N flottant egal a gain_clic et le compteur `r_counter` change dans la meme frame.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Apres un clic, un element +N apparait pres du Coeur et `r_counter` a change dans la meme frame."
+   },
+   "observe": {
+    "hud": "r_counter",
+    "predicate": "changes"
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "E5",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme",
+   "reference": "gm_worldscan:game_master.loops.gameplay_loop.gp_reward",
+   "acteur": "SYSTEM",
+   "loop_role": "REWARD",
+   "observation": "gameplay_loop.gp_reward : le generateur achete produit du R automatiquement (0.1 R/s pour G1).",
+   "claim": "Le generateur doit generer un revenu automatique visible et continu, sinon l'achat ne recompense pas et la boucle idle n'existe pas.",
+   "enonce": "Apres l'achat d'un generateur, un taux `taux_rs` d'auto-production apparait et le compteur `r_counter` augmente sans clic.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot achete G1 puis n'agit plus ; sur N frames `r_counter` croit et `taux_rs` affiche au moins 0.1 R/s."
+   },
+   "observe": {
+    "hud": "taux_rs",
+    "predicate": "increases"
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "E6",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme",
+   "reference": "gm_worldscan:game_master.loops.gameplay_loop.gp_decision",
+   "acteur": "PLAYER",
+   "loop_role": "DECISION",
+   "observation": "gameplay_loop.gp_decision et core_loop.core_decision opposent cliquer vite pour du R immediat vs epargner vers un achat.",
+   "claim": "Cet arbitrage doit etre significatif : deux politiques distinctes doivent produire des trajectoires de R mesurablement differentes sur un horizon, sinon la decision est decorative.",
+   "enonce": "Le HUD `objectif` presente au joueur le choix entre renforcer le clic manuel et investir dans l'auto-production ; les deux voies sont jouables et divergent sur `r_counter`.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Deux politiques (repos vs actif) jouees 300 frames produisent deux valeurs de `r_counter` distinctes et non triviales."
+   },
+   "observe": {
+    "hud": "objectif",
+    "predicate": "changes"
+   },
+   "options": [
+    "E2",
+    "E3"
+   ],
+   "policies": [
+    {
+     "name": "repos",
+     "click": null,
+     "every_frames": 0
+    },
+    {
+     "name": "actif",
+     "click": "coeur_de_lumen",
+     "every_frames": 3
+    }
+   ],
+   "metric": "r_counter",
+   "horizon_frames": 300,
+   "destination": "s9-build"
+  },
+  {
+   "id": "E7",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme",
+   "reference": "gm_worldscan:game_master.grey_blocks.gb_g2",
+   "acteur": "PLAYER",
+   "loop_role": "UNLOCK",
+   "affordance": "acheter_generateur_g2",
+   "observation": "gb_g2 (PROGRESSION_GATE, LOCKED, requires progression_s1_threshold) : silhouette distincte, apparait par threshold_reveal a S1 (100 R cumules).",
+   "claim": "Le franchissement de S1 doit rendre visible un contenu nouveau et achetable, sinon la progression ne debloque rien d'observable.",
+   "enonce": "Quand le joueur atteint 100 R cumules, un nouveau generateur G2 apparait dans `colonne_generateurs` et devient achetable via `acheter_generateur_g2`.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot accumule 100 R cumules ; une entree generateur G2 auparavant absente apparait dans la colonne."
+   },
+   "observe": {
+    "hud": "colonne_generateurs",
+    "predicate": "new_distinct",
+    "appears": "generateurs"
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "E8",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme",
+   "reference": "gm_worldscan:game_master.grey_blocks.gb_g2",
+   "acteur": "SYSTEM",
+   "loop_role": "NEXT_GOAL",
+   "observation": "gb_g2.next_goal : Prochain palier 1000 R cumules pour reveler G3.",
+   "claim": "Apres un deblocage, l'objectif affiche doit se renouveler textuellement vers la cible suivante, sinon le joueur ne sait plus quoi viser.",
+   "enonce": "Apres la revelation de G2, le HUD `objectif` affiche un nouveau but textuellement distinct : 1000 R cumules pour reveler G3.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Le texte de `objectif` apres S1 differe caractere pour caractere du precedent et cite 1000 R et G3."
+   },
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   },
+   "destination": "s5-wiremap"
+  },
+  {
+   "id": "E9",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme",
+   "reference": "gm_worldscan:game_master.grey_blocks.gb_g3",
+   "acteur": "SYSTEM",
+   "loop_role": "NEXT_GOAL",
+   "observation": "gb_g3.next_goal : Prochain palier 12000 R cumules pour reveler G4.",
+   "claim": "Le renouvellement de l'objectif doit se repeter a chaque palier, chaque enonce differant du precedent, prouvant une chaine de buts et non un texte fige.",
+   "enonce": "Apres la revelation de G3, le HUD `objectif` affiche encore un nouveau but distinct : 12000 R cumules pour reveler G4.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Le texte de `objectif` apres S2 differe de celui apres S1 et cite 12000 R et G4."
+   },
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   },
+   "destination": "s5-wiremap"
+  },
+  {
+   "id": "E10",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme",
+   "reference": "gm_worldscan:game_master.loops.progression_loop.pr_action",
+   "acteur": "PLAYER",
+   "loop_role": "REPEAT",
+   "observation": "progression_loop.pr_action : le joueur accumule du R jusqu'au seuil suivant ; la boucle recommence apres chaque revelation.",
+   "claim": "Dans le nouvel etat (G2 debloque), le joueur doit rejouer les memes gestes pour progresser, prouvant que la boucle recommence reellement.",
+   "enonce": "Apres le deblocage de G2, le joueur rejoue la boucle (clic sur `coeur_de_lumen`, achat via `acheter_generateur`, revenu auto, franchissement du seuil suivant) et `r_counter` reprend sa croissance vers S2.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Apres S1, un bot re-execute clic+achat+attente et `r_counter` progresse de nouveau vers 1000."
+   },
+   "observe": {
+    "hud": "r_counter",
+    "predicate": "increases"
+   },
+   "replay": [
+    "E2",
+    "E3",
+    "E5",
+    "E7"
+   ],
+   "destination": "s9-build"
+  },
+  {
+   "id": "E11",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme",
+   "reference": "gm_worldscan:game_master.loops.meta_loop.me_decision",
+   "acteur": "PLAYER",
+   "loop_role": "META_LOOP",
+   "affordance": "rejouer",
+   "observation": "meta_loop.me_decision : rejouer pour ameliorer le rythme ou s'arreter sur la victoire ; economy_model.resources R initial_stock = 0.",
+   "claim": "Relancer un run doit remettre l'accumulation visible a son etat initial (R=0), sinon le nouveau run ne se distingue pas de la partie en cours.",
+   "enonce": "Le joueur peut relancer un nouveau run en cliquant `rejouer` depuis l'ecran de victoire ; le compteur `r_counter` retombe visiblement a zero.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Apres victoire, un bot clique `rejouer` ; `r_counter` passe de superieur ou egal a 1 000 000 a 0."
+   },
+   "observe": {
+    "hud": "r_counter",
+    "predicate": "resets"
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "E12",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme",
+   "reference": "gm_worldscan:game_master.loops.meta_loop.me_reward",
+   "acteur": "SYSTEM",
+   "loop_role": "ADVANTAGE",
+   "observation": "meta_loop.me_reward et me_decision : le run rejoue vise a ameliorer le rythme ; la trajectoire optimale accelere l'accumulation sur le meme horizon.",
+   "claim": "Un second run mene avec la trajectoire optimale doit produire un rythme d'accumulation de R strictement superieur au premier run sur le meme horizon, sinon rejouer n'apporte aucun avantage mesurable. (Friction charter : le charter n'impose pas de report inter-run — arbitrage HumanGate requis.)",
+   "enonce": "Apres un `rejouer`, l'action `coeur_de_lumen` rejouee selon la politique optimale produit une accumulation de `r_counter` strictement superieure sur le meme horizon qu'au premier run.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot suivant la politique optimale au run 2 atteint un `r_counter` cumule strictement superieur a celui du run 1 au meme nombre de frames."
+   },
+   "observe": {
+    "hud": "r_counter",
+    "predicate": "increases_more_than:E2"
+   },
+   "replay_ref": "E2",
+   "destination": "s9-build"
+  },
+  {
+   "id": "E13",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme",
+   "reference": "gm_worldscan:game_master.grey_blocks.gb_victory_bloom",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE",
+   "observation": "gb_victory_bloom (UI/REWARD, LOCKED, requires quest_victory_target) : embrasement plein ecran au franchissement de S5, terminaison unique ascendante, aucun equivalent de defaite.",
+   "claim": "Le jeu doit posseder un unique etat terminal de victoire observable et aucun ecran de defaite, conformement a l'invariant sans echec du charter.",
+   "enonce": "Au franchissement de R cumule superieur ou egal a 1 000 000, un ecran de victoire (embrasement plein ecran) s'affiche ; aucun ecran de defaite n'existe.",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "Un bot atteint 1 000 000 R cumules : l'etat victoire est present ; aucun etat de defaite n'est jamais atteignable dans le jeu."
+   },
+   "destination": "s4-archi"
+  },
+  {
+   "id": "E14",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme",
+   "reference": "gm_worldscan:game_master.grey_blocks.gb_world_background",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE",
+   "observation": "gb_world_background (LOCATION/META) : fond bleu-nuit qui gagne en clarte d'un cran a chacun des 5 seuils franchis.",
+   "claim": "L'eclaircissement du decor doit avancer d'exactement un cran par seuil pour raconter l'ascension du monde de facon lisible et non brutale.",
+   "enonce": "Le fond de la scene s'eclaircit d'un cran a chacun des 5 seuils (S1..S5), progressivement et sans a-coup.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "La luminosite mesuree du fond a chaque seuil est strictement croissante sur les 5 paliers."
+   },
+   "destination": "s5-wiremap"
+  },
+  {
+   "id": "E15",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme",
+   "reference": "gm_worldscan:game_master.grey_blocks.gb_buy_button",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE",
+   "observation": "gb_buy_button (UI/AFFORDANCE) : bouton a deux etats nets, ACHETABLE (colore, halo) vs GRISE (desature) quand R insuffisant, refus observable, etat inchange.",
+   "claim": "Le refus d'achat pour R insuffisant doit etre visuellement distinct et sans effet d'etat, sinon le joueur ne peut lire sa capacite d'achat.",
+   "enonce": "Quand R est inferieur au cout courant, le bouton d'achat est grise et un clic dessus laisse l'etat de jeu inchange ; il affiche le cout courant en R.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot avec R<cout clique le bouton grise ; ni R ni le nombre de generateurs ne changent."
+   },
+   "destination": "s9-build"
+  }
+ ]
+}

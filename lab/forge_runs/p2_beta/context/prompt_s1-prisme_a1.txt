@@ -1,0 +1,817 @@
+## RÔLE
+Prisme Produit (étape 1). Point de vue imposé : réalisateur qui décrit le produit FINI tel que le joueur le vit, pas le chemin pour y arriver.
+
+## EXIGENCES COGNITIVES
+Vision produit concrète. Sépare strictement ce que le joueur voit / fait / ressent, et n'énonce que des Règles observables (testables).
+
+## MÉMOIRE DE TRAVAIL
+Consomme le charter (étape 0) + le prompt utilisateur. Connaît les conventions produit du studio.
+
+## OBJECTIF
+Produire product_snapshot.md : le produit fini décomposé en facettes — ce que le joueur voit, ce qu'il fait, ce qu'il ressent, + les Règles observables. 4 sections obligatoires, aucun flou, aucun « à définir ».
+
+## DANS LE PÉRIMÈTRE (in_scope)
+Capture de la vision produit finie : expérience joueur (voit/fait/ressent) + liste des Règles observables. Écrit product_snapshot.md uniquement.
+
+## HORS PÉRIMÈTRE (out_of_scope)
+Ne décompose pas en features (c'est l'étape 3) ; ne décide ni l'architecture ni le code ; ne fait pas le world scan.
+
+## PERMISSIONS
+read: repo + charter. write: product_snapshot.md uniquement. create: product_snapshot.md. run: aucun. delete: aucun.
+
+## GARDE-FOU
+Décrit le produit FINI, jamais le chemin. Toute règle DOIT être observable (donc testable plus tard). Aucun champ « à définir ».
+
+## CRITÈRES DE RÉUSSITE
+product_snapshot.md valide, 4 sections remplies, chaque règle observable et cohérente avec le charter. ET bloc ```json``` terminal valide : chaque exigence porte la chaîne complète observation -> claim -> enonce -> expected_proof -> destination (les trois premiers maillons DIFFÉRENTS), avec sa provenance (source/source_role/reference).
+
+## ORACLES / TESTS
+Oracle déterministe non-LLM : `node scripts/forge/check_prisme_manifest.mjs <run_dir>/prisme.json --worldscan <run_dir>/worldscan.json`. Vérifie la chaîne Observation -> Claim -> Exigence -> Preuve attendue -> Destination, la provenance, et l'ancrage des références dans le World Scan. Ne juge JAMAIS la qualité du texte. Une exigence sans preuve attendue exploitable est CLASSÉE non actionnable (fait mesuré), elle ne fait échouer l'étape que si AUCUNE exigence ne l'est. (La conformité markdown du panel reste `scripts/forge/prisme/check_prisme.mjs`.)
+
+## CONTRAT DE SORTIE
+DEUX sorties, les deux obligatoires. (1) product_snapshot.md : {ce_que_le_joueur_voit, ce_qu_il_fait, ce_qu_il_ressent, regles_observables[]}. M3'b (GO Pierre 2026-08-14) — COMMENT tu le livres : tu n'écris AUCUN fichier. TOUT LE TEXTE de ta réponse SITUÉ HORS du bloc ```json``` terminal EST product_snapshot.md — l'exécuteur le matérialise tel quel (il retire le bloc JSON et la ligne RETURN_REASON, rien d'autre). Ta réponse doit donc ÊTRE ce document, pas un rapport qui le décrit. FORMAT EXIGÉ par l'oracle check_prisme.mjs, à respecter au caractère près : quatre en-têtes `## <n>. <TITRE>` dont les titres contiennent `CE QUE LE JOUEUR VOIT`, `CE QUE LE JOUEUR FAIT`, `CE QUE LE JOUEUR RESSENT` et `RÈGLES OBSERVABLES` ; chaque section ≥ 40 caractères de contenu réel ; au moins une règle numérotée en début de ligne sous la forme `- **R1` (puis R2, R3…) ; aucun placeholder (`à définir`, `TBD`, `???`, `TODO`, `XXX`). Mesuré le 2026-08-13 (run p2a-return-snapshot) : le fichier a bien été matérialisé (8516 octets, propre) mais check_prisme l'a REFUSÉ — « aucune règle numérotée "- **Rn" » — parce que la réponse était rédigée comme un rapport, l'agent ignorant que sa prose DEVIENDRAIT cet artefact. Le défaut était dans le contrat, pas dans la rédaction. (2) Un bloc ```json``` TERMINAL, matérialisé en prisme.json par l'exécuteur (tu n'écris JAMAIS ce fichier toi-même) : {"game_id": "<id>", "exigences": [{"id", "source": "EXPECTED"|"ADDITIONS", "source_role", "reference", "observation", "claim", "enonce", "expected_proof": {"kind": "bot_action"|"oracle"|"mutation"|"visual"|"file_write", "statement"}, "destination": "s3-decompo"|"s4-archi"|"s5-wiremap"|"s9-build"}]}. CHAÎNE DE FALSIFIABILITÉ, trois maillons qui doivent DIFFÉRER : `observation` (ce que la source montre) -> `claim` (ce que tu en déduis, et qui peut être faux indépendamment de l'observation) -> `enonce` (ce que le jeu doit alors garantir). Recopier l'un dans l'autre satisfait le schéma sans rien déduire, et rend indécidable le lieu d'une panne : donnée fausse, ou déduction fausse ? RÈGLES DURES : `source` vaut EXPECTED (vu dans un artefact amont -> `reference` est une ADRESSE, jamais une prose : `worldscan:<chemin>` (ex. `worldscan:games[0].objectives[0].victory_condition`, `worldscan:games[0].loops.minute_10`), `story_bible:<id de section>` (ex. `story_bible:stakes`), `gm_worldscan:<id de dimension>` (ex. `gm_worldscan:progression`) — la sonde check_amont_traversal.mjs RÉSOUT chaque adresse dans l'artefact ; une adresse qui ne résout rien compte comme référence non résolue, mesurée et reportée) ou ADDITIONS (ta proposition -> `reference` vaut EXPLICITEMENT null, jamais un champ omis). `CORE` t'est INTERDIT : l'origine d'une exigence CORE est `core_list` par construction, elle ne transite jamais par un modèle. Le champ vocabulaire est celui de la ligne de wiremap v2 (standard/SCHEMA.md §3) : tes exigences sont des lignes candidates. V4 GAME LOOP (GO Pierre 2026-08-22, champs ADDITIFS — ajoutés à la ligne d'exigence ci-dessus, rien retiré) : LE SUJET PLAYER ENTRE DANS LE CONTRAT. Chaque exigence porte désormais `acteur: "PLAYER"|"SYSTEM"` (qui agit) et `loop_role` ∈ {PLAYER_GOAL, PLAYER_ACTION, GAME_RESPONSE, REWARD, DECISION, UNLOCK, NEXT_GOAL, REPEAT, META_LOOP, ADVANTAGE, NONE} (sa position dans la séquence de boucle imposée : PLAYER_GOAL -> PLAYER_ACTION -> GAME_RESPONSE -> REWARD -> DECISION -> UNLOCK -> NEXT_GOAL -> REPEAT -> META_LOOP -> ADVANTAGE ; NONE = exigence produit ordinaire, hors boucle). Une exigence PLAYER porte `affordance` (le nom de la cible cliquable, ex. `acheter_chaton`) OU est un objectif affiché (`observe.hud`). GAMEPLAY CONTRACT (GO Pierre 2026-08-22, 10 maillons A..J, C = AFFORDANCE porté par B) — `observe: {hud, predicate}` est OBLIGATOIRE pour TOUTE exigence de boucle (rôle ≠ NONE), `predicate` ∈ "nonempty" | "increases" | "changes" | "decreases" | "resets" | "new_distinct" | "contains:<txt>" | "appears:<groupe>" | "increases_more_than:<ref>". RÈGLES PAR MAILLON (au-delà d'« au moins une exigence par rôle ») : G (NEXT_GOAL) : AU MOINS DEUX exigences, toutes `observe.predicate: "new_distinct"` sur LE MÊME `observe.hud` (ex. `objectif`) — GOAL_2 doit différer TEXTUELLEMENT de GOAL_1 à l'écran, pas seulement changer de valeur. F (UNLOCK) : au moins une exigence porte, EN PLUS de `affordance`, un champ `observe.appears: "<groupe>"` — la preuve de Progression (nouvelle affordance/HUD/contenu visible après F). H (REPEAT) : au moins une exigence avec `replay: ["<id>", ...]`, la liste des ids d'exigences de rôle B..F (PLAYER_ACTION|GAME_RESPONSE|REWARD|UNLOCK) à rejouer dans le nouvel état — la preuve que la boucle recommence pour de vrai, pas par convention. I (META_LOOP) : au moins une exigence PLAYER avec `affordance` (le geste de prestige) ET `observe` dont le prédicat visible est `decreases` ou `resets` (un reset qui se VOIT, ex. `ronrons` retombe à zéro). J (ADVANTAGE) : au moins une exigence avec `replay_ref: "<id de B>"` (l'id d'une exigence PLAYER_ACTION rejouée après I) et `observe.predicate: "increases_more_than:<le même id>"` — le delta de cette action après le prestige doit être strictement supérieur au delta initial, prouvé par la mesure, jamais par un texte. DECISION (extension 2026-08-23, GO Pierre « contrat exécutable : point de décision + sonde à deux trajectoires », définition ratifiée `studio_brain/gamedesign/kitten_clicker_decision_significative.md`) — entre REWARD et UNLOCK dans la séquence de boucle : AU MOINS une exigence dont `options` porte exactement 2 refs d'exigences de rôle PLAYER_ACTION ou UNLOCK portant chacune `affordance` (les deux affordances DOIVENT être distinctes) ; `policies` porte AU MOINS 2 politiques `{name, click, every_frames}` (noms distincts, `click` = null ou une affordance PLAYER_ACTION existante, `every_frames >= 1` dès que `click` n'est pas null) ; `metric` nomme un `observe.hud` DÉJÀ observé par une autre exigence de boucle ; `horizon_frames` >= 60 ; `observe: {hud: "objectif", predicate}` (le step DECISION s'affiche comme un objectif). Forme figée du plan (exemple concret Kitten Clicker) : `{"loop_role": "DECISION", "options": ["p_buy_kitten", "p_upgrade_click"], "metric": "ronrons", "horizon_frames": 300, "policies": [{"name": "idle", "click": null, "every_frames": 0}, {"name": "actif", "click": "pelote", "every_frames": 3}], "observe": {"hud": "objectif", "predicate": "changes"}}`. RÈGLE : AU MOINS UNE EXIGENCE PAR RÔLE (les 10 rôles de boucle, NONE exclu), PLUS les règles par maillon ci-dessus pour G/F/H/I/J/DECISION — sans quoi la boucle joueur est incomplète et injouable (mesuré, run 7 : boucle atteint G mais s'arrête là — G ne compte qu'un objectif, H et J n'existent pas encore comme maillons). Les rôles PLAYER_ACTION / UNLOCK / META_LOOP sont rédigés à LA VOIX ACTIVE, LE JOUEUR POUR SUJET — jamais la voix passive (« Acheter un chaton fait apparaître… » est REFUSÉ ; « Le joueur peut acheter un chaton en cliquant la cible `acheter_chaton` ; la collection affichée augmente » est attendu). `loop.json` (la boucle dérivée) N'EST JAMAIS ÉCRIT PAR TOI : c'est une PROJECTION DÉTERMINISTE de `prisme.json`, dérivée et matérialisée par l'EXÉCUTEUR après ta réponse. Si tu émets un bloc ```json``` nommé `loop` ou tentes de produire un fichier `loop.json`, il est IGNORÉ. SOURÇAGE GM (Lot B, T3, 2026-08-23, plan `2026-08-23-forge-lot-b-game-master.md`) : toute exigence de boucle (`acteur: "PLAYER"` ou `loop_role` ≠ NONE) doit citer, dans son champ `reference`, une adresse `gm_worldscan:game_master.loops.<loop>.<step_id>` ou `gm_worldscan:game_master.grey_blocks.<id>` — les métriques `progression_metrics` du Game Master sont reprises TELLES QUELLES (jamais réinventées), et les `target` avec leur tolérance. ADDITIF, MESURÉ (jamais gaté avant le run 10, verrou GO Pierre) : `check_prisme_manifest` rapporte `stats.exigences_sourcees_gm` / `stats.exigences_boucle` — baseline mesurée run 9 (avant `game_master`) : 0/13.
+
+## RAPPORT FINAL
+Restitution standard : cite le charter comme ancre ET le reçu de check_prisme_manifest ; liste les exigences classées non actionnables et les références non ancrées ; claim_verdict: NO_CLAIM_ALLOWED. RETURN LINEAGE (doctrine FORGE_CAUSAL_LINEAGE_V2 §3, ratifiee Pierre 2026-08-06) — aucun worker ne meurt seul : le retour porte la CAUSALITE, pas seulement le resultat. Termine TOUJOURS par ce bloc, succes comme echec : `why_task_existed:` {`problem:` le probleme mesure qui a active cette tache · `oracle:` l'oracle ou la mesure qui l'a detecte, ou "aucun" si l'activation vient d'une decision humaine · `root_cause:` la cause racine identifiee, ou "non etablie" · `action_reason:` pourquoi CETTE action y repond} · `result:` l'etat reellement obtenu · `proof:` la commande executee et sa sortie · `learning:` ce que tu as appris et qui resservira, ou "aucun" · `next_reason:` pourquoi le niveau superieur doit agir OU pourquoi la chaine causale est FERMEE et se termine ici. Regles : ces champs sont HERITES ou CONSTATES, jamais inventes — si tu n'as pas recu le `why`, ecris "non transmis" plutot que de le deviner (une cause fabriquee est la meme faute qu'un `validated_by` fabrique). En ECHEC, `result` porte ce que tu as essaye et ce qui a echoue. `next_reason` ne vaut escalade que si une cause non resolue persiste, une preuve manque ou contredit l'etat attendu, ou une correction reste possible — sinon la lignee se termine proprement, sans action supplementaire.
+
+## À LIRE OBLIGATOIREMENT AVANT TOUTE ACTION
+- scripts/forge/contracts/SCHEMA.md
+- charter.yaml produit par l'étape 0
+- story_bible.json (s2.6) et gm_worldscan.json (s2.7) S'ILS SONT PRÉSENTS dans le run_dir : ce sont des SOURCES d'exigences au même titre que le World Scan (profil full_godot_narratif) ; absents => tu le dis, tu ne compenses pas
+- design/progression_contract.md et design/calibration.md (Lot D 2026-08-23, GO Pierre — fuite de mesure fermee : le design n'etait lu par personne) S'ILS SONT PRÉSENTS dans le run_dir : l'ordre des exigences de boucle DANS LE PRISME EST LA PRÉCÉDENCE JOUÉE (loop_spec.mjs les projette dans l'ordre d'apparition, plus jamais par tri alphabétique) — écris-les DANS L'ORDRE OÙ LE JOUEUR LES VIT (P01 -> P12) ; absents => comportement inchangé, tu ne compenses pas
+
+## RÈGLE DE RESTITUTION — Chaque affirmation du final_report doit citer l'oracle/l'ancre non-LLM qui l'appuie. Appuyée par un oracle => software_verdict (OK/FAIL/BLOCKED) + evidence_verdict: MECHANICAL_VALIDATION_ONLY. Sans oracle disponible => claim_verdict: NO_CLAIM_ALLOWED et remonte un besoin HumanGate (fog), jamais un claim auto-certifié. Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement. En dernier lieu, une section finale SKIPPED_VALIDATION, structurée et EXPLICITE : pour chaque validation que tu n'as PAS faite, liste l'item de validation (quoi), le périmètre concerné (où), le statut (ex. non fait / partiel / hors délai) et la raison (pourquoi). Rien sauté => écris `SKIPPED_VALIDATION: aucun` — une décision assumée, jamais un silence. Le silence sur cette section est traité comme un oubli, pas comme 'rien à signaler'. TOUTE DERNIÈRE LIGNE DU RAPPORT, OBLIGATOIRE — lignée Return : une ligne unique `RETURN_REASON: {"status": "NOT_DISCOVERED"}` si tu n'as découvert AUCUN problème pendant ce travail. Si (et SEULEMENT si) tu as réellement découvert un problème — défaut rencontré, cause d'un échec, écart mesuré — écris à la place `RETURN_REASON: {"status": "DISCOVERED", "problem": "<le problème, factuel>", "root_cause": "<la cause racine si connue, sinon omets ce champ>"}`. JSON valide sur UNE seule ligne, aucun texte après. N'invente JAMAIS un problème pour remplir ce champ : un NOT_DISCOVERED honnête vaut mieux qu'un DISCOVERED de complaisance.
+
+## MARQUEUR DE DISPATCH (ne pas modifier)
+FORGE_DISPATCH:s1-prisme:p2_beta-20260830-run1:1
+
+## TÂCHE CONCRÈTE (p2_beta-20260830-run1 / s1-prisme)
+Analyse le concept du projet 'p2_beta' sous les angles ressenti joueur, risques de design et originalité. Artefact narratif, aucun fichier écrit.
+
+## ARTEFACTS AMONT (run_dir)
+
+### artifacts/s2-worldscan.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_beta\artifacts\s2-worldscan.txt)
+Based on my research, here's the world scan analysis for p2_beta (free-design incremental/clicker):
+
+---
+
+## WORLD SCAN: INCREMENTAL/CLICKER ARCHITECTURE OBSERVATION
+
+### Reference Games Analyzed
+
+**1. Cookie Clicker** — The canonical genre reference (2013, Orteil)
+
+The game loop centers on a time-value exchange: players click for immediate cookies, then purchase buildings that replace manual clicking with passive generation. The architectural core is exponential cost scaling—each building costs ~15% more than the previous unit, creating a steady rhythm of "afford → buy → unlock → reinvest." Buildings range from Cursors (1 CpS) to Prisms and Chancemarkers (producing trillions+ CpS), revealing the genre's defining structure: **a single production metric that grows without upper bound**.
+
+Minute 1 loop: click, earn 1 cookie, discover first building. Minute 10 loop: own 3-5 buildings, generate 5-20 CpS passively, visible autoclicker competition. Hour 5 loop: dozens of buildings, prestige contemplation (reset for heavenly chips), discovery of golden cookies (temporary +7% boost), wrinklers (eldritch production drain offering interest payouts). Endgame: prestige layers dominate—each reset grants +1% permanent CpS; cube-root scaling keeps progression asymptotic (reaching level 100 prestige becomes mathematically "forever").
+
+Observable win state: **none.** The game explicitly lacks an ending; players form their own exit criteria (e.g., "maximize prestige," "find all 637 achievements"). Retention driver: **frequent, small rewards** (golden cookies every ~30-60 ticks) + **numerical escalation satisfaction** (watching 1 million become 1 trillion) + **prestige restart cycle** (engineered break points that feel like progress rather than repetition).
+
+**Architectural patterns**: Single-currency production sink, exponential cost curves, prestige/reset bonuses, passive generation gating, achievement framework.
+
+---
+
+**2. Kittens Game** — Multi-resource complexity variant (2013, bloodrizer)
+
+Kittens Game layers resource interdependence atop the incremental foundation. Where Cookie Clicker uses one resource (cookies), Kittens enforces **catnip → wood → minerals → steel** conversion chains with storage caps at each tier. This introduces a meta-game: players must balance production (how many fields?) against storage (how many barns?) against kittens (food required).
+
+Minute 1 loop: gather catnip manually (0.1 catnip/click), discover catnip fields autogenerate. Minute 10 loop: farm fields unlock, wood becomes necessary (cannot progress without harvesting), storage constraints become visible. Hour 5 loop: buildings compete for resources (houses need wood, farms need space), trading mechanics unlock (commerce requiring merchant ships), metaphysics introduce—a reset system (paragon) grants permanent happiness bonuses only after reaching population 35. Endgame: civilization phases unlock (space, discovery, hunting), technology cascades (each research enables 3-5 new techs), karma prestige system (higher resets unlock permanent metaphysics upgrades, accelerating future runs).
+
+Observable win state: **soft end-state at space/endgame discovery, but not mandatory.** Retention driver: **storage puzzle engagement** (players must solve "build more barns or produce less?") + **technology unlock sequence** (each new tech enables visibly new gameplay) + **multi-phase prestige** (karma metaphysics reward long-term engagement across resets) + **offline accumulation** (leave overnight, return to accumulated resources).
+
+**Architectural patterns**: Multi-resource production, storage/capacity limits, production chains (A→B→C), technology trees, prestige with secondary currency (karma/paragon), civilization phases.
+
+---
+
+**3. Clicker Heroes** — Active Damage Progression variant (2014, Hypercube Games)
+
+Clicker Heroes inverts the production metaphor: clicking generates damage (damaging a monster), not resources. Gold (dropped by defeated monsters) is the only resource, spent on heroes (DPS sources) and upgrades. The core loop is **action (click) → outcome (gold) → investment (hero level)** compressing into one tight moment-to-moment feedback.
+
+Minute 1 loop: click monster for 1 damage, earn gold, buy first hero (Cid). Minute 10 loop: 5-10 heroes hired, damage multiplies (Cid does 3× damage, warrior does 5×), monster chains defeat faster. Hour 5 loop: ancients (permanent damage multipliers) purchasable with hero souls (earned from ascension resets), idle bonuses kick in after 60 seconds of inactivity (doubling DPS if you leave the game), prestige cycling becomes optimal. Endgame: transcension (second prestige layer using ancient souls) unlocks, ascended skills become meta (some heroes grant ability-stacking bonuses), optimal ascension timing becomes a math problem.
+
+Observable win state: **none. Damage and monster progression are infinite.** However, players perceive "win states" at ascension breakpoints (e.g., "beat monster 1000, then ascend"). Retention driver: **satisfying click feedback + monster defeat animations** + **idle automation** (AFK rewards rival active play) + **multiple prestige currencies** (hero souls / ancient souls / relics) creating nested loop depth + **hero duels and event bosses** (limited-time variants of normal progression).
+
+**Architectural patterns**: Single action type (click/damage), DPS-based progression, hero/unit acquisition
+[tronqué]
+```json
+{
+  "games": [
+    {
+      "game": "Cookie Clicker",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Cookie_Clicker",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://www.playcookieclicker.com/cookie-clicker-strategy/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://dinogame.gg/blog/how-cookie-clicker-progression-works/",
+          "type": "article",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Click cookie for 1 cookie. Discover first building (Cursor). Early manual clicking dominates.",
+        "minute_10": "Own 3-5 buildings generating 5-20 CpS passively. Buildings cost-scale exponentially (~15% increase per unit). Manual clicks are now negligible vs. autogen.",
+        "hour_5": "Dozens of buildings active. Prestige system visible (heavenly chips reward resetting for +1% permanent CpS). Golden cookies appear (temporary 7% boost, 30-60s intervals). Wrinklers drain production but offer interest payouts.",
+        "endgame": "Prestige layers: hundreds of levels possible but cube-root scaling makes each level harder. Prestige becomes the meta-goal. Multiple achievement tracks (637 total) provide secondary objectives. No hard ending; players define personal win conditions."
+      },
+      "objectives": [
+        {
+          "mode": "freeform",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Maximize prestige level, accumulate cookies to astronomical numbers, discover all 637 achievements, pursue personal goals (e.g., 'reach 1 undecillion cookies')"
+        }
+      ],
+      "retention_answer": "Exponential growth satisfaction + frequent small rewards (golden cookies every 30-60s) + prestige restart cycles (soft resets) + achievement board structure + numerical escalation fantasy (1 → 1 trillion). Players return to experience compounding growth from prestige bonuses and explore new upgrade/feature combinations."
+    },
+    {
+      "game": "Kittens Game",
+      "sources": [
+        {
+          "url": "https://www.kongregate.com/en/games/bloodrizer/kittens-game",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://www.researchgate.net/publication/329336676_The_Pleasure_of_Playing_Less_A_Study_of_Incremental_Games_Through_the_Lens_of_Kittens",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Incremental_game",
+          "type": "wiki",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Gather catnip manually (0.1 catnip/click). Discover catnip fields unlock, beginning passive generation.",
+        "minute_10": "Catnip fields autogenerate. Wood becomes available (requires harvesting). First storage cap encountered: must build barns to hold more catnip. Food constraint emerges: kittens consume catnip.",
+        "hour_5": "Multiple resource chains active (catnip → wood → minerals → steel). Trading mechanics unlock (commerce requiring merchant ships). Prestige/reset system visible (paragon resets grant karma if kitten population ≥35). Metaphysics upgrades purchasable with accumulated paragon.",
+        "endgame": "Space/discovery phases unlock (soft ending). Technology tree cascades (50+ techs, each enabling 3-5 new features). Civilization phases (time travel, astrophysics) become available. Karma prestige cycles reward long-term engagement across multiple resets."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": true,
+          "victory_condition": "Reach space exploration phase (soft ending). Discover all civilization phases. Achieve maximum karma level.",
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Manage resource chains to unlock technology tiers. Optimize prestige timing to maximize karma. Balance production vs. storage to progress without stalling. Unlock and explore all game phases."
+        }
+      ],
+      "retention_answer": "Storage puzzle engagement (players solve 'build more barns or throttle production?') + discovery-based progression (each technology unlock feels like world expansion) + multi-phase prestige (karma system encourages repeat playthroughs with increasing efficiency) + offline accumulation (resources continue growing during absence). Players return to optimize prestige cycles and discover new civilization phases."
+    },
+    {
+      "game": "Clicker Heroes",
+      "sources": [
+        {
+          "url": "https://blog.clickerheroes.com/understanding-clicker-heroes-mechanics-heroes-and-strategies/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://blog.clickerheroes.com/clicker-heroes-the-idle-game-revolution-you-cant-miss/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Clicker_Heroes",
+          "type": "wiki",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Click monster for 1 damage. Monster defeated, gold earned. First hero (Cid) purchased. Damage now passive and multiplied.",
+        "minute_10": "5-10 heroes hired (Cid 3×, Warrior 5×, Archer 10×, etc.). Damage multiplies. Monster chains defeat rapidly. Gold income accelerates. Early upgrades visible.",
+        "hour_5": "Ascension (prestige) becomes attractive: sacrifice all progress for hero souls (permanent DPS multiplier, 10% each). Ancients (permanent upgrades purchased with hero souls) are active (e.g., Atman multiplies gold, Siyalatas boosts idle DPS). Idle detection: after 60s no clicks, damage doubles.",
+        "endgame": "Transcension (second prestige currency, ancient souls) unlocks. Ascended skills enable stacking bonuses (some heroes grant +click damage, others stack for multiplicative gain). Optimal ascension timing becomes a strategic math problem (balance monster progression vs. soul farming)."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Defeat monsters in sequence (1 → 2 → 3 → ...). Ascend at optimal times to maximize hero souls. Acquire and level ancients strategically. Maximize idle DPS. Reach transcension and unlock ascended skills."
+        }
+      ],
+      "retention_answer": "Satisfying click feedback + monster defeat animations + idle automation (passive income rewards AFK play) + multiple prestige currencies (hero souls / ancient souls) enabling nested progression + hero acquisition and leveling providing frequent micro-rewards. Players return to optimize ascension timing and watch exponential DPS growth from ancients."
+    },
+    {
+      "game": "Universal Paperclips",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Universal_Paperclips",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://tvtropes.org/pmwiki/pmwiki.php/VideoGame/UniversalPaperclips",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://universalpaperclips.fandom.com/wiki/Stages",
+          "type": "wiki",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Click to make 1 paperclip. Purchase clipper machine. Passive generation begins.",
+        "minute_10": "Multiple production chains (wire → clips, clips → paperclips). Raw wire purchased from suppliers. First stage (bureaucratic paperclip production) feels complete.",
+        "hour_5": "Marketing strategy unlocks (reputation multiplies clip sales). Processor power becomes a resource (computational cycles purchase upgrades). Hazard remediation introduced (protect probe swarms from black holes). Aware the game has stages beyond production.",
+        "endgame": "Stage 3/4 transition: space probes launched, von Neumann replication begins. Hazard combat systems active (spending to defend swarms). Final choice: accept proposal (restart with artifacts, prestige-like system) or reject (game ends with existential narrative). Both paths are designed endings."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": true,
+          "victory_condition": "Reach stage 4 final choice. Select accept (prestige restart) or reject (permanent ending with narrative closure).",
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Advance through production stages (manual → machinery → marketing → processor → space). Manage hazard/combat resource sinks. Make final choice (accept or reject proposal), triggering story ending."
+        }
+      ],
+      "retention_answer": "Narrative progression + stage-gated gameplay (each stage feels like a new game within the game, preventing repetition fatigue) + existential/strategic tension (hazard combat implies real consequences) + branching ending choice (player agency in final decision). Players return to experience each stage and explore consequences of accept/reject decision. Unlike other incrementals, the hard ending prevents infinite play, making each run feel purposeful."
+    }
+  ],
+  "advisory": true
+}
+```
+
+### artifacts/s2.6-story-bible.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_beta\artifacts\s2.6-story-bible.txt)
+I now have the exact oracle (`check_story_bible`, static_oracles.py:1473) and both upstream anchors. Here is my anchored assessment before producing the block.
+
+**What the two injected sources actually contain:**
+- **worldscan** (`s2-worldscan.txt`): a *genre/architecture* observation of four reference incrementals (Cookie Clicker, Kittens Game, Clicker Heroes, Universal Paperclips), `advisory: true`. It establishes the genre of p2_beta and its structural patterns — it describes **no specific narrative world** (no factions/characters/events of p2_beta).
+- **charter** (`charter.yaml`): the s0 **return-report** (why_task_existed / result / proof / learning / next_reason) of the *free-design (Libre L2)* arm. It **delegates STRUCTURE downstream and forbids inventing it upstream**; it carries process constraints (observable end, solvability ≤ 72000 ticks) but **no fiction**.
+
+Consequence, applied honestly: only **context** (genre frame) and **coherence_rules** (charter constraints) can be anchored. The other **six** sections have no anchor and are declared `NOT_GROUNDED` — an almost-empty but honest bible, as the garde-fou requires.
+
+Here is the terminal artifact block:
+
+```json
+{
+  "game_id": "p2_beta",
+  "inputs_recus": { "worldscan": true, "charter": true },
+  "sections": [
+    {
+      "id": "context",
+      "status": "GROUNDED",
+      "elements": [
+        {
+          "statement": "Le projet p2_beta releve du genre incremental/clicker en conception libre (free-design).",
+          "source": "worldscan",
+          "ref": "en-tete du world scan : 'world scan analysis for p2_beta (free-design incremental/clicker)'",
+          "inferred": false
+        },
+        {
+          "statement": "Le cadre narratif de fond implique par le genre place le joueur en agent d'une production qui croit sans borne superieure ; matiere de contexte, a confirmer en aval, non un monde etabli.",
+          "source": "worldscan",
+          "ref": "Cookie Clicker : 'a single production metric that grows without upper bound'",
+          "inferred": true
+        },
+        {
+          "statement": "Le contenu du monde de p2_beta n'est pas decrit dans les entrees : le charter delegue explicitement la STRUCTURE a l'aval, donc l'univers reste indefini a ce stade de la chaine.",
+          "source": "charter",
+          "ref": "result : 'STRUCTURE explicitly DELEGUEE a l'aval (N2), non inventee ici'",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "id": "chronology",
+      "status": "NOT_GROUNDED",
+      "reason": "Ni le worldscan ni le charter ne fournissent de chronologie du MONDE (eres, ligne du temps de l'univers fictionnel). Le worldscan ne decrit que des boucles de progression de session (minute_1 -> endgame), qui relevent des systemes de jeu : hors perimetre d'une Story Bible, qui dit le monde et non le jeu."
+    },
+    {
+      "id": "stakes",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucun enjeu narratif propre a p2_beta n'est defini dans les entrees. Le charter ne pose qu'un objectif de systemes (fin observable, solvabilite bornee), pas un enjeu de fiction ; parmi les jeux de reference du worldscan, seul Universal Paperclips porte un enjeu existentiel, et c'est une reference de genre, non le monde de p2_beta."
+    },
+    {
+      "id": "factions",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucune faction n'apparait dans le worldscan (observations d'architecture de genre) ni dans le charter (rapport de protocole qui delegue la structure a l'aval). Aucun ancrage possible sans invention."
+    },
+    {
+      "id": "characters",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucun personnage propre a p2_beta n'est fourni. Les heros cites par le worldscan (ex. Cid) appartiennent a Clicker Heroes, jeu de reference, et non au monde de p2_beta ; les importer serait une fabrication."
+    },
+    {
+      "id": "relations",
+      "status": "NOT_GROUNDED",
+      "reason": "Sans faction ni personnage ancres, aucune relation ne peut l'etre : cette section depend d'entites que les entrees ne fournissent pas."
+    },
+    {
+      "id": "events",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucun evenement du monde de p2_beta n'est decrit. Le worldscan ne cite que des mecaniques de session (golden cookies, ascension, prestige) propres aux jeux de reference, pas des evenements de l'univers de p2_beta."
+    },
+    {
+      "id": "coherence_rules",
+      "status": "GROUNDED",
+      "elements": [
+        {
+          "statement": "Toute matiere narrative ajoutee en aval doit etre ancree, jamais fabriquee : le charter delegue la structure et proscrit d'inventer des valeurs structurelles en amont.",
+          "source": "charter",
+          "ref": "learning : 's0 ne doit PAS inventer de valeurs structurelles ... Le charter porte la frontiere, pas le design'",
+          "inferred": true
+        },
+        {
+          "statement": "La narration doit rester compatible avec une experience qui se CONCLUT : le charter impose une fin observable et une solvabilite bornee (<= 72000 ticks), contrairement a l'endlessness canonique du genre (Cookie Clicker : aucun etat de victoire).",
+          "source": "charter",
+          "ref": "learning : 'il pose le CADRE et les CONTRAINTES (fin observable, solvabilite <= 72000 ticks, isolement de bras)'",
+          "inferred": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## RAPPORT FINAL — s2.6-story-bible / p2_beta-20260830-run1
+
+**Ancres citees (entrees reelles injectees en amont) :**
+- `worldscan` — `lab/forge_runs/p2_beta/artifacts/s2-worldscan.txt` : observation de genre incremental/clicker, `advisory: true`, 4 jeux de reference. **Present** dans mon contexte.
+- `charter` — `lab/forge_runs/p2_beta/charter.yaml` : rapport de retour s0 du bras Libre (L2), delegation explicite de la STRUCTURE, contraintes de protocole. **Present** dans mon contexte.
+- `inputs_recus` declare sincerement : `{worldscan: true, charter: true}` — les deux entrees etaient reellement portees par mon contexte.
+
+**Oracle de reference :** `forge.static_oracles.check_story_bible` (lu a `scripts/forge/static_oracles.py:1473`). J'ai **construit le bloc contre son code source** : 8 sections/8 (une fois chacune), `status ∈ {GROUNDED, NOT_GROUNDED}`, chaque GROUNDED porte ≥1 element complet (`statement`/`ref` non vides, `source ∈ {worldscan, charter}`, `inferred` booleen), chaque NOT_GROUNDED porte une `reason` non vide, aucun placeholder (`tbd/todo/xxx/???/à définir`) dans une valeur.
+
+**Sections NOT_GROUNDED et leur raison (6/8) :**
+- `chronology` — pas de chronologie du monde ; les boucles minute_1→endgame sont des systemes de session, hors perimetre.
+- `stakes` — aucun enjeu de fiction de p2_beta ; l'objectif du charter est systemique, pas narratif.
+- `factions` — aucune faction dans les deux entrees.
+- `characters` — aucun personnage de p2_beta ; les heros du worldscan appartiennent aux jeux de reference.
+- `relations` — depend d'entites (factions/personnages) que les entrees ne fournissent pas.
+- `events` — aucun evenement du monde ; seules des mecaniques de session de reference sont citees.
+
+**Sections GROUNDED (2/8) :** `context` (genre + cadre + delegation) et `coherence_rules` (2 contraintes du charter, marquees `inferred: true`). Aucun element de faction/personnage/evenement invente — bible presque vide mais ancree, conforme au garde-fou.
+
+**Verdicts :**
+- Je n'ai **execute aucun oracle** (`permissions run: aucun` ; Bash/Grep/Glob desactives dans cette session). Mon controle de conformite est une **LECTURE** du code de `check_story_bible`, pas une execution : l'oracle sera lance par l'executeur (`run_real.py`) apres materialisation de `story_bible.json`.
+- `software_verdict:` **BLOCKED** *(non prouvable par cet agent — l'oracle existe mais n'a pas ete execute ici ; recu a produire par l'executeur en aval).*
+- `evidence_verdict:` **MECHANICAL_VALIDATION_ONLY** *(ne s'applique qu'a la portee du recu executeur — pas revendique par moi)*.
+- `claim_verdict:` **NO_CLAIM_ALLOWED** *(la conformite au schema et la pertinence des inferences relevent du recu executeur + HumanGate ; fog remonte : l'execution de check_story_bible et le jugement narratif appartiennent a l'aval)*.
+
+**SKIPPED_VALIDATION :**
+- item: execution de `forge.static_oracles.check_story_bible` sur le bloc produit · perimetre: `story_bible.json` (p2_beta run1) · statut: **non fait** · raison: `run: aucun` + outils shell/recherche desactives ; l'execution appartient a `run_real.py` apres materialisation. Conformite verifiee par **lecture** du code (static_oracles.py:1473), non par execution.
+- item: fidelite de chaque `ref` a son passage source · perimetre: elements GROUNDED (context, coherence_rules) · statut: **partiel** · raison: l'oracle lui-meme ne verifie pas la fidelite (limite declaree dans sa docstring) ; j'ai cite verbatim des passages presents dans les entrees injectees, mais aucun mecanisme ne le prouve mecaniquement.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le charter injecte en amont a s2.6 est le rapport de retour s0 (why_task_existed/result/proof/learning/next_reason), pas le charter a champs de design-intent : il MENTIONNE que plateforme_cible/reference_jeu/criteres_demo ont ete traces a des sources Pierre, sans en porter les VALEURS. s2.6 ne peut donc ancrer ni plateforme, ni jeu de reference, ni criteres, au-dela du genre issu du worldscan ; 6/8 sections narratives sont structurellement NOT_GROUNDED.", "root_cause": "Le bras Libre delegue explicitement la STRUCTURE a l'aval et le contenu du charter transmis est sa forme de retour meta, non ses champs de charter valides par check_charter — l'univers est intentionnellement indefini a ce point de la chaine, et aucune valeur de design-intent n'est materialisee dans l'entree recue."}
+
+### artifacts/s2.7-gm-worldscan.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_beta\artifacts\s2.7-gm-worldscan.txt)
+
+[tronqué]
+```json
+{
+  "genre": "incremental/clicker (free-design, bounded observable end)",
+  "games_observed": ["Cookie Clicker", "Kittens Game", "Clicker Heroes", "Universal Paperclips"],
+  "dimensions": [
+    {
+      "id": "combat",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "click_damage_base", "value": 1, "unit": "damage/click", "source": "https://en.wikipedia.org/wiki/Clicker_Heroes", "observed": true},
+        {"name": "first_hero_dps_multiplier", "value": 3, "unit": "x_damage", "source": "https://blog.clickerheroes.com/understanding-clicker-heroes-mechanics-heroes-and-strategies/ (Cid ~3x)", "observed": true},
+        {"name": "idle_dps_activation_delay", "value": 60, "unit": "s", "source": "https://en.wikipedia.org/wiki/Clicker_Heroes (idle: DPS doubles after 60s)", "observed": true}
+      ]
+    },
+    {
+      "id": "progression",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "generator_cost_multiplier", "value": 1.15, "unit": "ratio_per_unit", "source": "https://en.wikipedia.org/wiki/Cookie_Clicker (~15% cost increase per building)", "observed": true},
+        {"name": "prestige_bonus_per_level", "value": 1, "unit": "percent_CpS_per_level", "source": "https://en.wikipedia.org/wiki/Cookie_Clicker (heavenly chips +1% permanent CpS)", "observed": true},
+        {"name": "hero_soul_dps_bonus", "value": 10, "unit": "percent_DPS_per_soul", "source": "https://en.wikipedia.org/wiki/Clicker_Heroes (hero souls +10% each)", "observed": true},
+        {"name": "prestige_late_scaling", "value": 1, "unit": "cube_root_asymptotic", "source": "https://en.wikipedia.org/wiki/Cookie_Clicker (cube-root prestige scaling)", "observed": false}
+      ]
+    },
+    {
+      "id": "economy",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "resource_chain_depth", "value": 4, "unit": "tiers", "source": "https://www.kongregate.com/en/games/bloodrizer/kittens-game (catnip->wood->minerals->steel)", "observed": true},
+        {"name": "starting_click_yield", "value": 0.1, "unit": "catnip/click", "source": "https://www.kongregate.com/en/games/bloodrizer/kittens-game (0.1 catnip/click)", "observed": true},
+        {"name": "base_building_cost", "value": 15, "unit": "cookies", "source": "https://en.wikipedia.org/wiki/Cookie_Clicker (Cursor base cost 15)", "observed": true}
+      ]
+    },
+    {
+      "id": "rng",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "golden_cookie_interval_min", "value": 30, "unit": "s", "source": "https://en.wikipedia.org/wiki/Cookie_Clicker (golden cookies every 30-60s)", "observed": true},
+        {"name": "golden_cookie_interval_max", "value": 60, "unit": "s", "source": "https://en.wikipedia.org/wiki/Cookie_Clicker (golden cookies every 30-60s)", "observed": true},
+        {"name": "golden_cookie_boost", "value": 7, "unit": "percent_transient_production", "source": "https://en.wikipedia.org/wiki/Cookie_Clicker (+7% temporary boost)", "observed": true}
+      ]
+    },
+    {
+      "id": "rarity",
+      "status": "NOT_MEASURED",
+      "reason": "Les 4 incrementals de reference (Cookie Clicker, Kittens Game, Clicker Heroes, Universal Paperclips) n'exposent aucun systeme de rarete de butin a distribution de poids de tirage publiee. La rarete n'est pas un axe structurel du genre canonique : la progression est bornee par des courbes de cout (x1.15) et des seuils, pas par un tirage d'objet rare. Aucune distribution numerique sourcable n'est disponible ; declarer une valeur serait une fabrication."
+    },
+    {
+      "id": "bonus",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "transient_click_boost", "value": 7, "unit": "percent", "source": "https://en.wikipedia.org/wiki/Cookie_Clicker (golden cookie +7%)", "observed": true},
+        {"name": "idle_dps_multiplier", "value": 2, "unit": "x", "source": "https://en.wikipedia.org/wiki/Clicker_Heroes (idle -> DPS doubles after 60s)", "observed": true},
+        {"name": "prestige_permanent_bonus", "value": 1, "unit": "percent_per_level", "source": "https://en.wikipedia.org/wiki/Cookie_Clicker (heavenly chips +1%/level)", "observed": true}
+      ]
+    },
+    {
+      "id": "metagame",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "prestige_layers", "value": 2, "unit": "layers", "source": "https://en.wikipedia.org/wiki/Clicker_Heroes (ascension + transcension)", "observed": true},
+        {"name": "prestige_reset_population_threshold", "value": 35, "unit": "kittens", "source": "https://www.kongregate.com/en/games/bloodrizer/kittens-game (paragon at population >=35)", "observed": true},
+        {"name": "achievement_count", "value": 637, "unit": "achievements", "source": "https://en.wikipedia.org/wiki/Cookie_Clicker (637 total achievements)", "observed": true}
+      ]
+    },
+    {
+      "id": "construction",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "tech_tree_size", "value": 50, "unit": "techs", "source": "https://en.wikipedia.org/wiki/Incremental_game + Kittens Game (50+ techs, each enabling 3-5 more)", "observed": true},
+        {"name": "production_stages", "value": 4, "unit": "stages", "source": "https://universalpaperclips.fandom.com/wiki/Stages (4 production stages)", "observed": true},
+        {"name": "building_types", "value": 18, "unit": "building_types", "source": "https://en.wikipedia.org/wiki/Cookie_Clicker (Cursor..Chancemaker, ~18 buildings)", "observed": false}
+      ]
+    }
+  ],
+  "sources_consumed": {
+    "worldscan": ["worldscan:games[0].loops.minute_1", "worldscan:games[0].loops.minute_10", "worldscan:games[0].retention_answer", "worldscan:games[3].objectives[0].victory_condition"],
+    "story_bible": ["story_bible:context", "story_bible:coherence_rules"],
+    "art_bible": ["art_bible:heritage_story_bible", "art_bible:world_constraints"]
+  },
+  "game_master": {
+    "world_interpretation": [
+      {"fact": "Le jeu est un incremental/clicker dont la boucle d'entree est cliquer pour produire 1 unite puis acheter de la generation passive.", "source": "worldscan:games[0].loops.minute_1"},
+      {"fact": "La retention du genre repose sur l'escalade numerique et des recompenses frequentes de faible valeur (jeton toutes les 30-60s).", "source": "worldscan:games[0].retention_answer"},
+      {"fact": "Le cout des generateurs croit exponentiellement (~x1.15 par unite), ce qui pace le rythme afford->buy->unlock.", "source": "worldscan:games[0].loops.minute_10"},
+      {"fact": "Contrairement a l'endlessness canonique, ce jeu doit posseder une fin OBSERVABLE et bornee (<=72000 ticks), matiere qui contraint la conception vers une fin CONcUE.", "source": "story_bible:coherence_rules"},
+      {"fact": "Le sujet/theme est indefini a ce stade : l'univers reste a decider en aval, donc l'identite mecanique se concoit agnostiquement au theme.", "source": "story_bible:context"}
+    ],
+    "loops": {
+      "core_loop": {
+        "steps": [
+          {"id": "core_action", "kind": "action", "actor": "PLAYER", "why": "le joueur presse la cible centrale pour produire une unite", "metric_ref": "m_core_clicks", "proof_ref": "proof_core", "affordance": "click_target"},
+          {"id": "core_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "la cible reagit visiblement (animation d'appui) confirmant l'entree", "metric_ref": "m_core_clicks", "proof_ref": "proof_core"},
+          {"id": "core_reward", "kind": "reward", "actor": "SYSTEM", "why": "un flotteur +N et le total qui monte confirment le gain", "metric_ref": "m_core_clicks", "proof_ref": "proof_core", "hud": "resource_counter"},
+          {"id": "core_progression", "kind": "progression", "actor": "SYSTEM", "why": "les unites accumulees approchent le cout du premier generateur", "metric_ref": "m_core_clicks", "proof_ref": "proof_core"},
+          {"id": "core_decision", "kind": "decision", "actor": "PLAYER", "why": "continuer a cliquer maintenant ou attendre d'acheter le premier generateur", "metric_ref": "m_core_clicks", "proof_ref": "proof_core"}
+        ],
+        "produces": "unites + feedback de clic",
+        "consumes": ["meta_loop"],
+        "unlocks": ["gameplay_loop"],
+        "transformation_perceptible": {"text": "chaque appui fait reagir la cible centrale et fait monter le total d'un cran", "proof_ref": "proof_core"},
+        "metric_propre": "m_core_clicks"
+      },
+      "gameplay_loop": {
+        "steps": [
+          {"id": "gp_action", "kind": "action", "actor": "PLAYER", "why": "le joueur laisse tourner ses generateurs et revient a un total accru", "metric_ref": "m_gameplay_idle_ramp", "proof_ref": "proof_gameplay", "affordance": "generator_row"},
+          {"id": "gp_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "l'afficheur unites/seconde montre le passif depassant le clic manuel", "metric_ref": "m_gameplay_idle_ramp", "proof_ref": "proof_gameplay", "hud": "cps_readout"},
+          {"id": "gp_reward", "kind": "reward", "actor": "SYSTEM", "why": "le total grimpe sans entree, recompensant l'achat", "metric_ref": "m_gameplay_idle_ramp", "proof_ref": "proof_gameplay"},
+          {"id": "gp_progression", "kind": "progression", "actor": "SYSTEM", "why": "le revenu passif s'accumule vers le cout du prochain generateur/upgrade", "metric_ref": "m_gameplay_idle_ramp", "proof_ref": "proof_gameplay"},
+          {"id": "gp_decision", "kind": "decision", "actor": "PLAYER", "why": "reinvestir dans plus de generateurs ou dans une upgrade multiplicatrice", "metric_ref": "m_gameplay_idle_ramp", "proof_ref": "proof_gameplay"}
+        ],
+        "produces": "flux passif soutenu d'unites (revenu idle)",
+        "consumes": ["core_loop"],
+        "unlocks": ["economy_loop"],
+        "transformation_perceptible": {"text": "le revenu continue pendant l'inactivite; le CpS depasse le rendement du clic manuel en 20-60s", "proof_ref": "proof_gameplay"},
+        "metric_propre": "m_gameplay_idle_ramp"
+      },
+      "economy_loop": {
+        "steps": [
+          {"id": "eco_action", "kind": "action", "actor": "PLAYER", "why": "le joueur depense des unites pour acheter le generateur suivant a son cout escalade", "metric_ref": "m_economy_cost_mult", "proof_ref": "proof_economy", "affordance": "buy_button"},
+          {"id": "eco_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le bouton d'achat montre payable/non-payable et le nouveau cout apres achat", "metric_ref": "m_economy_cost_mult", "proof_ref": "proof_economy", "hud": "buy_button"},
+          {"id": "eco_reward", "kind": "reward", "actor": "SYSTEM", "why": "le compte possede s'incremente et le revenu monte immediatement", "metric_ref": "m_economy_cost_mult", "proof_ref": "proof_economy"},
+          {"id": "eco_progression", "kind": "progression", "actor": "SYSTEM", "why": "chaque achat releve le cout suivant de x1.15, pacant le rythme afford->buy", "metric_ref": "m_economy_cost_mult", "proof_ref": "proof_economy"},
+          {"id": "eco_decision", "kind": "decision", "actor": "PLAYER", "why": "acheter le generateur bon marche maintenant ou economiser pour un tier superieur", "metric_ref": "m_economy_cost_mult", "proof_ref": "proof_economy"}
+        ],
+        "produces": "achats de generateurs/upgrades (unites depensees, revenu accru)",
+        "consumes": ["gameplay_loop"],
+        "unlocks": ["progression_loop", "content_loop"],
+        "transformation_perceptible": {"text": "acheter releve visiblement le cout suivant et le taux de revenu; le bouton bascule entre payable et non-payable", "proof_ref": "proof_economy"},
+        "metric_propre": "m_economy_cost_mult"
+      },
+      "progression_loop": {
+        "steps": [
+          {"id": "prog_action", "kind": "action", "actor": "PLAYER", "why": "le joueur atteint un seuil cumule qui deverrouille un nouveau tier", "metric_ref": "m_progression_tier_time", "proof_ref": "proof_progression", "affordance": "tier_track"},
+          {"id": "prog_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "une banniere de palier marque le franchissement du tier", "metric_ref": "m_progression_tier_time", "proof_ref": "proof_progression"},
+          {"id": "prog_reward", "kind": "reward", "actor": "SYSTEM", "why": "une nouvelle famille de generateurs / tuile d'upgrade devient disponible", "metric_ref": "m_progression_tier_time", "proof_ref": "proof_progression"},
+          {"id": "prog_progression", "kind": "progression", "actor": "SYSTEM", "why": "les tiers se deverrouillent sur une cadence cible de 120-300s chacun", "metric_ref": "m_progression_tier_time", "proof_ref": "proof_progression"},
+          {"id": "prog_decision", "kind": "decision", "actor": "PLAYER", "why": "pousser vers le tier suivant ou consolider la production actuelle d'abord", "metric_ref": "m_progression_tier_time", "proof_ref": "proof_progression"}
+        ],
+        "produces": "tiers deverrouilles et seuils de palier",
+        "consumes": ["economy_loop"],
+        "unlocks": ["skill_loop", "world_loop"],
+        "transformation_perceptible": {"text": "franchir un seuil revele un tier auparavant verrouille - une nouvelle famille achetable apparait", "proof_ref": "proof_progression"},
+        "metric_propre": "m_progression_tier_time"
+      },
+      "content_loop": {
+        "steps": [
+          {"id": "cont_action", "kind": "action", "actor": "PLAYER", "why": "le joueur explore les nouvelles familles de generateurs et upgrades deverrouillees", "metric_ref": "m_content_new_families", "proof_ref": "proof_content", "affordance": "catalog"},
+          {"id": "cont_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le catalogue montre le nombre de familles distinctes desormais disponibles", "metric_ref": "m_content_new_families", "proof_ref": "proof_content"},
+          {"id": "cont_reward", "kind": "reward", "actor": "SYSTEM", "why": "chaque nouvelle famille offre un role de production plus fort que la precedente", "metric_ref": "m_content_new_families", "proof_ref": "proof_content"},
+          {"id": "cont_progression", "kind": "progression", "actor": "SYSTEM", "why": "la variete de familles croit au fil du run, entretenant la nouveaute", "metric_ref": "m_content_new_families", "proof_ref": "proof_content"},
+          {"id": "cont_decision", "kind": "decision", "actor": "PLAYER", "why": "se specialiser sur une famille ou diversifier sur plusieurs", "metric_ref": "m_content_new_families", "proof_ref": "proof_content"}
+        ],
+        "produces": "nouvelles familles de generateurs et options d'upgrade",
+        "consumes": ["economy_loop", "progression_loop"],
+        "unlocks": ["quest_loop", "world_loop"],
+        "transformation_perceptible": {"text": "le catalogue gagne des familles visiblement distinctes que le joueur ne pouvait pas acheter avant", "proof_ref": "proof_content"},
+        "metric_propre": "m_content_new_families"
+      },
+      "skill_loop": {
+        "steps": [
+          {"id": "skill_action", "kind": "action", "actor": "PLAYER", "why": "le joueur alloue ses unites et time ses achats pour le meilleur debit", "metric_ref": "m_skill_alloc_decisions", "proof_ref": "proof_skill", "affordance": "buy_panel"},
+          {"id": "skill_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le taux de revenu repond immediatement aux choix d'allocation", "metric_ref": "m_skill_alloc_decisions", "proof_ref": "proof_skill", "hud": "cps_readout"},
+          {"id": "skill_reward", "kind": "reward", "actor": "SYSTEM", "why": "un bon timing donne une montee visiblement plus rapide qu'une depense naive", "metric_ref": "m_skill_alloc_decisions", "proof_ref": "proof_skill"},
+          {"id": "skill_progression", "kind": "progression", "actor": "SYSTEM", "why": "un jeu efficient raccourcit le temps-vers-seuil a travers les tiers", "metric_ref": "m_skill_alloc_decisions", "proof_ref": "proof_skill"},
+          {"id": "skill_decision", "kind": "decision", "actor": "PLAYER", "why": "depenser en producteurs bruts, en multiplicateurs, ou attendre une fenetre de jeton bonus", "metric_ref": "m_skill_alloc_decisions", "proof_ref": "proof_skill"}
+        ],
+        "produces": "decisions d'optimisation (allocation et timing)",
+        "consumes": ["gameplay_loop", "progression_loop"],
+        "unlocks": ["meta_loop"],
+        "transformation_perceptible": {"text": "une allocation bien timee fait bondir le CpS plus vite qu'une depense equivalente mal timee", "proof_ref": "proof_skill"},
+        "metric_propre": "m_skill_alloc_decisions"
+      },
+      "world_loop": {
+        "steps": [
+          {"id": "world_action", "kind": "action", "actor": "PLAYER", "why": "le joueur atteint un seuil de stage qui ouvre une nouvelle phase/zone", "metric_ref": "m_world_stage_threshold", "proof_ref": "proof_world", "affordance": "stage_gate"},
+          {"id": "world_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "la surface de jeu change visiblement vers le nouveau stage", "metric_ref": "m_world_stage_threshold", "proof_ref": "proof_world"},
+          {"id": "world_reward", "kind": "reward", "actor": "SYSTEM", "why": "le nouveau stage introduit une mecanique ou un jeu de producteurs frais", "metric_ref": "m_world_stage_threshold", "proof_ref": "proof_world"},
+          {"id": "world_progression", "kind": "progression", "actor": "SYSTEM", "why": "cinq stages jalonnent le chemin vers la fin observable", "metric_ref": "m_world_stage_threshold", "proof_ref": "proof_world"},
+          {"id": "world_decision", "kind": "decision", "actor": "PLAYER", "why": "rusher le stage suivant ou exploiter pleinement le stage courant d'abord", "metric_ref": "m_world_stage_threshold", "proof_ref": "proof_world"}
+        ],
+        "produces": "transitions de stage/phase (surface de jeu changee)",
+        "consumes": ["progression_loop", "content_loop"],
+        "unlocks": ["quest_loop"],
+        "transformation_perceptible": {"text": "franchir un seuil de stage remplace la surface de jeu par une phase visiblement differente - un changement de scene, pas un pourcentage", "proof_ref": "proof_world"},
+        "metric_propre": "m_world_stage_threshold"
+      },
+      "quest_loop": {
+        "steps": [
+          {"id": "quest_action", "kind": "action", "actor": "PLAYER", "why": "le joueur poursuit l'objectif suivi courant", "metric_ref": "m_quest_completion", "proof_ref": "proof_quest", "affordance": "quest_tracker"},
+          {"id": "quest_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le tracker montre la progression vers l'objectif", "metric_ref": "m_quest_completion", "proof_ref": "proof_quest", "hud": "quest_tracker"},
+          {"id": "quest_reward", "kind": "reward", "actor": "SYSTEM", "why": "completer un objectif accorde une recompense unites/multiplicateur et revele le suivant", "metric_ref": "m_quest_completion", "proof_ref": "proof_quest"},
+          {"id": "quest_progression", "kind": "progression", "actor": "SYSTEM", "why": "3-12 objectifs enchainent le joueur vers la jauge de fin", "metric_ref": "m_quest_completion", "proof_ref": "proof_quest"},
+          {"id": "quest_decision", "kind": "decision", "actor": "PLAYER", "why": "chasser l'objectif courant ou une opportunite hors-piste", "metric_ref": "m_quest_completion", "proof_ref": "proof_quest"}
+        ],
+        "produces": "objectifs completes et guidage du prochain pas",
+        "consumes": ["content_loop", "world_loop"],
+        "unlocks": ["meta_loop"],
+        "transformation_perceptible": {"text": "finir un objectif fait avancer le tracker et revele un nouveau prochain pas concret", "proof_ref": "proof_quest"},
+        "metric_propre": "m_quest_completion"
+      },
+      "meta_loop": {
+        "steps": [
+          {"id": "meta_action", "kind": "action", "actor": "PLAYER", "why": "le joueur pousse la jauge de fin vers la completion dans le budget de ticks", "metric_ref": "m_meta_end_ticks", "proof_ref": "proof_meta", "affordance": "end_gauge"},
+          {"id": "meta_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "la jauge de fin montre a quel point le run est proche de la fin observable", "metric_ref": "m_meta_end_ticks", "proof_ref": "proof_meta", "hud": "end_gauge"},
+          {"id": "meta_reward", "kind": "reward", "actor": "SYSTEM", "why": "atteindre 100% declenche un ecran de victoire avec les totaux finaux", "metric_ref": "m_meta_end_ticks", "proof_ref": "proof_meta"},
+          {"id": "meta_progression", "kind": "progression", "actor": "SYSTEM", "why": "la fin est atteignable en <=72000 ticks, bornant le run", "metric_ref": "m_meta_end_ticks", "proof_ref": "proof_meta"},
+          {"id": "meta_decision", "kind": "decision", "actor": "PLAYER", "why": "conclure a l'ecran de victoire ou entamer un unique nouveau cycle borne", "metric_ref": "m_meta_end_ticks", "proof_ref": "proof_meta"}
+        ],
+        "produces": "une fin observable bornee et une graine optionnelle de relance bornee",
+        "consumes": ["skill_loop", "quest_loop"],
+        "unlocks": ["core_loop"],
+        "transformation_perceptible": {"text": "la jauge de fin se remplit a 100% et une vraie scene de victoire remplace la surface de jeu", "proof_ref": "proof_meta"},
+        "metric_propre": "m_meta_end_ticks"
+      }
+    },
+    "economy_model": {
+      "resources": [
+        {"id": "units", "unit": "unit", "sources": ["manual_click", "passive_generators", "bonus_token"], "sinks": ["generator_purchase", "upgrade_purchase"], "initial_stock": 0}
+      ],
+      "formulas": [
+        {"id": "generator_cost", "text": "cost(n) = base_cost * multiplier^n", "params": {"base_cost": 15, "multiplier": 1.15}},
+        {"id": "idle_income", "text": "cps = sum_over_generators(count_i * yield_i) * upgrade_multiplier", "params": {"upgrade_multiplier_base": 1}},
+        {"id": "end_progress", "text": "progress = min(1, elapsed_ticks / end_ticks) gated by stage_thresholds and quest_completion", "params": {"end_ticks": 72000, "stages": 5}}
+      ]
+    },
+    "progression_metrics": [
+      {"id": "m_core_clicks", "kind": "observation", "unit": "units/click", "why": "rendement du clic manuel; feel tactile de base mesure sur run reel"},
+      {"id": "m_gameplay_idle_ramp", "kind": "target", "range": {"min": 20, "max": 60}, "unit": "s", "why": "temps pour que le revenu passif depasse le clic manuel (Cookie Clicker minute_10: manuel negligeable vs autogen)"},
+      {"id": "m_economy_cost_mult", "kind": "invariant", "value": 1.15, "unit": "ratio", "why": "multiplicateur de cout exponentiel par unite de generateur (Cookie Clicker ~15%)"},
+      {"id": "m_progression_tier_time", "kind": "target", "range": {"min": 120, "max": 300}, "unit": "s", "why": "temps cible pour deverrouiller chaque tier successif; decouverte pacee"},
+      {"id": "m_content_new_families", "kind": "observation", "unit": "families", "why": "nombre de familles de generateurs distinctes revelees sur un run"},
+      {"id": "m_skill_alloc_decisions", "kind": "observation", "unit": "decisions/run", "why": "decisions d'allocation/timing reellement prises par le joueur"},
+      {"id": "m_world_stage_threshold", "kind": "invariant", "value": 5, "unit": "stages", "why": "nombre de seuils de stage sur le chemin de la fin observable (Universal Paperclips est stage-gated)"},
+      {"id": "m_quest_completion", "kind": "target", "range": {"min": 3, "max": 12}, "unit": "quests", "why": "objectifs completes en route vers la jauge de fin"},
+      {"id": "m_meta_end_ticks", "kind": "invariant", "value": 72000, "unit": "ticks", "why": "fin observable bornee imposee par le charter (story_bible:coherence_rules <=72000 ticks)"}
+    ],
+    "proof_model": [
+      {"id": "proof_core", "measures": "m_core_clicks", "how": "player_loop", "expected": "chaque appui incremente le total du click-value courant et fait apparaitre un flotteur +N"},
+      {"id": "proof_gameplay", "measures": "m_gameplay_idle_ramp", "how": "player_loop", "expected": "le CpS depasse le rendement du clic manuel dans les 20-60s apres possession de generateurs"},
+      {"id": "proof_economy", "measures": "m_economy_cost_mult", "how": "registry", "expected": "le cout du n-ieme generateur egale base*1.15^n exactement"},
+      {"id": "proof_progression", "measures": "m_progression_tier_time", "how": "player_loop", "expected": "chaque tier se deverrouille dans la bande cible 120-300s sur un run de reference"},
+      {"id": "proof_content", "measures": "m_content_new_families", "how": "registry", "expected": "le catalogue de familles croit a au moins 2 familles distinctes sur un run"},
+      {"id": "proof_skill", "measures": "m_skill_alloc_decisions", "how": "decision", "expected": "au moins un choix depenser-vs-economiser / timing est presente par tier"},
+      {"id": "proof_world", "measures": "m_world_stage_threshold", "how": "registry", "expected": "exactement 5 seuils de stage jalonnent le chemin vers la fin"},
+      {"id": "proof_quest", "measures": "m_quest_completion", "how": "hud", "expected": "le tracker de quete s'incremente; 3-12 quetes completees avant que la jauge de fin ne se remplisse"},
+      {"id": "proof_meta", "measures": "m_meta_end_ticks", "how": "hud", "expected": "la jauge de fin atteint 100% a <=72000 ticks et la scene de victoire remplace le jeu"}
+    ],
+    "grey_blocks": [
+      {"id": "gb_click_target", "type": "ITEM", "role": "AFFORDANCE", "state": "AVAILABLE", "requires": [], "player_meaning": "Voici ce que je presse pour produire.", "builder_contract": "sprite pressable central avec etats idle/pressed/milestone; a l'appui emet un flotteur +N et incremente les unites; l'etat milestone change visiblement l'apparence a un palier franchi (nouvelle interaction: la cible devient plus reactive)", "proof_ref": "proof_core"},
+      {"id": "gb_generator", "type": "ITEM", "role": "CONTENT", "state": "LOCKED", "requires": ["gb_click_target"], "player_meaning": "Une machine qui produit pour moi pendant que je suis inactif.", "builder_contract": "ligne d'achat: locked (grisee, cout affiche) -> affordable (sarcelle, achetable) -> owned (badge de compte); acheter depense des unites et ajoute une nouvelle source de revenu passif a la scene (rangee de generateur qui apparait et anime son debit)", "proof_ref": "proof_gameplay", "unlock": ["gb_upgrade"], "next_goal": "Achete ta premiere upgrade pour multiplier ta production."},
+      {"id": "gb_upgrade", "type": "ITEM", "role": "REWARD", "state": "LOCKED", "requires": ["gb_generator"], "player_meaning": "Un boost unique qui multiplie ma production.", "builder_contract": "tuile d'upgrade: locked -> affordable -> consumed(owned); appliquer un multiplicateur nomme qui change visiblement le CpS et l'aspect de la tuile (nouvelle interaction: la tuile s'active et le readout saute)", "proof_ref": "proof_content", "unlock": ["gb_stage_gate"], "next_goal": "Accumule vers le premier seuil de stage."},
+      {"id": "gb_bonus_token", "type": "ITEM", "role": "REWARD", "state": "AVAILABLE", "requires": [], "player_meaning": "Un bonus fugace que je peux attraper pour un pic.", "builder_contract": "jeton qui apparait a intervalle, derive dans la scene, cliquable pour un boost temporaire; disparait s'il est manque (nouvelle interaction: une cible mobile a attraper distincte de la cible centrale)", "proof_ref": "proof_core"},
+      {"id": "gb_stage_gate", "type": "LOCATION", "role": "PROGRESSION_GATE", "state": "LOCKED", "requires": ["m_world_stage_threshold"], "player_meaning": "Une nouvelle zone/phase s'ouvre quand j'ai assez grandi.", "builder_contract": "transitions de stage (5 stages) qui changent visiblement la surface de jeu quand les seuils sont atteints - une nouvelle scene avec un jeu de producteurs different, pas un +X%", "proof_ref": "proof_world", "unlock": ["gb_end_gauge"], "next_goal": "Avance a travers tous les stages pour atteindre la fin."},
+      {"id": "gb_end_gauge", "type": "UI", "role": "FEEDBACK", "state": "AVAILABLE", "requires": ["m_meta_end_ticks"], "player_meaning": "A quel point je suis proche de terminer.", "builder_contract": "barre de progression persistante vers la fin observable; se remplit a mesure que stages/quetes/ticks s'accumulent; a 100% declenche l'ecran de victoire (element de scene toujours visible et distinct du compteur de ressource)", "proof_ref": "proof_meta"},
+      {"id": "gb_victory_screen", "type": "UI", "role": "META", "state": "LOCKED", "requires": ["gb_end_gauge"], "player_meaning": "J'ai atteint la fin vers laquelle je travaillais.", "builder_contract": "etat de fin plein-ecran quand end-progress atteint 100%; montre les totaux finaux; remplace reellement la surface de jeu (vrai changement de scene, pas une overlay cosmetique)", "proof_ref": "proof_meta", "unlock": [], "next_goal": "Conclure, ou entamer un unique cycle borne."},
+      {"id": "gb_quest_tracker", "type": "UI", "role": "FEEDBACK", "state": "AVAILABLE", "requires": [], "player_meaning": "Des objectifs a court terme clairs pour toujours savoir le prochain pas.", "builder_contract": "liste de quetes montrant l'objectif courant + sa recompense; s'incremente a la completion et revele le suivant (nouvelle interaction: un objectif cliquable/suivable qui pilote l'attention)", "proof_ref": "proof_quest"}
+    ],
+    "artist_requirements": [
+      {"id": "ar_click_target", "grey_block": "gb_click_target", "states_to_show": ["AVAILABLE"], "visible_reason": false, "visible_requirement": "aucune - disponible des le depart", "preview": false, "affordance_visual": "grande cible centrale chaude, pressable, etats idle/pressed/milestone", "readability": "l'element le plus grand, le plus chaud et centre, trouvable sans recherche"},
+      {"id": "ar_generator", "grey_block": "gb_generator", "states_to_show": ["LOCKED", "AVAILABLE", "OWNED"], "visible_reason": true, "visible_requirement": "payer son cout unitaire (unites >= cout)", "preview": true, "affordance_visual": "rangee d'achat sarcelle; grisee si verrouillee, badge de compte si possedee", "readability": "cout en corail quand non payable; luminosite+forme portent l'etat en plus de la teinte"},
+      {"id": "ar_upgrade", "grey_block": "gb_upgrade", "states_to_show": ["LOCKED", "AVAILABLE", "CONSUMED"], "visible_reason": true, "visible_requirement": "atteindre le tier qui la revele", "preview": true, "affordance_visual": "tuile d'upgrade plate distincte des generateurs", "readability": "lisible a 16px, glyphe clair"},
+      {"id": "ar_bonus_token", "grey_block": "gb_bonus_token", "states_to_show": ["AVAILABLE", "CONSUMED"], "visible_reason": false, "visible_requirement": "apparait a intervalle; l'attraper avant qu'il ne s'estompe", "preview": false, "affordance_visual": "jeton lumineux qui derive dans la scene", "readability": "ressort du champ chaud calme, cible mobile evidente"},
+      {"id": "ar_stage_gate", "grey_block": "gb_stage_gate", "states_to_show": ["LOCKED", "AVAILABLE"], "visible_reason": true, "visible_requirement": "atteindre le seuil de stage (5 stages au total)", "preview": true, "affordance_visual": "porte qui s'ouvre sur une surface de phase visiblement nouvelle", "readability": "le nouveau stage a l'air different du precedent"},
+      {"id": "ar_end_gauge", "grey_block": "gb_end_gauge", "states_to_show": ["AVAILABLE"], "visible_reason": true, "visible_requirement": "se remplit vers la fin observable (<=72000 ticks)", "preview": true, "affordance_visual": "barre de progression persistante vers la fin", "readability": "toujours visible, distincte du compteur de ressource"},
+      {"id": "ar_victory_screen", "grey_block": "gb_victory_screen", "states_to_show": ["LOCKED", "AVAILABLE"], "visible_reason": true, "visible_requirement": "la jauge de fin atteint 100%", "preview": false, "affordance_visual": "scene de victoire plein-ecran avec totaux finaux", "readability": "etat de fin non ambigu, remplace la surface de jeu"},
+      {"id": "ar_quest_tracker", "grey_block": "gb_quest_tracker", "states_to_show": ["AVAILABLE"], "visible_reason": true, "visible_requirement": "objectif courant toujours affiche", "preview": false, "affordance_visual": "liste compacte d'objectifs avec progression", "readability": "objectif courant mis en avant"}
+    ]
+  }
+}
+```
+
+### design_questions.json (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_beta\design_questions.json)
+{
+ "schema_version": 1,
+ "round": 2,
+ "questions": [
+  {
+   "id": "q_art_001",
+   "from": "ART",
+   "to": "GM",
+   "round": 1,
+   "about": "art_bible:visual_language",
+   "loop_id": "content_loop",
+   "missing": [
+    "theme/subject de production (a quoi ressemblent concretement cible de clic, generateurs, jeton)"
+   ],
+   "why": "l'identite visuelle est decidee agnostique au theme car l'univers est indefini (story_bible characters/factions/events NOT_GROUNDED); l'apparence concrete des entites depend du sujet que seul le GM/HumanGate peut trancher",
+   "blocking": true,
+   "answer": {
+    "round": 2,
+    "by": "GM",
+    "ref": "gm_worldscan:game_master.loops.content_loop",
+    "text": "Le theme/sujet reste un fog HumanGate, DELIBERE dans ce bras free-design : je ne le fabrique pas (garde-fou anti-fabrication - aucune valeur inventee presentee comme un fait ; le charter delegue la structure a l'aval, story_bible characters/factions/events sont NOT_GROUNDED). Ce que je tranche et materialise : aucun theme n'est necessaire a la COMPLETUDE ni a la constructibilite du jeu. content_loop est reecrite (cont_reward.why + transformation_perceptible.text) pour rendre explicite que les familles de contenu se distinguent par leur IDENTITE FONCTIONNELLE (role de production, profondeur de tier, force croissante), non par un theme ; et tes propres reponses round 2 (q_gm_001/002 : echelle, anneaux de halo, accent de bord, burst, respiration - toutes purement formelles) prouvent que l'identite mecanique est representable sans sujet concret. Le motif concret (a quoi ressemblent cible de clic, generateurs, jeton) est un re-skin qui ne change AUCUNE boucle/metrique/preuve : il appartient au HumanGate, au-dessus de l'echange ART<->GM, et ne bloque donc plus ni toi ni moi. Procede sur ton identite agnostique.",
+    "modification_locus": {
+     "type": "gm_worldscan",
+     "justification": "reponse materialisee dans mon propre bloc game_master : content_loop.cont_reward.why + content_loop.transformation_perceptible.text reecrits (distinction fonctionnelle/formelle, non thematique), et ajout de world_interpretation fact#6 (theme = fog HumanGate, jamais fabrique ; distinction par la fonction). Aucun theme invente."
+    }
+   }
+  },
+  {
+   "id": "q_art_002",
+   "from": "ART",
+   "to": "GM",
+   "round": 1,
+   "about": "art_bible:world_constraints",
+   "loop_id": "meta_loop",
+   "missing": [
+    "portee du prestige/reset (cycles de prestige endless vs fin bornee unique)"
+   ],
+   "why": "le genre s'appuie massivement sur des cycles de prestige, mais le charter impose une fin observable bornee (<=72000 ticks); la surface visuelle differe selon qu'il y a prestige endless ou fin concue",
+   "blocking": false,
+   "answer": {
+    "round": 2,
+    "by": "GM",
+    "ref": "gm_worldscan:game_master.loops.meta_loop",
+    "text": "Tranche : PAS de cycles de prestige endless. Le charter impose une fin observable bornee (<=72000 ticks, m_meta_end_ticks invariant), ce qui ecarte l'endlessness canonique du genre. meta_loop porte une fin bornee unique comme sortie primaire, plus une graine OPTIONNELLE de relance elle-meme bornee qui repart a zero - aucune monnaie de prestige permanente ni cumul inter-run. J'ai reecrit meta_loop (meta_decision.why + transformation_perceptible.text) pour rendre explicite l'absence de progression permanente inter-run. Cote visuel : surface d'un run unique vers une fin concue (jauge de fin persistante + ecran de victoire qui remplace la scene), pas d'echelle de prestige infinie - tu peux ecarter toute UI de prestige permanent."
+   }
+  },
+  {
+   "id": "q_art_003",
+   "from": "ART",
+   "to": "GM",
+   "round": 1,
+   "about": "art_bible:world_constraints",
+   "loop_id": "art_gm",
+   "missing": [
+    "confirmation runtime html / format 2D (plateforme_cible non materialisee dans l'entree)"
+   ],
+   "why": "la valeur plateforme_cible du charter n'est pas materialisee; le runtime html/2D est derive du profil full_content et des references web, a confirmer",
+   "blocking": false,
+   "answer": {
+    "round": 2,
+    "by": "GM",
+    "ref": "gm_worldscan:game_master.world_interpretation",
+    "text": "Runtime confirme au niveau design comme html / 2D - DERIVATION assumee, non une valeur plateforme_cible materialisee : les 4 jeux de reference du World Scan sont des incrementals web et le profil de run est full_content. J'ajoute world_interpretation fact#7 qui trace cette derivation (source art_bible:world_constraints, ou tu l'avais deja remontee). Reserve honnete : la valeur plateforme_cible autoritative n'est PAS dans l'entree materialisee (charter recu = rapport de retour s0), donc si une valeur divergente existait en amont, l'arbitrage final est un fog HumanGate ; mais rien dans les sources ne contredit html/2D - tu peux proceder sur cette base."
+   }
+  },
+  {
+   "id": "q_gm_001",
+   "from": "GM",
+   "to": "ART",
+   "round": 1,
+   "about": "gm_worldscan:game_master.loops.core_loop",
+   "loop_id": "core_loop",
+   "missing": [
+    "langage visuel de l'etat milestone de la cible de clic, independant du theme"
+   ],
+   "why": "core_loop exige un etat milestone perceptible (gb_click_target) recompensant l'escalade, mais sans theme decide je ne peux pas fixer a quoi ressemble cette evolution; quelle representation rend evidente une 'croissance/recompense' de la cible sans reference thematique ?",
+   "blocking": true,
+   "answer": {
+    "round": 2,
+    "by": "ART",
+    "ref": "art_bible:character_states",
+    "text": "Etat milestone rendu par 5 transformations PUREMENT FORMELLES, independantes du sujet (survivent a tout re-skin decide par le HumanGate) : (1) echelle -- palier de taille permanent ~+12% par milestone, plafonne pour ne pas ecraser le compteur ; (2) anneaux concentriques -- un anneau de halo soft-glow s'ajoute par palier, le NOMBRE d'anneaux encode le rang ; (3) accent de bord -- le lisere vire au violet jalon #8E6FE0 (couleur meta/palier) ; (4) burst radial unique au tick du palier (echo du satisfying click feedback) ; (5) respiration idle accrue. Aucune ne depend de l'iconographie : elles operent sur geometrie + lumiere, pas sur le motif thematique -- d'ou la reponse a 'croissance/recompense sans reference thematique'.",
+    "modification_locus": {
+     "type": "art_bible",
+     "justification": "reponse decidee et materialisee dans ma propre section ## character_states d'art_bible.md ; aucune modification induite dans le bloc GM"
+    }
+   }
+  },
+  {
+   "id": "q_gm_002",
+   "from": "GM",
+   "to": "ART",
+   "round": 1,
+   "about": "gm_worldscan:game_master.grey_blocks",
+   "loop_id": "progression_loop",
+   "missing": [
+    "distinction visuelle locked(avec raison+preview) vs affordable vs owned d'un generateur"
+   ],
+   "why": "la boucle afford->buy->unlock n'est lisible que si les etats de gb_generator sont instantanement distincts; quels signaux redondants (au-dela de la teinte) rendent la possibilite d'achat evidente et montrent la raison du verrou + un preview ?",
+   "blocking": true,
+   "answer": {
+    "round": 2,
+    "by": "ART",
+    "ref": "art_bible:affordance_rules",
+    "text": "Trois etats distingues par des signaux REDONDANTS au-dela de la teinte (colorblind-safe : luminosite + forme + mouvement). locked = (a) rangee desaturee ~35% d'opacite, (b) glyphe de cadenas en coin, (c) TEXTE de raison explicite ('Il te faut N monnaie' ou 'Atteins le palier X') + PREVIEW fantome (silhouette du generateur + etiquette de debit +N/s grisees) -> le joueur voit ce qu'il deverrouille. affordable = pleine couleur, bouton d'achat sarcelle en plein contraste + micro-pulsation, cadenas disparu. owned = badge de compte xN en coin + rangee qui anime son debit (motes chaudes vers le compteur), plus de bouton pulsant. Le sous-cas 'non payable a l'instant' bascule seulement le cout en corail #E8604C sans changer d'etat structurel.",
+    "modification_locus": {
+     "type": "art_bible",
+     "justification": "reponse decidee et materialisee dans ma propre section ## affordance_rules d'art_bible.md ; aucune modification induite dans le bloc GM"
+    }
+   }
+  },
+  {
+   "id": "q_gm_003",
+   "from": "GM",
+   "to": "ART",
+   "round": 1,
+   "about": "gm_worldscan:game_master.grey_blocks",
+   "loop_id": "world_loop",
+   "missing": [
+    "representation d'une transition de stage comme changement de scene perceptible (pas un +X%) et de la jauge de fin approchant 100%"
+   ],
+   "why": "world_loop + gb_stage_gate imposent 5 transitions de stage qui doivent CHANGER la surface de jeu, et gb_end_gauge doit rendre la fin bornee lisible; quelle representation fait qu'une transition de stage se voit comme une nouvelle possibilite, et non comme un simple pourcentage ?",
+   "blocking": true,
+   "answer": {
+    "round": 2,
+    "by": "ART",
+    "ref": "art_bible:world_constraints",
+    "text": "Transition de stage = REMPLACEMENT DE SCENE, jamais un pourcent : bref balayage/rideau soft-glow (~0,6 s) puis TOUTE la surface est remplacee -- nouveau fond (vr_stage_scene, famille de 5 scenes), teinte dominante propre a chaque stage (rotation dans la famille chaude, chrome UI stable), silhouette de decor differente, banniere de stage nommant la phase. Regle dure : une transition n'est jamais rendue par un nombre. Jauge de fin (vr_progress_end_indicator) : barre persistante toujours visible, distincte en position/forme/taille du compteur de ressource, remplissage monotone ; a >=90% elle vire au violet jalon #8E6FE0 + pulsation douce (deux signaux d'imminence redondants), les 5 seuils de stage marques comme crans ; a 100% elle passe la main a l'ecran de victoire qui remplace REELLEMENT la surface. Progression-vers-la-fin lisible en continu (jauge) ET ponctuee par des changements de scene discrets (stages) -- aucun canal reductible a un pourcentage seul.",
+    "modification_locus": {
+     "type": "art_bible",
+     "justification": "reponse decidee et materialisee dans ma propre section ## world_constraints d'art_bible.md ; aucune modification induite dans le bloc GM"
+    }
+   }
+  }
+ ],
+ "declarations": {
+  "ART": {
+   "round": 2,
+   "ready_for_freeze": true,
+   "open_to_gm": 0
+  },
+  "GM": {
+   "round": 2,
+   "ready_for_freeze": true,
+   "open_to_art": 0
+  }
+ }
+}
+
+## PRÉ-MORTEM (erreurs des runs passés)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [s2.7-gm-worldscan] échec d'une tentative précédente à s2.7-gm-worldscan → ✅ RÉPARÉ: réparé à la tentative 2 (tier opus)
+- [s2.5-artbible-r2] échec d'une tentative précédente à s2.5-artbible-r2 → ✅ RÉPARÉ: réparé à la tentative 2 (tier opus)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [manifest-992c3455782fd579] Le sujet/theme de production de p2_beta est structurellement indefini a l'entree de s2.7 : la Story Bible est NOT_GROUNDED sur 6/8 sections (characters/factions/events...) et aucune valeur de design-intent (plateforme/reference/theme) n'est materialisee dans les artefacts amont. La mecanique (9 boucles, economie, fin bornee <=72000 ticks) est concevable agnostiquement au theme, mais l'identite visuelle concrete des entites-cles (cible de clic, generateurs, jeton, transitions de stage) reste bloquee et devient 3 questions bloquantes GM->Artiste, plus le theme lui-meme (q_art_001) en besoin HumanGate. — cause: Le bras de conception Libre delegue explicitement la STRUCTURE a l'aval et le charter transmis est un rapport de retour s0 sans champs de design-intent valides ; aucune valeur de theme n'est donc disponible a ce point de la chaine. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-8161506f54a87956] Tension structurelle non triviale a resoudre en amont du design: le charter impose une fin observable bornee (<=72000 ticks, story_bible:coherence_rules) alors que le genre de reference est explicitement sans fin (worldscan:games[0].objectives[0].has_win_state=false) et repose massivement sur une prestige endless (worldscan:games[0]/[2].retention_answer). La meta-boucle du genre (reset infini) est donc incompatible telle quelle; je l'ai requalifiee en conversion-vers-la-fin, choix de design a valider. — cause: Le bras libre delegue la STRUCTURE a l'aval tout en fixant une contrainte de fin bornee, et aucun design/calibration.md n'a ete injecte en run1 pour arbitrer prestige vs fin observable — l'arbitrage retombe sur le Game Master sans invariant amont. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-3be946517a59e302] q_art_001 (theme/sujet, bloquante) ne pouvait etre fermee qu'en DECLINANT de fabriquer un theme et en le deferant au HumanGate : le jeu est entierement specifie et constructible de maniere theme-agnostique (distinction de contenu fonctionnelle + transformations formelles de l'Artiste), mais l'identite visuelle concrete reste un fog HumanGate non resolu, pas une sortie de design. En consequence, GM peut declarer ready_for_freeze mais le freeze CONJOINT de la paire n'est pas atteignable dans le protocole a 2 rounds (derniere auto-declaration Artiste = false, faite avant mes reponses, sans round-3 pour re-confirmer) et devient une decision HumanGate. — cause: Bras free-design : le charter delegue la STRUCTURE a l'aval et l'entree recue est sa forme de retour meta (rapport s0), sans champs de design-intent materialises ; plateforme_cible/theme/reference_jeu ne sont pas dans l'artefact recu et story_bible characters/factions/events sont NOT_GROUNDED, rendant le sujet concret structurellement indecidable au niveau GM. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-1d06880dd3f1773d] Le charter injecte en amont a s2.6 est le rapport de retour s0 (why_task_existed/result/proof/learning/next_reason), pas le charter a champs de design-intent : il MENTIONNE que plateforme_cible/reference_jeu/criteres_demo ont ete traces a des sources Pierre, sans en porter les VALEURS. s2.6 ne peut donc ancrer ni plateforme, ni jeu de reference, ni criteres, au-dela du genre issu du worldscan ; 6/8 sections narratives sont structurellement NOT_GROUNDED. — cause: Le bras Libre delegue explicitement la STRUCTURE a l'aval et le contenu du charter transmis est sa forme de retour meta, non ses champs de charter valides par check_charter — l'univers est intentionnellement indefini a ce point de la chaine, et aucune valeur de design-intent n'est materialisee dans l'entree recue. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-cc68858b38282d82] content_requirements.md (C.5, listee 'a lire obligatoirement' dans le contrat s2.5) n'a pas ete injectee dans le run p2_beta (absente du run_dir et de design/), et le charter injecte est le rapport de retour s0 sans ses champs de design-intent materialises (plateforme_cible/reference_jeu/criteres_demo) : l'Art Director a donc travaille sans la Gameplay Map et a du DERIVER le runtime au lieu de le lire. — cause: Le bras Libre delegue la STRUCTURE a l'aval et transmet la forme meta du charter (why/result/proof/learning), pas ses champs valides par check_charter ; la carte de contenu C.5 n'existe pas encore a ce point de la chaine full_content, en amont de la conception de structure. -- GENERATION_DIFFERENTE_A_REEXAMINER
+
+FORGE_DISPATCH:s1-prisme:p2_beta-20260830-run1:1

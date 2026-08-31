@@ -1,0 +1,62 @@
+`verdict: OK` — art bible well-formed, all 13 `required:true` entities covered by a matching request, zero findings. The `13 BLOCKED / 0 OK` resolution stat is **advisory and expected** (the catalog exposes only `candy-pop`/`flat-top-down`; my decided style tags don't resolve against it — a legitimate BLOCKED, never a coverage defect).
+
+Both artefacts are delivered in `lab/forge_runs/p2_alpha/`:
+- `art_bible.md` — frontmatter + 3 sections v0.1 + the 8 heritage/décision sections
+- `asset_requests.json` — 13 requests, one per distinct `required:true` entity
+
+---
+
+## RAPPORT FINAL — s2.5-artbible / p2_alpha-20260830-run1
+
+**Oracle cité** : `scripts/forge/check_artbible.mjs` (forme + cohérence + couverture besoin↔requête v0.1), qui délègue la forme des requêtes à `asset_request.mjs::validateRequestShape`. Auto-contrôle SANS autorité de preuve — le reçu faisant foi sera ré-exécuté par le DRIVER (`executed_by: driver`, fiche 3 2026-08-30).
+
+**Identité visuelle décidée** : « Forge de Lumen » — chambre d'accumulation abstraite et lumineuse, ressource R = Lumen (ambre-or), production auto = cyan, amplification = violet, fond sombre qui s'éclaircit à chaque seuil, embrasement final à S5. Aucun personnage/faction/antagoniste (contrainte directe de `story_bible` : 6/8 sections NOT_GROUNDED), aucun vocabulaire de menace (invariant « aucune défaite »).
+
+**Héritage tracé** : `worldscan:games[0..2].retention_answer`/`loops`/`objectives` (advisory, genre mésancré → seules les propriétés transversales feedback/observabilité de la victoire héritées) ; `story_bible:context` + `story_bible:coherence_rules` (invariants durs) ; `story_bible:{chronology,stakes,factions,characters,relations,events}` NOT_GROUNDED → identité abstraite assumée.
+
+**asset_requests produits (13) + statut de résolution** (OK/BLOCKED — jamais jugé esthétiquement) :
+
+| id | entity_role | style | résolution catalogue |
+|---|---|---|---|
+| req_r_counter | ui | flat-neon-dark | BLOCKED (advisory) |
+| req_core_click_target | player | luminous-glyph | BLOCKED (advisory) |
+| req_generator_g1..g4 | item ×4 | luminous-glyph | BLOCKED (advisory) |
+| req_buy_button | ui | flat-neon-dark | BLOCKED (advisory) |
+| req_progress_meter | ui | flat-neon-dark | BLOCKED (advisory) |
+| req_improvement_clic_amp | icon | luminous-glyph | BLOCKED (advisory) |
+| req_improvement_prod_amp | icon | luminous-glyph | BLOCKED (advisory) |
+| req_click_feedback_burst | effect | radiant-burst-vfx | BLOCKED (advisory) |
+| req_threshold_reveal | effect | radiant-burst-vfx | BLOCKED (advisory) |
+| req_victory_bloom | effect | radiant-burst-vfx | BLOCKED (advisory) |
+
+**Couverture** : `checked:true`, `missing:[]`, 13/13 `required:true` satisfaits. `background_ambient` (environment) déclaré `required:false` en toute transparence (décor procédural, aucune requête) — pas une reclassification pour éviter une requête.
+
+**Verdicts**
+- `software_verdict:` **OK** — `check_artbible.mjs` rend `verdict:"OK"` (couverture complète, forme conforme). Appuyé par l'oracle.
+- `evidence_verdict:` **MECHANICAL_VALIDATION_ONLY** — auto-contrôle de travail ; le reçu gatant est celui du driver.
+- `claim_verdict:` **NO_CLAIM_ALLOWED**.
+- **fog → HumanGate** : (1) conformité esthétique de chaque requête NON évaluée (mécanique = tags, pas pixels — `asset_request.mjs` fog) ; (2) les 13 requêtes résolvent BLOCKED contre le catalogue actuel — sourcer/produire ces assets OU les rendre en procédural canvas est une décision aval ; (3) `design/content_requirements.md` (Gameplay Map C.5, listée « À LIRE OBLIGATOIREMENT ») **absente du run et du repo** — je n'ai pas pu ancrer les entités sur la carte de boucles canonique ; entités dérivées du charter + `structure_imposee_v2.yaml` à la place.
+
+**RETURN LINEAGE**
+- `why_task_existed:`
+  - `problem:` la chaîne full_content exige une identité visuelle héritée+décidée et des asset_requests structurés couvrant chaque entité visuelle du jeu, avant les étapes d'architecture/build.
+  - `oracle:` `check_artbible.mjs` (couverture besoin↔requête) — l'activation vient d'une étape de pipeline, pas d'un défaut mesuré.
+  - `root_cause:` non applicable (étape de production nominale, pas une réparation).
+  - `action_reason:` produire art_bible.md + asset_requests.json conformes et couverts ferme la porte mécanique s2.5 et fournit la matière visuelle aux étapes aval.
+- `result:` art_bible.md + asset_requests.json livrés, `check_artbible.mjs verdict:OK` (13/13 couverts, 0 finding).
+- `proof:` `node scripts/forge/check_artbible.mjs lab/forge_runs/p2_alpha/art_bible.md lab/forge_runs/p2_alpha/asset_requests.json --json` → `{"pass":true,"verdict":"OK","coverage":{"checked":true,"missing":[],"satisfied":[13 ids]},"resolution_stats":{"ok":0,"blocked":13,"total":13}}`.
+- `learning:` sur un incremental abstrait à ressource unique, l'identité visuelle honnête est **non-figurative** (lumière/énergie), car la bible impose 6/8 sections NOT_GROUNDED ; la couverture se prouve par une entité=une requête, la résolution BLOCKED advisory n'est jamais un manque.
+- `next_reason:` la chaîne continue en aval (le driver ré-exécute check_artbible pour le reçu gatant, puis architecture/build) ; deux causes non résolues persistent et remontent : (a) `content_requirements.md` absente à réinjecter, (b) worldscan mésancré non re-généré. Non bloquant pour CETTE étape, mais à traiter au niveau supérieur.
+
+**SKIPPED_VALIDATION**
+- item: lecture de `design/content_requirements.md` (Gameplay Map C.5, mandatory-read) · périmètre: ancrage des entités visuelles sur la carte de boucles canonique · statut: non fait (fichier absent du run_dir et du repo) · raison: non injecté par l'exécuteur, inexistant à `design/content_requirements.md` ; entités dérivées du charter + `structure_imposee_v2.yaml`.
+- item: exécution du reçu d'oracle faisant foi · périmètre: gate de l'étape s2.5 · statut: non fait, délibéré · raison: par contrat (fiche 3 2026-08-30) le reçu gatant est produit par le DRIVER (`executed_by: driver`), pas par l'agent ; mon run est un auto-contrôle.
+- item: jugement de conformité esthétique des assets · périmètre: les 13 requêtes · statut: non fait, hors périmètre · raison: interdit (mécanique = tags, jamais pixels) — remonté en fog HumanGate, jamais un claim.
+
+Round 1 de la boucle de complétion mutuelle : je livre l'art bible + les 8 sections et je pose une question réelle et bloquante au Game Master (représentation de l'arbitrage épargne↔achat du core loop → le `progress_meter` doit-il exister ?), dont la réponse change une entité `required` et sa requête. `about` résout dans ma section réelle `## affordance_rules`.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "design/content_requirements.md (Gameplay Map C.5, listee 'A LIRE OBLIGATOIREMENT') est absente du run_dir et du repo — les entites visuelles n'ont pas pu etre ancrees sur la carte de boucles canonique, seulement derivees du charter et de structure_imposee_v2.yaml.", "root_cause": "l'executeur n'a pas injecte design/content_requirements.md dans le run_dir et le fichier n'existe pas au repo (design/ vide)."}
+
+```design_questions
+{"schema_version": 1, "round": 1, "questions": [{"id": "q_art_001", "from": "ART", "to": "GM", "round": 1, "about": "art_bible:affordance_rules", "loop_id": "core_loop", "missing": ["core_loop:representation_de_l_arbitrage_epargne_vs_achat — un indicateur de proximite au prochain seuil (S1..S5) est-il requis, ou seulement le franchissement lui-meme ?"], "why": "L'arbitrage 'acheter maintenant vs epargner' est le core loop de fond (structure.core_loop). Il est plus lisible avec un progress_meter montrant la proximite au prochain seuil, mais la demande de demo n'exige que le franchissement VISIBLE, pas la proximite. Selon la reponse du GM, progress_meter reste required:true (avec req_progress_meter) ou repasse required:false et sa requete est retiree — cela change une entite couverte.", "blocking": true, "answer": null}], "declarations": {"ART": {"round": 1, "ready_for_freeze": false, "open_to_gm": 1}, "GM": {"round": 1, "ready_for_freeze": false, "open_to_art": 0}}}
+```

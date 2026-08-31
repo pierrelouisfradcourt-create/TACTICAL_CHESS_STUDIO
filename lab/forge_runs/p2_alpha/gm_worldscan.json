@@ -1,0 +1,1274 @@
+{
+ "genre": "incremental / clicker",
+ "games_observed": [
+  "Cookie Clicker",
+  "AdVenture Capitalist",
+  "Universal Paperclips"
+ ],
+ "dimensions": [
+  {
+   "id": "combat",
+   "status": "NOT_MEASURED",
+   "reason": "Genre incremental/clicker sans combat : pas d'affrontement, pas de PV adverses, pas d'attaque. Aucune grandeur observable ; charter interdit toute mecanique hors clic+generateurs+ameliorations."
+  },
+  {
+   "id": "progression",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "facteur de croissance du cout par exemplaire — CONTEXTE EXTERNE Cookie Clicker (NON la valeur de ce jeu, qui est 1.12)",
+     "value": "1.15",
+     "unit": "x par exemplaire possede",
+     "source": "https://cookieclicker.fandom.com/wiki/Building",
+     "observed": true
+    },
+    {
+     "name": "facteur de croissance du cout par exemplaire — CONTEXTE EXTERNE AdVenture Capitalist",
+     "value": "~1.07-1.15",
+     "unit": "x par exemplaire",
+     "source": "https://adventure-capitalist.fandom.com/wiki/Businesses",
+     "observed": true
+    },
+    {
+     "name": "nombre de paliers de batiment avant plafond (Cookie Clicker)",
+     "value": "18+",
+     "unit": "types de batiment",
+     "source": "https://cookieclicker.fandom.com/wiki/Building",
+     "observed": true
+    }
+   ]
+  },
+  {
+   "id": "economy",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "cout de base des 4 premiers batiments (Cursor/Grandma/Farm/Mine)",
+     "value": "15 / 100 / 1100 / 12000",
+     "unit": "unites de ressource",
+     "source": "https://cookieclicker.fandom.com/wiki/Building",
+     "observed": true
+    },
+    {
+     "name": "production de base des 4 premiers batiments (Cookie Clicker)",
+     "value": "0.1 / 1 / 8 / 47",
+     "unit": "ressource/s",
+     "source": "https://cookieclicker.fandom.com/wiki/Building",
+     "observed": true
+    },
+    {
+     "name": "temps de rentabilite des premiers paliers (cout/production, derive)",
+     "value": "150 / 100 / 137 / 255",
+     "unit": "s",
+     "source": "https://cookieclicker.fandom.com/wiki/Building",
+     "observed": false
+    }
+   ]
+  },
+  {
+   "id": "rng",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "cadence moyenne d'apparition des Golden Cookies (Cookie Clicker)",
+     "value": "~300",
+     "unit": "s (moyenne, plage ~5-15 min)",
+     "source": "https://cookieclicker.fandom.com/wiki/Golden_Cookie",
+     "observed": true
+    },
+    {
+     "name": "bonus Frenzy aleatoire (multiplicateur x duree)",
+     "value": "x7 pendant 77",
+     "unit": "x production, s",
+     "source": "https://cookieclicker.fandom.com/wiki/Golden_Cookie",
+     "observed": true
+    }
+   ]
+  },
+  {
+   "id": "rarity",
+   "status": "NOT_MEASURED",
+   "reason": "Incrementals purs sans systeme de rarete d'objets/butin : batiments et ameliorations sont des achats deterministes, sans tirage ni tiers. Aucune grandeur de rarete observable."
+  },
+  {
+   "id": "bonus",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "multiplicateur d'une amelioration de batiment (ex. Reinforced index finger)",
+     "value": "2",
+     "unit": "x production du batiment cible",
+     "source": "https://cookieclicker.fandom.com/wiki/Upgrades",
+     "observed": true
+    },
+    {
+     "name": "nombre d'ameliorations doublantes successives par batiment initial",
+     "value": "3+",
+     "unit": "ameliorations x2 sequentielles",
+     "source": "https://cookieclicker.fandom.com/wiki/Upgrades",
+     "observed": true
+    }
+   ]
+  },
+  {
+   "id": "metagame",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "bonus de prestige par ange (AdVenture Capitalist, Angel Investors)",
+     "value": "2",
+     "unit": "% de profit global par ange",
+     "source": "https://adventure-capitalist.fandom.com/wiki/Angel_Investors",
+     "observed": true
+    },
+    {
+     "name": "formule des Heavenly Chips de prestige (Cookie Clicker)",
+     "value": "cbrt(cookies cumules / 1e12)",
+     "unit": "chips (~+1% production/chip)",
+     "source": "https://cookieclicker.fandom.com/wiki/Ascension",
+     "observed": true
+    }
+   ]
+  },
+  {
+   "id": "construction",
+   "status": "NOT_MEASURED",
+   "reason": "Genre incremental/clicker sans couche de construction spatiale/placement : les generateurs sont des achats en liste, non des objets poses sur une carte. Aucune grandeur de placement observable."
+  }
+ ],
+ "sources_consumed": {
+  "worldscan": [
+   "worldscan:games[1].retention_answer",
+   "worldscan:games[2].objectives[0].victory_condition"
+  ],
+  "story_bible": [
+   "story_bible:context",
+   "story_bible:coherence_rules"
+  ],
+  "art_bible": [
+   "art_bible:visual_language",
+   "art_bible:affordance_rules"
+  ]
+ },
+ "game_master": {
+  "world_interpretation": [
+   {
+    "fact": "Le monde est une economie d'accumulation a ressource unique R : toute la matiere se reduit a produire et accumuler R.",
+    "source": "story_bible:context"
+   },
+   {
+    "fact": "Aucun etat d'echec ni antagoniste ; trajectoire ascendante jusqu'a une victoire unique a 1 000 000 R cumules ; pas de ressource secondaire, pas de vente.",
+    "source": "story_bible:coherence_rules"
+   },
+   {
+    "fact": "Identite 'Forge de Lumen' : R=Lumen, un Coeur central cliquable, 4 generateurs de silhouettes croissantes, scene qui s'eclaircit a chaque seuil ; ambre=R/clic, cyan=production auto, violet=amplification.",
+    "source": "art_bible:visual_language"
+   },
+   {
+    "fact": "Le refus d'achat (R insuffisant) doit etre observable via bouton grise ; chaque deblocage de seuil doit etre visiblement nouveau (threshold_reveal).",
+    "source": "art_bible:affordance_rules"
+   },
+   {
+    "fact": "Retention d'une boucle courte = retour visuel immediat + cadence de gratification elevee (observation transversale ; worldscan mesanchore utilise hors-genre seulement) ; l'etat de victoire doit etre OBSERVABLE, comme le win-state releve sur un jeu du scan.",
+    "source": "worldscan:games[1].retention_answer"
+   }
+  ],
+  "loops": {
+   "core_loop": {
+    "steps": [
+     {
+      "id": "core_action",
+      "kind": "action",
+      "actor": "PLAYER",
+      "why": "le joueur tape le Coeur pour produire du R manuellement",
+      "metric_ref": "core_r_per_click",
+      "proof_ref": "proof_core",
+      "affordance": "core_click_target"
+     },
+     {
+      "id": "core_feedback",
+      "kind": "feedback",
+      "actor": "SYSTEM",
+      "why": "le Coeur emet un eclat radial + un +N flottant",
+      "metric_ref": "core_r_per_click",
+      "proof_ref": "proof_core"
+     },
+     {
+      "id": "core_reward",
+      "kind": "reward",
+      "actor": "SYSTEM",
+      "why": "le compteur R augmente immediatement de gain_clic (initialement 1)",
+      "metric_ref": "core_r_per_click",
+      "proof_ref": "proof_core",
+      "hud": "r_counter"
+     },
+     {
+      "id": "core_progression",
+      "kind": "progression",
+      "actor": "SYSTEM",
+      "why": "le R manuel accumule rapproche du seuil cumule S1 (100 R)",
+      "metric_ref": "core_r_per_click",
+      "proof_ref": "proof_core"
+     },
+     {
+      "id": "core_decision",
+      "kind": "decision",
+      "actor": "PLAYER",
+      "why": "cliquer vite pour du R immediat ou epargner vers un achat",
+      "metric_ref": "core_r_per_click",
+      "proof_ref": "proof_core"
+     }
+    ],
+    "produces": "R manuel + retour visuel du Coeur (eclat + +N)",
+    "consumes": [
+     "meta_loop",
+     "skill_loop"
+    ],
+    "unlocks": [
+     "gameplay_loop"
+    ],
+    "transformation_perceptible": {
+     "text": "le Coeur reagit a chaque clic (eclat, +N) et le compteur R monte visiblement",
+     "proof_ref": "proof_core"
+    },
+    "metric_propre": "core_r_per_click"
+   },
+   "gameplay_loop": {
+    "steps": [
+     {
+      "id": "gp_action",
+      "kind": "action",
+      "actor": "PLAYER",
+      "why": "le joueur achete un generateur (G1 en premier)",
+      "metric_ref": "gameplay_g1_cost",
+      "proof_ref": "proof_gameplay",
+      "affordance": "buy_button",
+      "resource": "R"
+     },
+     {
+      "id": "gp_feedback",
+      "kind": "feedback",
+      "actor": "SYSTEM",
+      "why": "le bouton passe d'ACHETABLE a acquis, le generateur s'illumine",
+      "metric_ref": "gameplay_g1_cost",
+      "proof_ref": "proof_gameplay"
+     },
+     {
+      "id": "gp_reward",
+      "kind": "reward",
+      "actor": "SYSTEM",
+      "why": "le generateur produit du R automatiquement (0.1 R/s pour G1)",
+      "metric_ref": "gameplay_g1_cost",
+      "proof_ref": "proof_gameplay"
+     },
+     {
+      "id": "gp_progression",
+      "kind": "progression",
+      "actor": "SYSTEM",
+      "why": "le revenu auto s'ajoute au R manuel et accelere l'accumulation",
+      "metric_ref": "gameplay_g1_cost",
+      "proof_ref": "proof_gameplay"
+     },
+     {
+      "id": "gp_decision",
+      "kind": "decision",
+      "actor": "PLAYER",
+      "why": "acheter un nouveau generateur ou empiler des exemplaires du meme (cout x1.12 par exemplaire)",
+      "metric_ref": "gameplay_g1_cost",
+      "proof_ref": "proof_gameplay"
+     }
+    ],
+    "produces": "revenu automatique de R (generateurs possedes)",
+    "consumes": [
+     "core_loop"
+    ],
+    "unlocks": [
+     "progression_loop",
+     "economy_loop"
+    ],
+    "transformation_perceptible": {
+     "text": "un generateur achete s'illumine et produit du R seul ; un taux R/s apparait",
+     "proof_ref": "proof_gameplay"
+    },
+    "metric_propre": "gameplay_g1_cost"
+   },
+   "progression_loop": {
+    "steps": [
+     {
+      "id": "pr_action",
+      "kind": "action",
+      "actor": "PLAYER",
+      "why": "le joueur accumule du R jusqu'au seuil cumule S1 (100 R produits au total)",
+      "metric_ref": "progression_s1_threshold",
+      "proof_ref": "proof_progression"
+     },
+     {
+      "id": "pr_feedback",
+      "kind": "feedback",
+      "actor": "SYSTEM",
+      "why": "threshold_reveal : flash/onde lumineuse au franchissement",
+      "metric_ref": "progression_s1_threshold",
+      "proof_ref": "proof_progression"
+     },
+     {
+      "id": "pr_reward",
+      "kind": "reward",
+      "actor": "SYSTEM",
+      "why": "un nouveau generateur (G2) se revele, visiblement nouveau",
+      "metric_ref": "progression_s1_threshold",
+      "proof_ref": "proof_progression"
+     },
+     {
+      "id": "pr_progression",
+      "kind": "progression",
+      "actor": "SYSTEM",
+      "why": "le prochain seuil cumule devient l'objectif sur l'echelle COMPLETE S1..S5 = 100/1000/12000/150000/1000000 R, et le progress_meter — confirme avec l'Artiste (q_art_001) — avance vers lui, rendant lisible l'arbitrage acheter-maintenant vs epargner",
+      "metric_ref": "progression_s1_threshold",
+      "proof_ref": "proof_progression",
+      "hud": "progress_meter"
+     },
+     {
+      "id": "pr_decision",
+      "kind": "decision",
+      "actor": "PLAYER",
+      "why": "depenser vers le nouveau palier ou consolider le precedent",
+      "metric_ref": "progression_s1_threshold",
+      "proof_ref": "proof_progression"
+     }
+    ],
+    "produces": "franchissement de seuil + revelation d'un nouveau contenu",
+    "consumes": [
+     "gameplay_loop",
+     "economy_loop"
+    ],
+    "unlocks": [
+     "content_loop",
+     "world_loop",
+     "quest_loop"
+    ],
+    "transformation_perceptible": {
+     "text": "au seuil franchi, un generateur inedit se revele par un flash dans la colonne, et le progress_meter se reinitialise sur le seuil suivant",
+     "proof_ref": "proof_progression"
+    },
+    "metric_propre": "progression_s1_threshold"
+   },
+   "content_loop": {
+    "steps": [
+     {
+      "id": "ct_action",
+      "kind": "action",
+      "actor": "PLAYER",
+      "why": "le joueur debloque et achete un generateur de palier superieur",
+      "metric_ref": "content_generator_tiers",
+      "proof_ref": "proof_content",
+      "affordance": "buy_button"
+     },
+     {
+      "id": "ct_feedback",
+      "kind": "feedback",
+      "actor": "SYSTEM",
+      "why": "la silhouette du nouveau generateur, distincte, apparait dans la colonne",
+      "metric_ref": "content_generator_tiers",
+      "proof_ref": "proof_content"
+     },
+     {
+      "id": "ct_reward",
+      "kind": "reward",
+      "actor": "SYSTEM",
+      "why": "une production plus dense (G3=8 R/s, G4=47 R/s) devient accessible",
+      "metric_ref": "content_generator_tiers",
+      "proof_ref": "proof_content"
+     },
+     {
+      "id": "ct_progression",
+      "kind": "progression",
+      "actor": "SYSTEM",
+      "why": "l'inventaire de generateurs s'etend vers les 4 paliers",
+      "metric_ref": "content_generator_tiers",
+      "proof_ref": "proof_content"
+     },
+     {
+      "id": "ct_decision",
+      "kind": "decision",
+      "actor": "PLAYER",
+      "why": "diversifier les paliers ou maximiser un palier rentable",
+      "metric_ref": "content_generator_tiers",
+      "proof_ref": "proof_content"
+     }
+    ],
+    "produces": "nouveaux types de generateurs (contenu revele)",
+    "consumes": [
+     "progression_loop"
+    ],
+    "unlocks": [
+     "economy_loop"
+    ],
+    "transformation_perceptible": {
+     "text": "une silhouette de generateur jamais vue apparait, distincte des precedentes",
+     "proof_ref": "proof_content"
+    },
+    "metric_propre": "content_generator_tiers"
+   },
+   "economy_loop": {
+    "steps": [
+     {
+      "id": "ec_action",
+      "kind": "action",
+      "actor": "PLAYER",
+      "why": "le joueur investit du R dans des achats",
+      "metric_ref": "economy_generator_payback_band",
+      "proof_ref": "proof_economy",
+      "resource": "R"
+     },
+     {
+      "id": "ec_feedback",
+      "kind": "feedback",
+      "actor": "SYSTEM",
+      "why": "le taux R/s affiche monte apres chaque achat",
+      "metric_ref": "economy_generator_payback_band",
+      "proof_ref": "proof_economy"
+     },
+     {
+      "id": "ec_reward",
+      "kind": "reward",
+      "actor": "SYSTEM",
+      "why": "le retour sur investissement se materialise : rentabilite (cout/prod) dans la bande cible",
+      "metric_ref": "economy_generator_payback_band",
+      "proof_ref": "proof_economy"
+     },
+     {
+      "id": "ec_progression",
+      "kind": "progression",
+      "actor": "SYSTEM",
+      "why": "le cout du prochain exemplaire du meme tier croit de x1.12 (cout_base x 1.12^n possedes, structure_imposee_v2), regulant l'expansion",
+      "metric_ref": "economy_generator_payback_band",
+      "proof_ref": "proof_economy"
+     },
+     {
+      "id": "ec_decision",
+      "kind": "decision",
+      "actor": "PLAYER",
+      "why": "acheter maintenant vs epargner vers un palier plus rentable",
+      "metric_ref": "economy_generator_payback_band",
+      "proof_ref": "proof_economy"
+     }
+    ],
+    "produces": "taux de R/s regule + cout croissant (economie active)",
+    "consumes": [
+     "gameplay_loop",
+     "content_loop"
+    ],
+    "unlocks": [
+     "progression_loop"
+    ],
+    "transformation_perceptible": {
+     "text": "apres un achat, le taux R/s affiche augmente et le cout du prochain exemplaire monte de x1.12",
+     "proof_ref": "proof_economy"
+    },
+    "metric_propre": "economy_generator_payback_band"
+   },
+   "skill_loop": {
+    "steps": [
+     {
+      "id": "sk_action",
+      "kind": "action",
+      "actor": "PLAYER",
+      "why": "le joueur achete une amelioration de clic (clic_x2 a 100 R puis clic_x4 a 5000 R)",
+      "metric_ref": "skill_click_upgrade_multiplier",
+      "proof_ref": "proof_skill",
+      "affordance": "improvement_clic_amp"
+     },
+     {
+      "id": "sk_feedback",
+      "kind": "feedback",
+      "actor": "SYSTEM",
+      "why": "le +N du Coeur augmente visiblement au clic suivant",
+      "metric_ref": "skill_click_upgrade_multiplier",
+      "proof_ref": "proof_skill"
+     },
+     {
+      "id": "sk_reward",
+      "kind": "reward",
+      "actor": "SYSTEM",
+      "why": "chaque clic manuel vaut x2 (clic_x2) puis x4 au total (clic_x4, cumul sequentiel) de R",
+      "metric_ref": "skill_click_upgrade_multiplier",
+      "proof_ref": "proof_skill"
+     },
+     {
+      "id": "sk_progression",
+      "kind": "progression",
+      "actor": "SYSTEM",
+      "why": "la puissance de la main du joueur monte par paliers d'amelioration",
+      "metric_ref": "skill_click_upgrade_multiplier",
+      "proof_ref": "proof_skill"
+     },
+     {
+      "id": "sk_decision",
+      "kind": "decision",
+      "actor": "PLAYER",
+      "why": "renforcer le clic manuel ou financer la production automatique",
+      "metric_ref": "skill_click_upgrade_multiplier",
+      "proof_ref": "proof_skill"
+     }
+    ],
+    "produces": "gain_clic amplifie (main du joueur plus forte)",
+    "consumes": [
+     "core_loop"
+    ],
+    "unlocks": [
+     "core_loop"
+    ],
+    "transformation_perceptible": {
+     "text": "apres une amelioration de clic, le +N du Coeur est nettement plus grand au clic suivant",
+     "proof_ref": "proof_skill"
+    },
+    "metric_propre": "skill_click_upgrade_multiplier"
+   },
+   "world_loop": {
+    "steps": [
+     {
+      "id": "wo_action",
+      "kind": "action",
+      "actor": "PLAYER",
+      "why": "le joueur franchit des seuils successifs (S1..S5)",
+      "metric_ref": "world_brighten_steps",
+      "proof_ref": "proof_world"
+     },
+     {
+      "id": "wo_feedback",
+      "kind": "feedback",
+      "actor": "SYSTEM",
+      "why": "le fond s'eclaircit d'un cran a chaque seuil",
+      "metric_ref": "world_brighten_steps",
+      "proof_ref": "proof_world",
+      "hud": "background_ambient"
+     },
+     {
+      "id": "wo_reward",
+      "kind": "reward",
+      "actor": "SYSTEM",
+      "why": "l'ambiance lumineuse s'intensifie, marquant le progres du monde",
+      "metric_ref": "world_brighten_steps",
+      "proof_ref": "proof_world"
+     },
+     {
+      "id": "wo_progression",
+      "kind": "progression",
+      "actor": "SYSTEM",
+      "why": "la clarte du monde progresse vers l'embrasement final",
+      "metric_ref": "world_brighten_steps",
+      "proof_ref": "proof_world"
+     },
+     {
+      "id": "wo_decision",
+      "kind": "decision",
+      "actor": "PLAYER",
+      "why": "poursuivre l'ascension vers le prochain seuil visible",
+      "metric_ref": "world_brighten_steps",
+      "proof_ref": "proof_world"
+     }
+    ],
+    "produces": "etat lumineux ascendant de la scene (clarte par palier)",
+    "consumes": [
+     "progression_loop"
+    ],
+    "unlocks": [
+     "meta_loop"
+    ],
+    "transformation_perceptible": {
+     "text": "le fond de la scene s'eclaircit d'un cran a chaque seuil franchi",
+     "proof_ref": "proof_world"
+    },
+    "metric_propre": "world_brighten_steps"
+   },
+   "quest_loop": {
+    "steps": [
+     {
+      "id": "qu_action",
+      "kind": "action",
+      "actor": "PLAYER",
+      "why": "le joueur vise le total cumule de 1 000 000 R",
+      "metric_ref": "quest_victory_target",
+      "proof_ref": "proof_quest"
+     },
+     {
+      "id": "qu_feedback",
+      "kind": "feedback",
+      "actor": "SYSTEM",
+      "why": "le progress_meter indique la proximite de la victoire (seuil final S5)",
+      "metric_ref": "quest_victory_target",
+      "proof_ref": "proof_quest",
+      "hud": "progress_meter"
+     },
+     {
+      "id": "qu_reward",
+      "kind": "reward",
+      "actor": "SYSTEM",
+      "why": "au franchissement de S5, victory_bloom (embrasement plein ecran)",
+      "metric_ref": "quest_victory_target",
+      "proof_ref": "proof_quest"
+     },
+     {
+      "id": "qu_progression",
+      "kind": "progression",
+      "actor": "SYSTEM",
+      "why": "l'objectif unique et terminal approche, aucun etat d'echec",
+      "metric_ref": "quest_victory_target",
+      "proof_ref": "proof_quest"
+     },
+     {
+      "id": "qu_decision",
+      "kind": "decision",
+      "actor": "PLAYER",
+      "why": "optimiser production/clic pour atteindre la victoire",
+      "metric_ref": "quest_victory_target",
+      "proof_ref": "proof_quest"
+     }
+    ],
+    "produces": "progression vers la condition de victoire unique",
+    "consumes": [
+     "progression_loop"
+    ],
+    "unlocks": [
+     "meta_loop"
+    ],
+    "transformation_perceptible": {
+     "text": "au million de R, un embrasement plein ecran (victoire) remplace la scene ; aucun ecran de defaite",
+     "proof_ref": "proof_quest"
+    },
+    "metric_propre": "quest_victory_target"
+   },
+   "meta_loop": {
+    "steps": [
+     {
+      "id": "me_action",
+      "kind": "action",
+      "actor": "PLAYER",
+      "why": "le joueur mene un run jusqu'a la victoire",
+      "metric_ref": "meta_run_count",
+      "proof_ref": "proof_meta"
+     },
+     {
+      "id": "me_feedback",
+      "kind": "feedback",
+      "actor": "SYSTEM",
+      "why": "l'ecran de victoire confirme la cloture ascendante du run",
+      "metric_ref": "meta_run_count",
+      "proof_ref": "proof_meta"
+     },
+     {
+      "id": "me_reward",
+      "kind": "reward",
+      "actor": "SYSTEM",
+      "why": "la satisfaction de la trajectoire complete (sans defaite) est delivree",
+      "metric_ref": "meta_run_count",
+      "proof_ref": "proof_meta"
+     },
+     {
+      "id": "me_progression",
+      "kind": "progression",
+      "actor": "SYSTEM",
+      "why": "le run est enregistre comme complete",
+      "metric_ref": "meta_run_count",
+      "proof_ref": "proof_meta"
+     },
+     {
+      "id": "me_decision",
+      "kind": "decision",
+      "actor": "PLAYER",
+      "why": "rejouer pour ameliorer le rythme ou s'arreter sur la victoire",
+      "metric_ref": "meta_run_count",
+      "proof_ref": "proof_meta"
+     }
+    ],
+    "produces": "run complete + motivation de re-engagement",
+    "consumes": [
+     "quest_loop",
+     "world_loop"
+    ],
+    "unlocks": [
+     "core_loop"
+    ],
+    "transformation_perceptible": {
+     "text": "l'ecran de victoire clot le run sur une note ascendante, sans aucun ecran de defaite",
+     "proof_ref": "proof_meta"
+    },
+    "metric_propre": "meta_run_count"
+   }
+  },
+  "economy_model": {
+   "resources": [
+    {
+     "id": "R",
+     "unit": "Lumen",
+     "sources": [
+      "clic manuel (Coeur de Lumen)",
+      "generateurs G1..G4"
+     ],
+     "sinks": [
+      "achat de generateurs",
+      "achat d'ameliorations (clic et production)"
+     ],
+     "initial_stock": 0
+    }
+   ],
+   "formulas": [
+    {
+     "id": "generator_cost",
+     "text": "cout = cout_base[i] x 1.12^(n possedes du tier) — coefficient de croissance NORMATIF 1.12 (structure_imposee_v2, ratifie Pierre 2026-08-30). Contexte de genre externe : Cookie Clicker utilise 1.15, non repris ici.",
+     "params": {
+      "cout_base_g1": 15,
+      "cout_base_g2": 100,
+      "cout_base_g3": 1100,
+      "cout_base_g4": 12000,
+      "growth": 1.12
+     }
+    },
+    {
+     "id": "generator_income",
+     "text": "R/s = somme_i (nb_i x prod_base_i x prod_multiplier_i) ; comptabilite interne en milli-R entiers (1 R = 1000 mR ; 0.1 R/s = 10 mR/tick a tick_ms=100).",
+     "params": {
+      "prod_g1": 0.1,
+      "prod_g2": 1,
+      "prod_g3": 8,
+      "prod_g4": 47,
+      "prod_upgrade": 2,
+      "tick_ms": 100
+     }
+    },
+    {
+     "id": "click_gain",
+     "text": "gain_clic = gain_clic_initial (=1) x produit des multiplicateurs de clic achetes (clic_x2 puis clic_x4, cumul sequentiel : 1 -> 2 -> 4). gain_clic_initial est FIXE par la structure (structure_imposee_v2 economy.gain_clic_initial).",
+     "params": {
+      "gain_clic_initial": 1,
+      "clic_x2_mult": 2,
+      "clic_x4_mult": 2
+     }
+    },
+    {
+     "id": "upgrades_mapping",
+     "text": "6 ameliorations (structure_imposee_v2 ameliorations_mapping) : 2 de clic disponibles DES LE DEBUT (clic_x2, puis clic_x4 requiert clic_x2), 4 de production x2 revelees a S4. Effets et couts fixes, aucune vente.",
+     "params": {
+      "clic_x2_cost": 100,
+      "clic_x4_cost": 5000,
+      "prod_g1_x2_cost": 500,
+      "prod_g2_x2_cost": 1000,
+      "prod_g3_x2_cost": 30000,
+      "prod_g4_x2_cost": 200000
+     }
+    },
+    {
+     "id": "unlock_thresholds",
+     "text": "Seuils sur le TOTAL CUMULE de R produit (jamais le solde) : S1=100 revele G2, S2=1000 revele G3, S3=12000 revele G4, S4=150000 revele les 4 ameliorations de production x2, S5=1000000 = victoire. Les 2 ameliorations de clic sont disponibles des le debut. Echelle COMPLETE (structure_imposee_v2 dimensioning.seuils_cumules) ; S4 precedemment declare 'non fixe' — deviation corrigee cette ronde.",
+     "params": {
+      "s1": 100,
+      "s2": 1000,
+      "s3": 12000,
+      "s4": 150000,
+      "s5": 1000000
+     }
+    },
+    {
+     "id": "victory_condition",
+     "text": "victoire si total cumule de R produit >= 1000000 ; aucun etat d'echec.",
+     "params": {
+      "victory_threshold": 1000000
+     }
+    }
+   ]
+  },
+  "progression_metrics": [
+   {
+    "id": "core_r_per_click",
+    "kind": "observation",
+    "unit": "R/clic",
+    "why": "R credite par evenement de clic sur le Coeur, mesure a l'execution (part de gain_clic_initial=1) ; non bloquant."
+   },
+   {
+    "id": "gameplay_g1_cost",
+    "kind": "invariant",
+    "value": 15,
+    "unit": "R",
+    "why": "cout_base du 1er generateur G1 = 15 R (structure_imposee_v2 economy.cout_base[0]).",
+    "source": "design:calibration"
+   },
+   {
+    "id": "progression_s1_threshold",
+    "kind": "invariant",
+    "value": 100,
+    "unit": "R cumule",
+    "why": "seuil cumule S1 = 100 R produits au total revele G2 (structure_imposee_v2 dimensioning.seuils_cumules[0]).",
+    "source": "design:calibration"
+   },
+   {
+    "id": "progression_s4_threshold",
+    "kind": "invariant",
+    "value": 150000,
+    "unit": "R cumule",
+    "why": "seuil cumule S4 = 150000 R produits au total revele les 4 ameliorations de production x2 (structure_imposee_v2 dimensioning.seuils_cumules[3]) ; valeur precedemment declaree 'non fixee' dans le gm_worldscan — deviation normative corrigee cette ronde.",
+    "source": "design:calibration"
+   },
+   {
+    "id": "content_generator_tiers",
+    "kind": "invariant",
+    "value": 4,
+    "unit": "paliers de generateur",
+    "why": "4 tiers de generateur distincts G1..G4 (structure_imposee_v2 economy.cout_base/prod, 4 valeurs).",
+    "source": "design:calibration"
+   },
+   {
+    "id": "economy_generator_payback_band",
+    "kind": "target",
+    "range": {
+     "min": 90,
+     "max": 300
+    },
+    "unit": "s",
+    "why": "temps de rentabilite cible (cout_base/prod) au premier achat de chaque generateur = 150/100/137/255 s, derive des valeurs NORMATIVES cout_base [15,100,1100,12000] et prod [0.1,1,8,47] (structure_imposee_v2) ; independant du coefficient de croissance (premier exemplaire) ; bande [90,300] = tolerance de design pour un retour gratifiant non instantane.",
+    "source": "design:calibration"
+   },
+   {
+    "id": "skill_click_upgrade_multiplier",
+    "kind": "invariant",
+    "value": 2,
+    "unit": "x par palier clic",
+    "why": "une amelioration de clic multiplie gain_clic par 2 (clic_x2 puis clic_x4, cumul sequentiel ; structure_imposee_v2 ameliorations_mapping).",
+    "source": "design:calibration"
+   },
+   {
+    "id": "world_brighten_steps",
+    "kind": "invariant",
+    "value": 5,
+    "unit": "paliers de clarte (S1..S5)",
+    "why": "la scene s'eclaircit d'un cran a chacun des 5 seuils cumules (art_bible:affordance_rules ; 5 = structure_imposee_v2 dimensioning.seuils_cumules).",
+    "source": "design:calibration"
+   },
+   {
+    "id": "quest_victory_target",
+    "kind": "invariant",
+    "value": 1000000,
+    "unit": "R cumule",
+    "why": "condition de victoire unique = total cumule de R produit >= 1 000 000 (structure_imposee_v2 dimensioning.fin ; story_bible:coherence_rules).",
+    "source": "design:calibration"
+   },
+   {
+    "id": "meta_run_count",
+    "kind": "observation",
+    "unit": "runs",
+    "why": "nombre de runs completes jusqu'a la victoire, mesure ; jeu a run unique, non bloquant."
+   }
+  ],
+  "proof_model": [
+   {
+    "id": "proof_core",
+    "measures": "core_r_per_click",
+    "how": "hud",
+    "expected": "le compteur R augmente de gain_clic a chaque clic ; +N flottant visible."
+   },
+   {
+    "id": "proof_gameplay",
+    "measures": "gameplay_g1_cost",
+    "how": "registry",
+    "expected": "achat de G1 debite de 15 R au premier achat ; exemplaires suivants a 15 x 1.12^n ; production 0.1 R/s activee."
+   },
+   {
+    "id": "proof_progression",
+    "measures": "progression_s1_threshold",
+    "how": "player_loop",
+    "expected": "au franchissement de 100 R cumules, G2 se revele (threshold_reveal) ; le progress_meter se recale sur le seuil suivant."
+   },
+   {
+    "id": "proof_s4",
+    "measures": "progression_s4_threshold",
+    "how": "player_loop",
+    "expected": "au franchissement de 150000 R cumules, les 4 ameliorations de production x2 se revelent (threshold_reveal a S4)."
+   },
+   {
+    "id": "proof_content",
+    "measures": "content_generator_tiers",
+    "how": "registry",
+    "expected": "4 types de generateurs declares G1..G4, reveles en sequence, silhouettes distinctes."
+   },
+   {
+    "id": "proof_economy",
+    "measures": "economy_generator_payback_band",
+    "how": "player_loop",
+    "expected": "temps de rentabilite (cout courant/production) mesure dans [90,300] s au premier achat de chaque palier."
+   },
+   {
+    "id": "proof_skill",
+    "measures": "skill_click_upgrade_multiplier",
+    "how": "decision",
+    "expected": "apres achat de clic_x2, gain_clic double ; hausse observable du +N."
+   },
+   {
+    "id": "proof_world",
+    "measures": "world_brighten_steps",
+    "how": "hud",
+    "expected": "la clarte du fond monte d'un cran a chacun des 5 seuils franchis."
+   },
+   {
+    "id": "proof_quest",
+    "measures": "quest_victory_target",
+    "how": "player_loop",
+    "expected": "au franchissement de 1 000 000 R cumules, victory_bloom s'affiche ; aucun etat de defaite."
+   },
+   {
+    "id": "proof_meta",
+    "measures": "meta_run_count",
+    "how": "registry",
+    "expected": "un run se clot a la victoire ; l'etat de run est enregistre."
+   }
+  ],
+  "grey_blocks": [
+   {
+    "id": "gb_core",
+    "type": "ACTOR",
+    "role": "AFFORDANCE",
+    "state": "AVAILABLE",
+    "requires": [],
+    "player_meaning": "C'est ici que j'agis : je tape le Coeur pour produire du R.",
+    "builder_contract": "Orbe central cliquable (Coeur de Lumen) : pulsation lente au repos, eclat radial + nombre flottant +N a chaque clic ; le clic credite du R (gain_clic initial = 1).",
+    "proof_ref": "proof_core"
+   },
+   {
+    "id": "gb_r_counter",
+    "type": "UI",
+    "role": "FEEDBACK",
+    "state": "AVAILABLE",
+    "requires": [],
+    "player_meaning": "Je vois ma richesse R monter en permanence.",
+    "builder_contract": "Compteur R permanent en haut d'ecran, lisible de 1 a >=1 000 000 (formatage des grands nombres) ; affichage = floor(solde_mR/1000) ; s'incremente a chaque gain.",
+    "proof_ref": "proof_core"
+   },
+   {
+    "id": "gb_g1",
+    "type": "ITEM",
+    "role": "AFFORDANCE",
+    "state": "AVAILABLE",
+    "requires": [],
+    "player_meaning": "Mon premier generateur : je l'achete pour produire du R sans cliquer.",
+    "builder_contract": "Conduit tier 1, silhouette simple ; achat a 15 R (cout_base x 1.12^n possedes), produit 0.1 R/s ; s'illumine selon le nombre possede.",
+    "proof_ref": "proof_gameplay"
+   },
+   {
+    "id": "gb_g2",
+    "type": "ITEM",
+    "role": "PROGRESSION_GATE",
+    "state": "LOCKED",
+    "requires": [
+     "progression_s1_threshold"
+    ],
+    "player_meaning": "Un generateur inedit se revele quand j'atteins 100 R cumules.",
+    "builder_contract": "Silhouette distincte de G1 ; cachee puis apparait par threshold_reveal a S1 (100 R cumules) ; achat 100 R (x1.12 par exemplaire), produit 1 R/s ; une nouvelle machine s'ajoute a la colonne.",
+    "proof_ref": "proof_progression",
+    "unlock": [
+     "gb_g3"
+    ],
+    "next_goal": "Prochain palier : 1000 R cumules pour reveler G3."
+   },
+   {
+    "id": "gb_g3",
+    "type": "ITEM",
+    "role": "CONTENT",
+    "state": "LOCKED",
+    "requires": [
+     "gb_g2"
+    ],
+    "player_meaning": "Un troisieme generateur, plus puissant, apparait a 1000 R cumules.",
+    "builder_contract": "Silhouette plus haute/complexe que G2 ; threshold_reveal a S2 (1000 R cumules) ; achat 1100 R (x1.12 par exemplaire), produit 8 R/s ; nouvelle machine visible.",
+    "proof_ref": "proof_content",
+    "unlock": [
+     "gb_g4"
+    ],
+    "next_goal": "Prochain palier : 12000 R cumules pour reveler G4."
+   },
+   {
+    "id": "gb_g4",
+    "type": "ITEM",
+    "role": "CONTENT",
+    "state": "LOCKED",
+    "requires": [
+     "gb_g3"
+    ],
+    "player_meaning": "Le generateur le plus imposant se debloque a 12000 R cumules.",
+    "builder_contract": "Silhouette la plus imposante et lumineuse ; threshold_reveal a S3 (12000 R cumules) ; achat 12000 R (x1.12 par exemplaire), produit 47 R/s.",
+    "proof_ref": "proof_content",
+    "unlock": [
+     "gb_prod_upgrade"
+    ],
+    "next_goal": "Prochain palier : 150000 R cumules (S4) pour reveler les 4 ameliorations de production."
+   },
+   {
+    "id": "gb_buy_button",
+    "type": "UI",
+    "role": "AFFORDANCE",
+    "state": "AVAILABLE",
+    "requires": [],
+    "player_meaning": "Je vois immediatement si je peux acheter (lumineux) ou non (grise).",
+    "builder_contract": "Bouton d'achat a deux etats nets : ACHETABLE (colore, halo, cliquable) / GRISE (desature, sans halo) quand R insuffisant ; refus observable, etat inchange ; affiche le cout courant en R (cout_base x 1.12^n).",
+    "proof_ref": "proof_gameplay"
+   },
+   {
+    "id": "gb_progress_meter",
+    "type": "UI",
+    "role": "FEEDBACK",
+    "state": "AVAILABLE",
+    "requires": [],
+    "player_meaning": "Je vois a quelle distance je suis du prochain deblocage sur l'echelle COMPLETE des 5 seuils cumules (100, 1000, 12000, 150000, 1000000 R) : acheter maintenant ou epargner vers le seuil ?",
+    "builder_contract": "Jauge de proximite vers le PROCHAIN seuil cumule de l'echelle complete S1..S5 = [100, 1000, 12000, 150000, 1000000] R (total cumule produit, jamais le solde) : materialise l'arbitrage acheter-maintenant vs epargner-vers-le-seuil (confirme avec l'Artiste, q_art_001) ; se remplit a mesure que le R cumule approche le seuil courant, puis se reinitialise sur le seuil suivant apres threshold_reveal. L'arbitrage est signifiant parce que le cout croit de x1.12 par exemplaire.",
+    "proof_ref": "proof_progression"
+   },
+   {
+    "id": "gb_clic_upgrade",
+    "type": "ITEM",
+    "role": "AFFORDANCE",
+    "state": "AVAILABLE",
+    "requires": [],
+    "player_meaning": "Je peux renforcer ma main : chaque clic vaut plus (x2 a 100 R, puis x4 total a 5000 R).",
+    "builder_contract": "Icone ambre (famille clic) ; achats clic_x2 (cout 100 R) puis clic_x4 (cout 5000 R, requiert clic_x2) en cumul sequentiel ; disponibles des le debut ; apres achat, le +N du Coeur augmente visiblement.",
+    "proof_ref": "proof_skill"
+   },
+   {
+    "id": "gb_prod_upgrade",
+    "type": "ITEM",
+    "role": "CONTENT",
+    "state": "LOCKED",
+    "requires": [
+     "progression_s4_threshold"
+    ],
+    "player_meaning": "A S4 (150000 R cumules), je peux doubler la production d'un generateur.",
+    "builder_contract": "Icone cyan (famille production), 4 ameliorations debloquees groupees a S4 (150000 R cumules) par threshold_reveal ; chaque amelioration double (x2) la production du generateur cible (couts prod_g1_x2=500, prod_g2_x2=1000, prod_g3_x2=30000, prod_g4_x2=200000) ; le taux R/s affiche monte.",
+    "proof_ref": "proof_s4",
+    "unlock": [
+     "gb_victory_bloom"
+    ],
+    "next_goal": "Pousser la production vers 1 000 000 R cumules."
+   },
+   {
+    "id": "gb_click_burst",
+    "type": "UI",
+    "role": "FEEDBACK",
+    "state": "AVAILABLE",
+    "requires": [],
+    "player_meaning": "Mon clic a un effet visible immediat.",
+    "builder_contract": "VFX instantane au clic sur le Coeur : eclat radial court + nombre flottant +N (= gain_clic courant) qui monte et s'efface.",
+    "proof_ref": "proof_core"
+   },
+   {
+    "id": "gb_threshold_reveal",
+    "type": "UI",
+    "role": "FEEDBACK",
+    "state": "AVAILABLE",
+    "requires": [],
+    "player_meaning": "Quand je franchis un seuil, je vois nettement qu'un nouvel element apparait.",
+    "builder_contract": "VFX de franchissement : flash/onde lumineuse accompagnant l'apparition de G2 (S1=100), G3 (S2=1000), G4 (S3=12000), ameliorations de production (S4=150000).",
+    "proof_ref": "proof_progression"
+   },
+   {
+    "id": "gb_victory_bloom",
+    "type": "UI",
+    "role": "REWARD",
+    "state": "LOCKED",
+    "requires": [
+     "quest_victory_target"
+    ],
+    "player_meaning": "Atteindre le million declenche un embrasement : j'ai gagne.",
+    "builder_contract": "Etat/ecran de victoire au franchissement de S5 (>=1 000 000 R cumules) : embrasement lumineux plein ecran ; terminaison unique ascendante ; aucun equivalent de defaite.",
+    "proof_ref": "proof_quest",
+    "next_goal": "Fin du run - victoire atteinte."
+   },
+   {
+    "id": "gb_world_background",
+    "type": "LOCATION",
+    "role": "META",
+    "state": "AVAILABLE",
+    "requires": [],
+    "player_meaning": "Le monde lui-meme s'eclaircit a mesure que je progresse.",
+    "builder_contract": "Fond bleu-nuit (#0B0E17) qui gagne en clarte d'un cran a chacun des 5 seuils franchis ; particules de lumiere ambiantes ; raconte l'ascension.",
+    "proof_ref": "proof_world"
+   }
+  ],
+  "artist_requirements": [
+   {
+    "id": "ar_core",
+    "grey_block": "gb_core",
+    "states_to_show": [
+     "AVAILABLE"
+    ],
+    "visible_reason": false,
+    "visible_requirement": "aucun (disponible des le depart)",
+    "preview": false,
+    "affordance_visual": "orbe pulsant central, halo ambre, reagit au survol",
+    "readability": "cible de clic evidente au centre, fort contraste sur fond sombre"
+   },
+   {
+    "id": "ar_r_counter",
+    "grey_block": "gb_r_counter",
+    "states_to_show": [
+     "AVAILABLE"
+    ],
+    "visible_reason": false,
+    "visible_requirement": "aucun (permanent)",
+    "preview": false,
+    "affordance_visual": "chiffres tabulaires ambre en haut d'ecran",
+    "readability": "formatage des grands nombres, lisible 1 -> 1e6"
+   },
+   {
+    "id": "ar_g1",
+    "grey_block": "gb_g1",
+    "states_to_show": [
+     "AVAILABLE",
+     "OWNED"
+    ],
+    "visible_reason": false,
+    "visible_requirement": "15 R disponibles pour l'achat",
+    "preview": false,
+    "affordance_visual": "conduit simple, s'illumine selon nombre possede",
+    "readability": "silhouette tier1 distincte"
+   },
+   {
+    "id": "ar_g2",
+    "grey_block": "gb_g2",
+    "states_to_show": [
+     "LOCKED",
+     "AVAILABLE",
+     "OWNED"
+    ],
+    "visible_reason": true,
+    "visible_requirement": "100 R cumules",
+    "preview": true,
+    "affordance_visual": "silhouette distincte de G1, apparait par flash",
+    "readability": "nouveaute visible via threshold_reveal"
+   },
+   {
+    "id": "ar_g3",
+    "grey_block": "gb_g3",
+    "states_to_show": [
+     "LOCKED",
+     "AVAILABLE",
+     "OWNED"
+    ],
+    "visible_reason": true,
+    "visible_requirement": "1000 R cumules",
+    "preview": true,
+    "affordance_visual": "silhouette plus haute/complexe",
+    "readability": "distincte des paliers precedents"
+   },
+   {
+    "id": "ar_g4",
+    "grey_block": "gb_g4",
+    "states_to_show": [
+     "LOCKED",
+     "AVAILABLE",
+     "OWNED"
+    ],
+    "visible_reason": true,
+    "visible_requirement": "12000 R cumules",
+    "preview": true,
+    "affordance_visual": "silhouette la plus imposante et lumineuse",
+    "readability": "sommet visuel de la colonne"
+   },
+   {
+    "id": "ar_buy_button",
+    "grey_block": "gb_buy_button",
+    "states_to_show": [
+     "AVAILABLE"
+    ],
+    "visible_reason": true,
+    "visible_requirement": "R >= cout courant du generateur",
+    "preview": false,
+    "affordance_visual": "etat ACHETABLE lumineux vs GRISE desature",
+    "readability": "refus d'achat observable, cout affiche"
+   },
+   {
+    "id": "ar_progress_meter",
+    "grey_block": "gb_progress_meter",
+    "states_to_show": [
+     "AVAILABLE"
+    ],
+    "visible_reason": true,
+    "visible_requirement": "proximite au prochain seuil de l'echelle complete S1..S5 (100/1000/12000/150000/1000000 R cumules)",
+    "preview": true,
+    "affordance_visual": "jauge de remplissage vers le prochain seuil cumule",
+    "readability": "distance au deblocage lisible d'un coup d'oeil"
+   },
+   {
+    "id": "ar_clic_upgrade",
+    "grey_block": "gb_clic_upgrade",
+    "states_to_show": [
+     "AVAILABLE",
+     "OWNED"
+    ],
+    "visible_reason": false,
+    "visible_requirement": "R suffisant pour l'amelioration (100 R puis 5000 R)",
+    "preview": false,
+    "affordance_visual": "icone ambre famille clic",
+    "readability": "distincte de la famille production par la couleur"
+   },
+   {
+    "id": "ar_prod_upgrade",
+    "grey_block": "gb_prod_upgrade",
+    "states_to_show": [
+     "LOCKED",
+     "AVAILABLE",
+     "OWNED"
+    ],
+    "visible_reason": true,
+    "visible_requirement": "150000 R cumules (S4)",
+    "preview": true,
+    "affordance_visual": "icone cyan famille production",
+    "readability": "deblocage groupe S4 visiblement nouveau"
+   },
+   {
+    "id": "ar_click_burst",
+    "grey_block": "gb_click_burst",
+    "states_to_show": [
+     "AVAILABLE"
+    ],
+    "visible_reason": false,
+    "visible_requirement": "aucun (a chaque clic)",
+    "preview": false,
+    "affordance_visual": "eclat radial + +N flottant",
+    "readability": "retour instantane net, non stroboscopique"
+   },
+   {
+    "id": "ar_threshold_reveal",
+    "grey_block": "gb_threshold_reveal",
+    "states_to_show": [
+     "AVAILABLE"
+    ],
+    "visible_reason": false,
+    "visible_requirement": "franchissement d'un seuil",
+    "preview": false,
+    "affordance_visual": "flash/onde lumineuse",
+    "readability": "attire l'oeil sur l'element nouveau sans le noyer"
+   },
+   {
+    "id": "ar_victory_bloom",
+    "grey_block": "gb_victory_bloom",
+    "states_to_show": [
+     "LOCKED",
+     "AVAILABLE"
+    ],
+    "visible_reason": true,
+    "visible_requirement": "1 000 000 R cumules (S5)",
+    "preview": false,
+    "affordance_visual": "embrasement plein ecran",
+    "readability": "etat de victoire sans ambiguite ; aucune defaite"
+   },
+   {
+    "id": "ar_world_background",
+    "grey_block": "gb_world_background",
+    "states_to_show": [
+     "AVAILABLE"
+    ],
+    "visible_reason": false,
+    "visible_requirement": "aucun (evolue par paliers)",
+    "preview": false,
+    "affordance_visual": "fond qui s'eclaircit par paliers",
+    "readability": "changement progressif, jamais brutal, confort visuel"
+   }
+  ]
+ }
+}

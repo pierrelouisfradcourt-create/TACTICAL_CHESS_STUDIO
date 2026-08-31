@@ -1,0 +1,205 @@
+{
+ "game_id": "p2_beta",
+ "systemes": [
+  {
+   "id": "sys_core_loop",
+   "features": [
+    {
+     "id": "feat_goal_prompt",
+     "capacites": [
+      {
+       "id": "cap_a_first_goal",
+       "capacite": "Afficher un premier objectif non vide dès le frame 0, avant toute interaction du joueur.",
+       "source_ref": "ex_a_goal",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot ouvre le jeu et lit le HUD `objectif` au frame 0 : la chaîne d'objectif est non vide avant toute interaction."
+       }
+      },
+      {
+       "id": "gb_quest_tracker",
+       "capacite": "Traqueur d'objectifs (grey block gb_quest_tracker) : liste montrant l'objectif courant et sa récompense, pilotant l'attention du joueur.",
+       "source_ref": "ex_a_goal",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "liste de quetes montrant l'objectif courant + sa recompense; s'incremente a la completion et revele le suivant (nouvelle interaction: un objectif cliquable/suivable qui pilote l'attention)"
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_click_input",
+     "capacites": [
+      {
+       "id": "gb_click_target",
+       "capacite": "Le joueur presse la cible centrale `click_target` (capacité d'ENTRÉE) ; au premier écran chaque clic est le seul gain d'unités possible (grey block gb_click_target).",
+       "source_ref": "ex_b_action",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot ouvre `main.tscn` et clique `click_target` N fois sans posséder de générateur ; `resource_counter` passe de 0 à N × valeur_clic et ne bouge pas entre deux clics."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_click_response",
+     "capacites": [
+      {
+       "id": "cap_c_click_feedback",
+       "capacite": "Réagir visiblement au tick même du clic : flotteur +N et animation d'appui de la cible (capacité d'EFFET perceptif).",
+       "source_ref": "ex_c_response",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Une capture au tick du clic montre le flotteur +N et l'animation d'appui de `click_target`, tous deux absents de la capture du tick précédent."
+       }
+      },
+      {
+       "id": "cap_d_click_reward",
+       "capacite": "Accumuler le gain de clic de façon persistante : le total monte strictement et le reste (capacité d'EFFET de récompense).",
+       "source_ref": "ex_d_reward",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot lit `resource_counter` avant et après un clic : la valeur après est strictement supérieure et persiste au frame suivant."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_economy",
+   "features": [
+    {
+     "id": "feat_allocation_decision",
+     "capacites": [
+      {
+       "id": "cap_e_decision",
+       "capacite": "Présenter un choix cliquer-maintenant vs attendre-et-acheter à conséquence mesurable sur le total.",
+       "source_ref": "ex_e_decision",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Deux bots (idle : aucun clic ; actif : clique `click_target` tous les 3 frames) jouent 300 frames ; leurs trajectoires de `resource_counter` divergent, prouvant que le choix porte à conséquence."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_generator_unlock",
+     "capacites": [
+      {
+       "id": "gb_generator",
+       "capacite": "Le joueur achète son premier générateur en cliquant `buy_generator` (capacité d'ENTRÉE, maillon F/UNLOCK) ; une rangée `generateurs` apparaît et le revenu passif démarre (grey block gb_generator).",
+       "source_ref": "ex_f_unlock",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot, depuis `main.tscn`, accumule le coût puis clique `buy_generator` ; une rangée du groupe `generateurs` apparaît à l'écran et `cps_readout` passe de 0 à >0."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_progression_goals",
+   "features": [
+    {
+     "id": "feat_next_goals",
+     "capacites": [
+      {
+       "id": "cap_g1_next_goal",
+       "capacite": "Remplacer l'objectif par un texte nouveau distinct après le premier achat (maillon G/NEXT_GOAL, capacité d'EFFET VISIBLE).",
+       "source_ref": "ex_g_goal1",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Après l'achat du premier générateur, le label `objectif` du HUD affiche un texte nouveau ('acheter ta première amélioration'), textuellement distinct de l'objectif de départ."
+       }
+      },
+      {
+       "id": "cap_g2_next_goal",
+       "capacite": "Remplacer l'objectif par un troisième texte distinct après la première amélioration (maillon G/NEXT_GOAL, capacité d'EFFET VISIBLE).",
+       "source_ref": "ex_g_goal2",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Après l'achat de la première amélioration, le label `objectif` affiche un troisième texte ('franchir le premier seuil de palier'), textuellement distinct des deux précédents."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_meta_end",
+   "features": [
+    {
+     "id": "feat_prestige_reset",
+     "capacites": [
+      {
+       "id": "cap_i_meta_reset",
+       "capacite": "Le joueur déclenche la relance bornée en cliquant `prestige_reset` (capacité d'ENTRÉE, maillon I/META_LOOP) ; le total retombe à zéro.",
+       "source_ref": "ex_i_meta",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot, depuis `main.tscn`, déclenche `prestige_reset` ; `resource_counter` vaut 0 au frame suivant, contre sa valeur d'avant-relance strictement positive."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_end_gauge",
+     "capacites": [
+      {
+       "id": "cap_n_endgauge",
+       "capacite": "Afficher une jauge de fin persistante, toujours visible et distincte du compteur, monotone croissante vers 100 %.",
+       "source_ref": "ex_n_endgauge",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Sur un run de référence, `end_gauge` est présente à chaque capture et sa valeur est monotone croissante jusqu'à 100 %, sans jamais décroître."
+       }
+      },
+      {
+       "id": "gb_end_gauge",
+       "capacite": "Jauge de fin (grey block gb_end_gauge) : barre persistante distincte du compteur, se remplissant vers la fin observable et déclenchant la victoire à 100 %.",
+       "source_ref": "ex_n_endgauge",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "barre de progression persistante vers la fin observable; se remplit a mesure que stages/quetes/ticks s'accumulent; a 100% declenche l'ecran de victoire (element de scene toujours visible et distinct du compteur de ressource)"
+       }
+      },
+      {
+       "id": "gb_stage_gate",
+       "capacite": "Transitions de stage (grey block gb_stage_gate) : 5 seuils qui changent la surface de jeu — mécanisme sous-jacent à la montée de la jauge de fin, dont l'énoncé de ex_n_endgauge cite explicitement l'accumulation de stages.",
+       "source_ref": "ex_n_endgauge",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "transitions de stage (5 stages) qui changent visiblement la surface de jeu quand les seuils sont atteints - une nouvelle scene avec un jeu de producteurs different, pas un +X%"
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_victory",
+     "capacites": [
+      {
+       "id": "cap_n_victory",
+       "capacite": "À end_gauge=100 %, remplacer la surface de jeu par une scène de victoire plein écran affichant les totaux finaux.",
+       "source_ref": "ex_n_victory",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "À `end_gauge` = 100 %, une capture montre l'écran de victoire plein écran ayant remplacé la surface de jeu, avec les totaux finaux affichés."
+       }
+      },
+      {
+       "id": "gb_victory_screen",
+       "capacite": "Écran de victoire (grey block gb_victory_screen) : état de fin plein écran qui remplace réellement la surface de jeu.",
+       "source_ref": "ex_n_victory",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "etat de fin plein-ecran quand end-progress atteint 100%; montre les totaux finaux; remplace reellement la surface de jeu (vrai changement de scene, pas une overlay cosmetique)"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

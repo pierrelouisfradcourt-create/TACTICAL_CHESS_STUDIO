@@ -1,0 +1,334 @@
+{
+ "game_id": "p2_alpha",
+ "systemes": [
+  {
+   "id": "sys_clic_manuel",
+   "features": [
+    {
+     "id": "feat_clic_coeur",
+     "capacites": [
+      {
+       "id": "cap_e2_clic_entree",
+       "capacite": "ENTREE : le joueur agit sur l'affordance `coeur_de_lumen` (un clic manuel produisant du R).",
+       "source_ref": "E2",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Depuis main.tscn, un bot agit sur l'affordance `coeur_de_lumen` (un clic) ; l'entree joueur est executee."
+       }
+      },
+      {
+       "id": "cap_e2_gain_effet",
+       "capacite": "EFFET : le compteur R augmente de gain_clic (strictement > 0) a chaque clic.",
+       "source_ref": "E2",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Depuis main.tscn, apres le clic sur `coeur_de_lumen`, `r_counter` passe de v a v+gain_clic avec gain_clic>0 (effet observable)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_feedback_clic",
+     "capacites": [
+      {
+       "id": "gb_core",
+       "capacite": "Coeur de Lumen : orbe central cliquable, cible du clic manuel.",
+       "source_ref": "E4",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Orbe central cliquable (Coeur de Lumen) : pulsation lente au repos, eclat radial + nombre flottant +N a chaque clic ; le clic credite du R."
+       }
+      },
+      {
+       "id": "gb_r_counter",
+       "capacite": "Compteur R permanent, lisible et mis a jour a chaque gain.",
+       "source_ref": "E4",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Compteur R permanent en haut d'ecran, lisible de 1 a >=1 000 000 (formatage des grands nombres), s'incremente a chaque gain."
+       }
+      },
+      {
+       "id": "gb_click_burst",
+       "capacite": "VFX de clic : eclat radial + nombre flottant +N a chaque clic.",
+       "source_ref": "E4",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "VFX instantane au clic sur le Coeur : eclat radial court + nombre flottant +N (= gain_clic courant) qui monte et s'efface."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_generateurs",
+   "features": [
+    {
+     "id": "feat_achat_generateur",
+     "capacites": [
+      {
+       "id": "cap_e3_achat_entree",
+       "capacite": "ENTREE : le joueur agit sur l'affordance `acheter_generateur` quand R >= cout.",
+       "source_ref": "E3",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Depuis main.tscn, un bot avec R>=15 agit sur l'affordance `acheter_generateur` (un clic d'achat)."
+       }
+      },
+      {
+       "id": "cap_e3_achat_effet",
+       "capacite": "EFFET : R diminue du cout exact et un generateur G1 est acquis.",
+       "source_ref": "E3",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Depuis main.tscn, apres l'action `acheter_generateur`, R diminue de 15 et le nombre de G1 possedes passe a 1 (effet observable)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_production_auto",
+     "capacites": [
+      {
+       "id": "gb_g1",
+       "capacite": "Generateur G1 : achat 15 R, auto-production 0.1 R/s.",
+       "source_ref": "E5",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Conduit tier 1, silhouette simple ; achat a 15 R (x1.15 par exemplaire), produit 0.1 R/s ; s'illumine selon le nombre possede."
+       }
+      },
+      {
+       "id": "gb_g2",
+       "capacite": "Generateur G2 : revele a S1, achat 100 R, auto-production 1 R/s.",
+       "source_ref": "E5",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Silhouette distincte de G1 ; cachee puis apparait par threshold_reveal a S1 (100 R cumules) ; achat 100 R, produit 1 R/s ; une nouvelle machine s'ajoute a la colonne."
+       }
+      },
+      {
+       "id": "gb_g3",
+       "capacite": "Generateur G3 : revele a S2, achat 1100 R, auto-production 8 R/s.",
+       "source_ref": "E5",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Silhouette plus haute/complexe que G2 ; threshold_reveal a S2 ; achat 1100 R, produit 8 R/s ; nouvelle machine visible."
+       }
+      },
+      {
+       "id": "gb_g4",
+       "capacite": "Generateur G4 : revele a S3, achat 12000 R, auto-production 47 R/s.",
+       "source_ref": "E5",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Silhouette la plus imposante et lumineuse ; threshold_reveal a S3 ; achat 12000 R, produit 47 R/s."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_bouton_achat",
+     "capacites": [
+      {
+       "id": "gb_buy_button",
+       "capacite": "Bouton d'achat a deux etats : achetable vs grise (refus observable quand R insuffisant).",
+       "source_ref": "E15",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Bouton d'achat a deux etats nets : ACHETABLE (colore, halo, cliquable) / GRISE (desature, sans halo) quand R insuffisant ; refus observable, etat inchange ; affiche le cout courant en R."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_progression",
+   "features": [
+    {
+     "id": "feat_unlock_g2",
+     "capacites": [
+      {
+       "id": "cap_e7_unlock_g2_entree",
+       "capacite": "ENTREE : une fois G2 revele a S1, le joueur agit sur l'affordance `acheter_generateur_g2`.",
+       "source_ref": "E7",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Depuis main.tscn, une fois 100 R cumules atteints et G2 revele, un bot agit sur l'affordance `acheter_generateur_g2` (un clic d'achat)."
+       }
+      },
+      {
+       "id": "cap_e7_unlock_g2_effet",
+       "capacite": "EFFET : au franchissement de S1, une entree G2 auparavant absente apparait dans la colonne.",
+       "source_ref": "E7",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Depuis main.tscn, a 100 R cumules, une entree generateur G2 auparavant absente apparait dans la colonne (effet de deblocage observable)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_reveal_vfx",
+     "capacites": [
+      {
+       "id": "gb_threshold_reveal",
+       "capacite": "VFX de franchissement de seuil accompagnant chaque revelation (G2/G3/G4/ameliorations).",
+       "source_ref": "E8",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "VFX de franchissement : flash/onde lumineuse accompagnant l'apparition de G2 (S1), G3 (S2), G4 (S3), ameliorations (S4)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_objectif",
+     "capacites": [
+      {
+       "id": "gb_progress_meter",
+       "capacite": "Jauge de proximite vers le prochain seuil, materialisant l'arbitrage acheter/epargner.",
+       "source_ref": "E1",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Jauge de proximite vers le prochain seuil (S1..S5) : materialise l'arbitrage acheter-maintenant vs epargner-vers-le-seuil ; avance a mesure que le R cumule approche le seuil."
+       }
+      },
+      {
+       "id": "cap_e8_objectif_effet",
+       "capacite": "EFFET VISIBLE (NEXT_GOAL) : apres S1, le label `objectif` change pour un texte nouveau citant 1000 R et G3.",
+       "source_ref": "E8",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Le texte de `objectif` apres S1 differe caractere pour caractere du precedent et cite 1000 R et G3."
+       }
+      },
+      {
+       "id": "cap_e9_objectif_effet",
+       "capacite": "EFFET VISIBLE (NEXT_GOAL) : apres S2, le label `objectif` change encore pour un texte distinct citant 12000 R et G4.",
+       "source_ref": "E9",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Le texte de `objectif` apres S2 differe de celui apres S1 et cite 12000 R et G4."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_fond_ascendant",
+     "capacites": [
+      {
+       "id": "gb_world_background",
+       "capacite": "Fond qui s'eclaircit d'un cran a chacun des 5 seuils franchis.",
+       "source_ref": "E14",
+       "expected_proof": {
+        "kind": "visual",
+        "statement": "Fond bleu-nuit (#0B0E17) qui gagne en clarte d'un cran a chacun des 5 seuils franchis ; particules de lumiere ambiantes ; raconte l'ascension."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_arbitrage",
+   "features": [
+    {
+     "id": "feat_ameliorations",
+     "capacites": [
+      {
+       "id": "gb_clic_upgrade",
+       "capacite": "Amelioration de clic (clic_x2 puis clic_x4) : renforce le gain manuel, option d'arbitrage.",
+       "source_ref": "E6",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Icone ambre (famille clic) ; achats clic_x2 puis clic_x4 en cumul sequentiel ; apres achat, le +N du Coeur augmente visiblement."
+       }
+      },
+      {
+       "id": "gb_prod_upgrade",
+       "capacite": "Amelioration de production (x2 par generateur, debloquee a S4) : option d'arbitrage automatisation.",
+       "source_ref": "E6",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Icone cyan (famille production), debloquee groupee a S4 par threshold_reveal ; chaque amelioration double (x2) la production du generateur cible ; le taux R/s affiche monte."
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_boucle_rejeu",
+   "features": [
+    {
+     "id": "feat_repeat",
+     "capacites": [
+      {
+       "id": "cap_e10_repeat",
+       "capacite": "REPEAT : dans l'etat post-S1, le joueur rejoue clic+achat+attente et R reprend sa croissance vers S2 (rejeu de E2/E3/E5/E7).",
+       "source_ref": "E10",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Apres S1, un bot re-execute clic+achat+attente et `r_counter` progresse de nouveau vers 1000."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_victoire",
+     "capacites": [
+      {
+       "id": "gb_victory_bloom",
+       "capacite": "Etat de victoire unique au franchissement de S5 ; aucun etat de defaite.",
+       "source_ref": "E13",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Etat/ecran de victoire au franchissement de S5 (>=1 000 000 R cumules) : embrasement lumineux plein ecran ; terminaison unique ascendante ; aucun equivalent de defaite."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_rejouer",
+     "capacites": [
+      {
+       "id": "cap_e11_rejouer_entree",
+       "capacite": "ENTREE (META_LOOP) : depuis l'ecran de victoire, le joueur agit sur l'affordance `rejouer`.",
+       "source_ref": "E11",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Depuis main.tscn, apres la victoire, un bot agit sur l'affordance `rejouer` (un clic)."
+       }
+      },
+      {
+       "id": "cap_e11_reset_effet",
+       "capacite": "EFFET (META_LOOP) : le compteur R retombe visiblement a zero (nouveau run).",
+       "source_ref": "E11",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Depuis main.tscn, apres l'action `rejouer`, `r_counter` passe de superieur ou egal a 1 000 000 a 0 (effet de reset observable)."
+       }
+      }
+     ]
+    },
+    {
+     "id": "feat_avantage_rejeu",
+     "capacites": [
+      {
+       "id": "cap_e12_advantage",
+       "capacite": "ADVANTAGE : rejeu de E2 selon la politique optimale visant une accumulation strictement superieure au run 1 sur le meme horizon (satisfiabilite en conflit avec le charter run-unique — fog HumanGate).",
+       "source_ref": "E12",
+       "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un bot suivant la politique optimale au run 2 atteint un `r_counter` cumule strictement superieur a celui du run 1 au meme nombre de frames."
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

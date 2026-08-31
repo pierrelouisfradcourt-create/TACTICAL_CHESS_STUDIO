@@ -1,0 +1,296 @@
+FORGE_DISPATCH:s1-prisme:p2_alpha-20260830-run1:1 — je suis dispatché comme sous-agent s1-prisme. J'ignore le skill superpowers (SUBAGENT-STOP) et j'exécute mon contrat : ma réponse EST product_snapshot.md, suivie du bloc JSON terminal (prisme.json) et de la ligne RETURN_REASON.
+
+# Forge de Lumen — product_snapshot (p2_alpha)
+
+Un incrémental/clicker web solo. Le joueur rallume une Forge éteinte : chaque clic sur un Cœur central produit du Lumen, des générateurs achetés en produisent seuls, et le monde s'éclaircit palier après palier jusqu'à un embrasement de victoire. Aucune défaite, aucune seconde ressource — seulement du Lumen qui monte et un monde qui s'illumine.
+
+## 1. CE QUE LE JOUEUR VOIT
+
+Un écran sombre bleu-nuit, presque éteint, dominé au centre par un **Cœur de Lumen** ambré qui pulse lentement. En haut, un **compteur de Lumen** permanent (grands nombres lisibles de 0 à 1 000 000) et, juste à côté, un **objectif chiffré** du type « X / 1 000 000 Lumen » qui indique en continu la distance à la victoire. Une **colonne de générateurs** sur le côté : au départ une seule silhouette simple (G1), les suivantes (G2, G3, G4) restant cachées jusqu'à leur seuil de révélation. Sous chaque générateur, un **bouton d'achat** à deux états nets — lumineux quand le Lumen suffit, grisé et désaturé sinon — affichant son coût courant. Une **jauge de proximité** montre l'écart au prochain seuil. À chaque clic, un **éclat radial** et un **+N flottant** jaillissent du Cœur. À chaque seuil franchi, une **onde lumineuse** signale l'apparition d'un contenu neuf, et le **fond s'éclaircit d'un cran**. Au million cumulé, un **embrasement plein écran**. Nulle part un écran de défaite, une barre de vie, un timer punitif.
+
+## 2. CE QUE LE JOUEUR FAIT
+
+Il **clique le Cœur** pour produire du Lumen à la main — c'est son seul geste au départ. Dès qu'il a 15 Lumen, il **achète le premier générateur** et découvre un revenu automatique : le Lumen monte désormais même sans cliquer. Il **arbitre en permanence** entre cliquer pour du Lumen immédiat, épargner vers un générateur plus rentable, ou renforcer son clic. En franchissant les seuils cumulés (100, 1 000, 12 000, 150 000), il **débloque de nouveaux générateurs** puis, à S4, des **améliorations de production**. À chaque palier il **rejoue la même boucle** — produire, acheter, débloquer — sur des objets plus chers et plus puissants. Une fois le million atteint et la victoire déclenchée, il peut **rallumer la Forge** : le compteur retombe à zéro et un nouveau run démarre, qu'il rallume plus vite grâce à la Braise gagnée.
+
+## 3. CE QUE LE JOUEUR RESSENT
+
+D'abord la **satisfaction tactile immédiate** : chaque clic répond par un éclat et un chiffre qui monte, sans le moindre délai. Puis le **soulagement de l'automatisation** quand le premier générateur produit seul — le sentiment que le monde travaille pour lui. Ensuite la **tension de l'arbitrage** : dépenser maintenant ou épargner vers le palier suivant, rendue lisible par la jauge de proximité et le bouton grisé. À chaque seuil, une **fierté de découverte** — une machine inédite surgit, le fond s'illumine, le monde se souvient visiblement du chemin parcouru. Jamais de frustration d'échec : la trajectoire est **purement ascendante**, la seule question est le rythme. La victoire délivre une **clôture lumineuse** franche, et le rallumage propose de recommencer plus fort plutôt que de subir une remise à zéro punitive.
+
+## 4. RÈGLES OBSERVABLES
+
+- **R1** — Une seule ressource existe et est visible : le Lumen ; aucun second compteur de valeur n'apparaît à l'écran.
+- **R2** — Le compteur de Lumen n'augmente que par un clic sur le Cœur ou par les générateurs possédés ; aucune vente, aucun revenu d'une autre source.
+- **R3** — Chaque clic sur le Cœur crédite exactement `gain_clic` Lumen et affiche un +N flottant qui s'efface en moins d'une seconde.
+- **R4** — Le premier générateur (G1) coûte 15 Lumen ; le coût du prochain exemplaire d'un générateur est multiplié par 1,12 à chaque achat.
+- **R5** — Les seuils de progression sont S1=100, S2=1 000, S3=12 000, S4=150 000, S5=1 000 000 Lumen cumulés.
+- **R6** — Franchir un seuil rend visible un contenu nouveau et distinct (un générateur inédit à S1/S2/S3, des améliorations de production à S4) via une onde de révélation.
+- **R7** — Le libellé de l'objectif affiché change textuellement à chaque palier franchi (ex. « Atteindre 1 000 Lumen cumulés » puis « Atteindre 12 000 Lumen cumulés »).
+- **R8** — Un bouton d'achat dont le coût dépasse le Lumen disponible est grisé et désaturé ; un clic dessus ne modifie ni le Lumen ni l'état du générateur.
+- **R9** — Le fond de scène s'éclaircit d'un cran à chacun des 5 seuils franchis et ne revient jamais en arrière tant que le run continue.
+- **R10** — Au franchissement de 1 000 000 Lumen cumulés, un embrasement plein écran s'affiche ; aucun état ni écran de défaite n'est atteignable dans le jeu.
+- **R11** — L'action « rallumer la Forge » remet le compteur de Lumen affiché à 0 et démarre un nouveau run, sans écran de défaite.
+- **R12** — Après un rallumage, le premier clic sur le Cœur crédite strictement plus de Lumen qu'au premier clic du run précédent, via l'avantage persistant « Braise ».
+
+---
+
+## RAPPORT FINAL — s1-prisme / p2_alpha-20260830-run1
+
+**Ancre charter** — les 12 règles et les 14 exigences dérivent des invariants du `charter.yaml` (ressource unique R, accumulation clic+générateurs sans vente, aucun état d'échec, victoire terminale unique à ≥ 1 000 000 R cumulés) et sont sourcées sur `gm_worldscan.json` (s2.7, correctement ancré incremental/clicker) et `story_bible.json` (s2.6). Le `worldscan.txt` (s2, mésancré puzzle/arcade Tetris/Candy Crush/Peglin, `advisory:true`) **n'a PAS été utilisé comme source** — mêmes motifs que le rapport s2.6.
+
+**Reçu oracle** — je n'ai **PAS exécuté** `check_prisme_manifest.mjs` (`run: aucun`, aucun outil d'exécution). La matérialisation de `prisme.json` + `worldscan.json` puis l'exécution de l'oracle incombent à l'exécuteur. Le bloc JSON a été construit contre le format lu du contrat : chaîne `observation → claim → enonce` à trois maillons distincts par exigence, provenance `source/source_role/reference`, adresses `gm_worldscan:` vérifiées comme résolvables dans l'artefact s2.7 (loops.*.<step_id> et grey_blocks.<id> présents).
+
+**Couverture des 10 rôles de boucle** (ordonnés en précédence jouée) : PLAYER_GOAL=E01 · PLAYER_ACTION=E02,E02b · GAME_RESPONSE=E03 · REWARD=E04 · DECISION=E05 (2 options E02/E02b affordances distinctes, 2 policies, metric r_counter, horizon 300) · UNLOCK=E06 (affordance+observe.appears) · NEXT_GOAL=E07,E08 (2 exigences, hud `objectif`, new_distinct, libellés distincts) · REPEAT=E09 (replay B..F) · META_LOOP=E10 (affordance `rallumer_forge`, predicate `resets`) · ADVANTAGE=E11 (replay_ref E02, `increases_more_than:E02`) · NONE=E12,E13,E14.
+
+**Exigence non sourcée GM, hors charter (flag dur)** — **E11 (ADVANTAGE)** est émise `source: ADDITIONS`, `reference: null`. Raison : le `gm_worldscan` ne décrit **aucun maillon ADVANTAGE** et **aucun bonus persistant** (meta_loop.produces = « run complète + motivation », sans gain mécanique), et le charter **interdit explicitement** tout revenu hors clic+générateurs et toute seconde ressource. Le contrat de boucle V4 exige pourtant un delta MESURÉ strictement supérieur après reset (maillon J). L'avantage « Braise » est donc une **proposition produit qui DÉPASSE la grammaire du charter** — à ratifier par Pierre, ou le contrat de boucle V4 doit être relâché pour un incrémental à victoire unique sans prestige. `stats.exigences_sourcees_gm` attendu : 10/11 exigences de boucle (E11 exclue).
+
+**Exigences classées non actionnables** : aucune anticipée — les 14 portent un `expected_proof{kind,statement}` exploitable (bot_action / visual / oracle). Confirmation revient à l'oracle exécuté par l'exécuteur.
+
+**Références non ancrées** : aucune adresse `gm_worldscan:` non résolvable anticipée (toutes vérifiées présentes dans s2.7). E11 porte `reference: null` assumé (ADDITIONS).
+
+**Verdicts**
+- `software_verdict:` **BLOCKED** — aucun oracle exécuté par moi ; conformité construite par lecture du contrat, non prouvée par run.
+- `evidence_verdict:` **MECHANICAL_VALIDATION_ONLY** (lecture des ancres amont ; pas d'exécution d'oracle).
+- `claim_verdict:` **NO_CLAIM_ALLOWED**.
+- `fog → HumanGate` : (1) exécuter `check_prisme_manifest.mjs <run_dir>/prisme.json --worldscan <run_dir>/worldscan.json` — seule preuve mécanique de la chaîne et de l'ancrage ; (2) **décision Pierre sur E11/Braise** : autoriser une méta-progression persistante hors grammaire du charter pour satisfaire le maillon J, OU requalifier le contrat de boucle V4 pour les incrémentaux à victoire terminale unique.
+
+**SKIPPED_VALIDATION**
+- item: exécution de `check_prisme_manifest.mjs` · périmètre: le bloc JSON terminal · statut: non fait · raison: `run: aucun`, aucun outil d'exécution ; incombe à l'exécuteur.
+- item: exécution de `check_prisme.mjs` (conformité markdown du snapshot) · périmètre: sections 1-4 ci-dessus · statut: non fait · raison: `run: aucun` ; format construit contre les règles lues (4 en-têtes exacts, règles `- **Rn`, ≥40 car., zéro placeholder).
+- item: usage du `worldscan.txt` (s2) comme source · périmètre: les 14 exigences · statut: non fait, **délibéré** · raison: artefact mésancré (genre étranger) + `advisory:true` ; l'utiliser fabriquerait un ancrage faux — exclu par garde-fou.
+
+**RETURN LINEAGE**
+- `why_task_existed:` { `problem:` produire le product_snapshot + le manifeste d'exigences falsifiables de p2_alpha (boucle joueur A→J) à partir des artefacts amont ; `oracle:` aucun — activation par la chaîne de dispatch Forge (décision de production) ; `root_cause:` non transmise (pas de `why` hérité dans le dispatch) ; `action_reason:` l'étape s1-prisme est le premier point où l'expérience produit finie et la chaîne Observation→Claim→Exigence→Preuve sont matérialisées pour l'aval. }
+- `result:` product_snapshot 4 sections + 12 règles observables + prisme.json 14 exigences, 10 rôles de boucle couverts ; 1 exigence (E11/ADVANTAGE) hors charter émise en ADDITIONS et flaggée.
+- `proof:` non exécutée par moi (`run: aucun`) ; commande à lancer par l'exécuteur : `node scripts/forge/check_prisme_manifest.mjs lab/forge_runs/p2_alpha/prisme.json --worldscan lab/forge_runs/p2_alpha/worldscan.json`.
+- `learning:` un charter d'incrémental pur (victoire unique, aucune méta-progression) et le contrat de boucle V4 (calibré sur Kitten Clicker, prestige mécanique présumé) sont **structurellement incompatibles sur les maillons I/J** — le maillon J exige un delta mesuré post-reset qu'une accumulation pure sans bonus persistant ne peut produire.
+- `next_reason:` escalade requise — cause non résolue : le conflit charter↔contrat-de-boucle sur E11 exige une décision humaine (ratifier « Braise » ou relâcher V4). La chaîne ne peut se fermer proprement sans ce choix.
+
+```json
+{
+  "game_id": "p2_alpha",
+  "exigences": [
+    {
+      "id": "E01",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.loops.quest_loop.qu_action",
+      "acteur": "PLAYER",
+      "loop_role": "PLAYER_GOAL",
+      "observation": "quest_loop.qu_action decrit que le joueur vise le total cumule de 1 000 000 Lumen, avec un progress_meter (qu_feedback) indiquant la proximite de la victoire.",
+      "claim": "Un objectif chiffre unique et permanent affiche en continu suffit a orienter chaque geste du joueur sans jamais introduire d'etat d'echec.",
+      "enonce": "Le HUD affiche en permanence un objectif chiffre 'X / 1 000 000 Lumen' ; le joueur lit a tout instant sa distance a la victoire.",
+      "expected_proof": {"kind": "visual", "statement": "Une capture du HUD au demarrage montre l'objectif '0 / 1 000 000 Lumen' ; apres quelques clics il affiche une valeur > 0 sur le meme libelle."},
+      "observe": {"hud": "objectif", "predicate": "nonempty"},
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "E02",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.loops.core_loop.core_action",
+      "acteur": "PLAYER",
+      "loop_role": "PLAYER_ACTION",
+      "affordance": "core_click_target",
+      "observation": "core_loop.core_action indique que le joueur tape le Coeur de Lumen (affordance core_click_target) pour produire du Lumen manuellement (metric core_r_per_click).",
+      "claim": "Un unique organe cliquable au centre de l'ecran est la porte d'entree suffisante du jeu : le joueur n'a besoin d'aucune autre cible pour commencer a produire.",
+      "enonce": "Le joueur produit du Lumen en cliquant le Coeur central (cible core_click_target) ; chaque clic credite gain_clic de Lumen.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot clique core_click_target 10 fois ; le compteur Lumen passe de 0 a 10 fois gain_clic."},
+      "observe": {"hud": "r_counter", "predicate": "increases"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "E02b",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.loops.gameplay_loop.gp_action",
+      "acteur": "PLAYER",
+      "loop_role": "PLAYER_ACTION",
+      "affordance": "buy_button",
+      "observation": "gameplay_loop.gp_action : le joueur achete un generateur via buy_button ; gb_g1 coute 15 Lumen (croissance x1.12) et produit 0.1 Lumen/s.",
+      "claim": "Un revenu automatique meme faible (0.1/s) change la nature du jeu : le joueur cesse d'etre la seule source de Lumen, ce qui rend l'epargne rationnelle.",
+      "enonce": "Le joueur achete un generateur en cliquant la cible buy_button ; le Lumen disponible est debite du cout courant et un revenu automatique de Lumen/s demarre.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot avec au moins 15 Lumen clique buy_button ; le compteur baisse de 15 puis remonte seul de 0.1/s sans nouveau clic."},
+      "observe": {"hud": "r_per_sec", "predicate": "increases"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "E03",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.loops.core_loop.core_feedback",
+      "acteur": "SYSTEM",
+      "loop_role": "GAME_RESPONSE",
+      "observation": "core_loop.core_feedback : le Coeur emet un eclat radial et un +N flottant a chaque clic (gb_click_burst).",
+      "claim": "Un retour visuel instantane et localise sur le point de clic transforme un clic mecanique en geste ressenti ; sans lui le joueur doute que son action a compte.",
+      "enonce": "A chaque clic sur le Coeur, un eclat radial et un nombre flottant '+N' (= gain_clic) apparaissent puis s'effacent en moins d'une seconde.",
+      "expected_proof": {"kind": "visual", "statement": "Deux captures a 100 ms d'intervalle autour d'un clic montrent l'apparition puis la disparition du +N flottant."},
+      "observe": {"hud": "coeur", "predicate": "changes"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "E04",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.loops.core_loop.core_reward",
+      "acteur": "SYSTEM",
+      "loop_role": "REWARD",
+      "observation": "core_loop.core_reward : le compteur Lumen augmente immediatement de gain_clic (gb_r_counter, hud r_counter).",
+      "claim": "La recompense du clic doit etre le meme compteur que celui de l'objectif, sinon le joueur ne relie pas son geste a sa progression vers la victoire.",
+      "enonce": "Le compteur Lumen (r_counter) s'incremente de gain_clic dans la meme frame que le clic, sans delai ni animation intercalee bloquante.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot lit r_counter, clique une fois, relit r_counter : la difference egale exactement gain_clic."},
+      "observe": {"hud": "r_counter", "predicate": "increases"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "E05",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.loops.economy_loop.ec_decision",
+      "acteur": "PLAYER",
+      "loop_role": "DECISION",
+      "observation": "economy_loop.ec_decision et gameplay_loop.gp_decision opposent deux politiques : cliquer pour du Lumen immediat, ou investir dans un generateur pour un revenu automatique differe.",
+      "claim": "Ces deux politiques divergent reellement sur l'horizon d'un run : sur 300 frames, epargner-puis-automatiser produit plus de Lumen cumule que cliquer en continu, sans quoi le choix serait cosmetique.",
+      "enonce": "A tout instant le joueur arbitre entre cliquer le Coeur (core_click_target) et acheter un generateur (buy_button) ; les deux trajectoires de Lumen cumule divergent sur un horizon de 300 frames.",
+      "expected_proof": {"kind": "bot_action", "statement": "Deux bots (politique 'actif' cliquant tous les 3 frames vs politique 'epargne' n'achetant que des generateurs) jouent 300 frames ; le Lumen cumule final differe de plus de 10 pourcent."},
+      "observe": {"hud": "objectif", "predicate": "changes"},
+      "options": ["E02", "E02b"],
+      "policies": [
+        {"name": "actif", "click": "core_click_target", "every_frames": 3},
+        {"name": "epargne", "click": null, "every_frames": 0}
+      ],
+      "metric": "r_counter",
+      "horizon_frames": 300,
+      "destination": "s9-build"
+    },
+    {
+      "id": "E06",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_g2",
+      "acteur": "PLAYER",
+      "loop_role": "UNLOCK",
+      "affordance": "buy_button",
+      "observation": "gb_g2 est LOCKED, requires progression_s1_threshold (100 Lumen cumules) ; au franchissement, threshold_reveal fait apparaitre une silhouette distincte de G1 dans la colonne.",
+      "claim": "Rendre le deblocage VISIBLE (une machine inedite surgit) plutot que silencieux est ce qui fait ressentir la progression comme un gain de monde, pas seulement un nombre qui monte.",
+      "enonce": "Lorsque le joueur atteint 100 Lumen cumules, un nouveau generateur G2 apparait dans la colonne (groupe generateurs) et devient achetable via buy_button.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot accumule 100 Lumen ; le nombre d'entrees du groupe 'generateurs' passe de 1 a 2 et G2 devient cliquable."},
+      "observe": {"hud": "colonne_generateurs", "predicate": "appears:generateurs", "appears": "generateurs"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "E07",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_g2",
+      "acteur": "SYSTEM",
+      "loop_role": "NEXT_GOAL",
+      "observation": "gb_g2.next_goal : 'Prochain palier : 1000 Lumen cumules pour reveler G3' ; apres S1, l'objectif affiche devient S2.",
+      "claim": "Remplacer le libelle de l'objectif (et pas seulement sa jauge) a chaque palier maintient un cap frais : le joueur relit un nouveau texte, pas un compteur qui glisse.",
+      "enonce": "Apres le franchissement de S1, l'objectif affiche devient textuellement 'Atteindre 1 000 Lumen cumules' (revelation de G3).",
+      "expected_proof": {"kind": "visual", "statement": "Capture avant/apres S1 : le texte de l'objectif passe de '...100...' a 'Atteindre 1 000 Lumen cumules', deux libelles distincts."},
+      "observe": {"hud": "objectif", "predicate": "new_distinct"},
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "E08",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_g3",
+      "acteur": "SYSTEM",
+      "loop_role": "NEXT_GOAL",
+      "observation": "gb_g3.next_goal : 'Prochain palier : 12000 Lumen cumules pour reveler G4' ; apres S2, l'objectif affiche devient S3.",
+      "claim": "La suite des objectifs doit etre strictement croissante et nommee par le contenu qu'elle debloque, pour que chaque cap donne au joueur une raison neuve d'avancer.",
+      "enonce": "Apres le franchissement de S2, l'objectif affiche devient textuellement 'Atteindre 12 000 Lumen cumules' (revelation de G4), distinct du precedent.",
+      "expected_proof": {"kind": "visual", "statement": "Capture apres S2 : le texte de l'objectif affiche 'Atteindre 12 000 Lumen cumules', distinct du libelle S2."},
+      "observe": {"hud": "objectif", "predicate": "new_distinct"},
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "E09",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.loops.economy_loop.ec_action",
+      "acteur": "PLAYER",
+      "loop_role": "REPEAT",
+      "observation": "economy_loop consomme gameplay_loop et content_loop et debloque a nouveau progression_loop (produces: taux de Lumen/s regule, cout x1.12) : apres chaque palier, la sequence cliquer->acheter->debloquer recommence sur des generateurs plus chers.",
+      "claim": "La boucle ne 'recommence' vraiment que si les memes gestes (cliquer, acheter, debloquer) portent sur de nouveaux objets a chaque palier ; sinon le joueur repete a l'identique et decroche.",
+      "enonce": "Apres chaque franchissement de seuil, le joueur rejoue la sequence produire->acheter->debloquer sur le palier de generateur suivant, dont le cout courant a cru de x1.12 par exemplaire.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot franchit S1 puis rejoue clic+achat : l'achat porte sur G2 (cout de base 100) et non G1, et le cout du prochain exemplaire a bien ete multiplie par 1.12."},
+      "observe": {"hud": "r_per_sec", "predicate": "increases"},
+      "replay": ["E02", "E02b", "E03", "E04", "E06"],
+      "destination": "s9-build"
+    },
+    {
+      "id": "E10",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.loops.meta_loop.me_decision",
+      "acteur": "PLAYER",
+      "loop_role": "META_LOOP",
+      "affordance": "rallumer_forge",
+      "observation": "meta_loop.me_decision offre au joueur, a la victoire, de 'rejouer pour ameliorer le rythme' ; me_action decrit un run mene jusqu'a la victoire, produces 'run complete + motivation de re-engagement'.",
+      "claim": "Proposer un rallumage qui remet le Lumen visible a zero donne un point de recommencement clair et non punitif : le joueur repart d'un monde eteint qu'il rallume plus vite, sans jamais subir de defaite.",
+      "enonce": "Apres la victoire, le joueur peut rallumer la Forge (cible rallumer_forge) ; le compteur Lumen affiche retombe visiblement a 0 et un nouveau run demarre.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot atteignant la victoire clique rallumer_forge ; r_counter passe d'une valeur superieure ou egale a 1 000 000 a 0 dans la frame suivante."},
+      "observe": {"hud": "r_counter", "predicate": "resets"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "E11",
+      "source": "ADDITIONS",
+      "source_role": "product_director",
+      "reference": null,
+      "acteur": "PLAYER",
+      "loop_role": "ADVANTAGE",
+      "observation": "Le gm_worldscan ne decrit aucun maillon ADVANTAGE ni aucun bonus persistant entre runs (meta_loop.produces = 'run complete + motivation', sans gain mecanique) ; le charter interdit explicitement tout revenu hors clic+generateurs et toute ressource seconde.",
+      "claim": "Le contrat de boucle V4 (maillon J) exige neanmoins un avantage MESURE apres rallumage : pour le fournir sans seconde ressource, un multiplicateur de clic persistant 'Braise' proportionnel au Lumen du run precedent est la forme minimale, mais elle DEPASSE la grammaire du charter et doit etre ratifiee par Pierre.",
+      "enonce": "Apres un rallumage, le joueur rejoue son premier clic sur le Coeur (core_click_target) et credite strictement plus de Lumen qu'au premier clic du run precedent, via un multiplicateur 'Braise' gagne au run passe.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot mesure le delta du 1er clic au run N, rallume via rallumer_forge, puis mesure le delta du 1er clic au run N+1 : ce dernier est strictement superieur."},
+      "observe": {"hud": "r_counter", "predicate": "increases_more_than:E02"},
+      "replay_ref": "E02",
+      "destination": "s3-decompo"
+    },
+    {
+      "id": "E12",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_buy_button",
+      "acteur": "SYSTEM",
+      "loop_role": "NONE",
+      "observation": "gb_buy_button a deux etats nets : ACHETABLE (colore, halo) / GRISE (desature) quand le Lumen est insuffisant ; le refus d'achat est observable, l'etat inchange.",
+      "claim": "Rendre l'indisponibilite lisible AVANT le clic (bouton grise) evite au joueur des clics steriles et fait de l'epargne un choix informe plutot qu'un tatonnement.",
+      "enonce": "Un bouton d'achat dont le cout depasse le Lumen disponible est affiche grise et desature, et un clic dessus ne modifie ni le Lumen ni l'etat du generateur.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot avec 5 Lumen clique un buy_button a 15 : le Lumen reste 5 et aucun generateur n'est acquis."},
+      "destination": "s9-build"
+    },
+    {
+      "id": "E13",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_world_background",
+      "acteur": "SYSTEM",
+      "loop_role": "NONE",
+      "observation": "gb_world_background : fond bleu-nuit (#0B0E17) qui gagne en clarte d'un cran a chacun des 5 seuils franchis (world_brighten_steps = 5).",
+      "claim": "Faire evoluer le fond lui-meme a chaque palier donne au monde une memoire visible de la progression, independante des compteurs : le joueur voit que 'c'est deja loin'.",
+      "enonce": "Le fond de scene s'eclaircit d'un cran discret et non brutal a chacun des 5 seuils (S1..S5), sans jamais revenir en arriere tant que le run continue.",
+      "expected_proof": {"kind": "visual", "statement": "Cinq captures aux 5 seuils montrent une luminosite de fond strictement croissante S1 < S2 < S3 < S4 < S5."},
+      "destination": "s9-build"
+    },
+    {
+      "id": "E14",
+      "source": "EXPECTED",
+      "source_role": "game_master",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_victory_bloom",
+      "acteur": "SYSTEM",
+      "loop_role": "NONE",
+      "observation": "gb_victory_bloom : au franchissement de S5 (superieur ou egal a 1 000 000 Lumen cumules), embrasement lumineux plein ecran ; terminaison unique ascendante, aucun equivalent de defaite.",
+      "claim": "Une cloture plein ecran distincte de tout autre feedback signe la victoire comme un evenement, pas comme un simple seuil de plus : c'est la recompense terminale que toute la courbe promettait.",
+      "enonce": "Au franchissement de 1 000 000 Lumen cumules, un embrasement plein ecran s'affiche et aucun ecran de defaite n'existe dans le jeu.",
+      "expected_proof": {"kind": "oracle", "statement": "L'oracle de solvabilite fait jouer un bot jusqu'a 1 000 000 Lumen cumules et observe l'apparition de l'etat victoire ; il verifie qu'aucun etat de defaite n'est atteignable."},
+      "destination": "s9-build"
+    }
+  ]
+}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le charter p2_alpha (incremental pur : ressource unique R, aucune meta-progression, victoire terminale unique, aucun etat d'echec) ne peut satisfaire les maillons I/J du contrat de boucle V4 sans introduire un bonus persistant que le charter interdit explicitement : E11 (ADVANTAGE) exige un delta mesure strictement superieur apres rallumage, impossible en accumulation pure sans multiplicateur persistant, et est donc emise en ADDITIONS hors charter.", "root_cause": "Le contrat de boucle V4 (10 maillons) a ete calibre sur Kitten Clicker qui possede un prestige mecanique ; il presume une meta-progression que la grammaire imposee du charter p2_alpha proscrit."}

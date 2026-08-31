@@ -1,0 +1,151 @@
+{
+ "modules": [
+  "economy",
+  "render",
+  "input",
+  "main",
+  "solvability"
+ ],
+ "deps_interdites": [
+  [
+   "economy",
+   "render"
+  ],
+  [
+   "economy",
+   "input"
+  ],
+  [
+   "economy",
+   "main"
+  ],
+  [
+   "render",
+   "input"
+  ],
+  [
+   "input",
+   "render"
+  ],
+  [
+   "render",
+   "main"
+  ],
+  [
+   "input",
+   "main"
+  ],
+  [
+   "solvability",
+   "render"
+  ],
+  [
+   "solvability",
+   "input"
+  ]
+ ],
+ "ownership": {
+  "economy": "Logique économique pure (état milli-R, coûts, production, seuils, victoire, reset) — structure_imposee_v2.yaml encapsulée en données internes",
+  "render": "Rendu canvas en lecture seule de l'état economy (HUD, Cœur, VFX, colonne générateurs, boutons, jauge, fond, écran de victoire)",
+  "input": "Traduction des entrées pointeur en intentions economy (clic Cœur, achats, rejouer)",
+  "main": "Orchestration : boucle de tick, câblage input→economy→render, exposition window.__game, transitions victoire/reset",
+  "solvability": "Preuve de solvabilité runtime : bot headless pilotant economy jusqu'à S5 en ≤72000 ticks, câblé run-oracle.mjs"
+ },
+ "responsabilites": [
+  {
+   "module": "economy",
+   "responsabilite": "Simulation économique pure et déterministe en milli-R entiers (aucun flottant dans l'état) : gain_clic, coût des générateurs (cout_base×1.12^n), production par tick, franchissement des seuils S1..S5, améliorations ×2, condition de victoire (cumul ≥ 1 000 000 R), reset. Encapsule la structure imposée (structure_imposee_v2.yaml) comme données internes ; toute déviation est un champ structuré M3.",
+   "couvre": [
+    "feat_clic_coeur",
+    "feat_achat_generateur",
+    "feat_production_auto",
+    "feat_bouton_achat",
+    "feat_unlock_g2",
+    "feat_objectif",
+    "feat_ameliorations",
+    "feat_repeat",
+    "feat_victoire",
+    "feat_rejouer",
+    "feat_avantage_rejeu"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "Tests unitaires + mutation sur economy/ : invariant solde_mR == Σ(gains_clic_mR)+Σ(production_mR)−Σ(dépenses_mR) en entiers ; coût == cout_base×1.12^n (strict, jamais un >= tautologique) ; victoire au cumul == 1 000 000 R ; aucun flottant dans l'état."
+   }
+  },
+  {
+   "module": "render",
+   "responsabilite": "Rendu canvas en lecture seule de l'état economy : compteur R permanent, Cœur de Lumen cliquable avec VFX de clic, colonne de générateurs, boutons d'achat à deux états (achetable/grisé), jauge/objectif, VFX de franchissement de seuil, fond ascendant, écran de victoire. Ne mute jamais l'état ; ne lit jamais l'input.",
+   "couvre": [
+    "feat_feedback_clic",
+    "feat_reveal_vfx",
+    "feat_fond_ascendant",
+    "feat_objectif",
+    "feat_victoire",
+    "feat_bouton_achat",
+    "feat_unlock_g2"
+   ],
+   "dependances": [
+    "economy"
+   ],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "e2e navigateur réel observe via window.__game/canvas : le compteur augmente au clic, le bouton est grisé quand R est insuffisant (état inchangé), le VFX/entrée de G2 apparaît à S1, l'écran de victoire s'affiche à S5."
+   }
+  },
+  {
+   "module": "input",
+   "responsabilite": "Traduction des entrées pointeur en actions economy : clic sur le Cœur (gain_clic), achats de générateurs et d'améliorations quand abordable, action rejouer depuis l'écran de victoire. Émet des intentions vers economy ; ne dessine jamais et n'importe pas render.",
+   "couvre": [
+    "feat_clic_coeur",
+    "feat_achat_generateur",
+    "feat_unlock_g2",
+    "feat_ameliorations",
+    "feat_rejouer"
+   ],
+   "dependances": [
+    "economy"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot/e2e envoie un vrai clic sur coeur_de_lumen puis sur acheter_generateur ; economy exécute l'entrée et l'effet strict est observable (R passe à v+gain_clic ; R diminue de cout exact et un G1 est acquis)."
+   }
+  },
+  {
+   "module": "main",
+   "responsabilite": "Orchestration : boucle de tick (tick_ms 100) qui avance economy et déclenche le rendu, câblage input→economy→render, exposition de window.__game (état seedé déterministe) et du harnais N1, transition vers l'écran de victoire et le reset. Ne contient aucune règle économique.",
+   "couvre": [
+    "feat_production_auto",
+    "feat_repeat",
+    "feat_victoire",
+    "feat_rejouer"
+   ],
+   "dependances": [
+    "economy",
+    "render",
+    "input"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "e2e observe window.__game : après l'achat d'un générateur, R augmente automatiquement à chaque tick sans clic ; après S1 la boucle reprend vers le seuil suivant ; la victoire est déclenchée à S5 et R retombe à 0 après rejouer."
+   }
+  },
+  {
+   "module": "solvability",
+   "responsabilite": "Preuve de solvabilité runtime : bot scripté headless pilotant economy (jamais render ni input) pour atteindre S5 (cumul ≥ 1 000 000 R) en ≤ 72000 ticks ; métriques à variance non triviale (ticks-jusqu'à-S5, jalons S1..S5). Câblé dans run-oracle.mjs. Aucun flag de succès en dur.",
+   "couvre": [
+    "feat_victoire",
+    "feat_repeat",
+    "feat_avantage_rejeu"
+   ],
+   "dependances": [
+    "economy"
+   ],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "solvability.mjs (câblé dans run-oracle.mjs) : un bot atteint S5 en ≤ 72000 ticks, statut CALCULÉ (jamais { solvable: true } littéral) ; l'oracle échoue mécaniquement si les objectifs sont inatteignables."
+   }
+  }
+ ]
+}

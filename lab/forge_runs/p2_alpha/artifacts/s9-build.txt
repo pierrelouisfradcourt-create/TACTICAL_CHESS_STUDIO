@@ -1,0 +1,82 @@
+All gates green. Final verification complete.
+
+## Rapport final — s9-build / p2_alpha (tentative 5)
+
+### software_verdict: OK
+### evidence_verdict: MECHANICAL_VALIDATION_ONLY
+### claim_verdict: NO_CLAIM_ALLOWED
+
+---
+
+### Cause de l'échec des tentatives 1-4 (mesurée, pas supposée)
+
+`oracle returncode=0` mais `mutation=FAIL (22/92 tués)`. Mesure par fichier (`forge.mutation.run_mutation_test`, argv `node --test logic.test.mjs properties.test.mjs`) :
+
+| fichier | avant | après |
+|---|---|---|
+| economy.mjs | 22/34 | **31/31** |
+| input.mjs | **0/5** | **5/5** |
+| main.mjs | **0/6** | **5/5** |
+| render.mjs | **0/10** | **9/9** |
+| solvability.mjs | **0/37** | **23/23** |
+| **total** | **22/92** | **73/73** |
+
+Les deux suites n'importaient qu'`economy.mjs` : 70 mutants survivaient **par construction de la topologie**, pas par faiblesse d'assertion. Aucun triage n'aurait fermé ça honnêtement (cf. `pat-forge-mutation_survivor_equivalence_requires_mechanical_proof`, remonté par le SEARCH).
+
+### Preuves d'exécution
+
+- **Oracle code** (`scripts/forge/oracles.json` → `node run-oracle.mjs`, cwd `games/p2_alpha`) : **exit 0**, 62 contrôles, 0 échec. Avec `--e2e --mutation` : 64 contrôles, 0 échec.
+- **Gate mutation** (`run_mutation_for_game` + `emit_mutation_receipt` sur le scope wiremap) : `baseline_ok True`, **73/73 tués, 0 survivant**, `STATUS: OK`, `gate_checked True`, `mutation_exception False`, `survivants_non_tries []`. **Pas de `mutation_triage.json`** — aucune exception à ratifier.
+- **Solvabilité** : le bot ATTEINT S5 en **47845 ticks** ≤ 72000 ; jalons S1..S5 `[830, 4580, 12089, 27916, 47845]` ; rejeu identique. Avec `solvabilityProof(100)` → `solveSuccessful false` : **l'oracle peut désormais rougir** (il ne le pouvait pas).
+- **e2e réel** (Playwright/Chromium, clics souris réels) : `RESULT: PASS`.
+- **Variance** : 5 échantillons distincts `[44432, 45369, 46093, 46686, 47220]`.
+- **Gardes structurelles** : `check_e2e_harness` ✅ · `check_solvability_wired` ✅ · `check_wiremap` ✅ · `check_feature_set_frozen` ✅ (25/25 titres gelés intacts).
+- **reuse_ratio** : `0 / (4+0) = 0.000` — `evidence_path: lab/forge_runs/p2_alpha/evidence/reuse_ratio_p2_alpha.txt`. Mesure mutation du build : `lab/forge_runs/p2_alpha/evidence/mutation_build_s9_p2_alpha.json`.
+- **SEARCH (§2bis)** : `"incremental clicker economy generator cost growth"`, `"dom stub canvas test harness"`, `"solvability bot proof"` → 0 composant réutilisable (`path: null` partout, uniquement des patterns de doctrine). Rien à importer, delta = 100 %.
+
+### Fichiers touchés vs ownership
+
+Ownership blueprint (economy/render/input/main/solvability) : `economy.mjs`, `render.mjs`, `main.mjs`, `solvability.mjs` — `input.mjs` **non modifié** (ses 5 mutants tombent par les tests seuls). Harnais assigné par la tâche : `logic.test.mjs`, `properties.test.mjs`, `run-oracle.mjs`, `e2e.mjs`. WireMap : `lab/forge_runs/p2_alpha/wiremap.json` (jamais `wiremap_frozen.json`). **Aucun fichier hors périmètre, `tests/**` intact, aucun commit.**
+
+### Défauts réels trouvés en chemin (corrigés, chacun couvert par un test à frontière exacte)
+
+1. **Objectif faux d'un facteur 1000** : `(seuil/1000).toFixed(0)` puis suffixe « k » → « 100k R » pour 100 R, « 1000.0M R » pour l'objectif terminal. R1 exigeait de citer `1000000` : ce n'était jamais le cas.
+2. **`getThresholdIndex` confondait deux états du monde** (rendait 4 pour « S4 franchi » ET « tout franchi ») → l'objectif annonçait la victoire dès S4 ; S5 n'était détectable par personne.
+3. **Fond et jauge indexés sur `cumul / S1`**, pas sur les seuils : le fond saturait à 500 R au lieu de 1 000 000 R, la jauge était fausse dès 100 R.
+4. **Règle de victoire dupliquée dans `render.mjs`** (second seuil pouvant diverger) → déléguée à `isVictory`.
+5. **Code mort** : `return false` inatteignable dans `canBuyUpgrade`, ré-assignation morte de `window.__game` dans `main.mjs` — deux mutants intuables par construction, donc deux cases qu'aucun test ne pouvait prouver.
+6. **`compareRunAdvantage` mesurait deux variables à la fois** (rythme de clic ET réinvestissement) et rendait `advantage_exists: false` — R25 était déclarée IMPLEMENTED sur une mesure qui la contredisait. Isolée à une seule variable : 532310 vs 300000 mR, écart **+232310**, croissant avec l'horizon.
+7. **Deux volets de `run-oracle.mjs` ne pouvaient pas échouer** (variance et avantage rendaient `true` même en échec) — rendus bloquants.
+
+### fog → HumanGate (jugement de Pierre, hors oracle)
+
+- **R25 « avantage de rejeu »** : le titre est gelé et parle de rejeu ; le charter interdit toute méta-progression persistante. Ce qui est **prouvé** est une divergence **INTRA-run** entre deux politiques. L'avantage **inter-run** n'est ni implémenté, ni mesuré, ni mesurable sous ce charter. C'est la fog E12 déjà remontée par s4-archi — je l'ai consignée dans la preuve R25 plutôt que de la maquiller.
+- **`games/p2_alpha/update_wiremap.mjs`** : script one-shot laissé par une tentative précédente, absent de la wiremap, qui **écrit dans le `wiremap.json` du run_dir** et que `reuse_ratio.mjs` compte comme logique produit (4 fichiers scannés au lieu de 3). Mes permissions portent `delete: aucun` — je ne l'ai pas supprimé.
+- **`asset_resolution.json`** : 13/13 ids couverts, **0 resolved / 13 blocked**, chacun justifié par « rendu procédural Canvas2D, aucun sprite externe ». Cohérent avec le code, mais c'est un choix de production à ratifier, pas un fait d'oracle.
+- **Qualité visuelle** : jamais jugée ici. Verdict mécanique uniquement.
+
+### SKIPPED_VALIDATION
+
+| item | périmètre | statut | raison |
+|---|---|---|---|
+| Reçu mutation **signé HMAC** + `forge.verify_run` | s10a/s12 | non fait | Le reçu signé fait autorité et est émis par le driver, pas par le builder. J'ai exercé le même chemin de code (`emit_mutation_receipt` → `STATUS: OK`) sans vérifier la chaîne de signature de bout en bout. |
+| Chemin mutation **topologie STANDARD** / régime descripteur | `_run_mutation_descriptor_regime` | non fait | p2_alpha est en topologie LEGACY (harnais à la racine) ; le régime descripteur ne s'applique pas. |
+| Suite de tests du dépôt (`scripts/forge/tests/`) | hors jeu | non fait | Hors ownership (contrat s9-build §5). |
+| Passe T-GPU / capture fenêtre GPU | rendu | non fait | Non sollicitée, `-m "not gpu_window"` ; un passage non demandé ne vaudrait pas validation. |
+| Jugement visuel / feel du jeu | render | non fait | Aucun oracle non-LLM ne le mesure → NO_CLAIM_ALLOWED, remonté en fog. |
+| Suppression de `update_wiremap.mjs` | game dir | non fait | `delete: aucun` dans mes permissions. |
+| Commit / push | dépôt | non fait | Interdit par la tâche et par CLAUDE.md. |
+
+### RETURN LINEAGE
+
+- **why_task_existed** :
+  - *problem* : `s9-build` échoué 4 fois de suite ; `oracle returncode=0` mais `mutation=FAIL (22/92 puis 22/92 puis 22/92 puis 22/92 tués)`, escalade haiku→sonnet→opus épuisée.
+  - *oracle* : `forge.mutation.run_mutation_test` + `forge.static_oracles.check_mutation_gate`, via `s10a-oracle-code` (`run.log`, 4 reçus FAIL consécutifs).
+  - *root_cause* : `logic.test.mjs` et `properties.test.mjs` n'importaient QUE `economy.mjs`, alors que le périmètre du gate est dérivé de `wiremap.json` et couvre 5 fichiers. Les 70 mutants de `input/main/render/solvability` étaient **structurellement intuables** — aucune quantité d'assertions sur economy ne pouvait les atteindre. Défaut aggravé par des branches mortes (2 mutants inatteignables par construction).
+  - *action_reason* : construire le harnais manquant (double d'observation DOM/canvas + politique de bot rendue pure et paramétrable) pour que chaque décision des 5 modules soit exécutable et falsifiable hors navigateur, puis supprimer les branches mortes plutôt que de les trier en « équivalentes ».
+- **result** : 73/73 mutants tués, 0 survivant, 0 triage ; oracle code exit 0 ; e2e navigateur réel PASS ; solvabilité 47845 ≤ 72000 ticks ; 4 gardes structurelles vertes ; wiremap à jour, jeu de règles gelé intact.
+- **proof** : `node run-oracle.mjs --e2e --mutation` → `✓ Oracle PASSED` (64 passés / 0 échoué) ; `run_mutation_for_game` → `killed 73/73, survived 0, baseline_ok True` ; `emit_mutation_receipt` → `STATUS: OK, mutation_exception False`.
+- **learning** : le score de mutation d'un jeu est d'abord une question de **topologie de preuve**, pas de rigueur d'assertion — un module que la suite n'importe pas rend 0 % garanti, et ce 0 % ressemble à un défaut de test alors que c'est un défaut de câblage. Corollaire vérifié deux fois ici : **une branche morte est un mutant intuable**, donc une décision qu'aucun test ne peut prouver ; la supprimer vaut mieux que la justifier.
+- **next_reason** : la chaîne causale du gate mutation est **FERMÉE** — la cause est corrigée et re-mesurée par l'oracle qui l'avait détectée. Deux points restent ouverts et relèvent du niveau supérieur, pas d'une correction de build : (a) la tension R25 « avantage de rejeu » vs charter run-unique (décision HumanGate, déjà identifiée en amont à s4-archi) ; (b) `update_wiremap.mjs` résiduel, que mes permissions m'interdisent de supprimer.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le gate mutation rendait 22/92 alors que l'oracle code etait vert : les suites logic.test.mjs et properties.test.mjs n'importaient que economy.mjs, laissant 70 mutants de input/main/render/solvability intuables par construction ; s'y ajoutaient un objectif affiche faux d'un facteur 1000, un getThresholdIndex confondant 'S4 franchi' et 'tout franchi', un fond et une jauge indexes sur cumul/S1 au lieu des seuils, une regle de victoire dupliquee dans render, deux branches mortes intuables, un compareRunAdvantage mesurant deux variables et contredisant la feature R25 qu'il pretendait prouver, et deux volets de run-oracle.mjs qui ne pouvaient pas echouer", "root_cause": "Le perimetre du gate mutation est derive de wiremap.json (5 fichiers .mjs non-test) alors que le harnais de preuve n'exercait qu'un seul de ces fichiers : aucun double d'observation DOM/canvas n'existait pour render/input/main, et la politique du bot de solvability n'etait ni pure ni parametrable, donc inobservable a la frontiere exacte de ses arbitrages"}

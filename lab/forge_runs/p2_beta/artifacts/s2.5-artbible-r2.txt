@@ -1,0 +1,150 @@
+I have everything I need. The `art_bible.md` and `asset_requests.json` are already complete round-2 artifacts on disk (substance validated); only the `design_questions.json` fence was refused — purely on form (`q_gm_001.missing` was emptied when I echoed the GM's question back with my answer). The validator (`run_real._validate_design_questions`) requires **every** question — including the GM's questions I'm answering — to keep a **non-empty `missing`**, and enforces append-only (all 6 round-1 ids must reappear), `answer.by == to`, `answer.ref` resolving to a real `## section` in my art_bible.md, and recomputed `open_to_*` counts.
+
+Here is the corrected **round 2** deliverable.
+
+**Résumé factuel (round 2, s2.5-artbible-r2)** — je réponds aux 3 questions bloquantes du Game Master, chaque réponse pointant une section réelle de mon `art_bible.md` :
+- `q_gm_001` (état milestone de la cible, indépendant du thème) → `art_bible:character_states`
+- `q_gm_002` (états `locked/affordable/owned` d'un générateur, signaux redondants) → `art_bible:affordance_rules`
+- `q_gm_003` (transition de stage = changement de scène + jauge de fin) → `art_bible:world_constraints`
+
+Mes 3 questions vers le GM (`q_art_001/002/003`) restent SANS réponse : je ne peux pas répondre à ma propre question au GM (`answer.by` devrait être `GM` et résoudre dans `gm_worldscan.json`). `q_art_001` (thème) est bloquante et reste un fog HumanGate — donc `ART.ready_for_freeze:false` est obligatoire (R1 étendu : une question bloquante émise et non répondue interdit le freeze de son émetteur). Toutes les 6 questions des rondes précédentes sont recopiées (règle append-only) avec leur `missing` non vide préservé verbatim.
+
+```design_questions
+{
+  "schema_version": 1,
+  "round": 2,
+  "questions": [
+    {
+      "id": "q_art_001",
+      "from": "ART",
+      "to": "GM",
+      "round": 1,
+      "about": "art_bible:visual_language",
+      "loop_id": "content_loop",
+      "missing": ["theme/subject de production (a quoi ressemblent concretement cible de clic, generateurs, jeton)"],
+      "why": "l'identite visuelle est decidee agnostique au theme car l'univers est indefini (story_bible characters/factions/events NOT_GROUNDED); l'apparence concrete des entites depend du sujet que seul le GM/HumanGate peut trancher",
+      "blocking": true,
+      "answer": null
+    },
+    {
+      "id": "q_art_002",
+      "from": "ART",
+      "to": "GM",
+      "round": 1,
+      "about": "art_bible:world_constraints",
+      "loop_id": "meta_loop",
+      "missing": ["portee du prestige/reset (cycles de prestige endless vs fin bornee unique)"],
+      "why": "le genre s'appuie massivement sur des cycles de prestige, mais le charter impose une fin observable bornee (<=72000 ticks); la surface visuelle differe selon qu'il y a prestige endless ou fin concue",
+      "blocking": false,
+      "answer": null
+    },
+    {
+      "id": "q_art_003",
+      "from": "ART",
+      "to": "GM",
+      "round": 1,
+      "about": "art_bible:world_constraints",
+      "loop_id": "art_gm",
+      "missing": ["confirmation runtime html / format 2D (plateforme_cible non materialisee dans l'entree)"],
+      "why": "la valeur plateforme_cible du charter n'est pas materialisee; le runtime html/2D est derive du profil full_content et des references web, a confirmer",
+      "blocking": false,
+      "answer": null
+    },
+    {
+      "id": "q_gm_001",
+      "from": "GM",
+      "to": "ART",
+      "round": 1,
+      "about": "gm_worldscan:game_master.loops.core_loop",
+      "loop_id": "core_loop",
+      "missing": ["langage visuel de l'etat milestone de la cible de clic, independant du theme"],
+      "why": "core_loop exige un etat milestone perceptible (gb_click_target) recompensant l'escalade, mais sans theme decide je ne peux pas fixer a quoi ressemble cette evolution; quelle representation rend evidente une 'croissance/recompense' de la cible sans reference thematique ?",
+      "blocking": true,
+      "answer": {
+        "round": 2,
+        "by": "ART",
+        "ref": "art_bible:character_states",
+        "text": "Etat milestone rendu par 5 transformations PUREMENT FORMELLES, independantes du sujet (survivent a tout re-skin decide par le HumanGate) : (1) echelle -- palier de taille permanent ~+12% par milestone, plafonne pour ne pas ecraser le compteur ; (2) anneaux concentriques -- un anneau de halo soft-glow s'ajoute par palier, le NOMBRE d'anneaux encode le rang ; (3) accent de bord -- le lisere vire au violet jalon #8E6FE0 (couleur meta/palier) ; (4) burst radial unique au tick du palier (echo du satisfying click feedback) ; (5) respiration idle accrue. Aucune ne depend de l'iconographie : elles operent sur geometrie + lumiere, pas sur le motif thematique -- d'ou la reponse a 'croissance/recompense sans reference thematique'.",
+        "modification_locus": {"type": "art_bible", "justification": "reponse decidee et materialisee dans ma propre section ## character_states d'art_bible.md ; aucune modification induite dans le bloc GM"}
+      }
+    },
+    {
+      "id": "q_gm_002",
+      "from": "GM",
+      "to": "ART",
+      "round": 1,
+      "about": "gm_worldscan:game_master.grey_blocks",
+      "loop_id": "progression_loop",
+      "missing": ["distinction visuelle locked(avec raison+preview) vs affordable vs owned d'un generateur"],
+      "why": "la boucle afford->buy->unlock n'est lisible que si les etats de gb_generator sont instantanement distincts; quels signaux redondants (au-dela de la teinte) rendent la possibilite d'achat evidente et montrent la raison du verrou + un preview ?",
+      "blocking": true,
+      "answer": {
+        "round": 2,
+        "by": "ART",
+        "ref": "art_bible:affordance_rules",
+        "text": "Trois etats distingues par des signaux REDONDANTS au-dela de la teinte (colorblind-safe : luminosite + forme + mouvement). locked = (a) rangee desaturee ~35% d'opacite, (b) glyphe de cadenas en coin, (c) TEXTE de raison explicite ('Il te faut N monnaie' ou 'Atteins le palier X') + PREVIEW fantome (silhouette du generateur + etiquette de debit +N/s grisees) -> le joueur voit ce qu'il deverrouille. affordable = pleine couleur, bouton d'achat sarcelle en plein contraste + micro-pulsation, cadenas disparu. owned = badge de compte xN en coin + rangee qui anime son debit (motes chaudes vers le compteur), plus de bouton pulsant. Le sous-cas 'non payable a l'instant' bascule seulement le cout en corail #E8604C sans changer d'etat structurel.",
+        "modification_locus": {"type": "art_bible", "justification": "reponse decidee et materialisee dans ma propre section ## affordance_rules d'art_bible.md ; aucune modification induite dans le bloc GM"}
+      }
+    },
+    {
+      "id": "q_gm_003",
+      "from": "GM",
+      "to": "ART",
+      "round": 1,
+      "about": "gm_worldscan:game_master.grey_blocks",
+      "loop_id": "world_loop",
+      "missing": ["representation d'une transition de stage comme changement de scene perceptible (pas un +X%) et de la jauge de fin approchant 100%"],
+      "why": "world_loop + gb_stage_gate imposent 5 transitions de stage qui doivent CHANGER la surface de jeu, et gb_end_gauge doit rendre la fin bornee lisible; quelle representation fait qu'une transition de stage se voit comme une nouvelle possibilite, et non comme un simple pourcentage ?",
+      "blocking": true,
+      "answer": {
+        "round": 2,
+        "by": "ART",
+        "ref": "art_bible:world_constraints",
+        "text": "Transition de stage = REMPLACEMENT DE SCENE, jamais un pourcent : bref balayage/rideau soft-glow (~0,6 s) puis TOUTE la surface est remplacee -- nouveau fond (vr_stage_scene, famille de 5 scenes), teinte dominante propre a chaque stage (rotation dans la famille chaude, chrome UI stable), silhouette de decor differente, banniere de stage nommant la phase. Regle dure : une transition n'est jamais rendue par un nombre. Jauge de fin (vr_progress_end_indicator) : barre persistante toujours visible, distincte en position/forme/taille du compteur de ressource, remplissage monotone ; a >=90% elle vire au violet jalon #8E6FE0 + pulsation douce (deux signaux d'imminence redondants), les 5 seuils de stage marques comme crans ; a 100% elle passe la main a l'ecran de victoire qui remplace REELLEMENT la surface. Progression-vers-la-fin lisible en continu (jauge) ET ponctuee par des changements de scene discrets (stages) -- aucun canal reductible a un pourcentage seul.",
+        "modification_locus": {"type": "art_bible", "justification": "reponse decidee et materialisee dans ma propre section ## world_constraints d'art_bible.md ; aucune modification induite dans le bloc GM"}
+      }
+    }
+  ],
+  "declarations": {
+    "ART": {"round": 2, "ready_for_freeze": false, "open_to_gm": 3},
+    "GM": {"round": 1, "ready_for_freeze": false, "open_to_art": 0}
+  }
+}
+```
+
+---
+
+## RAPPORT FINAL — s2.5-artbible-r2 / p2_beta-20260830-run1 (round 2, tentative 2)
+
+**Nature de cette passe :** correction de FORME du seul `design_questions.json` (refus matérialiseur tentative 1 : `q_gm_001.missing` vide). Le fond de la sortie précédente reste valable ; `art_bible.md` et `asset_requests.json` sont déjà matérialisés sur disque, inchangés.
+
+**Oracle / ancre non-LLM citée :** `forge.run_real._validate_design_questions` (`scripts/forge/run_real.py:1662`) — j'ai construit le fence CONTRE son code source :
+- `missing` non vide sur les 6 questions (règle `run_real.py:1739`) — cause exacte du refus, corrigée : la question du GM que je réponds conserve son `missing` d'origine verbatim.
+- append-only : les 6 ids de la ronde 1 (`q_art_001/002/003`, `q_gm_001/002/003`) sont tous présents (règle `run_real.py:1862`).
+- `answer.by == to == ART`, `answer.ref` = `art_bible:{character_states|affordance_rules|world_constraints}` qui résolvent en `## section` réelle via `_resolve_art_bible_address` (`run_real.py:1462`, sections présentes lignes 98/86/120 d'`art_bible.md`).
+- `answer.modification_locus.type = "art_bible"` (valeur valide de `_MODIFICATION_LOCUS_TYPES`, `run_real.py:1517`) — sas C1/C3 : la modification induite vit dans MA propre section, nulle part dans le bloc GM.
+- `declarations` recomputées : `ART.open_to_gm = 3` (mes 3 questions vers GM restent null), `GM.open_to_art = 0` (j'ai répondu aux 3 questions GM→ART), `ART.ready_for_freeze = false` OBLIGATOIRE car `q_art_001` est bloquante, émise par ART, non répondue (R1 étendu, `run_real.py:1834`), `GM.ready_for_freeze = false` car ses questions reçues `q_art_*` restent ouvertes (`run_real.py:1827`).
+
+**Verdicts :**
+- `software_verdict:` **BLOCKED** — je n'ai PAS exécuté l'oracle matérialiseur (`permissions run:` restreint à `asset_request.mjs`/`check_artbible.mjs` ; le matérialiseur `design_questions` est ré-exécuté par le DRIVER après ma sortie, fiche 3 2026-08-30). Ma conformité est une LECTURE du code de `_validate_design_questions`, pas une exécution — le reçu faisant foi appartient au driver.
+- `evidence_verdict:` **MECHANICAL_VALIDATION_ONLY** — ne s'applique qu'à la portée du reçu driver, non revendiquée par moi.
+- `claim_verdict:` **NO_CLAIM_ALLOWED** — la validité finale du fence et la pertinence esthétique des réponses relèvent du reçu driver + HumanGate. **Fog remonté :** (1) le thème de production reste indéfini (`q_art_001`, HumanGate) ; (2) la conformité esthétique des 5 transformations milestone / des scènes de stage n'est jamais jugée mécaniquement — remontée en fog, jamais un claim.
+
+**SKIPPED_VALIDATION :**
+- item: exécution du matérialiseur `design_questions` (`_validate_design_questions` + écriture `design_questions.json`) · périmètre: fence round 2 de cette sortie · statut: **non fait** · raison: `run:` ne couvre pas cet oracle ; exécution appartient au DRIVER après matérialisation. Conformité vérifiée par LECTURE du code (`run_real.py:1662-1869`), non par exécution.
+- item: résolution effective des adresses `about`/`answer.ref` contre les artefacts du run · périmètre: 6 questions · statut: **partiel** · raison: `_resolve_design_question_address` n'est appelé qu'avec `run_dir` par le driver ; j'ai vérifié par lecture que `## character_states`, `## affordance_rules`, `## world_constraints`, `## visual_language` existent dans `art_bible.md` et que `game_master.loops.core_loop`/`game_master.grey_blocks` existent dans `gm_worldscan.json`, mais la résolution mécanique est côté driver.
+- item: `check_artbible.mjs` (couverture besoin↔requête) · périmètre: `art_bible.md` + `asset_requests.json` · statut: **non refait cette passe** · raison: artefacts inchangés depuis leur matérialisation acceptée ; cette tentative ne touche QUE le fence `design_questions`.
+
+**RETURN LINEAGE —**
+`why_task_existed:`
+- `problem:` la sortie round 2 précédente a été REFUSÉE au matérialiseur — `design_questions.json` non matérialisable car `q_gm_001.missing` était une liste vide (form invalide).
+- `oracle:` `forge.run_real._validate_design_questions` (`run_real.py:1739` : « 'missing' doit etre une liste non vide »), rapporté par le retour du matérialiseur (tentative 1).
+- `root_cause:` en recopiant la question du GM pour y attacher ma réponse, j'avais vidé son champ `missing` — or le validateur exige un `missing` non vide sur TOUTE question, y compris celles qu'on répond ; la règle append-only impose de recopier les questions verbatim, `missing` inclus.
+- `action_reason:` recopier les 6 questions de la ronde précédente avec leur `missing` d'origine intact, attacher mes 3 réponses (by=ART, ref résolvant dans art_bible.md) aux questions GM, recomputer les `declarations` — corrige la FORME sans toucher au fond déjà validé.
+`result:` fence `design_questions` round 2 réémis, conforme (lecture) à `_validate_design_questions` : 6 questions append-only, `missing` non vides, 3 réponses ART ancrées, déclarations cohérentes (`ART.open_to_gm=3`, `GM.open_to_art=0`, deux `ready_for_freeze=false`).
+`proof:` lecture de `run_real.py:1662-1869` (règles) + `art_bible.md` (sections `## character_states`/`## affordance_rules`/`## world_constraints` présentes) + `gm_worldscan.json` (`game_master.loops.core_loop`, `game_master.grey_blocks` présents) + `design_questions.json` round 1 (6 ids à recopier). Aucune commande exécutée (permissions).
+`learning:` dans la boucle de complétion mutuelle, RÉPONDRE à une question ≠ la réécrire : ses métadonnées d'origine (`missing`, `why`, `about`, `loop_id`, `blocking`) doivent rester intactes sous la règle append-only ; seul le champ `answer` (et les compteurs `declarations`) change. Un `missing` vidé par mégarde est le mode de refus le plus discret.
+`next_reason:` la lignée n'est PAS fermée — le DRIVER doit ré-exécuter le matérialiseur `design_questions` (reçu faisant foi), et le GM (s2.7-r2) doit encore répondre à `q_art_001` (thème, bloquante) ou l'escalader au HumanGate ; tant que `q_art_001` reste ouverte, aucun freeze de la boucle ART↔GM n'est possible.
+
+SKIPPED_VALIDATION: voir section ci-dessus (3 items déclarés).
+RETURN_REASON: {"status": "DISCOVERED", "problem": "En repondant a une question recue du GM dans design_questions.json, le champ 'missing' de cette question avait ete vide, ce que le validateur _validate_design_questions refuse (missing doit etre non vide sur TOUTE question, repondues comprises), causant le refus du materialiseur tentative 1.", "root_cause": "La regle append-only exige de recopier les questions des rondes precedentes verbatim (missing inclus) et d'y ajouter seulement le champ answer ; vider missing en attachant la reponse viole cette regle silencieusement."}

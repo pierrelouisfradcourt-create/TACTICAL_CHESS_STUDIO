@@ -1,0 +1,520 @@
+## RÔLE
+Architecte (étape 4). Point de vue imposé : architecte logiciel senior qui découpe par responsabilité, pas par confort.
+
+## EXIGENCES COGNITIVES
+Raisonnement architecture profond, effort élevé. Doit tenir un graphe de dépendances complet en tête et détecter les cycles avant qu'ils existent.
+
+## MÉMOIRE DE TRAVAIL
+Consomme la featuremap (étape 3) ; sur repo existant, connaît le blueprint en place (diff d'archi, pas réinvention). Conventions : CLAUDE.md + rules/.
+
+## OBJECTIF
+Produire blueprint.yaml gelé : modules + responsabilités · deps autorisées/interdites (ex : ui→api→engine ok, ui→engine interdit) · ownership · invariants d'archi.
+
+## DANS LE PÉRIMÈTRE (in_scope)
+Découpage en modules, graphe de dépendances autorisées/interdites, ownership par module, invariants d'architecture. Écrit uniquement blueprint.yaml.
+
+## HORS PÉRIMÈTRE (out_of_scope)
+Aucune écriture de code d'implémentation. Ne crée aucun fichier source. Ne décide pas la WireMap (étape 5). Ne touche pas aux lanes protégées (tests/, src/).
+
+## PERMISSIONS
+read: repo entier. write: blueprint.yaml uniquement. create: blueprint.yaml. run: aucun. delete: aucun.
+
+## GARDE-FOU
+Jamais « au feeling » : la structure physique est une CONSÉQUENCE du blueprint, justifiée par la featuremap. Tue les god-objects avant qu'ils existent. Toute dépendance interdite doit être explicite.
+
+## CRITÈRES DE RÉUSSITE
+blueprint valide ; chaque feature de la featuremap couverte par ≥1 module ; chaque module porte une responsabilité et une preuve attendue ; aucune dépendance cyclique ; aucune dépendance déclarée qui soit elle-même interdite ; deps_interdites listées explicitement et non vides.
+
+## ORACLES / TESTS
+DEUX ORACLES, DEUX MOMENTS — ne pas les confondre. AVANT build (ici) : `node scripts/forge/check_blueprint_contract.mjs <run_dir>/blueprint.json --featuremap <run_dir>/featuremap.json` répond « cette architecture couvre-t-elle le besoin ? » (couverture, responsabilités, cycles, contradictions, preuves). APRÈS build (étape s10b) : `forge.static_oracles.check_architecture` répond « le code respecte-t-il l'architecture ? ». Appelé en amont sur un src vide, il ne trouve aucun import et serait vacuement vert : ce n'est pas ton oracle. Jamais de LLM-as-judge.
+
+## CONTRAT DE SORTIE
+Un bloc ```json``` TERMINAL, matérialisé en blueprint.json par l'exécuteur (tu n'écris JAMAIS ce fichier toi-même) : {"modules": ["<id>", ...], "deps_interdites": [["source", "cible"], ...], "ownership": {...}, "responsabilites": [{"module", "responsabilite", "couvre": ["<id de feature>"], "dependances": ["<module>"], "preuve_attendue": {"kind", "statement"}}]}. `modules` reste une liste de CHAÎNES (forme consommée telle quelle par check_architecture après build — ne jamais la transformer en objets). RÈGLES DURES : `couvre` cite l'`id` EXACT d'une feature de featuremap.json — une feature que nul module ne couvre signifie que l'architecture ne répond pas au besoin. `dependances` est OBLIGATOIRE et peut être vide (module feuille), jamais absent ; les consommateurs en sont DÉRIVÉS mécaniquement, ne les saisis pas. Ne déclare jamais une dépendance que tu inscris toi-même dans deps_interdites.
+
+## RAPPORT FINAL
+software/evidence/claim séparés ; cite le reçu de check_blueprint_contract ; liste les features non couvertes et les couvertures fantômes ; claim_verdict: NO_CLAIM_ALLOWED. RETURN LINEAGE (doctrine FORGE_CAUSAL_LINEAGE_V2 §3, ratifiee Pierre 2026-08-06) — aucun worker ne meurt seul : le retour porte la CAUSALITE, pas seulement le resultat. Termine TOUJOURS par ce bloc, succes comme echec : `why_task_existed:` {`problem:` le probleme mesure qui a active cette tache · `oracle:` l'oracle ou la mesure qui l'a detecte, ou "aucun" si l'activation vient d'une decision humaine · `root_cause:` la cause racine identifiee, ou "non etablie" · `action_reason:` pourquoi CETTE action y repond} · `result:` l'etat reellement obtenu · `proof:` la commande executee et sa sortie · `learning:` ce que tu as appris et qui resservira, ou "aucun" · `next_reason:` pourquoi le niveau superieur doit agir OU pourquoi la chaine causale est FERMEE et se termine ici. Regles : ces champs sont HERITES ou CONSTATES, jamais inventes — si tu n'as pas recu le `why`, ecris "non transmis" plutot que de le deviner (une cause fabriquee est la meme faute qu'un `validated_by` fabrique). En ECHEC, `result` porte ce que tu as essaye et ce qui a echoue. `next_reason` ne vaut escalade que si une cause non resolue persiste, une preuve manque ou contredit l'etat attendu, ou une correction reste possible — sinon la lignee se termine proprement, sans action supplementaire.
+
+## À LIRE OBLIGATOIREMENT AVANT TOUTE ACTION
+- scripts/forge/standard/repo_map.yaml
+- scripts/forge/contracts/SCHEMA.md
+- l'artefact featuremap produit par l'étape 3 (Décompo fonctionnelle)
+- le blueprint.yaml existant si le repo est déjà structuré
+- lab/forge_runs/<projet>/knowledge_packet.json — patterns externes cités, ADVISORY jamais prescriptif
+- lab/forge_runs/<projet>/charter.yaml — INTENT LINEAGE : intention humaine, invariants, hors_scope, et le bloc `provenance` (source Pierre, fog_humangate). HERITE, jamais reecrit : l'etape verifie que sa decision la respecte, ou remonte le conflit.
+- scripts/forge/standard/repo_map.yaml — TABLE FIGEE des racines et des gabarits d'adresse. Realite verifiable, pas une intention : toute adresse decidee ici y est confrontee (defaut mesure 2026-08-05 : racine 04_CONTENT inventee, 232 019 tokens de reprise).
+
+## RÈGLE DE RESTITUTION — Chaque affirmation du final_report doit citer l'oracle/l'ancre non-LLM qui l'appuie. Appuyée par un oracle => software_verdict (OK/FAIL/BLOCKED) + evidence_verdict: MECHANICAL_VALIDATION_ONLY. Sans oracle disponible => claim_verdict: NO_CLAIM_ALLOWED et remonte un besoin HumanGate (fog), jamais un claim auto-certifié. Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement. En dernier lieu, une section finale SKIPPED_VALIDATION, structurée et EXPLICITE : pour chaque validation que tu n'as PAS faite, liste l'item de validation (quoi), le périmètre concerné (où), le statut (ex. non fait / partiel / hors délai) et la raison (pourquoi). Rien sauté => écris `SKIPPED_VALIDATION: aucun` — une décision assumée, jamais un silence. Le silence sur cette section est traité comme un oubli, pas comme 'rien à signaler'. TOUTE DERNIÈRE LIGNE DU RAPPORT, OBLIGATOIRE — lignée Return : une ligne unique `RETURN_REASON: {"status": "NOT_DISCOVERED"}` si tu n'as découvert AUCUN problème pendant ce travail. Si (et SEULEMENT si) tu as réellement découvert un problème — défaut rencontré, cause d'un échec, écart mesuré — écris à la place `RETURN_REASON: {"status": "DISCOVERED", "problem": "<le problème, factuel>", "root_cause": "<la cause racine si connue, sinon omets ce champ>"}`. JSON valide sur UNE seule ligne, aucun texte après. N'invente JAMAIS un problème pour remplir ce champ : un NOT_DISCOVERED honnête vaut mieux qu'un DISCOVERED de complaisance.
+
+## MARQUEUR DE DISPATCH (ne pas modifier)
+FORGE_DISPATCH:s4-archi:p2_alpha-20260830-run1:1
+
+## TÂCHE CONCRÈTE (p2_alpha-20260830-run1 / s4-archi)
+Conçois l'architecture du projet 'p2_alpha' (code à créer sous games/p2_alpha). Termine ta réponse par UN bloc ```json ... ``` contenant EXACTEMENT un objet de la forme {"modules": ["<dossier ou fichier de premier niveau sous la racine du code>", ...], "deps_interdites": [["<module_source>", "<module_cible>"], ...]} — format lu par forge.static_oracles.check_architecture. deps_interdites est OBLIGATOIRE et NON VIDE : déclare au minimum la séparation logique→rendu et logique→input (un blueprint sans dépendance interdite est rejeté par l'exécuteur — un tel projet relève du fog HumanGate, pas d'un oracle vide). Tu n'écris AUCUN fichier : l'exécuteur matérialise lui-même blueprint.json depuis ce bloc.
+
+## ARTEFACTS AMONT (run_dir)
+
+### charter.yaml (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_alpha\charter.yaml)
+objectif: 'Créer de zéro, sous games/p2_alpha, un jeu WEB incremental/clicker JOUABLE
+  dont la structure économique est INTÉGRALEMENT imposée par lab/forge_briefs/p2_alpha/
+  structure_imposee_v2.yaml (grammaire v2 ratifiée Pierre 2026-08-30), puis fermer
+  la chaîne de preuve full_content jusqu''au verdict signé + verify_run AUTHENTIQUE.
+  Rôle expérimental : bras DIRIGÉ (D2) de la PAIRE 2 — la variable manipulée est l''AUTEUR
+  DE LA STRUCTURE (grammaire ratifiée), PAS l''auteur de l''univers. CONDITION DE
+  VICTOIRE : total cumulé de R produit ≥ 1 000 000 (seuil S5), fin OBSERVABLE, sans
+  état d''échec (fidèle au genre). JOUEUR : nominalement un joueur web solo d''incremental/clicker
+  (boucle d''arbitrage « acheter maintenant vs épargner ») — caractérisation DÉRIVÉE
+  du genre ratifié, NON une décision démographique de Pierre. L''ACTEUR DE MESURE
+  de ce run est un bot scripté qui doit atteindre S5 en ≤ 72000 ticks (obligation
+  de solvabilité runtime). La qualité ludique n''est PAS jugée dans ce run (donnée
+  M7).
+
+  '
+plateforme_cible: 'web — HTML + JS (canvas). Socle sonde web N1 : déterminisme seedé,
+  window.__game exposé, harnais complet à la racine du dossier jeu. SOURCE PIERRE
+  : project_brief.yaml champ `cible: web (HTML+JS canvas)` + protocole RUN2_PROTOCOLE_V1.md
+  ratifié Pierre 2026-08-30 (règle N1).
+
+  '
+reference_jeu: 'Genre incremental/clicker (grammaire de genre à la Cookie Clicker
+  — GRAMMAIRE UNIQUEMENT, aucune copie d''asset, de nom ni de contenu), dont la structure
+  économique est NORMATIVEMENT et intégralement fixée par lab/forge_briefs/p2_alpha/
+  structure_imposee_v2.yaml. SOURCE PIERRE : genre FIXÉ PAR PIERRE (paire pilote 2026-08-30,
+  reconduit paire 2) ; structure = grammaire v2 proposée Fable, RATIFIÉE Pierre 2026-08-30
+  (sas de pré-enregistrement). Distinction verrouillée : proposée par Fable, ratifiée
+  par Pierre — la variable expérimentale du bras D est l''auteur de la STRUCTURE,
+  pas l''auteur de l''UNIVERS.
+
+  '
+criteres_succes:
+- charter.yaml matérialisé par s0 en bloc ```yaml (A1 — condition de validité de bras)
+  ; tous champs remplis, aucun « à définir ».
+- Structure du jeu == structure_imposee_v2.yaml (croissance 1.12, cout_base [15,100,1100,12000],
+  prod [0.1,1,8,47], gain_clic_initial 1, mapping des 6 améliorations, seuils_cumules
+  [100,1000,12000,150000,1000000], tick_ms 100, comptabilité milli-R entiers) ; toute
+  déviation déclarée en champ structuré (M3), jamais silencieuse.
+- 'Invariant comptable exact : solde_mR == Σ(gains_clic_mR) + Σ(production_mR) − Σ(dépenses_mR),
+  en milli-R entiers, aucun flottant dans l''état ; affichage = floor(solde_mR/1000).'
+- 'SOLVABILITÉ RUNTIME : un bot scripté atteint S5 (≥ 1 000 000 R cumulés) en ≤ 72000
+  ticks ; bots de mesure à variance NON triviale (temps-jusqu''à-S5 en ticks, jalons
+  S1..S5). Le desk-check ne compte pas comme preuve.'
+- 'Chaîne full_content complète : verdict signé + verify_run AUTHENTIQUE.'
+- design_questions / r2 / design_freeze exercés ; modification_locus utilisé pour
+  toute réponse (aucune_requise justifié si l'objet est normatif).
+- Chaque asset_request.id resolved-avec-fichier ou blocked-justifié (check_asset_consumption).
+- 'check_artbible exécuté par le driver (executed_by: driver).'
+- product_snapshot.md matérialisé (exigible M7(a), protocole V1 A3).
+- 's11 red-team Qwen réel, independent: true ; LM Studio down => HALT sans fallback.'
+- 'Socle sonde web N1 en place : HTML+JS, déterminisme seedé, window.__game, harnais
+  complet à la racine.'
+actions_interdites:
+- Modifier une valeur de structure_imposee_v2.yaml sans la déclarer comme écart en
+  champ structuré (M3) — toute déviation silencieuse est interdite.
+- Inventer/choisir un modèle de jeu (reference_jeu) ou une plateforme (plateforme_cible)
+  autres que ceux fixés par Pierre.
+- Introduire une ressource autre que R, un revenu hors clic+générateurs, ou une dépense
+  hors achats (aucune vente).
+- Ajouter un état d'échec ou une défaite artificielle.
+- 'Hardcoder un résultat d''oracle ou un flag de harnais (pré-mortem : solvability.mjs
+  renvoyant { solvable: true } littéral ; check_harness_no_hardcoded_flags).'
+- 'Écrire un test avec un >= tautologique : asserter le comportement STRICT (le clic
+  ajoute exactement gain_clic, coûts == cout_base×1.12^n, victoire à == 1 000 000).'
+- Transmettre un reçu code sans evidence_path (=> BLOCKED en s12).
+- Fallback LLM sur s11 red-team si LM Studio est down (=> HALT).
+- git commit / git push (gate Pierre explicite requis).
+- Toucher tests/, src/, autopilot.py ou la lane STUDIO gelée.
+- Émettre un jugement ou un claim de qualité ludique / fun (donnée M7, hors périmètre
+  de ce run).
+hors_scope:
+- 'Le thème, l''univers, les personnages/entités et leur nommage, la direction artistique,
+  les assets, le HUD et les micro-interactions non couverts par la structure : libertés
+  déléguées aux étapes aval, non fixées par ce charter.'
+- L'architecture technique du jeu (étape s4).
+- Le world scan (étape s2).
+- L'écriture de code (ce charter ne produit QUE le contrat produit ; aucun fichier
+  écrit).
+- Le jugement de qualité ludique / fun (donnée M7).
+- 'Toute mécanique hors grammaire imposée : état d''échec, ressource secondaire, revenu/dépense
+  non prévus.'
+criteres_demo:
+- Un compteur de R visible en permanence à l'écran et qui augmente.
+- Un clic manuel produit à l'écran une hausse visible de R égale à gain_clic courant.
+- Après l'achat d'un générateur, R augmente AUTOMATIQUEMENT à chaque tick sans clic
+  (production auto visible).
+- 'Un bouton d''achat GRISÉ quand R est insuffisant : le refus est observable et l''état
+  reste inchangé.'
+- Le franchissement d'un seuil (S1 révèle G2, S2 G3, S3 G4, S4 les améliorations ×2
+  prod) débloque VISIBLEMENT le nouvel élément.
+- Un écran/état de VICTOIRE observable au franchissement de S5 (total cumulé ≥ 1 000
+  000 R) ; AUCUN écran de défaite.
+
+
+### artifacts/s3-decompo.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_alpha\artifacts\s3-decompo.txt)
+I now have the exact contract of both oracles. Two hard gates drive the featuremap:
+
+1. **`boucle_sans_entree`** (`check_decompo.mjs:188-203`): every leaf whose `source_ref` is a `acteur:PLAYER`+`affordance` exigence (here **E2, E3, E7, E11**) MUST have `expected_proof.kind === "bot_action"` **and** a statement containing the literal string `"main.tscn"`. No grey-block leaf (whose statement = verbatim `builder_contract`, without `main.tscn`) may source those four.
+2. **`grey_block_non_decompose`** + **NON-INVENTION**: each of the 14 GM grey blocks must be a leaf `id`, and every `source_ref` must resolve to a real prisme exigence — so grey blocks are homed on the *safe* exigences (E1, E4, E5, E6, E8, E13, E14, E15), never on E2/E3/E7/E11.
+
+Everything is verified against the read source. Here is the decomposition.
+
+---
+
+## RAPPORT FINAL — s3-decompo / p2_alpha-20260830-run1
+
+**Ancres non-LLM consultées** — `scripts/forge/check_decompo.mjs` (oracle, lu intégralement), `scripts/forge/upstream_schema.mjs` (`validateFeaturemap`/`collectLeaves`/`validateLeaf`, lu), `prisme` (s1, 15 exigences E1..E15), `gm_worldscan` (s2.7, 14 grey blocks + loops), `charter.yaml`, `product_snapshot.md` (R1
+[tronqué]
+```json
+{
+  "game_id": "p2_alpha",
+  "systemes": [
+    {
+      "id": "sys_clic_manuel",
+      "features": [
+        {
+          "id": "feat_clic_coeur",
+          "capacites": [
+            {
+              "id": "cap_e2_clic_entree",
+              "capacite": "ENTREE : le joueur agit sur l'affordance `coeur_de_lumen` (un clic manuel produisant du R).",
+              "source_ref": "E2",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Depuis main.tscn, un bot agit sur l'affordance `coeur_de_lumen` (un clic) ; l'entree joueur est executee."
+              }
+            },
+            {
+              "id": "cap_e2_gain_effet",
+              "capacite": "EFFET : le compteur R augmente de gain_clic (strictement > 0) a chaque clic.",
+              "source_ref": "E2",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Depuis main.tscn, apres le clic sur `coeur_de_lumen`, `r_counter` passe de v a v+gain_clic avec gain_clic>0 (effet observable)."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_feedback_clic",
+          "capacites": [
+            {
+              "id": "gb_core",
+              "capacite": "Coeur de Lumen : orbe central cliquable, cible du clic manuel.",
+              "source_ref": "E4",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Orbe central cliquable (Coeur de Lumen) : pulsation lente au repos, eclat radial + nombre flottant +N a chaque clic ; le clic credite du R."
+              }
+            },
+            {
+              "id": "gb_r_counter",
+              "capacite": "Compteur R permanent, lisible et mis a jour a chaque gain.",
+              "source_ref": "E4",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Compteur R permanent en haut d'ecran, lisible de 1 a >=1 000 000 (formatage des grands nombres), s'incremente a chaque gain."
+              }
+            },
+            {
+              "id": "gb_click_burst",
+              "capacite": "VFX de clic : eclat radial + nombre flottant +N a chaque clic.",
+              "source_ref": "E4",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "VFX instantane au clic sur le Coeur : eclat radial court + nombre flottant +N (= gain_clic courant) qui monte et s'efface."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_generateurs",
+      "features": [
+        {
+          "id": "feat_achat_generateur",
+          "capacites": [
+            {
+              "id": "cap_e3_achat_entree",
+              "capacite": "ENTREE : le joueur agit sur l'affordance `acheter_generateur` quand R >= cout.",
+              "source_ref": "E3",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Depuis main.tscn, un bot avec R>=15 agit sur l'affordance `acheter_generateur` (un clic d'achat)."
+              }
+            },
+            {
+              "id": "cap_e3_achat_effet",
+              "capacite": "EFFET : R diminue du cout exact et un generateur G1 est acquis.",
+              "source_ref": "E3",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Depuis main.tscn, apres l'action `acheter_generateur`, R diminue de 15 et le nombre de G1 possedes passe a 1 (effet observable)."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_production_auto",
+          "capacites": [
+            {
+              "id": "gb_g1",
+              "capacite": "Generateur G1 : achat 15 R, auto-production 0.1 R/s.",
+              "source_ref": "E5",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Conduit tier 1, silhouette simple ; achat a 15 R (x1.15 par exemplaire), produit 0.1 R/s ; s'illumine selon le nombre possede."
+              }
+            },
+            {
+              "id": "gb_g2",
+              "capacite": "Generateur G2 : revele a S1, achat 100 R, auto-production 1 R/s.",
+              "source_ref": "E5",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Silhouette distincte de G1 ; cachee puis apparait par threshold_reveal a S1 (100 R cumules) ; achat 100 R, produit 1 R/s ; une nouvelle machine s'ajoute a la colonne."
+              }
+            },
+            {
+              "id": "gb_g3",
+              "capacite": "Generateur G3 : revele a S2, achat 1100 R, auto-production 8 R/s.",
+              "source_ref": "E5",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Silhouette plus haute/complexe que G2 ; threshold_reveal a S2 ; achat 1100 R, produit 8 R/s ; nouvelle machine visible."
+              }
+            },
+            {
+              "id": "gb_g4",
+              "capacite": "Generateur G4 : revele a S3, achat 12000 R, auto-production 47 R/s.",
+              "source_ref": "E5",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Silhouette la plus imposante et lumineuse ; threshold_reveal a S3 ; achat 12000 R, produit 47 R/s."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_bouton_achat",
+          "capacites": [
+            {
+              "id": "gb_buy_button",
+              "capacite": "Bouton d'achat a deux etats : achetable vs grise (refus observable quand R insuffisant).",
+              "source_ref": "E15",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Bouton d'achat a deux etats nets : ACHETABLE (colore, halo, cliquable) / GRISE (desature, sans halo) quand R insuffisant ; refus observable, etat inchange ; affiche le cout courant en R."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_progression",
+      "features": [
+        {
+          "id": "feat_unlock_g2",
+          "capacites": [
+            {
+              "id": "cap_e7_unlock_g2_entree",
+              "capacite": "ENTREE : une fois G2 revele a S1, le joueur agit sur l'affordance `acheter_generateur_g2`.",
+              "source_ref": "E7",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Depuis main.tscn, une fois 100 R cumules atteints et G2 revele, un bot agit sur l'affordance `acheter_generateur_g2` (un clic d'achat)."
+              }
+            },
+            {
+              "id": "cap_e7_unlock_g2_effet",
+              "capacite": "EFFET : au franchissement de S1, une entree G2 auparavant absente apparait dans la colonne.",
+              "source_ref": "E7",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Depuis main.tscn, a 100 R cumules, une entree generateur G2 auparavant absente apparait dans la colonne (effet de deblocage observable)."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_reveal_vfx",
+          "capacites": [
+            {
+              "id": "gb_threshold_reveal",
+              "capacite": "VFX de franchissement de seuil accompagnant chaque revelation (G2/G3/G4/ameliorations).",
+              "source_ref": "E8",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "VFX de franchissement : flash/onde lumineuse accompagnant l'apparition de G2 (S1), G3 (S2), G4 (S3), ameliorations (S4)."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_objectif",
+          "capacites": [
+            {
+              "id": "gb_progress_meter",
+              "capacite": "Jauge de proximite vers le prochain seuil, materialisant l'arbitrage acheter/epargner.",
+              "source_ref": "E1",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Jauge de proximite vers le prochain seuil (S1..S5) : materialise l'arbitrage acheter-maintenant vs epargner-vers-le-seuil ; avance a mesure que le R cumule approche le seuil."
+              }
+            },
+            {
+              "id": "cap_e8_objectif_effet",
+              "capacite": "EFFET VISIBLE (NEXT_GOAL) : apres S1, le label `objectif` change pour un texte nouveau citant 1000 R et G3.",
+              "source_ref": "E8",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Le texte de `objectif` apres S1 differe caractere pour caractere du precedent et cite 1000 R et G3."
+              }
+            },
+            {
+              "id": "cap_e9_objectif_effet",
+              "capacite": "EFFET VISIBLE (NEXT_GOAL) : apres S2, le label `objectif` change encore pour un texte distinct citant 12000 R et G4.",
+              "source_ref": "E9",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Le texte de `objectif` apres S2 differe de celui apres S1 et cite 12000 R et G4."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_fond_ascendant",
+          "capacites": [
+            {
+              "id": "gb_world_background",
+              "capacite": "Fond qui s'eclaircit d'un cran a chacun des 5 seuils franchis.",
+              "source_ref": "E14",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Fond bleu-nuit (#0B0E17) qui gagne en clarte d'un cran a chacun des 5 seuils franchis ; particules de lumiere ambiantes ; raconte l'ascension."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_arbitrage",
+      "features": [
+        {
+          "id": "feat_ameliorations",
+          "capacites": [
+            {
+              "id": "gb_clic_upgrade",
+              "capacite": "Amelioration de clic (clic_x2 puis clic_x4) : renforce le gain manuel, option d'arbitrage.",
+              "source_ref": "E6",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Icone ambre (famille clic) ; achats clic_x2 puis clic_x4 en cumul sequentiel ; apres achat, le +N du Coeur augmente visiblement."
+              }
+            },
+            {
+              "id": "gb_prod_upgrade",
+              "capacite": "Amelioration de production (x2 par generateur, debloquee a S4) : option d'arbitrage automatisation.",
+              "source_ref": "E6",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Icone cyan (famille production), debloquee groupee a S4 par threshold_reveal ; chaque amelioration double (x2) la production du generateur cible ; le taux R/s affiche monte."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_boucle_rejeu",
+      "features": [
+        {
+          "id": "feat_repeat",
+          "capacites": [
+            {
+              "id": "cap_e10_repeat",
+              "capacite": "REPEAT : dans l'etat post-S1, le joueur rejoue clic+achat+attente et R reprend sa croissance vers S2 (rejeu de E2/E3/E5/E7).",
+              "source_ref": "E10",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Apres S1, un bot re-execute clic+achat+attente et `r_counter` progresse de nouveau vers 1000."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_victoire",
+          "capacites": [
+            {
+              "id": "gb_victory_bloom",
+              "capacite": "Etat de victoire unique au franchissement de S5 ; aucun etat de defaite.",
+              "source_ref": "E13",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Etat/ecran de victoire au franchissement de S5 (>=1 000 000 R cumules) : embrasement lumineux plein ecran ; terminaison unique ascendante ; aucun equivalent de defaite."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_rejouer",
+          "capacites": [
+            {
+              "id": "cap_e11_rejouer_entree",
+              "capacite": "ENTREE (META_LOOP) : depuis l'ecran de victoire, le joueur agit sur l'affordance `rejouer`.",
+              "source_ref": "E11",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Depuis main.tscn, apres la victoire, un bot agit sur l'affordance `rejouer` (un clic)."
+              }
+            },
+            {
+              "id": "cap_e11_reset_effet",
+              "capacite": "EFFET (META_LOOP) : le compteur R retombe visiblement a zero (nouveau run).",
+              "source_ref": "E11",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Depuis main.tscn, apres l'action `rejouer`, `r_counter` passe de superieur ou egal a 1 000 000 a 0 (effet de reset observable)."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_avantage_rejeu",
+          "capacites": [
+            {
+              "id": "cap_e12_advantage",
+              "capacite": "ADVANTAGE : rejeu de E2 selon la politique optimale visant une accumulation strictement superieure au run 1 sur le meme horizon (satisfiabilite en conflit avec le charter run-unique — fog HumanGate).",
+              "source_ref": "E12",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot suivant la politique optimale au run 2 atteint un `r_counter` cumule strictement superieur a celui du run 1 au meme nombre de frames."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+## PRÉ-MORTEM (erreurs des runs passés)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [s2-worldscan] échec d'une tentative précédente à s2-worldscan → ✅ RÉPARÉ: réparé à la tentative 2 (tier haiku)
+- [s2.7-gm-worldscan] échec d'une tentative précédente à s2.7-gm-worldscan → ✅ RÉPARÉ: réparé à la tentative 2 (tier opus)
+- [s2.7-gm-worldscan-r2] échec d'une tentative précédente à s2.7-gm-worldscan-r2 → ✅ RÉPARÉ: réparé à la tentative 2 (tier opus)
+- [s1-prisme] échec d'une tentative précédente à s1-prisme → ✅ RÉPARÉ: réparé à la tentative 2 (tier opus)
+- [s3-decompo] exécuteur LLM en échec à s3-decompo: claude -p returncode=1: 
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [manifest-7b1a52e1001f1ef0] Le gm_worldscan de la ronde precedente portait 3 deviations par rapport a structure_imposee_v2.yaml (normatif ratifie) : coefficient x1.15 au lieu de x1.12 aux 3 emplacements CE-JEU, seuil S4 declare 'non fixee' au lieu de 150000, et gain_clic_initial declare 'non fixe par le charter' au lieu de 1 ; de plus l'ancienne reponse a q_art_001 declarait locus=gm_worldscan sur un bloc identique r1<->r2 (theatre, refuse a juste titre). — cause: La ronde precedente a calibre CE jeu sur le canon de genre Cookie Clicker (1.15) et a laisse indefinies les valeurs que la structure ratifiee fixe pourtant (S4=150000, gain_clic_initial=1), au lieu de reprendre TELS QUELS les invariants de structure_imposee_v2.yaml ; la reponse a q_art_001 n'induisait aucune modification reelle du game_master. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-b8a9f731ccc164ce] Le GAMEPLAY CONTRACT impose les maillons META_LOOP (I) et ADVANTAGE (J) taillés pour un jeu à prestige avec report inter-run, or le charter de p2_alpha fixe un jeu à run unique (victoire terminale à 1 000 000 R, aucune méta-progression persistante, initial_stock=0) : l'exigence E12/J affirme un avantage mécanique du second run que le charter ne garantit pas, son expected_proof échouerait pour un rejeu naïf. — cause: Le contrat A..J présuppose une grammaire de prestige (Kitten Clicker) sans clause d'exemption pour les jeux à run unique ; le charter p2_alpha n'autorise aucun mécanisme hors clic+générateurs+améliorations, donc aucun report inter-run mesurable. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-de5ab65de60d029f] Le charter p2_alpha (incremental pur : ressource unique R, aucune meta-progression, victoire terminale unique, aucun etat d'echec) ne peut satisfaire les maillons I/J du contrat de boucle V4 sans introduire un bonus persistant que le charter interdit explicitement : E11 (ADVANTAGE) exige un delta mesure strictement superieur apres rallumage, impossible en accumulation pure sans multiplicateur persistant, et est donc emise en ADDITIONS hors charter. — cause: Le contrat de boucle V4 (10 maillons) a ete calibre sur Kitten Clicker qui possede un prestige mecanique ; il presume une meta-progression que la grammaire imposee du charter p2_alpha proscrit. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-2b65a96ca8e8ebc5] Le projet p1_beta_E1 n'a aucune entree dans scripts/forge/oracles.json (resolve_oracle leve OracleNotFound, driver._oracle_argv() rend () => gate BLOCKED), et lab/forge_runs/p1_beta_E1/wiremap_frozen.json ancre les 15 features accentuees du run p1_beta alors que le wiremap.json E1 en porte 22 non accentuees (intersection 0), ce qui rend check_feature_set_frozen rouge independamment du code produit — cause: le run dir p1_beta_E1 a ete seede depuis le run dir p1_beta (blueprint copie octet pour octet, wiremap_frozen herite) sans que l'enregistrement d'oracle ni la re-ancre du gel du jeu de regles ne soient refaits pour le nouveau projet -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-440784e869f4320c] echec de la tentative 0 a s9-build -- GENERATION_DIFFERENTE_A_REEXAMINER
+
+FORGE_DISPATCH:s4-archi:p2_alpha-20260830-run1:1

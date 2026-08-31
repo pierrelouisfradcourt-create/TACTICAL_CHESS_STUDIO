@@ -1,0 +1,289 @@
+I've now read all three gating/derivation oracles (`check_prisme.mjs`, `check_prisme_manifest.mjs` via `upstream_schema.mjs`, and `loop_spec.mjs`) and the traversal sonde. Bash is disabled and the run_dir's `design/` contract files are not listed among the injected upstream artifacts, so per my contract I sequence the loop exigences in player-lived order myself and do not compensate for the absent design contract.
+
+I built the artifact directly against those oracles' source. My entire response below (outside the terminal ```json``` block and the final `RETURN_REASON` line) **is** `product_snapshot.md`.
+
+---
+
+# PRODUCT SNAPSHOT — p2_beta (incremental à fin bornée)
+
+Vision du réalisateur : le produit fini tel que le joueur le vit. Le sujet visuel concret (le thème) relève d'un arbitrage humain en aval ; tout ce qui suit est décrit de façon **fonctionnelle et formelle**, donc vrai quel que soit le re-skin retenu. Le jeu est un incremental/clicker jouable dans un navigateur, en 2D, dont la particularité assumée face au genre canonique est qu'il **se termine** : une fin observable et atteignable, bornée à 72000 ticks.
+
+## 1. CE QUE LE JOUEUR VOIT
+
+Au centre de l'écran, une **cible pressable** chaude et évidente, l'élément le plus grand et le plus trouvable sans recherche. En haut, deux compteurs distincts : le **compteur de ressource** (`unites`) qui monte, et un **afficheur de production passive** (unités par seconde). Sur un côté, une **boutique** : des rangées d'achat de générateurs, chacune dans un état lisible instantanément — verrouillée (désaturée, cadenas, raison écrite et aperçu fantôme du débit), achetable (pleine couleur, bouton contrasté, micro-pulsation), ou possédée (badge de compte, rangée qui anime son débit) ; le coût passe au corail quand il n'est pas payable. Des **tuiles d'upgrade** plates, distinctes des générateurs. Un **jeton de bonus** lumineux qui dérive périodiquement dans la scène et s'estompe s'il n'est pas attrapé. En permanence, un **HUD objectif** qui affiche le but courant, et une **jauge de fin** persistante, à une position et une forme distinctes du compteur de ressource, qui se remplit vers 100 %. Le franchissement d'un palier remplace **toute la surface de jeu** par une nouvelle scène de stage (balayage bref, fond et teinte différents, bannière nommant la phase) — jamais un simple pourcentage. À 100 % de la jauge, un **écran de victoire** plein écran remplace réellement le jeu et montre les totaux finaux.
+
+## 2. CE QUE LE JOUEUR FAIT
+
+Il **presse la cible centrale** pour produire des unités et regarde le total grimper. Très vite il **arbitre** : continuer à cliquer maintenant, ou économiser pour **acheter son premier générateur** — geste qui transforme le cliqueur manuel en système à revenu passif et fait apparaître une rangée de production qui n'existait pas. Il **réinvestit** sur des coûts qui montent (×1,15 par unité), **poursuit les objectifs** affichés qui se renouvellent, **attrape les jetons de bonus** au vol, **franchit les seuils de stage** qui changent la scène. Une fois par run, il peut **déclencher une ascension** : un reset qui remet sa production visible à zéro mais relance la boucle dans un état plus fort. Il **rejoue** alors cliquer → gagner → acheter, et **pousse la jauge de fin** jusqu'à l'écran de victoire.
+
+## 3. CE QUE LE JOUEUR RESSENT
+
+Le **retour tactile immédiat** de chaque clic (la cible réagit, un « +N » jaillit) ancre le geste dans son effet. Puis la **satisfaction d'escalade** — voir un petit nombre devenir énorme — et le basculement grisant du travail actif vers le **revenu qui coule tout seul**. La **tension d'allocation** à chaque décision (cliquer contre acheter, se spécialiser contre diversifier) donne du poids aux choix. Les **changements de scène** ponctuent la progression comme des chapitres, empêchant la lassitude de la répétition. Surtout, contrairement à l'endlessness du genre, le joueur ressent une **fin en vue** : la jauge rend le but lisible en continu, et l'écran de victoire offre une **clôture** — le run a un sens parce qu'il se conclut.
+
+## 4. RÈGLES OBSERVABLES
+
+- **R1 —** Au tick 0, le HUD `objectif` affiche un but courant non vide, lisible sans aucune interaction.
+- **R2 —** Chaque pression sur la cible centrale (`cible_centrale`) incrémente le compteur `unites` d'au moins la valeur de clic courante, dans la frame du clic.
+- **R3 —** Chaque pression déclenche une réaction visible (enfoncement + flotteur « +N ») dans la même frame que l'incrément du compteur.
+- **R4 —** Le compteur `unites` affiche la nouvelle valeur totale, strictement croissante, immédiatement après chaque gain.
+- **R5 —** Un point de décision affiché arbitre entre cliquer et acheter : sur 300 frames, une politique « idle » (aucun clic) et une politique « actif » (clic périodique) produisent deux valeurs finales distinctes de `unites`.
+- **R6 —** L'achat d'un générateur via `bouton_achat_generateur` fait apparaître le groupe `generateurs`, absent de la boutique avant l'achat, et démarre un flux passif d'unités.
+- **R7 —** Le revenu passif affiché dépasse le rendement du clic manuel dans une bande de 20 à 60 secondes après le premier générateur.
+- **R8 —** Le coût du n-ième générateur d'une famille vaut coût_base × 1,15^n exactement.
+- **R9 —** Le HUD `objectif` présente successivement au moins trois textes de but deux à deux différents, caractère pour caractère, sur un run de référence.
+- **R10 —** La séquence cliquer → gagner → acheter se rejoue sur un coût relevé (×1,15), le compteur `unites` repartant à la hausse vers le générateur suivant.
+- **R11 —** Le joueur peut déclencher une ascension via `geste_ascension` ; au déclenchement, le compteur `unites` retombe visiblement à zéro à l'écran.
+- **R12 —** Après une ascension, le gain d'`unites` par pression de la cible centrale est strictement supérieur au gain par pression mesuré avant l'ascension. *(Règle ADDITIONS — voir la zone de brouillard §5.)*
+- **R13 —** Une jauge de fin persistante, distincte du compteur `unites`, est visible en permanence et se remplit de façon monotone vers 100 %.
+- **R14 —** Le run atteint un écran de victoire en 72000 ticks au plus, déclenché par la jauge de fin arrivée à 100 %.
+
+## 5. NOTE DE PRODUCTION — PREUVES, PÉRIMÈTRE ET ZONES DE BROUILLARD
+
+Ancres citées : `charter.yaml` (rapport de retour s0 du bras Libre — délègue la structure à l'aval), `s2-worldscan.txt` (genre incremental, 4 jeux de référence, `advisory:true`), `s2.6-story-bible.txt` (6/8 sections NOT_GROUNDED — thème indéfini), `s2.7-gm-worldscan.txt` (bloc `game_master` : 9 boucles, grey blocks, `progression_metrics`, fin bornée ≤72000 ticks), `design_questions.json` (round 2 : ART et GM `ready_for_freeze:true`, thème déféré au HumanGate).
+
+Oracles de référence, **construits contre leur code source, non exécutés par moi** (`run: aucun`, Bash désactivé) : `scripts/forge/check_prisme_manifest.mjs` (+ `upstream_schema.mjs`) pour la chaîne observation→claim→énoncé→preuve→destination et la provenance ; `scripts/forge/prisme/check_prisme.mjs` pour la conformité markdown des 4 sections ci-dessus ; `scripts/forge/loop_spec.mjs` (`checkLoopSpec`) pour la complétude de la boucle (10 rôles A..J + règles par maillon). Le manifeste porte 15 exigences dont 11 de boucle : **10/11 sourcées GM** (`gm_worldscan:game_master.loops.*` / `grey_blocks.*`), baseline mesurée run 9 = 0/13. La seule exigence de boucle non sourcée GM est R12/`ex_j_advantage`, volontairement ADDITIONS (voir fog ci-dessous).
+
+**Zone de brouillard n°1 — thème (HumanGate).** Le sujet visuel concret (à quoi ressemblent cible, générateurs, jeton) n'est ancré nulle part : la Story Bible est NOT_GROUNDED sur characters/factions/events, le charter délègue la structure. Le produit est entièrement spécifié et constructible de façon **agnostique au thème** ; le re-skin ne change aucune boucle, métrique ni preuve. Décision de design assumée par le GM (q_art_001), thème = arbitrage Pierre.
+
+**Zone de brouillard n°2 — conflit de contrats au maillon J (HumanGate).** Le Gameplay Contract impose les maillons I (reset visible) et **J (avantage mesurable après l'ascension : `increases_more_than`)**. La réponse GM q_art_002 tranche à l'inverse : « aucune monnaie de prestige permanente ni cumul inter-run ». Pour produire une boucle complète (`checkLoopSpec` exige J) **sans** violer le GM, j'ai modélisé J comme un avantage **borné au run unique** (l'unique relance conserve un multiplicateur), déclaré en **ADDITIONS** (`reference: null`), donc explicitement proposé par moi et non hérité. C'est le lieu exact où deux contrats amont se contredisent — arbitrage Pierre requis.
+
+**Exigences classées non actionnables :** aucune (15/15 portent preuve attendue + destination valides). **Références qui seront reportées non ancrées dans le World Scan :** les 11 références `gm_worldscan:*` (l'ancrage de `check_prisme_manifest` ne connaît que les tokens du World Scan — noms de jeux, URLs) ; c'est une **mesure attendue**, pas un défaut : les exigences de boucle sont adressées au bloc `game_master` comme l'exige le contrat Lot B. 3 exigences produit (`ex_n_end`, `ex_n_idle`, `ex_n_cost`) sont ancrées au World Scan (`games[3]`, `games[0]`).
+
+software_verdict: BLOCKED — *(les 3 oracles existent mais ne sont pas exécutés par cet agent ; reçus à produire par `run_real.py` après matérialisation de product_snapshot.md et prisme.json)*
+evidence_verdict: MECHANICAL_VALIDATION_ONLY — *(ne s'applique qu'aux reçus de l'exécuteur ; non revendiqué par moi)*
+claim_verdict: NO_CLAIM_ALLOWED — *(complétude de boucle, ancrage et surtout l'arbitrage thème + conflit I/J relèvent de l'exécuteur puis du HumanGate ; fog remonté à Pierre)*
+
+SKIPPED_VALIDATION :
+- item: exécution de `check_prisme_manifest.mjs`, `prisme/check_prisme.mjs`, `loop_spec.mjs` · périmètre: prisme.json + product_snapshot.md (p2_beta run1) · statut: non fait · raison: `run: aucun` + Bash désactivé ; conformité vérifiée par **lecture** du code source des trois oracles, l'exécution appartient à `run_real.py`.
+- item: ancrage des références `gm_worldscan:*` dans le World Scan · périmètre: 11 références de boucle · statut: partiel · raison: l'ancrage ne connaît que les tokens du World Scan ; l'adressage GM est **voulu** (contrat Lot B) et sera reporté non-ancré — mesure, pas défaut.
+- item: résolution des adresses `game_master.loops.<loop>.<step_id>` par la sonde `check_amont_traversal.mjs` · périmètre: références de boucle · statut: partiel · raison: `resolvePath` navigue des clés d'objet alors que les `step_id` vivent dans des tableaux `steps[]` ; la sonde **advisory** (exit 0 toujours) les comptera `non_resolues` — non gatant.
+
+```json
+{
+  "game_id": "p2_beta",
+  "exigences": [
+    {
+      "id": "ex_a_goal",
+      "source": "EXPECTED",
+      "source_role": "s2.7-game-master",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_quest_tracker",
+      "acteur": "SYSTEM",
+      "loop_role": "PLAYER_GOAL",
+      "observation": "Le GM decrit gb_quest_tracker : une liste montrant l'objectif courant et sa recompense, qui s'incremente a la completion et revele le suivant.",
+      "claim": "Un incremental ne retient le joueur que s'il lit a l'ecran, des la premiere seconde, un but court explicite vers lequel agir.",
+      "enonce": "Le HUD 'objectif' affiche en permanence un but courant non vide des le lancement, sans qu'aucune interaction ne soit requise pour le faire apparaitre.",
+      "expected_proof": {"kind": "visual", "statement": "Au tick 0, le HUD 'objectif' contient un texte de but non vide, lisible sans interaction."},
+      "observe": {"hud": "objectif", "predicate": "nonempty"},
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "ex_b_click",
+      "source": "EXPECTED",
+      "source_role": "s2.7-game-master",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_click_target",
+      "acteur": "PLAYER",
+      "loop_role": "PLAYER_ACTION",
+      "affordance": "cible_centrale",
+      "observation": "Le GM decrit gb_click_target : un sprite pressable central qui, a l'appui, emet un flotteur +N et incremente les unites.",
+      "claim": "La boucle d'entree doit donner au joueur un geste direct et repetable qui produit immediatement une ressource visible.",
+      "enonce": "Le joueur peut presser la cible centrale 'cible_centrale' ; chaque pression incremente le compteur 'unites' d'au moins la valeur de clic courante.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot presse cible_centrale N fois ; le compteur 'unites' augmente de N fois la valeur de clic courante."},
+      "observe": {"hud": "unites", "predicate": "increases"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_d_feedback",
+      "source": "EXPECTED",
+      "source_role": "s2.7-game-master",
+      "reference": "gm_worldscan:game_master.loops.core_loop.core_feedback",
+      "acteur": "SYSTEM",
+      "loop_role": "GAME_RESPONSE",
+      "observation": "Le GM decrit core_feedback : la cible reagit visiblement (animation d'appui) confirmant l'entree.",
+      "claim": "Sans reaction perceptible immediate a chaque clic, le joueur ne relie pas son geste a son effet et le feel tactile s'effondre.",
+      "enonce": "A chaque pression, la cible centrale joue une reaction visible (enfoncement plus flotteur '+N') dans la meme frame que l'increment du compteur.",
+      "expected_proof": {"kind": "visual", "statement": "Apres une pression, un flotteur '+N' apparait et la cible passe a l'etat pressed dans la frame du clic."},
+      "observe": {"hud": "unites", "predicate": "changes"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_e_reward",
+      "source": "EXPECTED",
+      "source_role": "s2.7-game-master",
+      "reference": "gm_worldscan:game_master.loops.core_loop.core_reward",
+      "acteur": "SYSTEM",
+      "loop_role": "REWARD",
+      "observation": "Le GM decrit core_reward : un flotteur +N et le total qui monte confirment le gain.",
+      "claim": "La montee visible du total tient lieu de recompense continue et fournit le renforcement frequent qui fait revenir le joueur.",
+      "enonce": "Le compteur 'unites' affiche a l'ecran la nouvelle valeur totale croissante immediatement apres chaque gain.",
+      "expected_proof": {"kind": "bot_action", "statement": "Le total affiche 'unites' apres un clic est strictement superieur au total affiche avant le clic."},
+      "observe": {"hud": "unites", "predicate": "increases"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_dec",
+      "source": "EXPECTED",
+      "source_role": "s2.7-game-master",
+      "reference": "gm_worldscan:game_master.loops.core_loop.core_decision",
+      "acteur": "PLAYER",
+      "loop_role": "DECISION",
+      "observation": "Le GM decrit core_decision : continuer a cliquer maintenant ou attendre d'acheter le premier generateur.",
+      "claim": "La retention active depend d'un arbitrage recurrent dont les deux branches produisent des trajectoires de ressource mesurablement differentes.",
+      "enonce": "Le jeu presente un point de decision affiche comme objectif ou le joueur arbitre entre cliquer la cible centrale et acheter un generateur, les deux politiques divergeant sur le total 'unites' a l'horizon de 300 frames.",
+      "expected_proof": {"kind": "oracle", "statement": "Sur 300 frames, la politique 'actif' (clic cible_centrale tous les 3 frames) et la politique 'idle' (aucun clic) produisent deux valeurs finales distinctes de 'unites'."},
+      "options": ["ex_b_click", "ex_f_buy"],
+      "policies": [
+        {"name": "idle", "click": null, "every_frames": 0},
+        {"name": "actif", "click": "cible_centrale", "every_frames": 3}
+      ],
+      "metric": "unites",
+      "horizon_frames": 300,
+      "observe": {"hud": "objectif", "predicate": "changes"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_f_buy",
+      "source": "EXPECTED",
+      "source_role": "s2.7-game-master",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_generator",
+      "acteur": "PLAYER",
+      "loop_role": "UNLOCK",
+      "affordance": "bouton_achat_generateur",
+      "observation": "Le GM decrit gb_generator : acheter depense des unites et ajoute une nouvelle source de revenu passif a la scene (rangee de generateur qui apparait).",
+      "claim": "Le premier achat est le pivot du genre : il transforme un cliqueur manuel en systeme a production passive et ouvre un espace d'action visible qui n'existait pas.",
+      "enonce": "Le joueur peut acheter un generateur via 'bouton_achat_generateur' ; l'achat fait apparaitre le groupe 'generateurs' dans la boutique, absent avant l'achat, et demarre un flux passif.",
+      "expected_proof": {"kind": "bot_action", "statement": "Apres achat, le groupe 'generateurs' devient visible dans le HUD boutique et un flux passif d'unites demarre."},
+      "observe": {"hud": "boutique", "predicate": "appears:generateurs", "appears": "generateurs"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_g1",
+      "source": "EXPECTED",
+      "source_role": "s2.7-game-master",
+      "reference": "gm_worldscan:game_master.loops.quest_loop.quest_reward",
+      "acteur": "SYSTEM",
+      "loop_role": "NEXT_GOAL",
+      "observation": "Le GM decrit quest_reward : completer un objectif accorde une recompense et revele le suivant.",
+      "claim": "Le joueur ne reste engage que si, chaque objectif atteint, l'ecran le remplace par un but textuellement neuf et non par une simple hausse de compteur.",
+      "enonce": "Des que le premier objectif est atteint, le HUD 'objectif' affiche un deuxieme but au texte different, par exemple 'Atteins 100 unites par seconde de production passive'.",
+      "expected_proof": {"kind": "visual", "statement": "Le texte du HUD 'objectif' apres le premier palier differe caractere pour caractere du texte initial."},
+      "observe": {"hud": "objectif", "predicate": "new_distinct"},
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "ex_g2",
+      "source": "EXPECTED",
+      "source_role": "s2.7-game-master",
+      "reference": "gm_worldscan:game_master.loops.progression_loop.prog_reward",
+      "acteur": "SYSTEM",
+      "loop_role": "NEXT_GOAL",
+      "observation": "Le GM decrit prog_reward : une nouvelle famille de generateurs ou tuile d'upgrade devient disponible au franchissement d'un tier.",
+      "claim": "Un troisieme but distinct, lie au deverrouillage d'un tier, prouve que la chaine d'objectifs se renouvelle au-dela du deuxieme palier plutot que de boucler sur deux etats.",
+      "enonce": "Apres le deuxieme objectif, le HUD 'objectif' affiche un troisieme but au texte distinct des deux precedents, par exemple 'Franchis le premier seuil de stage'.",
+      "expected_proof": {"kind": "visual", "statement": "Le HUD 'objectif' presente successivement trois textes de but deux a deux differents sur un run de reference."},
+      "observe": {"hud": "objectif", "predicate": "new_distinct"},
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "ex_h_repeat",
+      "source": "EXPECTED",
+      "source_role": "s2.7-game-master",
+      "reference": "gm_worldscan:game_master.loops.economy_loop.eco_progression",
+      "acteur": "SYSTEM",
+      "loop_role": "REPEAT",
+      "replay": ["ex_b_click", "ex_e_reward", "ex_f_buy"],
+      "observation": "Le GM decrit eco_progression : chaque achat releve le cout suivant de x1.15, pacant le rythme afford vers buy.",
+      "claim": "La boucle ne 'boucle' reellement que si les gestes cliquer, gagner et acheter se rejouent dans un etat superieur, pas seulement une fois.",
+      "enonce": "Apres le premier generateur, le joueur rejoue la sequence cliquer vers gagner vers acheter sur un cout releve, le compteur 'unites' repartant a la hausse vers le generateur suivant.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot enchaine clic, gain et second achat ; le compteur 'unites' augmente puis se depense a nouveau pour un generateur au cout x1.15."},
+      "observe": {"hud": "unites", "predicate": "increases"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_i_prestige",
+      "source": "EXPECTED",
+      "source_role": "s2.7-game-master",
+      "reference": "gm_worldscan:game_master.loops.meta_loop.meta_decision",
+      "acteur": "PLAYER",
+      "loop_role": "META_LOOP",
+      "affordance": "geste_ascension",
+      "observation": "Le GM decrit meta_decision (conclure a l'ecran de victoire ou entamer un unique nouveau cycle borne) et q_art_002 tranche une relance qui repart a zero.",
+      "claim": "Offrir un unique geste de relance qui remet la production visible a zero donne au joueur une cesure ressentie comme un progres plutot que comme une repetition.",
+      "enonce": "Le joueur peut declencher une ascension via 'geste_ascension' ; au declenchement, le compteur 'unites' retombe visiblement a zero a l'ecran.",
+      "expected_proof": {"kind": "bot_action", "statement": "Apres activation de geste_ascension, la valeur affichee de 'unites' passe a 0 dans la frame suivante."},
+      "observe": {"hud": "unites", "predicate": "resets"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_j_advantage",
+      "source": "ADDITIONS",
+      "source_role": "s1-prisme",
+      "reference": null,
+      "acteur": "SYSTEM",
+      "loop_role": "ADVANTAGE",
+      "replay_ref": "ex_b_click",
+      "observation": "Le genre recompense la relance par une production plus forte (Clicker Heroes : hero souls +10% de DPS par ame) et le Gameplay Contract impose un maillon d'avantage mesurable apres la relance.",
+      "claim": "Pour que l'ascension soit un choix et non une punition, l'action de clic rejouee apres la relance doit rapporter strictement plus qu'avant, tout en restant bornee au run unique (aucun cumul inter-run, cf. tension GM q_art_002).",
+      "enonce": "Apres une ascension, presser 'cible_centrale' produit un gain d'unites par clic strictement superieur au gain par clic mesure avant l'ascension.",
+      "expected_proof": {"kind": "oracle", "statement": "Le delta de 'unites' par pression de cible_centrale apres geste_ascension est strictement superieur au delta par pression mesure avant."},
+      "observe": {"hud": "unites", "predicate": "increases_more_than:ex_b_click"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_n_end",
+      "source": "EXPECTED",
+      "source_role": "s2-worldscan",
+      "reference": "worldscan:games[3].objectives[0].victory_condition",
+      "acteur": "SYSTEM",
+      "loop_role": "NONE",
+      "observation": "Le World Scan montre qu'Universal Paperclips atteint un choix final concu ('Reach stage 4 final choice') la ou Cookie Clicker n'a aucun etat de victoire.",
+      "claim": "Contrairement a l'endlessness canonique du genre, ce jeu doit se conclure : une fin observable et atteignable est une exigence produit, pas une option.",
+      "enonce": "Le run atteint un ecran de victoire en 72000 ticks au plus, declenche par une jauge de fin arrivee a 100 pour cent.",
+      "expected_proof": {"kind": "oracle", "statement": "Un run de reference atteint l'ecran de victoire en au plus 72000 ticks (solvabilite bornee)."},
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_n_idle",
+      "source": "EXPECTED",
+      "source_role": "s2-worldscan",
+      "reference": "worldscan:games[0].loops.minute_10",
+      "acteur": "SYSTEM",
+      "loop_role": "NONE",
+      "observation": "Le World Scan note qu'a la minute 10 de Cookie Clicker les clics manuels sont negligeables face a l'autogeneration passive.",
+      "claim": "Le basculement du clic manuel vers le revenu passif est le moment qui fait entrer le joueur dans le mode idle et doit survenir tot et de facon mesurable.",
+      "enonce": "Dans une bande de 20 a 60 secondes apres le premier generateur, le revenu passif affiche depasse le rendement du clic manuel.",
+      "expected_proof": {"kind": "oracle", "statement": "Sur un run de reference, le revenu passif par seconde depasse le rendement du clic manuel entre 20 et 60 secondes apres le premier achat."},
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_n_cost",
+      "source": "EXPECTED",
+      "source_role": "s2-worldscan",
+      "reference": "worldscan:games[0].loops.minute_10",
+      "acteur": "SYSTEM",
+      "loop_role": "NONE",
+      "observation": "Le World Scan note qu'a la minute 10 de Cookie Clicker les batiments cost-scale exponentially (~15 pour cent d'augmentation par unite).",
+      "claim": "Le pacing afford vers buy repose sur une courbe de cout strictement croissante ; un cout constant effondrerait le rythme de decision.",
+      "enonce": "Le cout du n-ieme generateur d'une famille vaut cout_base multiplie par 1.15 puissance n, exactement.",
+      "expected_proof": {"kind": "oracle", "statement": "Pour une famille donnee, le cout mesure du n-ieme generateur egale cout_base fois 1.15 puissance n pour n de 0 a 5."},
+      "destination": "s9-build"
+    },
+    {
+      "id": "ex_n_endgauge",
+      "source": "EXPECTED",
+      "source_role": "s2.7-game-master",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_end_gauge",
+      "acteur": "SYSTEM",
+      "loop_role": "NONE",
+      "observation": "Le GM decrit gb_end_gauge : une barre de progression persistante vers la fin observable, toujours visible et distincte du compteur de ressource, qui declenche l'ecran de victoire a 100 pour cent.",
+      "claim": "Rendre la fin lisible en continu exige un indicateur dedie, separe du compteur de ressource, sinon le joueur ne sait jamais a quelle distance il est de conclure.",
+      "enonce": "Une jauge de fin persistante, distincte du compteur 'unites', est visible en permanence et se remplit de facon monotone vers 100 pour cent.",
+      "expected_proof": {"kind": "visual", "statement": "La jauge de fin est presente des le tick 0, a une position distincte du compteur 'unites', et son remplissage ne decroit jamais."},
+      "destination": "s5-wiremap"
+    }
+  ]
+}
+```
+
+RAPPORT FINAL — s1-prisme / p2_beta-20260830-run1. Charter (bras Libre, s0) cité comme ancre ; product_snapshot.md (4 sections + note §5) et prisme.json (15 exigences, 11 de boucle, 10/11 sourcées GM, 0 non actionnable) construits contre le code source de `check_prisme_manifest.mjs`, `check_prisme.mjs` et `loop_spec.mjs` — non exécutés ici (`run: aucun`). Reçus à produire par `run_real.py`. software_verdict: BLOCKED · evidence_verdict: MECHANICAL_VALIDATION_ONLY · claim_verdict: NO_CLAIM_ALLOWED. why_task_existed: {problem: "s1-prisme doit transformer les artefacts amont (World Scan, Story Bible NOT_GROUNDED 6/8, GM World Scan) en un product_snapshot + un prisme.json a boucle joueur complete", oracle: "check_prisme_manifest.mjs + loop_spec.mjs (checkLoopSpec, 10 roles A..J)", root_cause: "non etablie — activation par la chaine Forge (dispatch s1)", action_reason: "produire les deux artefacts conformes aux oracles lus, en sourcant chaque exigence de boucle sur le bloc game_master"} · result: "15 exigences emises ; boucle complete (A,B,D,E,DECISION,F,G x2,H,I,J) ; 10/11 boucle sourcees GM vs baseline 0/13 ; conflit de contrats identifie au maillon J" · proof: "lecture de upstream_schema.mjs/check_prisme_manifest.mjs/loop_spec.mjs ; aucune execution (Bash desactive)" · learning: "le maillon J (ADVANTAGE, increases_more_than) du Gameplay Contract est structurellement incompatible avec une decision GM de fin bornee sans cumul inter-run (q_art_002) ; resolvable seulement en avantage borne au run unique, declare ADDITIONS" · next_reason: "l'aval doit agir : l'executeur lance les 3 oracles, et le HumanGate tranche (a) le theme et (b) le conflit I/J — cause non resolue qui persiste au-dessus de l'echange."
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le Gameplay Contract impose un maillon J (ADVANTAGE) — le gain d'une action PLAYER rejouee apres l'ascension doit etre strictement superieur au gain initial (increases_more_than) — alors que la reponse GM q_art_002 tranche explicitement 'aucune monnaie de prestige permanente ni cumul inter-run'. Produire un prisme complet (checkLoopSpec exige I et J) sans violer le GM a impose de modeliser J en ADDITIONS: un avantage borne AU run unique, signale comme fog HumanGate.", "root_cause": "Le bras free-design delegue la structure a l'aval et deux contrats de niveau different se contredisent au point J: le Gameplay Contract (maillons obligatoires A..J) et la decision de design GM (fin bornee, pas de prestige endless), sans arbitrage amont materialise pour concilier avantage-de-prestige et fin-bornee."}

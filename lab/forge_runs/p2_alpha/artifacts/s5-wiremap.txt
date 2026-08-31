@@ -1,0 +1,209 @@
+I have what I need: `repo_map.yaml`, `SCHEMA.md`, and — decisively — **`p1_beta`**, a proven web incremental/clicker sibling with the *same* blueprint modules (`engine/render/input/main/solvability`) whose `wiremap.json` passed the same `check_wiremap` oracle. It's my gold template. Key finding: p1_beta's `couvre`/`version`/`statut` fields equal the function name / defaults — i.e. the **executor derives them**; my block emits exactly the 4 fields the `TÂCHE CONCRÈTE` pins (`feature`/`fonction`/`fichiers`/`preuve`), and the executor materializes the rest.
+
+I map each game rule to its owning blueprint module's file, isomorphically:
+- **economy.mjs** (pure logic, strict behaviors) · **input.mjs** (pointer→intent) · **render.mjs** (read-only canvas) · **main.mjs** (tick/orchestration/`window.__game`) · **solvability.mjs** (bot proof)
+
+Two divergences I carry forward honestly, not silently:
+1. The featuremap's `bot_action` statements say **`main.tscn`** (a Godot literal forced by `check_decompo`'s string requirement) — but this is a **web HTML+JS** game. The real runtime entry is **`index.html`**, exactly as the p1_beta sibling maps it. The wiremap targets the real web files.
+2. **E12 `ADVANTAGE`** presumes a prestige/meta-bonus the charter *forbids* (run unique, no persistent progression) — flagged by 3 pré-mortem manifests and the featuremap's own fog note. The only charter-compliant reading is a *policy* difference (optimal vs naive bot at equal horizon), which `solvability.mjs` can prove without any persistent bonus. I map it that way and escalate the residual tension to HumanGate.
+
+---
+
+## RAPPORT FINAL — s5-wiremap / p2_alpha-20260830-run1
+
+**Ancres non-LLM consultées (lues, jamais exécutées — `run: aucun`)**
+- `blueprint.json` (étape s4) — 5 modules `economy/render/input/main/solvability` + `ownership`/`couvre`. **Source d'isomorphisme** : chaque feature ancrée au fichier du module propriétaire.
+- `s3-decompo` (featuremap) — 25 capacités (`cap_*` d'entrée/effet + `gb_*` grey blocks). **Cible de couverture** : chaque capacité portée par ≥1 ligne.
+- `loop.json` — E1..E12, affordances (`coeur_de_lumen`, `acheter_generateur`, `acheter_generateur_g2`, `rejouer`) et prédicats HUD (`objectif`, `r_counter`, `taux_rs`, `colonne_generateurs`). **Source des ids DOM des preuves.**
+- `charter.yaml` — invariant comptable milli-R entiers, structure `structure_imposee_v2` (croissance 1.12, `cout_base [15,100,1100,12000]`, `prod [0.1,1,8,47]`, seuils `[100,1000,12000,150000,1000000]`, `gain_clic_initial 1`, victoire cumul ≥ 1 000 000 R, aucun état d'échec).
+- `lab/forge_runs/p1_beta/wiremap.json` — **artefact frère web PROUVÉ** (même genre, mêmes modules) : gabarit de forme et de convention de nommage (`.mjs`, `index.html`, tests `logic.test.mjs`/`e2e.mjs`/`properties.test.mjs`).
+- `scripts/forge/standard/repo_map.yaml` + `contracts/SCHEMA.md` — table de placement et schéma de contrat.
+
+**Couverture de la featuremap (25/25 capacités portées par ≥1 ligne)** — vérifiée par lecture, non par oracle :
+`cap_e2_clic_entree`→R12 · `cap_e2_gain_effet`→R2 · `gb_core`→R12/R16 · `gb_r_counter`→R15 · `gb_click_burst`→R16 · `cap_e3_achat_entree`→R13 · `cap_e3_achat_effet`→R3 · `gb_g1..gb_g4`→R3/R7/R18 · `gb_buy_button`→R4/R17 · `cap_e7_unlock_g2_entree`→R13 · `cap_e7_unlock_g2_effet`→R7 · `gb_threshold_reveal`→R19 · `gb_progress_meter`→R20 · `cap_e8_objectif_effet`/`cap_e9_objectif_effet`→R9 · `gb_world_background`→R21 · `gb_clic_upgrade`/`gb_prod_upgrade`→R8 · `cap_e10_repeat`→R5/R23 · `gb_victory_bloom`→R10/R22 · `cap_e11_rejouer_entree`→R14 · `cap_e11_reset_effet`→R11 · `cap_e12_advantage`→R25 (fog).
+
+**Isomorphisme blueprint↔wiremap** : economy(R1–R11) · input(R12–R14) · render(R15–R22) · main(R23) · solvability(R24–R25). Aucune ligne hors des 5 modules ; `deps_interdites` respectées par la répartition (economy ne cite ni render ni input ; render/input ne citent qu'economy ; solvability ne cite qu'economy).
+
+**Garde-fou anti-`>=` tautologique (charter + pré-mortem)** : chaque preuve d'effet asserte le comportement STRICT (clic == +gain_clic ; coût == floor(cout_base×1.12^n) ; victoire au cumul ≥ 1 000 000 mais `isVictory` calculé, jamais littéral ; solvabilité CALCULÉE par bot, jamais `{solvable:true}`).
+
+**Verdicts**
+- `software_verdict:` **BLOCKED** — aucun oracle exécuté par moi. `check_wiremap` (static_oracles) est l'oracle d'APRÈS build (s10c) ; `check_wiremap_contract` est celui d'AVANT build. Aucun ne relève de cette étape à l'exécution (`run: aucun`) ; la matérialisation de `wiremap.json` + le run de `check_wiremap_contract` incombent à l'exécuteur/driver.
+- `evidence_verdict:` **MECHANICAL_VALIDATION_ONLY** (limité : lecture des ancres amont + confrontation au blueprint/featuremap ; pas d'exécution).
+- `claim_verdict:` **NO_CLAIM_ALLOWED** — la couverture 25/25 et l'isomorphisme sont construits contre les sources lues, non prouvés par oracle.
+- `fog → HumanGate` : (1) exécuter `node scripts/forge/check_wiremap_contract.mjs <run_dir>/wiremap.json --featuremap <run_dir>/featuremap.json` sur le fichier matérialisé — seule preuve mécanique de couverture. (2) **Décision Pierre** : E12/`ADVANTAGE` reste en tension avec le charter run-unique (aucune méta-progression persistante). Je le mappe en *différence de politique* (bot optimal > bot naïf au même horizon, sans bonus persistant) — lecture charter-compatible ; mais si le protocole exigeait un avantage inter-run *mécanique*, il faudrait amender le charter ou retirer E12. Jugement humain, pas défaut à combler par invention.
+
+**SKIPPED_VALIDATION**
+- item: exécution de `check_wiremap_contract` (avant-build) · où: le bloc JSON ci-dessous · statut: non fait · raison: `run: aucun` + le fichier n'est pas encore matérialisé (l'exécuteur le crée depuis ce bloc) ; couverture construite contre la featuremap lue.
+- item: exécution de `check_wiremap` (après-build, static_oracles) · où: `economy/render/input/main/solvability` · statut: hors périmètre · raison: oracle de s10c, exige le code produit (s9) — inexistant à cette étape.
+- item: résolution des affordances→effet (`maillon_non_lie`, schéma v2 `systems/lines`) · où: liens affordance→input→système→effet · statut: non fait, délibéré · raison: la `TÂCHE CONCRÈTE` pin le schéma simple `{features:[{feature,fonction,fichiers,preuve}]}` lu par `check_wiremap` (static_oracles) ; le schéma v2 à `couvre`/affordances n'est pas la forme demandée ici.
+
+**RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2 §3)**
+`why_task_existed:`
+- `problem:` la chaîne full_content de p2_alpha exige une WireMap isomorphe au blueprint reliant chaque règle du jeu à sa fonction/fichier avec preuve attendue, sinon le delta attendu-vs-code n'est calculable par aucun oracle en s10c.
+- `oracle:` activation par décision humaine (dispatch driver `FORGE_DISPATCH:s5-wiremap`) ; aucun oracle n'a détecté un défaut préalable.
+- `root_cause:` non applicable (étape planifiée du pipeline, pas réparation d'un défaut).
+- `action_reason:` produire la carte règle→fonction→fichier→preuve, ancrée aux 5 modules du blueprint et couvrant les 25 capacités de la featuremap, pour donner à s9-build une cible falsifiable et à s10c un référentiel.
+
+`result:` WireMap de 25 lignes (R1–R25) émise dans le bloc final, isomorphe aux 5 modules du blueprint, chaque ligne à `fonction` et `fichiers` non vides et preuve stricte ; 25/25 capacités featuremap couvertes (par lecture).
+`proof:` aucune commande exécutée (`run: aucun`) ; confrontation manuelle blueprint.json (5 modules/ownership) ↔ featuremap (25 capacités) ↔ loop.json (affordances/HUD) ↔ p1_beta/wiremap.json (forme prouvée). Preuve mécanique déléguée à l'exécuteur (`check_wiremap_contract` puis, post-build, `check_wiremap`).
+`learning:` un blueprint web (economy/render/input/main/solvability) admet une WireMap isomorphe directe au modèle p1_beta ; la featuremap injecte `main.tscn` (littéral forcé par `check_decompo`) là où le runtime réel est `index.html` — divergence de genre à absorber dans la carte, pas à propager. E12/ADVANTAGE d'une grammaire de prestige est structurellement incompatible avec un charter incremental run-unique ; seul un cadrage « différence de politique » le rend mappable sans violer le charter.
+`next_reason:` la chaîne ne se ferme PAS ici : (a) l'exécuteur doit matérialiser `wiremap.json` et exécuter `check_wiremap_contract` (seule preuve de couverture) ; (b) la tension E12 relève d'une décision HumanGate ; (c) s9-build doit implémenter EXACTEMENT ces noms de fonctions/fichiers, sans quoi `check_wiremap` échouera en s10c.
+
+```json
+{
+  "features": [
+    {
+      "feature": "R1 objectif terminal affiché dès le tick 0",
+      "fonction": "currentObjective",
+      "fichiers": ["economy.mjs"],
+      "preuve": "e2e.mjs: depuis index.html, getElementById('objectif').innerText au tick 0 est non vide et cite le seuil terminal '1000000' ; logic.test.mjs: currentObjective(etatInitial) est une chaine non vide nommant S1 (100 R) et le generateur a viser."
+    },
+    {
+      "feature": "R2 recompense stricte +gain_clic par clic (comptabilite milli-R entiers)",
+      "fonction": "click",
+      "fichiers": ["economy.mjs"],
+      "preuve": "logic.test.mjs: apres N appels click() sans achat, solde_mR === N*1000 EXACTEMENT (gain_clic_initial=1 R = 1000 mR ; egalite stricte, jamais >=) ; aucun flottant dans l'etat (typeof solde_mR === 'number' && Number.isInteger)."
+    },
+    {
+      "feature": "R3 achat strict d'un generateur : R diminue du cout exact cout_base x 1.12^n",
+      "fonction": "buyGenerator",
+      "fichiers": ["economy.mjs"],
+      "preuve": "logic.test.mjs: pour n exemplaires deja possedes, buyGenerator(0) debite EXACTEMENT floor(15000 * 1.12^n) mR et count passe de n a n+1 (egalite stricte du cout, jamais un >= tautologique) ; verifie sur G1..G4 avec cout_base [15,100,1100,12000] R."
+    },
+    {
+      "feature": "R4 refus strict d'achat quand R insuffisant : etat inchange (arbitrage observable)",
+      "fonction": "canAfford",
+      "fichiers": ["economy.mjs"],
+      "preuve": "logic.test.mjs: canAfford(g) === false quand solde_mR < cout(g) => buyGenerator(g) est un no-op (solde_mR et count strictement INCHANGES, deep-equal de l'etat avant/apres) ; devient true au premier mR suffisant."
+    },
+    {
+      "feature": "R5 production passive deterministe par tick (milli-R entiers)",
+      "fonction": "applyProduction",
+      "fichiers": ["economy.mjs"],
+      "preuve": "logic.test.mjs seede: avec counts fixes et sans clic, applyProduction() incremente solde_mR de EXACTEMENT Σ(count_i * prodTick_mR_i) par appel, avec prodTick_mR = [10,100,800,4700] (prod [0.1,1,8,47] R/s a tick_ms=100) ; deterministe au rejeu (meme etat => meme delta)."
+    },
+    {
+      "feature": "R6 divergence de decision idle vs actif (variance non triviale)",
+      "fonction": "step",
+      "fichiers": ["economy.mjs"],
+      "preuve": "logic.test.mjs: deux trajectoires seedees sur horizon 300 frames (politique 'repos' click=null vs 'actif' click toutes les 3 frames, cf loop.json E6) => solde_mR final distinct et non trivial (repos < actif, ecart > 0), prouvant que la decision porte une information variable (regle de variance des metriques)."
+    },
+    {
+      "feature": "R7 deblocage de G2 au franchissement de S1 (et G3/G4 aux seuils suivants)",
+      "fonction": "unlockedGenerators",
+      "fichiers": ["economy.mjs"],
+      "preuve": "logic.test.mjs: unlockedGenerators(etat) rend [G1] tant que cumul_R < 100, puis inclut G2 des cumul_R >= 100 (S1), G3 des 1000 (S2), G4 des 12000 (S3) ; une entree auparavant absente apparait EXACTEMENT au franchissement du seuil (comparaison de longueur stricte n -> n+1)."
+    },
+    {
+      "feature": "R8 amelioration x2 (famille clic puis famille production, debloquee a S4)",
+      "fonction": "buyUpgrade",
+      "fichiers": ["economy.mjs"],
+      "preuve": "logic.test.mjs: buyUpgrade('clic_x2') double gain_clic_mR (1000 -> 2000, egalite stricte), puis 'clic_x4' -> 4000 ; buyUpgrade('prod_g1_x2') indisponible tant que cumul_R < 150000 (S4) puis double prodTick_mR du generateur cible (facteur EXACT x2)."
+    },
+    {
+      "feature": "R9 changement d'objectif apres chaque seuil franchi (S1 puis S2)",
+      "fonction": "currentObjective",
+      "fichiers": ["economy.mjs"],
+      "preuve": "logic.test.mjs: currentObjective apres S1 (cumul>=100) differe caractere pour caractere de l'objectif du tick 0 et cite 1000 R + G3 ; apres S2 (cumul>=1000) differe encore et cite 12000 R + G4 (predicat loop.json E8/E9 new_distinct)."
+    },
+    {
+      "feature": "R10 victoire au cumul >= 1 000 000 R ; aucun etat d'echec (statut calcule)",
+      "fonction": "isVictory",
+      "fichiers": ["economy.mjs"],
+      "preuve": "logic.test.mjs: isVictory(etat) === false pour cumul_R_mR < 1_000_000_000 et === true au premier tick ou cumul_R_mR >= 1_000_000_000 ; valeur CALCULEE depuis l'etat (jamais un booleen litteral) ; aucune fonction isDefeat n'existe (grep du module : 0 occurrence d'un etat de defaite)."
+    },
+    {
+      "feature": "R11 reset du solde a 0 au rejouer (nouveau run)",
+      "fonction": "reset",
+      "fichiers": ["economy.mjs"],
+      "preuve": "logic.test.mjs: depuis un etat post-victoire (cumul_R_mR >= 1_000_000_000), reset() ramene solde_mR a 0, cumul_R_mR a 0 et tous les counts a 0 (egalite stricte a l'etat initial), sans introduire de bonus persistant (charter run-unique : aucun report inter-run)."
+    },
+    {
+      "feature": "R12 entree clic sur le Coeur de Lumen (affordance coeur_de_lumen)",
+      "fonction": "handleCoreClick",
+      "fichiers": ["input.mjs"],
+      "preuve": "e2e.mjs: depuis index.html, 10 vrais clics Playwright sur #coeur-de-lumen => window.__game.solde_mR strictement croissant, delta EXACT +10000 mR (gain_clic 1 R par clic) ; input n'importe jamais render (verifie par analyse statique du module)."
+    },
+    {
+      "feature": "R13 entree achat generateur/amelioration (affordances acheter_generateur, acheter_generateur_g2)",
+      "fonction": "handleBuy",
+      "fichiers": ["input.mjs"],
+      "preuve": "e2e.mjs: depuis index.html, clic Playwright sur #buy-g1 au premier moment ou R>=15 => window.__game generators[0].count 0->1 (delta STRICT=1) et solde debite ; clic sur #buy-g2 apres S1 => generators[1].count 0->1 ; clic grise (R insuffisant) => aucun effet."
+    },
+    {
+      "feature": "R14 entree rejouer depuis l'ecran de victoire (affordance rejouer)",
+      "fonction": "handleReplay",
+      "fichiers": ["input.mjs"],
+      "preuve": "e2e.mjs: depuis index.html, apres franchissement de S5 (via __game_debug.reachThreshold), clic Playwright reel sur #rejouer => window.__game.solde_mR repasse a EXACTEMENT 0 et l'ecran de victoire se ferme."
+    },
+    {
+      "feature": "R15 compteur R permanent lisible en continu",
+      "fonction": "renderRCounter",
+      "fichiers": ["render.mjs"],
+      "preuve": "properties.test.mjs: #r_counter (police tabulaire, plus gros element textuel du HUD) reflete EXACTEMENT floor(solde_mR/1000) a chaque appel de render(), lisible de 1 a >=1 000 000 (formatage des grands nombres) ; e2e.mjs confirme la visibilite permanente."
+    },
+    {
+      "feature": "R16 VFX de clic (+N) sur le Coeur de Lumen",
+      "fonction": "renderClickBurst",
+      "fichiers": ["render.mjs"],
+      "preuve": "e2e.mjs: nombre flottant '+N' (= gain_clic courant) et eclat radial observes sur #coeur-de-lumen dans la fenetre du flash declenche par un clic reel (main.mjs consomme lastClick -> renderClickBurst, retire apres ~600ms) ; render ne mute jamais l'etat (analyse statique)."
+    },
+    {
+      "feature": "R17 bouton d'achat a deux etats : achetable vs grise (refus observable)",
+      "fonction": "renderBuyButton",
+      "fichiers": ["render.mjs"],
+      "preuve": "properties.test.mjs: pour solde < cout, #buy-g1 porte la classe .disabled / aria-disabled=true (desature, sans halo) ; pour solde >= cout, etat ACHETABLE (colore, halo) ; le cout courant en R est affiche ; e2e.mjs confirme qu'un clic sur le bouton grise laisse l'etat inchange."
+    },
+    {
+      "feature": "R18 colonne des generateurs + apparition visible de G2 au franchissement de S1",
+      "fonction": "renderGeneratorColumn",
+      "fichiers": ["render.mjs"],
+      "preuve": "e2e.mjs: #colonne_generateurs contient une seule silhouette (G1) tant que cumul_R < 100, puis une entree G2 auparavant absente y apparait des S1 (predicat loop.json E7 new_distinct) ; G3 a S2, G4 a S3 ; chaque tier a une silhouette distincte."
+    },
+    {
+      "feature": "R19 VFX de franchissement de seuil",
+      "fonction": "renderThresholdReveal",
+      "fichiers": ["render.mjs"],
+      "preuve": "e2e.mjs: flash/onde lumineuse observe (opacite d'un overlay #threshold-reveal passe transitoirement > 0) au moment exact de chaque franchissement de seuil declenchant une revelation (G2@S1, G3@S2, G4@S3, ameliorations@S4)."
+    },
+    {
+      "feature": "R20 jauge de proximite vers le prochain seuil (arbitrage acheter/epargner)",
+      "fonction": "renderProgressMeter",
+      "fichiers": ["render.mjs"],
+      "preuve": "properties.test.mjs: la largeur/ratio de #progress-meter est une fonction MONOTONE croissante de cumul_R vers le prochain seuil (0 juste apres un seuil, ~1 juste avant le suivant), captee a plusieurs valeurs de cumul (jamais decroissante entre deux seuils)."
+    },
+    {
+      "feature": "R21 fond ascendant s'eclaircissant d'un cran a chaque seuil franchi",
+      "fonction": "renderBackground",
+      "fichiers": ["render.mjs"],
+      "preuve": "properties.test.mjs: capture du canal de luminosite du fond a 0/1/2/3/4/5 seuils franchis => la clarte croit de facon MONOTONE (jamais decroissante), un cran par seuil ; base bleu-nuit #0B0E17 au depart ; borne au-dela de S5."
+    },
+    {
+      "feature": "R22 ecran de victoire au franchissement de S5 ; aucun ecran de defaite",
+      "fonction": "renderVictory",
+      "fichiers": ["render.mjs"],
+      "preuve": "e2e.mjs: au franchissement de S5 (cumul_R >= 1 000 000), #victory-overlay (embrasement plein ecran) s'affiche et les affordances de jeu (#coeur-de-lumen/#buy-*) sont neutralisees jusqu'a #rejouer ; aucun element de defaite/game-over n'existe dans le DOM (grep 0 occurrence)."
+    },
+    {
+      "feature": "R23 boucle de tick, cablage input->economy->render, exposition window.__game, transitions victoire/reset",
+      "fonction": "tick",
+      "fichiers": ["main.mjs"],
+      "preuve": "e2e.mjs: window.__game est expose et deterministe (seede) ; apres l'achat d'un generateur, solde_mR augmente AUTOMATIQUEMENT a chaque tick (tick_ms=100) sans clic ; apres S1 la boucle reprend vers 1000 (loop.json E10 REPEAT : replay E2/E3/E5/E7 progresse) ; la victoire est declenchee a S5 puis reset apres rejouer ; main ne contient aucune regle economique (analyse statique)."
+    },
+    {
+      "feature": "R24 solvabilite runtime : un bot scripte atteint S5 en <= 72000 ticks",
+      "fonction": "solve",
+      "fichiers": ["solvability.mjs"],
+      "preuve": "solvability.mjs (cable dans run-oracle.mjs): un bot pilotant economy (jamais render/input) ATTEINT reellement cumul_R >= 1 000 000 en <= 72000 ticks, statut CALCULE (jamais { solvable: true } litteral ; check_harness_no_hardcoded_flags) ; jalons S1..S5 et ticks-jusqu'a-S5 rapportes a variance non triviale ; meme seed => meme tick terminal au rejeu."
+    },
+    {
+      "feature": "R25 avantage de rejeu : politique optimale > politique naive au meme horizon (fog HumanGate)",
+      "fonction": "compareRunAdvantage",
+      "fichiers": ["solvability.mjs"],
+      "preuve": "solvability.mjs: deux bots au meme nombre de frames (politique optimale d'arbitrage achat vs politique naive tout-clic) => cumul_R de l'optimale STRICTEMENT superieur (comparaison stricte >, jamais >=), SANS aucun bonus persistant inter-run (charter run-unique respecte) ; l'avantage provient de la seule qualite de la politique. FOG: si le protocole exige un avantage MECANIQUE inter-run, decision HumanGate requise (tension E12 vs charter)."
+    }
+  ]
+}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "La featuremap ancre les preuves bot_action au fichier 'main.tscn' (littéral Godot) alors que p2_alpha est un jeu WEB HTML+JS dont l'entrée runtime réelle est index.html ; et E12/ADVANTAGE présuppose un avantage inter-run persistant que le charter run-unique interdit.", "root_cause": "check_decompo.mjs impose la chaîne littérale 'main.tscn' dans les statements bot_action indépendamment de la plateforme cible, forçant un vocabulaire Godot sur un jeu web ; et le contrat de boucle V4 (E1..E12) est calibré sur une grammaire de prestige (Kitten Clicker) sans clause d'exemption pour les jeux à run unique."}

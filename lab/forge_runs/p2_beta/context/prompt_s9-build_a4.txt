@@ -1,0 +1,384 @@
+## RÔLE
+Builder (délégation bornée par l'ownership). Point de vue : développeur discipliné qui reste dans son module.
+
+## EXIGENCES COGNITIVES
+Exécution bornée, micro-commits, tenue à jour de la WireMap. Discipline de périmètre supérieure à la vitesse : ne déborde jamais l'ownership.
+
+## MÉMOIRE DE TRAVAIL
+Consomme le blueprint (étape 7) qui fixe son ownership et la WireMap (étape 5) qu'il doit tenir à jour. Conventions : CLAUDE.md + rules/ (par lane). Le repo a déjà été créé à l'étape 8 (Create Repo).
+
+## OBJECTIF
+Produire le code borné à l'ownership, avec la WireMap tenue à jour. Micro-commits exécutés. Consulter knowledge_base/search.mjs avant d'écrire une pièce de logique réutilisable, importer réellement ce qui matche, n'écrire que le delta (§2bis).
+
+## DANS LE PÉRIMÈTRE (in_scope)
+Implémentation du code UNIQUEMENT dans l'ownership défini par le blueprint ; mise à jour de la WireMap (colonnes fichiers/fonction/version/preuve/statut).
+
+## HORS PÉRIMÈTRE (out_of_scope)
+Ne sort JAMAIS de son ownership (blueprint). Ne touche pas à tests/** (zone protégée). Ne modifie pas l'architecture (blueprint, deps).
+
+## PERMISSIONS
+read: repo entier. write: UNIQUEMENT les fichiers de son ownership + la WireMap. run: l'oracle code (cargo/pytest/vitest via scripts/forge/oracles.json). create: fichiers de son ownership uniquement. delete: aucun. INTERDIT: tests/**.
+
+## GARDE-FOU
+Respecte l'ownership : n'écrit que dans les fichiers que le blueprint lui attribue. Micro-commits. Ne franchit pas les deps interdites du blueprint.
+
+## CRITÈRES DE RÉUSSITE
+Code dans l'ownership (aucun fichier hors périmètre modifié) ; oracle code vert ; WireMap à jour. Pour un JEU (objectif/condition de victoire joueur) : oracle de SOLVABILITÉ vert (un bot joue et GAGNE réellement) ET preuve e2e verte (click-through navigateur réel, cf. scripts/forge/contracts/PLAYABLE_CONTRACT.md).
+
+## ORACLES / TESTS
+Oracle CODE déterministe non-LLM : cargo / pytest / vitest via scripts/forge/oracles.json selon la lane. Jamais de LLM-as-judge. Pour un JEU : l'oracle CODE inclut OBLIGATOIREMENT un volet SOLVABILITÉ (solvability.mjs câblé dans run-oracle.mjs) — les mécaniques testées EN ISOLATION ne suffisent pas : un jeu aux objectifs inatteignables passe tous les tests de mécanique tout en étant injouable. Le volet mesure l'enveloppe d'action réelle du moteur, vérifie que les objectifs requis y sont, et fait JOUER un bot qui doit gagner. Modèle : scripts/forge/templates/solvability.template.mjs. L'oracle CODE d'un JEU inclut AUSSI OBLIGATOIREMENT un volet e2e (e2e.mjs, click-through navigateur réel câblé dans run-oracle.mjs) conforme au contrat de jouabilité (scripts/forge/contracts/PLAYABLE_CONTRACT.md) : la garde structurelle forge.static_oracles.check_e2e_harness REJETTE un e2e absent, non câblé, ou coquille (qui imprime PASS sans piloter). Enfin, pour un JEU, l'oracle-code inclut un GATE MUTATION (forge.mutation.run_mutation_test sur game.mjs + forge.static_oracles.check_mutation_gate) : « 100% des mutants tués OU chaque survivant trié équivalent avec justification dans games/<projet>/mutation_triage.json ». Un survivant non justifié => oracle rouge (auto-correction).
+
+## CONTRAT DE SORTIE
+diff (micro-commits) + WireMap à jour (colonnes fichiers/fonction/version/preuve/ statut) + reçu reuse_ratio.mjs (scripts/forge/reuse_ratio.mjs <dossier du jeu>). Pour un JEU : un volet solvability.mjs (bot-joue-et-gagne) ET un e2e.mjs (click-through navigateur réel, contrat de jouabilité) tous deux câblés dans run-oracle.mjs, en plus des mécaniques.
+
+## RAPPORT FINAL
+software/evidence/claim séparés ; cite l'oracle code utilisé ; liste les fichiers touchés vs ownership ; cite la sortie de reuse_ratio.mjs (evidence_path) et les requêtes SEARCH effectuées avant écriture (§2bis) ; claim_verdict: NO_CLAIM_ALLOWED. Sans oracle disponible => remonte un besoin HumanGate (fog), pas de claim. RETURN LINEAGE (doctrine FORGE_CAUSAL_LINEAGE_V2 §3, ratifiee Pierre 2026-08-06) — aucun worker ne meurt seul : le retour porte la CAUSALITE, pas seulement le resultat. Termine TOUJOURS par ce bloc, succes comme echec : `why_task_existed:` {`problem:` le probleme mesure qui a active cette tache · `oracle:` l'oracle ou la mesure qui l'a detecte, ou "aucun" si l'activation vient d'une decision humaine · `root_cause:` la cause racine identifiee, ou "non etablie" · `action_reason:` pourquoi CETTE action y repond} · `result:` l'etat reellement obtenu · `proof:` la commande executee et sa sortie · `learning:` ce que tu as appris et qui resservira, ou "aucun" · `next_reason:` pourquoi le niveau superieur doit agir OU pourquoi la chaine causale est FERMEE et se termine ici. Regles : ces champs sont HERITES ou CONSTATES, jamais inventes — si tu n'as pas recu le `why`, ecris "non transmis" plutot que de le deviner (une cause fabriquee est la meme faute qu'un `validated_by` fabrique). En ECHEC, `result` porte ce que tu as essaye et ce qui a echoue. `next_reason` ne vaut escalade que si une cause non resolue persiste, une preuve manque ou contredit l'etat attendu, ou une correction reste possible — sinon la lignee se termine proprement, sans action supplementaire.
+
+## À LIRE OBLIGATOIREMENT AVANT TOUTE ACTION
+- scripts/forge/contracts/SCHEMA.md
+- le blueprint.yaml (ownership) qui borne strictement sa zone d'écriture
+- la WireMap produite à l'étape 5 (fichiers/fonction/version/preuve/statut)
+
+## RÈGLE DE RESTITUTION — Chaque affirmation du final_report doit citer l'oracle/l'ancre non-LLM qui l'appuie. Appuyée par un oracle => software_verdict (OK/FAIL/BLOCKED) + evidence_verdict: MECHANICAL_VALIDATION_ONLY. Sans oracle disponible => claim_verdict: NO_CLAIM_ALLOWED et remonte un besoin HumanGate (fog), jamais un claim auto-certifié. Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement. En dernier lieu, une section finale SKIPPED_VALIDATION, structurée et EXPLICITE : pour chaque validation que tu n'as PAS faite, liste l'item de validation (quoi), le périmètre concerné (où), le statut (ex. non fait / partiel / hors délai) et la raison (pourquoi). Rien sauté => écris `SKIPPED_VALIDATION: aucun` — une décision assumée, jamais un silence. Le silence sur cette section est traité comme un oubli, pas comme 'rien à signaler'. TOUTE DERNIÈRE LIGNE DU RAPPORT, OBLIGATOIRE — lignée Return : une ligne unique `RETURN_REASON: {"status": "NOT_DISCOVERED"}` si tu n'as découvert AUCUN problème pendant ce travail. Si (et SEULEMENT si) tu as réellement découvert un problème — défaut rencontré, cause d'un échec, écart mesuré — écris à la place `RETURN_REASON: {"status": "DISCOVERED", "problem": "<le problème, factuel>", "root_cause": "<la cause racine si connue, sinon omets ce champ>"}`. JSON valide sur UNE seule ligne, aucun texte après. N'invente JAMAIS un problème pour remplir ce champ : un NOT_DISCOVERED honnête vaut mieux qu'un DISCOVERED de complaisance.
+
+## MARQUEUR DE DISPATCH (ne pas modifier)
+FORGE_DISPATCH:s9-build:p2_beta-20260830-run1:4
+
+## TÂCHE CONCRÈTE (p2_beta-20260830-run1 / s9-build)
+Implémente le projet 'p2_beta' sous games/p2_beta, borné à ton ownership (blueprint) : code + harnais de preuve COMPLET conformément au contrat — run-oracle.mjs, e2e.mjs et solvability.mjs à la RACINE du jeu (exigence check_e2e_harness), PLUS les suites de convention mutation du studio logic.test.mjs et properties.test.mjs à la racine. Chaque asset_request.id doit finir resolved (fichier réel du jeu) ou blocked justifié dans asset_resolution.json (clé unique 'requests'). Tiens la WireMap à jour (jamais wiremap_frozen.json). AUCUN commit (git/PowerShell).
+
+## ARTEFACTS AMONT (run_dir)
+Rappel ownership : tu n'écris QUE dans les fichiers que le blueprint.json ci-dessous t'attribue (contrat s9-build §5).
+
+### blueprint.json (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_beta\blueprint.json)
+{
+ "modules": [
+  "main",
+  "logic",
+  "input",
+  "render",
+  "data"
+ ],
+ "deps_interdites": [
+  [
+   "logic",
+   "render"
+  ],
+  [
+   "logic",
+   "input"
+  ],
+  [
+   "logic",
+   "main"
+  ],
+  [
+   "render",
+   "input"
+  ],
+  [
+   "input",
+   "render"
+  ],
+  [
+   "data",
+   "logic"
+  ],
+  [
+   "data",
+   "render"
+  ],
+  [
+   "data",
+   "input"
+  ],
+  [
+   "data",
+   "main"
+  ]
+ ],
+ "ownership": {
+  "main": "Point d'entree et racine de composition (main.tscn+main.gd ou index.html+main.mjs selon moteur): montage de l'arbre, cablage input->logic et logic->render par signaux. Aucune regle de jeu.",
+  "logic": "Etat et regles de la simulation, deterministe et headless: resource_counter, valeur_clic, economie generateurs + cps, machine d'objectifs, transitions de stage, valeur end_gauge, condition de victoire, prestige_reset.",
+  "input": "Gestionnaires de gestes joueur: click_target, buy_generator, prestige_reset -> commandes vers logic. Ne dessine rien.",
+  "render": "HUD et scenes: label objectif, resource_counter, cps_readout, flotteur +N + animation d'appui, rangee generateurs, traqueur de quetes, jauge de fin, transitions de stage, ecran de victoire. Observe logic.",
+  "data": "Ressources de contenu/config statiques: couts et rendements des generateurs, seuils des 5 stages, textes des objectifs successifs, seuil de fin/victoire, constantes de calibration."
+ },
+ "responsabilites": [
+  {
+   "module": "main",
+   "responsabilite": "Racine de composition: assemble le point d'entree du jeu (celui que tout bot ouvre), cable input->logic et logic->render par signaux, ne porte AUCUNE regle de jeu ni etat metier.",
+   "couvre": [
+    "feat_goal_prompt"
+   ],
+   "dependances": [
+    "logic",
+    "render",
+    "input",
+    "data"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot ouvre le point d'entree du jeu; au frame 0 l'arbre est monte et l'objectif initial est non vide, et check_architecture confirme que seul `main` importe simultanement logic, render et input."
+   }
+  },
+  {
+   "module": "logic",
+   "responsabilite": "Simulation pure et deterministe: compteur de ressource, valeur de clic, economie des generateurs et revenu passif (cps), machine a etats des objectifs, transitions de stage, valeur de la jauge de fin, condition de victoire et relance (prestige). Aucune dependance a render ni input: surface de solvabilite pilotable en headless.",
+   "couvre": [
+    "feat_goal_prompt",
+    "feat_click_input",
+    "feat_allocation_decision",
+    "feat_generator_unlock",
+    "feat_next_goals",
+    "feat_prestige_reset",
+    "feat_end_gauge",
+    "feat_victory"
+   ],
+   "dependances": [
+    "data"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot pilote logic en headless (sans render ni input) via ses commandes et son etat et atteint end_gauge=100% (solvabilite bornee); check_architecture confirme que logic n'importe ni render ni input."
+   }
+  },
+  {
+   "module": "input",
+   "responsabilite": "Couche de gestes joueur: traduit les affordances (presser click_target, acheter buy_generator, declencher prestige_reset) en commandes vers logic par signaux. Ne dessine rien et n'importe pas render.",
+   "couvre": [
+    "feat_click_input",
+    "feat_generator_unlock",
+    "feat_prestige_reset"
+   ],
+   "dependances": [
+    "logic"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot declenche chaque affordance via la couche input; l'etat de logic change en consequence (resource_counter +N au clic, rangee generateur + cps>0 a l'achat, resource_counter=0 apres prestige); check_architecture confirme que input n'importe pas render."
+   }
+  },
+  {
+   "module": "render",
+   "responsabilite": "Presentation: HUD (label objectif, resource_counter, cps_readout), feedback de clic (flotteur +N + animation d'appui), rangee `generateurs`, traqueur de quetes, jauge de fin persistante, transitions visuelles de stage et ecran de victoire plein ecran. Observe l'etat de logic; jamais importe par logic ni input.",
+   "couvre": [
+    "feat_goal_prompt",
+    "feat_click_response",
+    "feat_generator_unlock",
+    "feat_next_goals",
+    "feat_end_gauge",
+    "feat_victory"
+   ],
+   "dependances": [
+    "logic",
+    "data"
+   ],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "Des captures montrent le HUD refletant l'etat de logic (flotteur +N et animation au tick du clic, rangee generateur + cps, objectif renouvele, end_gauge monotone jusqu'a 100%, ecran de victoire remplacant la surface); check_architecture confirme qu'aucun module hors main ne peut importer render et que render n'importe pas input."
+   }
+  },
+  {
+   "module": "data",
+   "responsabilite": "Contenu et configuration statiques, feuille du graphe: couts et rendements des generateurs, seuils des 5 stages, textes des objectifs successifs, seuil de fin/victoire, constantes de calibration. N'importe rien: tue les nombres magiques et empeche la logique de fuir dans la donnee.",
+   "couvre": [
+    "feat_generator_unlock",
+    "feat_next_goals",
+    "feat_end_gauge"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "file_write",
+    "statement": "Les ressources de configuration existent comme fichiers de donnees lus par logic et render (couts generateurs, seuils de stage, textes d'objectif, seuil de victoire); check_architecture confirme que data n'importe aucun autre module (feuille)."
+   }
+  }
+ ]
+}
+
+### wiremap.json (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_beta\wiremap.json)
+{
+ "features": [
+  {
+   "feature": "R1 Premier objectif au lancement",
+   "fonction": "createState",
+   "fichiers": [
+    "main.mjs",
+    "logic.mjs",
+    "render.mjs",
+    "data.mjs"
+   ],
+   "preuve": "Test unitaire: createState() initialise objectif = data.goals[0] ; au frame 0, apres montage par main.mjs, le label objectif rendu par render est une chaine NON VIDE, avant toute interaction (ex_a_goal, kind bot_action).",
+   "couvre": [
+    "id_capacite_requise_1",
+    "id_capacite_requise_2"
+   ]
+  },
+  {
+   "feature": "R2 Clic producteur (entree)",
+   "fonction": "applyClick",
+   "fichiers": [
+    "input.mjs",
+    "logic.mjs"
+   ],
+   "preuve": "Test unitaire: input route click_target -> logic.applyClick(state) ; resource_counter passe strictement de 0 a N*valeur_clic apres N clics et ne change PAS entre deux clics (assertion stricte ==, pas >=). Seul gain avant achat (ex_b_action).",
+   "couvre": [
+    "applyClick"
+   ]
+  },
+  {
+   "feature": "R3 Feedback de clic (effet)",
+   "fonction": "renderClickFeedback",
+   "fichiers": [
+    "render.mjs"
+   ],
+   "preuve": "Test de capture: au tick du clic, renderClickFeedback affiche le flotteur +N ET l'animation d'appui de click_target ; les deux sont ABSENTS de la capture du tick precedent (ex_c_response, kind visual).",
+   "couvre": [
+    "renderClickFeedback"
+   ]
+  },
+  {
+   "feature": "R4 Recompense persistante (effet)",
+   "fonction": "accrue",
+   "fichiers": [
+    "logic.mjs"
+   ],
+   "preuve": "Test unitaire: accrue(state, amount) est le seul ecrivain du total ; resource_counter croit strictement puis PERSISTE au frame suivant sans decroitre (monotonie stricte verifiee sur 2 frames, ex_d_reward).",
+   "couvre": [
+    "ids de capacités requises"
+   ]
+  },
+  {
+   "feature": "R5 Decision d'allocation",
+   "fonction": "step",
+   "fichiers": [
+    "logic.mjs"
+   ],
+   "preuve": "Sim de divergence: deux politiques pilotent step() sur 300 frames — idle (aucun clic) vs actif (applyClick tous les 3 frames) ; les trajectoires de resource_counter DIVERGENT strictement, prouvant que le choix porte a consequence (ex_e_decision).",
+   "couvre": [
+    "R5 Decision d'allocation"
+   ]
+  },
+  {
+   "feature": "R6 Deverrouillage generateur (entree)",
+   "fonction": "buyGenerator",
+   "fichiers": [
+    "input.mjs",
+    "logic.mjs",
+    "data.mjs"
+   ],
+   "preuve": "Test unitaire: input route buy_generator -> logic.buyGenerator(state) apres accumulation du cout (data.generateurs[0].cout) ; une rangee du groupe generateurs apparait et cps_readout passe strictement de 0 a >0, cout deduit (ex_f_unlock).",
+   "couvre": [
+    "buyGenerator"
+   ]
+  },
+  {
+   "feature": "R7 Objectif #2 (effet visible)",
+   "fonction": "advanceObjective",
+   "fichiers": [
+    "logic.mjs",
+    "render.mjs",
+    "data.mjs"
+   ],
+   "preuve": "Test unitaire: apres le premier achat, advanceObjective fait passer objectif a data.goals[1] ; le label rendu est un texte NOUVEAU, textuellement DISTINCT de l'objectif de depart (ex_g_goal1, kind visual).",
+   "couvre": [
+    "advanceObjective"
+   ]
+  },
+  {
+   "feature": "R8 Objectif #3 (effet visible)",
+   "fonction": "advanceObjective",
+   "fichiers": [
+    "logic.mjs",
+    "render.mjs",
+    "data.mjs"
+   ],
+   "preuve": "Test unitaire: apres la premiere amelioration, advanceObjective fait passer objectif a data.goals[2] ; le label rendu est un TROISIEME texte, distinct des deux precedents (ex_g_goal2, kind visual).",
+   "couvre": [
+    "advanceObjective"
+   ]
+  },
+  {
+   "feature": "R9 Relance bornee (entree)",
+   "fonction": "prestigeReset",
+   "fichiers": [
+    "input.mjs",
+    "logic.mjs"
+   ],
+   "preuve": "Test unitaire: input route prestige_reset -> logic.prestigeReset(state) ; resource_counter vaut EXACTEMENT 0 au frame suivant, contre une valeur strictement positive avant la relance (ex_i_meta).",
+   "couvre": [
+    "prestigeReset"
+   ]
+  },
+  {
+   "feature": "R10 Jauge de fin persistante",
+   "fonction": "endGauge",
+   "fichiers": [
+    "logic.mjs",
+    "render.mjs",
+    "data.mjs"
+   ],
+   "preuve": "Sim de reference: endGauge(state) retourne une valeur monotone NON DECROISSANTE de 0 a 1 (100%) au fil des stages/ticks (seuils data) ; render la montre a chaque capture, toujours visible et distincte de resource_counter (ex_n_endgauge, kind visual).",
+   "couvre": [
+    "endGauge"
+   ]
+  },
+  {
+   "feature": "R11 Ecran de victoire",
+   "fonction": "isVictory",
+   "fichiers": [
+    "logic.mjs",
+    "render.mjs"
+   ],
+   "preuve": "Test unitaire+capture: isVictory(state) devient vrai quand endGauge==1.0 ; render remplace REELLEMENT la surface de jeu par une scene de victoire plein ecran affichant les totaux finaux (vrai changement de scene, pas une overlay ; ex_n_victory, kind visual).",
+   "couvre": [
+    "isVictory"
+   ]
+  },
+  {
+   "feature": "R12 Repetition de boucle (rejeu)",
+   "fonction": "step",
+   "fichiers": [
+    "logic.mjs"
+   ],
+   "preuve": "Oracle de solvabilite: un bot pilote step() en rejouant la boucle clic->reponse->recompense->achat (R2/R3/R4/R6) sur un total croissant et atteint endGauge=100% en <=72000 ticks — la boucle repete ET progresse (ex_h_repeat).",
+   "couvre": [
+    "R2",
+    "R3",
+    "R4",
+    "R6"
+   ]
+  },
+  {
+   "feature": "R13 Avantage post-relance (rejeu)",
+   "fonction": "prestigeMultiplier",
+   "fichiers": [
+    "logic.mjs"
+   ],
+   "preuve": "Test unitaire: prestigeMultiplier(state) applique un multiplicateur lu par applyClick apres relance ; le delta/clic post-relance est STRICTEMENT superieur au delta/clic initial (assertion stricte >, ex_j_advantage / increases_more_than:ex_b_action).",
+   "couvre": [
+    "prestigeMultiplier"
+   ]
+  }
+ ]
+}
+
+## PRÉ-MORTEM (erreurs des runs passés)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [s10a-oracle-code] returncode=0; e2e non passé; mutation=FAIL
+- [s10c-oracle-wiremap] FAIL
+- [s9-build] échec d'une tentative précédente à s9-build → ✅ RÉPARÉ: réparé à la tentative 3 (tier sonnet)
+- [s10a-oracle-code] returncode=0; mutation=FAIL
+- [s10c-oracle-wiremap] FAIL
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [manifest-992c3455782fd579] Le sujet/theme de production de p2_beta est structurellement indefini a l'entree de s2.7 : la Story Bible est NOT_GROUNDED sur 6/8 sections (characters/factions/events...) et aucune valeur de design-intent (plateforme/reference/theme) n'est materialisee dans les artefacts amont. La mecanique (9 boucles, economie, fin bornee <=72000 ticks) est concevable agnostiquement au theme, mais l'identite visuelle concrete des entites-cles (cible de clic, generateurs, jeton, transitions de stage) reste bloquee et devient 3 questions bloquantes GM->Artiste, plus le theme lui-meme (q_art_001) en besoin HumanGate. — cause: Le bras de conception Libre delegue explicitement la STRUCTURE a l'aval et le charter transmis est un rapport de retour s0 sans champs de design-intent valides ; aucune valeur de theme n'est donc disponible a ce point de la chaine. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-8161506f54a87956] Tension structurelle non triviale a resoudre en amont du design: le charter impose une fin observable bornee (<=72000 ticks, story_bible:coherence_rules) alors que le genre de reference est explicitement sans fin (worldscan:games[0].objectives[0].has_win_state=false) et repose massivement sur une prestige endless (worldscan:games[0]/[2].retention_answer). La meta-boucle du genre (reset infini) est donc incompatible telle quelle; je l'ai requalifiee en conversion-vers-la-fin, choix de design a valider. — cause: Le bras libre delegue la STRUCTURE a l'aval tout en fixant une contrainte de fin bornee, et aucun design/calibration.md n'a ete injecte en run1 pour arbitrer prestige vs fin observable — l'arbitrage retombe sur le Game Master sans invariant amont. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-3be946517a59e302] q_art_001 (theme/sujet, bloquante) ne pouvait etre fermee qu'en DECLINANT de fabriquer un theme et en le deferant au HumanGate : le jeu est entierement specifie et constructible de maniere theme-agnostique (distinction de contenu fonctionnelle + transformations formelles de l'Artiste), mais l'identite visuelle concrete reste un fog HumanGate non resolu, pas une sortie de design. En consequence, GM peut declarer ready_for_freeze mais le freeze CONJOINT de la paire n'est pas atteignable dans le protocole a 2 rounds (derniere auto-declaration Artiste = false, faite avant mes reponses, sans round-3 pour re-confirmer) et devient une decision HumanGate. — cause: Bras free-design : le charter delegue la STRUCTURE a l'aval et l'entree recue est sa forme de retour meta (rapport s0), sans champs de design-intent materialises ; plateforme_cible/theme/reference_jeu ne sont pas dans l'artefact recu et story_bible characters/factions/events sont NOT_GROUNDED, rendant le sujet concret structurellement indecidable au niveau GM. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-1d06880dd3f1773d] Le charter injecte en amont a s2.6 est le rapport de retour s0 (why_task_existed/result/proof/learning/next_reason), pas le charter a champs de design-intent : il MENTIONNE que plateforme_cible/reference_jeu/criteres_demo ont ete traces a des sources Pierre, sans en porter les VALEURS. s2.6 ne peut donc ancrer ni plateforme, ni jeu de reference, ni criteres, au-dela du genre issu du worldscan ; 6/8 sections narratives sont structurellement NOT_GROUNDED. — cause: Le bras Libre delegue explicitement la STRUCTURE a l'aval et le contenu du charter transmis est sa forme de retour meta, non ses champs de charter valides par check_charter — l'univers est intentionnellement indefini a ce point de la chaine, et aucune valeur de design-intent n'est materialisee dans l'entree recue. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-cc68858b38282d82] content_requirements.md (C.5, listee 'a lire obligatoirement' dans le contrat s2.5) n'a pas ete injectee dans le run p2_beta (absente du run_dir et de design/), et le charter injecte est le rapport de retour s0 sans ses champs de design-intent materialises (plateforme_cible/reference_jeu/criteres_demo) : l'Art Director a donc travaille sans la Gameplay Map et a du DERIVER le runtime au lieu de le lire. — cause: Le bras Libre delegue la STRUCTURE a l'aval et transmet la forme meta du charter (why/result/proof/learning), pas ses champs valides par check_charter ; la carte de contenu C.5 n'existe pas encore a ce point de la chaine full_content, en amont de la conception de structure. -- GENERATION_DIFFERENTE_A_REEXAMINER
+
+FORGE_DISPATCH:s9-build:p2_beta-20260830-run1:4

@@ -1,0 +1,375 @@
+I now have the exact contract of both oracles. Two hard gates drive the featuremap:
+
+1. **`boucle_sans_entree`** (`check_decompo.mjs:188-203`): every leaf whose `source_ref` is a `acteur:PLAYER`+`affordance` exigence (here **E2, E3, E7, E11**) MUST have `expected_proof.kind === "bot_action"` **and** a statement containing the literal string `"main.tscn"`. No grey-block leaf (whose statement = verbatim `builder_contract`, without `main.tscn`) may source those four.
+2. **`grey_block_non_decompose`** + **NON-INVENTION**: each of the 14 GM grey blocks must be a leaf `id`, and every `source_ref` must resolve to a real prisme exigence — so grey blocks are homed on the *safe* exigences (E1, E4, E5, E6, E8, E13, E14, E15), never on E2/E3/E7/E11.
+
+Everything is verified against the read source. Here is the decomposition.
+
+---
+
+## RAPPORT FINAL — s3-decompo / p2_alpha-20260830-run1
+
+**Ancres non-LLM consultées** — `scripts/forge/check_decompo.mjs` (oracle, lu intégralement), `scripts/forge/upstream_schema.mjs` (`validateFeaturemap`/`collectLeaves`/`validateLeaf`, lu), `prisme` (s1, 15 exigences E1..E15), `gm_worldscan` (s2.7, 14 grey blocks + loops), `charter.yaml`, `product_snapshot.md` (R1..R12). Aucun oracle **exécuté** (`run: aucun`) : la featuremap est **construite contre la source lue des deux validateurs**, jamais prouvée par run.
+
+**Arbre produit** — 5 systèmes / 14 features / **26 feuilles** (14 grey-block + 12 capacités dédiées).
+
+**Couverture (attendue OK, à confirmer par l'exécuteur)**
+- **15/15 exigences portées** : E1→gb_progress_meter · E2→{cap_e2_clic_entree, cap_e2_gain_effet} · E3→{cap_e3_achat_entree, cap_e3_achat_effet} · E4→{gb_core, gb_r_counter, gb_click_burst} · E5→{gb_g1..g4} · E6→{gb_clic_upgrade, gb_prod_upgrade} · E7→{cap_e7_unlock_g2_entree, cap_e7_unlock_g2_effet} · E8→{gb_threshold_reveal(visual), cap_e8_objectif_effet(visual)} · E9→cap_e9_objectif_effet(visual) · E10→cap_e10_repeat · E11→{cap_e11_rejouer_entree, cap_e11_reset_effet} · E12→cap_e12_advantage · E13→gb_victory_bloom · E14→gb_world_background · E15→gb_buy_button.
+- **14/14 grey blocks décomposés** (chacun = un `id` de feuille).
+- **Aucune feuille non sourcée** : tout `source_ref` ∈ {E1..E15}.
+- **Maillons** : F=2 (E7 entrée+effet, bot_action+main.tscn) · G=2 (E8,E9 effet visuel objectif) · H=1 (E10 replay E2/E3/E5/E7 tous couverts) · I=2 (E11 entrée+effet) · J=1 (E12 replay_ref E2 couvert). Granularité 1–4 feuilles/feature (REPORTÉE, non gatée).
+- **`builder_contract` recopié TEL QUEL** dans `expected_proof.statement` de chaque feuille grey-block (règle Lot B T3), jamais réinventé.
+
+**Verdicts**
+- `software_verdict:` **BLOCKED** — je n'exécute pas `check_decompo.mjs` (`run: aucun`) ; la matérialisation de `featuremap.json` puis l'oracle incombent à l'exécuteur.
+- `evidence_verdict:` **MECHANICAL_VALIDATION_ONLY** (lecture des deux validateurs, pas d'exécution).
+- `claim_verdict:` **NO_CLAIM_ALLOWED**.
+- `fog → HumanGate` : (1) exécuter `node scripts/forge/check_decompo.mjs featuremap.json --prisme prisme.json --gm gm_worldscan.json` — seule preuve mécanique ; (2) **conflit oracle↔plateforme** ci-dessous (main.tscn sur un jeu web) ; (3) **conflit E12/charter** déjà remonté par s1, non résolu.
+
+**Couplages lâches assumés (granularité, REPORTÉE non gatée)** — 7 grey blocks n'ont pas d'exigence dédiée (leurs homes naturels E2/E3/E7/E11 sont interdits aux feuilles sans `main.tscn`) : gb_core/gb_r_counter→E4 (feedback du clic), gb_g1..g4→E5 (production auto), gb_clic_upgrade/gb_prod_upgrade→E6 (arbitrage clic/prod), gb_threshold_reveal→E8 (révélation au seuil). Sources résolvantes et défendables sémantiquement, mais non 1-pour-1 — signalé, pas silencieux.
+
+**SKIPPED_VALIDATION**
+- item: exécution de `check_decompo.mjs` · périmètre: le bloc JSON ci-dessous + prisme.json + gm_worldscan.json · statut: non fait · raison: `run: aucun`, aucun outil d'exécution ; conformité construite contre la source lue des oracles, prouvée par l'exécuteur.
+- item: satisfiabilité runtime de l'`expected_proof` de E12 (ADVANTAGE) · périmètre: cap_e12_advantage · statut: non garantie, délibéré · raison: conflit contrat×charter (run unique, `initial_stock:0`, aucune méta-progression) déjà remonté par s1 — décision HumanGate, pas un défaut à combler par invention. J'ai HÉRITÉ l'`expected_proof` de E12 tel quel.
+- item: fidélité web des preuves d'ENTRÉE `main.tscn` · périmètre: E2/E3/E7/E11 · statut: partiel, délibéré · raison: l'oracle EXIGE la sous-chaîne `main.tscn` (Godot) or p2_alpha est un jeu **web HTML+JS canvas** sans `main.tscn` — voir RETURN_REASON.
+
+`why_task_existed:` {`problem:` la chaîne Forge exige la décomposition Système→Feature→capacité de p2_alpha, chaque feuille traçable à une exigence du Prisme et à un grey block du GM, avant l'archi (s4) · `oracle:` `check_decompo.mjs` (couverture/non-invention/complétude + boucle_sans_entree/effet + grey_block_non_decompose) · `root_cause:` non applicable — activation de pipeline, pas un défaut · `action_reason:` produire la featuremap couvrant 15 exigences et 14 grey blocks en respectant les deux gates durs lus dans la source} · `result:` featuremap 5 systèmes / 14 features / 26 feuilles, couverture attendue 15/15 + 14/14, 0 feuille non sourcée · `proof:` non exécutée (`run: aucun`) ; conformité vérifiée par lecture ligne-à-ligne de `check_decompo.mjs` et `upstream_schema.mjs` · `learning:` l'oracle s3 code en dur `main.tscn` dans `boucle_sans_entree` — un jeu web ne peut satisfaire cette preuve d'entrée que par une sous-chaîne littérale sans référent réel dans son build · `next_reason:` escalade HumanGate ouverte sur (a) l'inadéquation oracle↔plateforme web et (b) le conflit E12/charter hérité ; la décomposition elle-même est FERMÉE (couverture complète, gates satisfaits par construction).
+
+```json
+{
+  "game_id": "p2_alpha",
+  "systemes": [
+    {
+      "id": "sys_clic_manuel",
+      "features": [
+        {
+          "id": "feat_clic_coeur",
+          "capacites": [
+            {
+              "id": "cap_e2_clic_entree",
+              "capacite": "ENTREE : le joueur agit sur l'affordance `coeur_de_lumen` (un clic manuel produisant du R).",
+              "source_ref": "E2",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Depuis main.tscn, un bot agit sur l'affordance `coeur_de_lumen` (un clic) ; l'entree joueur est executee."
+              }
+            },
+            {
+              "id": "cap_e2_gain_effet",
+              "capacite": "EFFET : le compteur R augmente de gain_clic (strictement > 0) a chaque clic.",
+              "source_ref": "E2",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Depuis main.tscn, apres le clic sur `coeur_de_lumen`, `r_counter` passe de v a v+gain_clic avec gain_clic>0 (effet observable)."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_feedback_clic",
+          "capacites": [
+            {
+              "id": "gb_core",
+              "capacite": "Coeur de Lumen : orbe central cliquable, cible du clic manuel.",
+              "source_ref": "E4",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Orbe central cliquable (Coeur de Lumen) : pulsation lente au repos, eclat radial + nombre flottant +N a chaque clic ; le clic credite du R."
+              }
+            },
+            {
+              "id": "gb_r_counter",
+              "capacite": "Compteur R permanent, lisible et mis a jour a chaque gain.",
+              "source_ref": "E4",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Compteur R permanent en haut d'ecran, lisible de 1 a >=1 000 000 (formatage des grands nombres), s'incremente a chaque gain."
+              }
+            },
+            {
+              "id": "gb_click_burst",
+              "capacite": "VFX de clic : eclat radial + nombre flottant +N a chaque clic.",
+              "source_ref": "E4",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "VFX instantane au clic sur le Coeur : eclat radial court + nombre flottant +N (= gain_clic courant) qui monte et s'efface."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_generateurs",
+      "features": [
+        {
+          "id": "feat_achat_generateur",
+          "capacites": [
+            {
+              "id": "cap_e3_achat_entree",
+              "capacite": "ENTREE : le joueur agit sur l'affordance `acheter_generateur` quand R >= cout.",
+              "source_ref": "E3",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Depuis main.tscn, un bot avec R>=15 agit sur l'affordance `acheter_generateur` (un clic d'achat)."
+              }
+            },
+            {
+              "id": "cap_e3_achat_effet",
+              "capacite": "EFFET : R diminue du cout exact et un generateur G1 est acquis.",
+              "source_ref": "E3",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Depuis main.tscn, apres l'action `acheter_generateur`, R diminue de 15 et le nombre de G1 possedes passe a 1 (effet observable)."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_production_auto",
+          "capacites": [
+            {
+              "id": "gb_g1",
+              "capacite": "Generateur G1 : achat 15 R, auto-production 0.1 R/s.",
+              "source_ref": "E5",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Conduit tier 1, silhouette simple ; achat a 15 R (x1.15 par exemplaire), produit 0.1 R/s ; s'illumine selon le nombre possede."
+              }
+            },
+            {
+              "id": "gb_g2",
+              "capacite": "Generateur G2 : revele a S1, achat 100 R, auto-production 1 R/s.",
+              "source_ref": "E5",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Silhouette distincte de G1 ; cachee puis apparait par threshold_reveal a S1 (100 R cumules) ; achat 100 R, produit 1 R/s ; une nouvelle machine s'ajoute a la colonne."
+              }
+            },
+            {
+              "id": "gb_g3",
+              "capacite": "Generateur G3 : revele a S2, achat 1100 R, auto-production 8 R/s.",
+              "source_ref": "E5",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Silhouette plus haute/complexe que G2 ; threshold_reveal a S2 ; achat 1100 R, produit 8 R/s ; nouvelle machine visible."
+              }
+            },
+            {
+              "id": "gb_g4",
+              "capacite": "Generateur G4 : revele a S3, achat 12000 R, auto-production 47 R/s.",
+              "source_ref": "E5",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Silhouette la plus imposante et lumineuse ; threshold_reveal a S3 ; achat 12000 R, produit 47 R/s."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_bouton_achat",
+          "capacites": [
+            {
+              "id": "gb_buy_button",
+              "capacite": "Bouton d'achat a deux etats : achetable vs grise (refus observable quand R insuffisant).",
+              "source_ref": "E15",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Bouton d'achat a deux etats nets : ACHETABLE (colore, halo, cliquable) / GRISE (desature, sans halo) quand R insuffisant ; refus observable, etat inchange ; affiche le cout courant en R."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_progression",
+      "features": [
+        {
+          "id": "feat_unlock_g2",
+          "capacites": [
+            {
+              "id": "cap_e7_unlock_g2_entree",
+              "capacite": "ENTREE : une fois G2 revele a S1, le joueur agit sur l'affordance `acheter_generateur_g2`.",
+              "source_ref": "E7",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Depuis main.tscn, une fois 100 R cumules atteints et G2 revele, un bot agit sur l'affordance `acheter_generateur_g2` (un clic d'achat)."
+              }
+            },
+            {
+              "id": "cap_e7_unlock_g2_effet",
+              "capacite": "EFFET : au franchissement de S1, une entree G2 auparavant absente apparait dans la colonne.",
+              "source_ref": "E7",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Depuis main.tscn, a 100 R cumules, une entree generateur G2 auparavant absente apparait dans la colonne (effet de deblocage observable)."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_reveal_vfx",
+          "capacites": [
+            {
+              "id": "gb_threshold_reveal",
+              "capacite": "VFX de franchissement de seuil accompagnant chaque revelation (G2/G3/G4/ameliorations).",
+              "source_ref": "E8",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "VFX de franchissement : flash/onde lumineuse accompagnant l'apparition de G2 (S1), G3 (S2), G4 (S3), ameliorations (S4)."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_objectif",
+          "capacites": [
+            {
+              "id": "gb_progress_meter",
+              "capacite": "Jauge de proximite vers le prochain seuil, materialisant l'arbitrage acheter/epargner.",
+              "source_ref": "E1",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Jauge de proximite vers le prochain seuil (S1..S5) : materialise l'arbitrage acheter-maintenant vs epargner-vers-le-seuil ; avance a mesure que le R cumule approche le seuil."
+              }
+            },
+            {
+              "id": "cap_e8_objectif_effet",
+              "capacite": "EFFET VISIBLE (NEXT_GOAL) : apres S1, le label `objectif` change pour un texte nouveau citant 1000 R et G3.",
+              "source_ref": "E8",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Le texte de `objectif` apres S1 differe caractere pour caractere du precedent et cite 1000 R et G3."
+              }
+            },
+            {
+              "id": "cap_e9_objectif_effet",
+              "capacite": "EFFET VISIBLE (NEXT_GOAL) : apres S2, le label `objectif` change encore pour un texte distinct citant 12000 R et G4.",
+              "source_ref": "E9",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Le texte de `objectif` apres S2 differe de celui apres S1 et cite 12000 R et G4."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_fond_ascendant",
+          "capacites": [
+            {
+              "id": "gb_world_background",
+              "capacite": "Fond qui s'eclaircit d'un cran a chacun des 5 seuils franchis.",
+              "source_ref": "E14",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Fond bleu-nuit (#0B0E17) qui gagne en clarte d'un cran a chacun des 5 seuils franchis ; particules de lumiere ambiantes ; raconte l'ascension."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_arbitrage",
+      "features": [
+        {
+          "id": "feat_ameliorations",
+          "capacites": [
+            {
+              "id": "gb_clic_upgrade",
+              "capacite": "Amelioration de clic (clic_x2 puis clic_x4) : renforce le gain manuel, option d'arbitrage.",
+              "source_ref": "E6",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Icone ambre (famille clic) ; achats clic_x2 puis clic_x4 en cumul sequentiel ; apres achat, le +N du Coeur augmente visiblement."
+              }
+            },
+            {
+              "id": "gb_prod_upgrade",
+              "capacite": "Amelioration de production (x2 par generateur, debloquee a S4) : option d'arbitrage automatisation.",
+              "source_ref": "E6",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Icone cyan (famille production), debloquee groupee a S4 par threshold_reveal ; chaque amelioration double (x2) la production du generateur cible ; le taux R/s affiche monte."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_boucle_rejeu",
+      "features": [
+        {
+          "id": "feat_repeat",
+          "capacites": [
+            {
+              "id": "cap_e10_repeat",
+              "capacite": "REPEAT : dans l'etat post-S1, le joueur rejoue clic+achat+attente et R reprend sa croissance vers S2 (rejeu de E2/E3/E5/E7).",
+              "source_ref": "E10",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Apres S1, un bot re-execute clic+achat+attente et `r_counter` progresse de nouveau vers 1000."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_victoire",
+          "capacites": [
+            {
+              "id": "gb_victory_bloom",
+              "capacite": "Etat de victoire unique au franchissement de S5 ; aucun etat de defaite.",
+              "source_ref": "E13",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Etat/ecran de victoire au franchissement de S5 (>=1 000 000 R cumules) : embrasement lumineux plein ecran ; terminaison unique ascendante ; aucun equivalent de defaite."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_rejouer",
+          "capacites": [
+            {
+              "id": "cap_e11_rejouer_entree",
+              "capacite": "ENTREE (META_LOOP) : depuis l'ecran de victoire, le joueur agit sur l'affordance `rejouer`.",
+              "source_ref": "E11",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Depuis main.tscn, apres la victoire, un bot agit sur l'affordance `rejouer` (un clic)."
+              }
+            },
+            {
+              "id": "cap_e11_reset_effet",
+              "capacite": "EFFET (META_LOOP) : le compteur R retombe visiblement a zero (nouveau run).",
+              "source_ref": "E11",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Depuis main.tscn, apres l'action `rejouer`, `r_counter` passe de superieur ou egal a 1 000 000 a 0 (effet de reset observable)."
+              }
+            }
+          ]
+        },
+        {
+          "id": "feat_avantage_rejeu",
+          "capacites": [
+            {
+              "id": "cap_e12_advantage",
+              "capacite": "ADVANTAGE : rejeu de E2 selon la politique optimale visant une accumulation strictement superieure au run 1 sur le meme horizon (satisfiabilite en conflit avec le charter run-unique — fog HumanGate).",
+              "source_ref": "E12",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un bot suivant la politique optimale au run 2 atteint un `r_counter` cumule strictement superieur a celui du run 1 au meme nombre de frames."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "L'oracle s3 check_decompo.mjs code en dur la sous-chaine 'main.tscn' dans le gate boucle_sans_entree (ligne 192-193) : toute feuille sourcant une exigence acteur=PLAYER+affordance (E2/E3/E7/E11) doit contenir 'main.tscn' dans son statement, or p2_alpha est un jeu WEB HTML+JS canvas qui n'a pas de main.tscn. La preuve d'ENTREE ne peut satisfaire l'oracle que par une sous-chaine litterale sans referent reel dans le build web.", "root_cause": "check_decompo.mjs a ete ecrit pour la plateforme Godot (main.tscn) et applique tel quel a un run dont charter.yaml fixe plateforme_cible=web ; le gate V4 GAME LOOP n'a pas de variante par plateforme."}

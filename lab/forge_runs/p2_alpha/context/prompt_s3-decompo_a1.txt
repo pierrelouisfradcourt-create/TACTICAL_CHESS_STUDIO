@@ -1,0 +1,1612 @@
+## RÔLE
+Décomposition Fonctionnelle (étape 3). Point de vue : analyste qui énumère les fonctions attendues avant toute archi.
+
+## EXIGENCES COGNITIVES
+Décomposition exhaustive Système→Feature→capacité, chaque feuille traçable à une preuve.
+
+## MÉMOIRE DE TRAVAIL
+Consomme le Prisme Produit (étape 1) et le World Scan (étape 2) ; connaît les Règles observables du Prisme d'où héritent les preuves attendues. Conventions : CLAUDE.md + rules/.
+
+## OBJECTIF
+Produire l'arbre Système→Feature→capacité ; chaque FEUILLE porte sa preuve attendue (héritée des Règles observables du Prisme).
+
+## DANS LE PÉRIMÈTRE (in_scope)
+Énumération fonctionnelle depuis le Prisme Produit ; définition des preuves attendues par feuille. Écrit uniquement la featuremap.
+
+## HORS PÉRIMÈTRE (out_of_scope)
+Ne découpe PAS en modules (c'est l'archi, étape 4). Ne code rien. Ne touche pas aux lanes protégées (tests/, src/).
+
+## PERMISSIONS
+read: repo entier. write: featuremap uniquement. create: featuremap. run: aucun. delete: aucun.
+
+## GARDE-FOU
+Chaque feuille DOIT avoir une preuve_attendue ; pas de feuille orpheline. La preuve attendue est héritée des Règles observables du Prisme, jamais inventée. V4 GAME LOOP (2026-08-22, GO Pierre) : une action joueur (exigence `acteur: PLAYER` avec `affordance`) se décompose en une capacité d'ENTRÉE (le joueur agit sur l'affordance nommée, preuve `bot_action` depuis `main.tscn`) ET une capacité d'EFFET — jamais l'effet seul. `loop.json` (projection déterministe du Prisme) est une ENTRÉE à lire, jamais à réécrire. Maillons F..J (additif, règle B étendue) : F (UNLOCK) et I (META_LOOP) suivent EXACTEMENT la règle de B — capacité d'ENTRÉE `bot_action` depuis `main.tscn` obligatoire. G (NEXT_GOAL) se décompose en une capacité d'EFFET VISIBLE (le label `objectif` change pour un texte nouveau, preuve `file_write` ou `visual`) — jamais une entrée seule. H (REPEAT) et J (ADVANTAGE) sont des REJEUX : ils n'exigent AUCUNE feuille propre, mais leurs `replay`/`replay_ref` doivent chacun cibler une exigence du Prisme déjà couverte par ailleurs — un rejeu qui vise une exigence non couverte ou inexistante rejoue du vide. GREY BLOCKS DU GAME MASTER (Lot B, T3, 2026-08-23, plan `2026-08-23-forge-lot-b-game-master.md`) : chaque `game_master.grey_blocks[].id` du GM (s2.7) DOIT apparaître comme `id` OU `source_ref` d'une feuille de la featuremap — un grey block sans feuille est `grey_block_non_decompose` (`check_decompo --gm <gm_worldscan.json>`). Le `builder_contract` de chaque grey block est recopié TEL QUEL dans `expected_proof.statement` de la feuille qui le porte, jamais réinventé. Sans `game_master`/`grey_blocks` (runs antérieurs au Lot B) : comportement inchangé, 0 grey block mesuré.
+
+## CRITÈRES DE RÉUSSITE
+featuremap valide ; chaque feuille porte {capacite, expected_proof, source_ref} ; TOUTE exigence du Prisme est portée par ≥1 feuille ; AUCUNE feuille ne cite une exigence inexistante.
+
+## ORACLES / TESTS
+Oracle déterministe non-LLM : `node scripts/forge/check_decompo.mjs <run_dir>/featuremap.json --prisme <run_dir>/prisme.json [--gm <run_dir>/gm_worldscan.json]`. Mesure la COUVERTURE (toute exigence portée), la NON-INVENTION (tout `source_ref` résout) et la COMPLÉTUDE (feuilles complètes). La granularité est REPORTÉE, jamais gatée (règle de variance ratifiée 2026-07-21). Maillons F..J (additif) : `boucle_sans_effet` (G sans feuille d'effet sourcée), `boucle_replay_non_couvert` (H/J dont un `replay`/`replay_ref` cible une exigence non couverte ou inexistante) ; `stats.maillons_couverts.{F,G,H,I,J}` reporte le compte par rôle. Lot B, T3 (2026-08-23) : avec `--gm`, `grey_block_non_decompose` (un `game_master.grey_blocks[].id` sans feuille) fait échouer l'étape ; `stats.grey_blocks`/`stats.grey_blocks_couverts` reportent le compte. Sans `--gm` ou sans bloc `game_master` : comportement inchangé (0 grey block). Jamais de LLM-as-judge.
+
+## CONTRAT DE SORTIE
+Un bloc ```json``` TERMINAL, matérialisé en featuremap.json par l'exécuteur (tu n'écris JAMAIS ce fichier toi-même) : {"game_id": "<id>", "systemes": [{"id", "features": [{"id", "capacites": [{"id", "capacite", "source_ref", "expected_proof": {"kind": "bot_action"|"oracle"|"mutation"|"visual"|"file_write", "statement"}}]}]}]}. L'arbre reste Système→Feature→capacité, la capacité EST la feuille. RÈGLES DURES : `source_ref` cite l'`id` EXACT d'une exigence de prisme.json — une feuille qui n'en cite aucune est une invention non déclarée, et une exigence que nulle feuille ne porte est une omission silencieuse. Tu n'inventes AUCUNE preuve attendue : elle est héritée de l'exigence d'origine.
+
+## RAPPORT FINAL
+software/evidence/claim séparés ; cite le reçu de check_decompo ; liste les exigences non couvertes et les feuilles non sourcées ; claim_verdict: NO_CLAIM_ALLOWED. RETURN LINEAGE (doctrine FORGE_CAUSAL_LINEAGE_V2 §3, ratifiee Pierre 2026-08-06) — aucun worker ne meurt seul : le retour porte la CAUSALITE, pas seulement le resultat. Termine TOUJOURS par ce bloc, succes comme echec : `why_task_existed:` {`problem:` le probleme mesure qui a active cette tache · `oracle:` l'oracle ou la mesure qui l'a detecte, ou "aucun" si l'activation vient d'une decision humaine · `root_cause:` la cause racine identifiee, ou "non etablie" · `action_reason:` pourquoi CETTE action y repond} · `result:` l'etat reellement obtenu · `proof:` la commande executee et sa sortie · `learning:` ce que tu as appris et qui resservira, ou "aucun" · `next_reason:` pourquoi le niveau superieur doit agir OU pourquoi la chaine causale est FERMEE et se termine ici. Regles : ces champs sont HERITES ou CONSTATES, jamais inventes — si tu n'as pas recu le `why`, ecris "non transmis" plutot que de le deviner (une cause fabriquee est la meme faute qu'un `validated_by` fabrique). En ECHEC, `result` porte ce que tu as essaye et ce qui a echoue. `next_reason` ne vaut escalade que si une cause non resolue persiste, une preuve manque ou contredit l'etat attendu, ou une correction reste possible — sinon la lignee se termine proprement, sans action supplementaire.
+
+## À LIRE OBLIGATOIREMENT AVANT TOUTE ACTION
+- scripts/forge/contracts/SCHEMA.md
+- l'artefact product_snapshot.md produit par le Prisme (étape 1)
+- lab/forge_runs/<projet>/knowledge_packet.json — patterns externes cités, ADVISORY jamais prescriptif
+- lab/forge_runs/<projet>/charter.yaml — INTENT LINEAGE : intention humaine, invariants, hors_scope, et le bloc `provenance` (source Pierre, fog_humangate). HERITE, jamais reecrit : l'etape verifie que sa decision la respecte, ou remonte le conflit.
+- story_bible.json (s2.6) et gm_worldscan.json (s2.7) S'ILS SONT PRÉSENTS dans le run_dir (profil full_godot_narratif) : les contraintes narratives et les dimensions de calibration (progression, economy, bonus…) y vivent — une feuille qui les réalise cite l'exigence du Prisme qui les porte (source_ref), jamais l'artefact directement
+
+## RÈGLE DE RESTITUTION — Chaque affirmation du final_report doit citer l'oracle/l'ancre non-LLM qui l'appuie. Appuyée par un oracle => software_verdict (OK/FAIL/BLOCKED) + evidence_verdict: MECHANICAL_VALIDATION_ONLY. Sans oracle disponible => claim_verdict: NO_CLAIM_ALLOWED et remonte un besoin HumanGate (fog), jamais un claim auto-certifié. Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement. En dernier lieu, une section finale SKIPPED_VALIDATION, structurée et EXPLICITE : pour chaque validation que tu n'as PAS faite, liste l'item de validation (quoi), le périmètre concerné (où), le statut (ex. non fait / partiel / hors délai) et la raison (pourquoi). Rien sauté => écris `SKIPPED_VALIDATION: aucun` — une décision assumée, jamais un silence. Le silence sur cette section est traité comme un oubli, pas comme 'rien à signaler'. TOUTE DERNIÈRE LIGNE DU RAPPORT, OBLIGATOIRE — lignée Return : une ligne unique `RETURN_REASON: {"status": "NOT_DISCOVERED"}` si tu n'as découvert AUCUN problème pendant ce travail. Si (et SEULEMENT si) tu as réellement découvert un problème — défaut rencontré, cause d'un échec, écart mesuré — écris à la place `RETURN_REASON: {"status": "DISCOVERED", "problem": "<le problème, factuel>", "root_cause": "<la cause racine si connue, sinon omets ce champ>"}`. JSON valide sur UNE seule ligne, aucun texte après. N'invente JAMAIS un problème pour remplir ce champ : un NOT_DISCOVERED honnête vaut mieux qu'un DISCOVERED de complaisance.
+
+## MARQUEUR DE DISPATCH (ne pas modifier)
+FORGE_DISPATCH:s3-decompo:p2_alpha-20260830-run1:1
+
+## TÂCHE CONCRÈTE (p2_alpha-20260830-run1 / s3-decompo)
+Décompose le projet 'p2_alpha' en features numérotées R1..Rn (une ligne par règle de jeu : nom, comportement observable, condition de preuve). Texte seul, aucun fichier écrit.
+
+## ARTEFACTS AMONT (run_dir)
+
+### charter.yaml (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_alpha\charter.yaml)
+objectif: 'Créer de zéro, sous games/p2_alpha, un jeu WEB incremental/clicker JOUABLE
+  dont la structure économique est INTÉGRALEMENT imposée par lab/forge_briefs/p2_alpha/
+  structure_imposee_v2.yaml (grammaire v2 ratifiée Pierre 2026-08-30), puis fermer
+  la chaîne de preuve full_content jusqu''au verdict signé + verify_run AUTHENTIQUE.
+  Rôle expérimental : bras DIRIGÉ (D2) de la PAIRE 2 — la variable manipulée est l''AUTEUR
+  DE LA STRUCTURE (grammaire ratifiée), PAS l''auteur de l''univers. CONDITION DE
+  VICTOIRE : total cumulé de R produit ≥ 1 000 000 (seuil S5), fin OBSERVABLE, sans
+  état d''échec (fidèle au genre). JOUEUR : nominalement un joueur web solo d''incremental/clicker
+  (boucle d''arbitrage « acheter maintenant vs épargner ») — caractérisation DÉRIVÉE
+  du genre ratifié, NON une décision démographique de Pierre. L''ACTEUR DE MESURE
+  de ce run est un bot scripté qui doit atteindre S5 en ≤ 72000 ticks (obligation
+  de solvabilité runtime). La qualité ludique n''est PAS jugée dans ce run (donnée
+  M7).
+
+  '
+plateforme_cible: 'web — HTML + JS (canvas). Socle sonde web N1 : déterminisme seedé,
+  window.__game exposé, harnais complet à la racine du dossier jeu. SOURCE PIERRE
+  : project_brief.yaml champ `cible: web (HTML+JS canvas)` + protocole RUN2_PROTOCOLE_V1.md
+  ratifié Pierre 2026-08-30 (règle N1).
+
+  '
+reference_jeu: 'Genre incremental/clicker (grammaire de genre à la Cookie Clicker
+  — GRAMMAIRE UNIQUEMENT, aucune copie d''asset, de nom ni de contenu), dont la structure
+  économique est NORMATIVEMENT et intégralement fixée par lab/forge_briefs/p2_alpha/
+  structure_imposee_v2.yaml. SOURCE PIERRE : genre FIXÉ PAR PIERRE (paire pilote 2026-08-30,
+  reconduit paire 2) ; structure = grammaire v2 proposée Fable, RATIFIÉE Pierre 2026-08-30
+  (sas de pré-enregistrement). Distinction verrouillée : proposée par Fable, ratifiée
+  par Pierre — la variable expérimentale du bras D est l''auteur de la STRUCTURE,
+  pas l''auteur de l''UNIVERS.
+
+  '
+criteres_succes:
+- charter.yaml matérialisé par s0 en bloc ```yaml (A1 — condition de validité de bras)
+  ; tous champs remplis, aucun « à définir ».
+- Structure du jeu == structure_imposee_v2.yaml (croissance 1.12, cout_base [15,100,1100,12000],
+  prod [0.1,1,8,47], gain_clic_initial 1, mapping des 6 améliorations, seuils_cumules
+  [100,1000,12000,150000,1000000], tick_ms 100, comptabilité milli-R entiers) ; toute
+  déviation déclarée en champ structuré (M3), jamais silencieuse.
+- 'Invariant comptable exact : solde_mR == Σ(gains_clic_mR) + Σ(production_mR) − Σ(dépenses_mR),
+  en milli-R entiers, aucun flottant dans l''état ; affichage = floor(solde_mR/1000).'
+- 'SOLVABILITÉ RUNTIME : un bot scripté atteint S5 (≥ 1 000 000 R cumulés) en ≤ 72000
+  ticks ; bots de mesure à variance NON triviale (temps-jusqu''à-S5 en ticks, jalons
+  S1..S5). Le desk-check ne compte pas comme preuve.'
+- 'Chaîne full_content complète : verdict signé + verify_run AUTHENTIQUE.'
+- design_questions / r2 / design_freeze exercés ; modification_locus utilisé pour
+  toute réponse (aucune_requise justifié si l'objet est normatif).
+- Chaque asset_request.id resolved-avec-fichier ou blocked-justifié (check_asset_consumption).
+- 'check_artbible exécuté par le driver (executed_by: driver).'
+- product_snapshot.md matérialisé (exigible M7(a), protocole V1 A3).
+- 's11 red-team Qwen réel, independent: true ; LM Studio down => HALT sans fallback.'
+- 'Socle sonde web N1 en place : HTML+JS, déterminisme seedé, window.__game, harnais
+  complet à la racine.'
+actions_interdites:
+- Modifier une valeur de structure_imposee_v2.yaml sans la déclarer comme écart en
+  champ structuré (M3) — toute déviation silencieuse est interdite.
+- Inventer/choisir un modèle de jeu (reference_jeu) ou une plateforme (plateforme_cible)
+  autres que ceux fixés par Pierre.
+- Introduire une ressource autre que R, un revenu hors clic+générateurs, ou une dépense
+  hors achats (aucune vente).
+- Ajouter un état d'échec ou une défaite artificielle.
+- 'Hardcoder un résultat d''oracle ou un flag de harnais (pré-mortem : solvability.mjs
+  renvoyant { solvable: true } littéral ; check_harness_no_hardcoded_flags).'
+- 'Écrire un test avec un >= tautologique : asserter le comportement STRICT (le clic
+  ajoute exactement gain_clic, coûts == cout_base×1.12^n, victoire à == 1 000 000).'
+- Transmettre un reçu code sans evidence_path (=> BLOCKED en s12).
+- Fallback LLM sur s11 red-team si LM Studio est down (=> HALT).
+- git commit / git push (gate Pierre explicite requis).
+- Toucher tests/, src/, autopilot.py ou la lane STUDIO gelée.
+- Émettre un jugement ou un claim de qualité ludique / fun (donnée M7, hors périmètre
+  de ce run).
+hors_scope:
+- 'Le thème, l''univers, les personnages/entités et leur nommage, la direction artistique,
+  les assets, le HUD et les micro-interactions non couverts par la structure : libertés
+  déléguées aux étapes aval, non fixées par ce charter.'
+- L'architecture technique du jeu (étape s4).
+- Le world scan (étape s2).
+- L'écriture de code (ce charter ne produit QUE le contrat produit ; aucun fichier
+  écrit).
+- Le jugement de qualité ludique / fun (donnée M7).
+- 'Toute mécanique hors grammaire imposée : état d''échec, ressource secondaire, revenu/dépense
+  non prévus.'
+criteres_demo:
+- Un compteur de R visible en permanence à l'écran et qui augmente.
+- Un clic manuel produit à l'écran une hausse visible de R égale à gain_clic courant.
+- Après l'achat d'un générateur, R augmente AUTOMATIQUEMENT à chaque tick sans clic
+  (production auto visible).
+- 'Un bouton d''achat GRISÉ quand R est insuffisant : le refus est observable et l''état
+  reste inchangé.'
+- Le franchissement d'un seuil (S1 révèle G2, S2 G3, S3 G4, S4 les améliorations ×2
+  prod) débloque VISIBLEMENT le nouvel élément.
+- Un écran/état de VICTOIRE observable au franchissement de S5 (total cumulé ≥ 1 000
+  000 R) ; AUCUN écran de défaite.
+
+
+### artifacts/s1-prisme.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_alpha\artifacts\s1-prisme.txt)
+FORGE_DISPATCH:s1-prisme:p2_alpha-20260830-run1:2
+
+*(Réémission attempt 2 —
+[tronqué]
+```json
+{
+  "game_id": "p2_alpha",
+  "exigences": [
+    {
+      "id": "E1",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_progress_meter",
+      "acteur": "SYSTEM",
+      "loop_role": "PLAYER_GOAL",
+      "observation": "gb_progress_meter (UI/FEEDBACK) affiche une jauge de proximite vers le prochain seuil S1..S5 et materialise l'arbitrage acheter-maintenant vs epargner-vers-le-seuil.",
+      "claim": "Un objectif chiffre affiche en permanence donne au joueur un but immediat et lisible des la premiere seconde, sans tutoriel.",
+      "enonce": "Le HUD `objectif` affiche en continu le prochain seuil a atteindre (ex. 100 R pour reveler un nouveau generateur) et n'est jamais vide.",
+      "expected_proof": {"kind": "visual", "statement": "Au chargement, le HUD `objectif` contient un texte de but non vide citant un seuil chiffre."},
+      "observe": {"hud": "objectif", "predicate": "nonempty"},
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "E2",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "gm_worldscan:game_master.loops.core_loop.core_action",
+      "acteur": "PLAYER",
+      "loop_role": "PLAYER_ACTION",
+      "affordance": "coeur_de_lumen",
+      "observation": "core_loop.core_action decrit un PLAYER qui tape le Coeur pour produire du R manuellement, cible core_click_target.",
+      "claim": "Le clic manuel doit produire un gain de R immediat et strictement positif, sinon le geste fondateur du genre n'a aucune consequence mesurable.",
+      "enonce": "Le joueur peut cliquer la cible `coeur_de_lumen` ; a chaque clic, le compteur `r_counter` augmente de gain_clic strictement superieur a zero.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot clique `coeur_de_lumen` une fois ; `r_counter` passe de v a v+gain_clic avec gain_clic>0."},
+      "observe": {"hud": "r_counter", "predicate": "increases"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "E3",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "gm_worldscan:game_master.loops.gameplay_loop.gp_action",
+      "acteur": "PLAYER",
+      "loop_role": "PLAYER_ACTION",
+      "affordance": "acheter_generateur",
+      "observation": "gameplay_loop.gp_action decrit un PLAYER qui achete un generateur (G1 en premier) via buy_button, ressource R.",
+      "claim": "L'achat doit debiter R du cout courant et n'etre possible que si R suffit, sinon l'economie d'accumulation n'a pas de puits.",
+      "enonce": "Le joueur peut acheter un generateur en cliquant la cible `acheter_generateur` quand R est superieur ou egal au cout ; R diminue du cout et un generateur est acquis.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot avec R>=15 clique `acheter_generateur` ; R diminue de 15 et le nombre de G1 possedes passe a 1."},
+      "observe": {"hud": "r_counter", "predicate": "decreases"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "E4",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_click_burst",
+      "acteur": "SYSTEM",
+      "loop_role": "GAME_RESPONSE",
+      "observation": "gb_click_burst (UI/FEEDBACK) specifie un VFX instantane au clic : eclat radial + nombre flottant +N egal au gain_clic courant.",
+      "claim": "Un retour visuel instantane et chiffre au clic est necessaire pour que le joueur relie son geste a son effet.",
+      "enonce": "A chaque clic sur `coeur_de_lumen`, le systeme affiche un +N flottant egal a gain_clic et le compteur `r_counter` change dans la meme frame.",
+      "expected_proof": {"kind": "visual", "statement": "Apres un clic, un element +N apparait pres du Coeur et `r_counter` a change dans la meme frame."},
+      "observe": {"hud": "r_counter", "predicate": "changes"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "E5",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "gm_worldscan:game_master.loops.gameplay_loop.gp_reward",
+      "acteur": "SYSTEM",
+      "loop_role": "REWARD",
+      "observation": "gameplay_loop.gp_reward : le generateur achete produit du R automatiquement (0.1 R/s pour G1).",
+      "claim": "Le generateur doit generer un revenu automatique visible et continu, sinon l'achat ne recompense pas et la boucle idle n'existe pas.",
+      "enonce": "Apres l'achat d'un generateur, un taux `taux_rs` d'auto-production apparait et le compteur `r_counter` augmente sans clic.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot achete G1 puis n'agit plus ; sur N frames `r_counter` croit et `taux_rs` affiche au moins 0.1 R/s."},
+      "observe": {"hud": "taux_rs", "predicate": "increases"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "E6",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "gm_worldscan:game_master.loops.gameplay_loop.gp_decision",
+      "acteur": "PLAYER",
+      "loop_role": "DECISION",
+      "observation": "gameplay_loop.gp_decision et core_loop.core_decision opposent cliquer vite pour du R immediat vs epargner vers un achat.",
+      "claim": "Cet arbitrage doit etre significatif : deux politiques distinctes doivent produire des trajectoires de R mesurablement differentes sur un horizon, sinon la decision est decorative.",
+      "enonce": "Le HUD `objectif` presente au joueur le choix entre renforcer le clic manuel et investir dans l'auto-production ; les deux voies sont jouables et divergent sur `r_counter`.",
+      "expected_proof": {"kind": "bot_action", "statement": "Deux politiques (repos vs actif) jouees 300 frames produisent deux valeurs de `r_counter` distinctes et non triviales."},
+      "observe": {"hud": "objectif", "predicate": "changes"},
+      "options": ["E2", "E3"],
+      "policies": [
+        {"name": "repos", "click": null, "every_frames": 0},
+        {"name": "actif", "click": "coeur_de_lumen", "every_frames": 3}
+      ],
+      "metric": "r_counter",
+      "horizon_frames": 300,
+      "destination": "s9-build"
+    },
+    {
+      "id": "E7",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_g2",
+      "acteur": "PLAYER",
+      "loop_role": "UNLOCK",
+      "affordance": "acheter_generateur_g2",
+      "observation": "gb_g2 (PROGRESSION_GATE, LOCKED, requires progression_s1_threshold) : silhouette distincte, apparait par threshold_reveal a S1 (100 R cumules).",
+      "claim": "Le franchissement de S1 doit rendre visible un contenu nouveau et achetable, sinon la progression ne debloque rien d'observable.",
+      "enonce": "Quand le joueur atteint 100 R cumules, un nouveau generateur G2 apparait dans `colonne_generateurs` et devient achetable via `acheter_generateur_g2`.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot accumule 100 R cumules ; une entree generateur G2 auparavant absente apparait dans la colonne."},
+      "observe": {"hud": "colonne_generateurs", "predicate": "new_distinct", "appears": "generateurs"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "E8",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_g2",
+      "acteur": "SYSTEM",
+      "loop_role": "NEXT_GOAL",
+      "observation": "gb_g2.next_goal : Prochain palier 1000 R cumules pour reveler G3.",
+      "claim": "Apres un deblocage, l'objectif affiche doit se renouveler textuellement vers la cible suivante, sinon le joueur ne sait plus quoi viser.",
+      "enonce": "Apres la revelation de G2, le HUD `objectif` affiche un nouveau but textuellement distinct : 1000 R cumules pour reveler G3.",
+      "expected_proof": {"kind": "visual", "statement": "Le texte de `objectif` apres S1 differe caractere pour caractere du precedent et cite 1000 R et G3."},
+      "observe": {"hud": "objectif", "predicate": "new_distinct"},
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "E9",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_g3",
+      "acteur": "SYSTEM",
+      "loop_role": "NEXT_GOAL",
+      "observation": "gb_g3.next_goal : Prochain palier 12000 R cumules pour reveler G4.",
+      "claim": "Le renouvellement de l'objectif doit se repeter a chaque palier, chaque enonce differant du precedent, prouvant une chaine de buts et non un texte fige.",
+      "enonce": "Apres la revelation de G3, le HUD `objectif` affiche encore un nouveau but distinct : 12000 R cumules pour reveler G4.",
+      "expected_proof": {"kind": "visual", "statement": "Le texte de `objectif` apres S2 differe de celui apres S1 et cite 12000 R et G4."},
+      "observe": {"hud": "objectif", "predicate": "new_distinct"},
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "E10",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "gm_worldscan:game_master.loops.progression_loop.pr_action",
+      "acteur": "PLAYER",
+      "loop_role": "REPEAT",
+      "observation": "progression_loop.pr_action : le joueur accumule du R jusqu'au seuil suivant ; la boucle recommence apres chaque revelation.",
+      "claim": "Dans le nouvel etat (G2 debloque), le joueur doit rejouer les memes gestes pour progresser, prouvant que la boucle recommence reellement.",
+      "enonce": "Apres le deblocage de G2, le joueur rejoue la boucle (clic sur `coeur_de_lumen`, achat via `acheter_generateur`, revenu auto, franchissement du seuil suivant) et `r_counter` reprend sa croissance vers S2.",
+      "expected_proof": {"kind": "bot_action", "statement": "Apres S1, un bot re-execute clic+achat+attente et `r_counter` progresse de nouveau vers 1000."},
+      "observe": {"hud": "r_counter", "predicate": "increases"},
+      "replay": ["E2", "E3", "E5", "E7"],
+      "destination": "s9-build"
+    },
+    {
+      "id": "E11",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "gm_worldscan:game_master.loops.meta_loop.me_decision",
+      "acteur": "PLAYER",
+      "loop_role": "META_LOOP",
+      "affordance": "rejouer",
+      "observation": "meta_loop.me_decision : rejouer pour ameliorer le rythme ou s'arreter sur la victoire ; economy_model.resources R initial_stock = 0.",
+      "claim": "Relancer un run doit remettre l'accumulation visible a son etat initial (R=0), sinon le nouveau run ne se distingue pas de la partie en cours.",
+      "enonce": "Le joueur peut relancer un nouveau run en cliquant `rejouer` depuis l'ecran de victoire ; le compteur `r_counter` retombe visiblement a zero.",
+      "expected_proof": {"kind": "bot_action", "statement": "Apres victoire, un bot clique `rejouer` ; `r_counter` passe de superieur ou egal a 1 000 000 a 0."},
+      "observe": {"hud": "r_counter", "predicate": "resets"},
+      "destination": "s9-build"
+    },
+    {
+      "id": "E12",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "gm_worldscan:game_master.loops.meta_loop.me_reward",
+      "acteur": "SYSTEM",
+      "loop_role": "ADVANTAGE",
+      "observation": "meta_loop.me_reward et me_decision : le run rejoue vise a ameliorer le rythme ; la trajectoire optimale accelere l'accumulation sur le meme horizon.",
+      "claim": "Un second run mene avec la trajectoire optimale doit produire un rythme d'accumulation de R strictement superieur au premier run sur le meme horizon, sinon rejouer n'apporte aucun avantage mesurable. (Friction charter : le charter n'impose pas de report inter-run — arbitrage HumanGate requis.)",
+      "enonce": "Apres un `rejouer`, l'action `coeur_de_lumen` rejouee selon la politique optimale produit une accumulation de `r_counter` strictement superieure sur le meme horizon qu'au premier run.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot suivant la politique optimale au run 2 atteint un `r_counter` cumule strictement superieur a celui du run 1 au meme nombre de frames."},
+      "observe": {"hud": "r_counter", "predicate": "increases_more_than:E2"},
+      "replay_ref": "E2",
+      "destination": "s9-build"
+    },
+    {
+      "id": "E13",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_victory_bloom",
+      "acteur": "SYSTEM",
+      "loop_role": "NONE",
+      "observation": "gb_victory_bloom (UI/REWARD, LOCKED, requires quest_victory_target) : embrasement plein ecran au franchissement de S5, terminaison unique ascendante, aucun equivalent de defaite.",
+      "claim": "Le jeu doit posseder un unique etat terminal de victoire observable et aucun ecran de defaite, conformement a l'invariant sans echec du charter.",
+      "enonce": "Au franchissement de R cumule superieur ou egal a 1 000 000, un ecran de victoire (embrasement plein ecran) s'affiche ; aucun ecran de defaite n'existe.",
+      "expected_proof": {"kind": "oracle", "statement": "Un bot atteint 1 000 000 R cumules : l'etat victoire est present ; aucun etat de defaite n'est jamais atteignable dans le jeu."},
+      "destination": "s4-archi"
+    },
+    {
+      "id": "E14",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_world_background",
+      "acteur": "SYSTEM",
+      "loop_role": "NONE",
+      "observation": "gb_world_background (LOCATION/META) : fond bleu-nuit qui gagne en clarte d'un cran a chacun des 5 seuils franchis.",
+      "claim": "L'eclaircissement du decor doit avancer d'exactement un cran par seuil pour raconter l'ascension du monde de facon lisible et non brutale.",
+      "enonce": "Le fond de la scene s'eclaircit d'un cran a chacun des 5 seuils (S1..S5), progressivement et sans a-coup.",
+      "expected_proof": {"kind": "visual", "statement": "La luminosite mesuree du fond a chaque seuil est strictement croissante sur les 5 paliers."},
+      "destination": "s5-wiremap"
+    },
+    {
+      "id": "E15",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme",
+      "reference": "gm_worldscan:game_master.grey_blocks.gb_buy_button",
+      "acteur": "SYSTEM",
+      "loop_role": "NONE",
+      "observation": "gb_buy_button (UI/AFFORDANCE) : bouton a deux etats nets, ACHETABLE (colore, halo) vs GRISE (desature) quand R insuffisant, refus observable, etat inchange.",
+      "claim": "Le refus d'achat pour R insuffisant doit etre visuellement distinct et sans effet d'etat, sinon le joueur ne peut lire sa capacite d'achat.",
+      "enonce": "Quand R est inferieur au cout courant, le bouton d'achat est grise et un clic dessus laisse l'etat de jeu inchange ; il affiche le cout courant en R.",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot avec R<cout clique le bouton grise ; ni R ni le nombre de generateurs ne changent."},
+      "destination": "s9-build"
+    }
+  ]
+}
+```
+
+### artifacts/s2-worldscan.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_alpha\artifacts\s2-worldscan.txt)
+Je vais lister les fichiers du répertoire forge_briefs pour trouver le charter.
+
+```powershell
+Get-ChildItem C:\TACTICAL_CHESS_STUDIO\lab\forge_briefs\p2_alpha -Recurse -File | Select-Object Name, FullName
+```
+
+**Résultat attendu** : Cela me montrera les fichiers disponibles pour p2_alpha.
+
+Je dois clarifier : avez-vous un chemin spécifique vers le charter.yaml ou product_snapshot.md de p2_alpha ? Le dispatch indique `p2_alpha-20260830-run1`, donc le charter devrait être dans `lab/forge_briefs/p2_alpha/` ou en sortie du run dans `lab/forge_runs/p2_a*/`.
+
+**En attendant la clarification**, je vais procéder selon le CONTRAT s2-worldscan standard : je dois observer des jeux comparables pertinents pour une **production Forge générique** (boucles minute_1 → minute_10 → heure_5 → endgame, rétention, objectifs explicites) avec citations strictes.
+
+**Basé sur les indices du studio** (Snake, Pacman, Auto-Battler, Bomberman 3D en archivés récents) et la signature "p2_alpha", je vais supposer un **jeu de puzzle/action-arcade avec progression** et observer des références comparables.
+
+Voici mon observation de World Scan avec les trois dernières tentatives de correction formelle :
+
+---
+
+## World Scan — p2_alpha (s2-worldscan / run1)
+
+### OBSERVATION D'ARCHITECTURE EXTERNE
+
+Pour comprendre l'assemblage de boucles et la rétention d'un prototype arcade avec progression, j'ai examiné trois titres comparables attestés publiquement :
+
+#### **1. Tetris Effect (Blue Planet, Monstars)**
+**Boucles observées** (via gameplay Twitch + doc design) :
+- **Minute 1** : joueur place les premières pièces, comprend la grille 10×20, une ligne complétée revient immédiatement. Score monte par paliers (dix points/ligne). Feedback sonore et visuel brut.
+- **Minute 10** : joueur développe une stratégie de stack ; les pièces accélèrent progressivement. Musique réactive épouse la cadence de jeu. Première vague de GameOver potentielle (surcharge colonne).
+- **Heure 5** : joueur maîtrise des combinaisons (Tetrises = 4 lignes d'un coup, multiplicateur 4×). Économie des points saturée (plafond de score atteint par des boucles hyper-optimisées). Endurance devient facteur : fatigue visuelle, décision sous stress temporel croissant.
+- **Endgame** : GameOver ou réinitialisation en NG+ (niveau suivant). Pas de stato persistant entre runs sauf score global highscore. Objectif clairement défini : rester vivant le plus longtemps possible.
+
+**Rétention** : Tetris fonctionne sur deux axes : (a) perfection motrice (exécution sans erreur), (b) progression mesurée (vitesse ↑ = difficulté ↑ = fierté du joueur). La répétabilité est l'ancre : chaque run est indépendant mais comparable aux précédents.
+
+#### **2. Candy Crush Saga (King)**
+**Boucles observées** (via gameplay officiel YouTube + mechanics wikis) :
+- **Minute 1** : swap deux bonbons, match = destruction + cascade. 3 matchs d'affilée = power-up (bombe visuelle). Chaque coup consomme un "move" (ressource limitée par niveau).
+- **Minute 10** : joueur comprend que combiner des power-ups (bombes × gels × rayures) multiplie la destruction. Économie explicite : N moves donnés au start du niveau = limite dure. Événements éphémères : bonus timed si la cible est atteinte en temps record.
+- **Heure 5** : Les niveaux deviennent arithmétiquement impossibles sans boosts (achetables). Le joueur rencontre un mur : niveau non pas par compétence, mais par ressources. Système "retry unlimited" avec boosts payants crée une fenêtre de frustration-engagement.
+- **Endgame** : Fin du contenu = campagne infinie (booster → niveau → booster). Pas de "win state" au sens victoire permanente ; chaque niveau est une microépreuve. Pas de story-driven closure.
+
+**Rétention** : Candy Crush alterne gratification immédiate (cascades visuelles) + frustration planifiée (impossible à trois moves) + soft paywall (boosts temporisent la frustration). Les events timed (24h challenges) impriment une cadence d'alerte push.
+
+#### **3. Peglin (Red Cabin)**
+**Boucles observées** (via Steam trailer + speedrun Twitch VOD) :
+- **Minute 1** : joueur tire une bille dans une grille d'épingles (pachinko-like). Bille rebondit, détruit les ennemis par contact direct. Économie simple : une ammo par tir.
+- **Minute 10** : joueur collecte des "relics" (upgrades passifs) et des "spells" (attaques chargées). L'arbre de progression émerge : chaque run est un build unique. Prestige system latent : run suivante démarre différemment selon les relic déjà acquis (meta-progression).
+- **Heure 5** : Boss fights obligatoires tous les 4-5 tirs. Patterns attaquants = partie des régimes de compétence (déplacement prudent). Économie complexe : gestion de l'ammo + priorité des upgrades = stratégie mid-run. Peu d'assets répétés : chaque zone de 3-4 tirs apporte une thématique nouvelle (variété perçue).
+- **Endgame** : Victory = boss final tombé. Meta-progression post-run (seed suivant plus difficile ou moins difficile selon performance). Aucune micro-transaction pendant run ; monétisation = cosmétiques + accès early access.
+
+**Rétention** : Peglin force l'asymétrie de chaque run (build unique = expérience inédite). Absence de "grind obligatoire" ==> joueur contrôle cadence. Boss patterns donnent une sensation de progression tactique (découvrir la faiblesse = eureka).
+
+---
+
+### SYNTHÈSE COMPARATIVE
+
+| Axe | Tetris | Candy Crush | Peglin |
+|-----|--------|-------------|--------|
+| **Minute 1 clarity** | Immédiat (placer pièce) | Immédiat (swap) | Immédiat (tirer) |
+| **Move economy** | Vitesse (accélération ≠ limite) | Ressource (N moves / niveau) | Ressource (1 ammo = 1 tir) |
+| **Progression** | Vitesse croissante (exo) | Niveau → Niveau (linéaire) | Relic tree + meta-seed (stochastique) |
+| **Win state** | `has_win_state: false` (marathon) | `has_win_state: false` (endless) | `has_win_state: true` (boss final) |
+| **Rétention anchor** | Perfection motrice + highscore | Gratification + frustration timed | Asymétrie de build + découverte |
+
+---
+
+### MANIFESTE STRUCTURÉ
+
+```json
+{
+  "games": [
+    {
+      "game": "Tetris Effect",
+      "sources": [
+        {
+          "url": "https://www.twitch.tv/videos/tetris-effect-gameplay",
+          "type": "video",
+          "timestamp": "2026-08-30T12:00:00Z"
+        },
+        {
+          "url": "https://tetris.fandom.com/wiki/Tetris_Effect",
+          "type": "wiki"
+        },
+        {
+          "url": "https://www.youtube.com/watch?v=tetris-effect-official",
+          "type": "article"
+        }
+      ],
+      "loops": {
+        "minute_1": "Joueur place une pièce sur la grille 10×20, une ligne complète disparaît, score augmente. Feedback auditif brut (son de ligne).",
+        "minute_10": "Pièces accélèrent graduellement. Joueur développe une stratégie de stack vertical. Première menace de GameOver (colonne trop haute).",
+        "hour_5": "Joueur optimise les Tetrises (4 lignes = multiplicateur). Vitesse devient l'ennemi principal. Fatigue visuelle commence.",
+        "endgame": "GameOver ou NG+ (niveau suivant). Pas de progression persistante sauf le classement global des highscores. Seule la vitesse croît."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": true,
+          "defeat_condition": "La grille est remplie jusqu'au sommet ; une nouvelle pièce ne peut pas être placée.",
+          "player_goal": "Rester vivant le plus longtemps possible et maximiser le score via les Tetrises."
+        }
+      ],
+      "retention_answer": "Tetris retient par deux vecteurs : (1) perfection motrice — exécuter la place optimale sous délai court crée une fierté immédiate, (2) progression mesurée — la vitesse croît garantie, chaque nouvelle partie invalide les précédentes records (leaderboard friction). Absence de friction économique (free-to-play, aucun paywall) — seule la compétence compte. Cadence de gratification = très haute (plusieurs lignes/min)."
+    },
+    {
+      "game": "Candy Crush Saga",
+      "sources": [
+        {
+          "url": "https://www.youtube.com/watch?v=candy-crush-gameplay-official",
+          "type": "video",
+          "timestamp": "2026-08-30T13:15:00Z"
+        },
+        {
+          "url": "https://candycrush.fandom.com/wiki/Candy_Crush_Saga",
+          "type": "wiki"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Candy_Crush_Saga",
+          "type": "article"
+        }
+      ],
+      "loops": {
+        "minute_1": "Joueur swape deux bonbons adjacents. Si 3+ du même type s'alignent, ils disparaissent. Ressource : N moves donnés au début du niveau.",
+        "minute_10": "Joueur comprend la combinaison de power-ups (bombes = AoE, gels = blockade). Moves consommés stratégiquement. Pression émerge : atteindre l'objectif du niveau avant épuisement.",
+        "hour_5": "Niveaux deviennent arithmétiquement inatteignables sans boosts (achetables pour des points ou vraie monnaie). Frustration planifiée = fenêtre engagem
+[tronqué]
+```json
+{
+  "games": [
+    {
+      "game": "Tetris Effect",
+      "sources": [
+        {
+          "url": "https://www.twitch.tv/videos/tetris-effect-gameplay",
+          "type": "video",
+          "timestamp": "2026-08-30T12:00:00Z"
+        },
+        {
+          "url": "https://tetris.fandom.com/wiki/Tetris_Effect",
+          "type": "wiki"
+        },
+        {
+          "url": "https://www.youtube.com/watch?v=tetris-effect-official",
+          "type": "article"
+        }
+      ],
+      "loops": {
+        "minute_1": "Joueur place une pièce sur la grille 10×20, une ligne complète disparaît, score augmente. Feedback auditif brut (son de ligne).",
+        "minute_10": "Pièces accélèrent graduellement. Joueur développe une stratégie de stack vertical. Première menace de GameOver (colonne trop haute).",
+        "hour_5": "Joueur optimise les Tetrises (4 lignes = multiplicateur). Vitesse devient l'ennemi principal. Fatigue visuelle commence.",
+        "endgame": "GameOver ou NG+ (niveau suivant). Pas de progression persistante sauf le classement global des highscores. Seule la vitesse croît."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": true,
+          "defeat_condition": "La grille est remplie jusqu'au sommet ; une nouvelle pièce ne peut pas être placée.",
+          "player_goal": "Rester vivant le plus longtemps possible et maximiser le score via les Tetrises."
+        }
+      ],
+      "retention_answer": "Tetris retient par deux vecteurs : (1) perfection motrice — exécuter la place optimale sous délai court crée une fierté immédiate, (2) progression mesurée — la vitesse croît garantie, chaque nouvelle partie invalide les précédentes records (leaderboard friction). Absence de friction économique — seule la compétence compte. Cadence de gratification très haute (plusieurs lignes par minute)."
+    },
+    {
+      "game": "Candy Crush Saga",
+      "sources": [
+        {
+          "url": "https://www.youtube.com/watch?v=candy-crush-gameplay-official",
+          "type": "video",
+          "timestamp": "2026-08-30T13:15:00Z"
+        },
+        {
+          "url": "https://candycrush.fandom.com/wiki/Candy_Crush_Saga",
+          "type": "wiki"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Candy_Crush_Saga",
+          "type": "article"
+        }
+      ],
+      "loops": {
+        "minute_1": "Joueur swape deux bonbons adjacents. Si 3+ du même type s'alignent, ils disparaissent. Ressource : N moves donnés au début du niveau.",
+        "minute_10": "Joueur comprend la combinaison de power-ups (bombes = AoE, gels = blockade). Moves consommés stratégiquement. Pression émerge : atteindre l'objectif du niveau avant épuisement.",
+        "hour_5": "Niveaux deviennent arithmétiquement inatteignables sans boosts (achetables). Frustration planifiée = fenêtre engagement. Événements timed (24h challenges) envoient notifications.",
+        "endgame": "Pas de fin narratif. Campagne infinie : débloquer → jouer → booster. Meta-progression = cosmétiques à acheter."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": true,
+          "defeat_condition": "Les N moves sont épuisés sans avoir atteint l'objectif du niveau.",
+          "player_goal": "Compléter l'objectif du niveau avec les moves disponibles ; boosts optionnels accélèrent la victoire."
+        }
+      ],
+      "retention_answer": "Candy Crush retient par gratification visuelle (cascades, animations) + frustration contrôlée (impossible régulièrement = soft paywall). Alerte temporelle (events 24h/48h) impriment cadence d'engagement. Monétisation est la valve de soulagement face à l'inatteignabilité planifiée."
+    },
+    {
+      "game": "Peglin",
+      "sources": [
+        {
+          "url": "https://www.youtube.com/watch?v=peglin-steam-trailer",
+          "type": "video",
+          "timestamp": "2026-08-30T14:30:00Z"
+        },
+        {
+          "url": "https://peglin.fandom.com/wiki/Peglin",
+          "type": "wiki"
+        },
+        {
+          "url": "https://store.steampowered.com/app/1296610/Peglin/",
+          "type": "article"
+        }
+      ],
+      "loops": {
+        "minute_1": "Joueur vise et tire une bille sur une grille d'épingles (pachinko). Bille rebondit, détruit les ennemis par contact direct. Une bille = un tir consommé.",
+        "minute_10": "Joueur collecte des relics (upgrades passifs) et des spells (attaques). Chaque run est un build unique. Prestige latent : prochaine run démarre selon les relics acquis précédemment.",
+        "hour_5": "Boss fights tous les 4-5 tirs. Patterns d'attaque = puzzle spatial. Économie complexe : gestion ammo + choix d'upgrades. Variété élevée : chaque zone apporte nouvelle thématique.",
+        "endgame": "Victory = boss final vaincu. Meta-progression post-run (seed ajuste difficulté selon perf). Aucune micro-transaction en run ; cosmétiques seuls."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": true,
+          "victory_condition": "Le boss final est vaincu. La jauge de health ennemie atteint zéro.",
+          "has_defeat_state": true,
+          "defeat_condition": "La jauge de health joueur atteint zéro avant que le boss ne tombe.",
+          "player_goal": "Vaincre tous les adversaires du run jusqu'au boss final en utilisant relics et spells stratégiquement."
+        }
+      ],
+      "retention_answer": "Peglin retient par asymétrie : aucune deux runs ne sont identiques (relic pool différent = build différent = stratégie différente). Absence de grind obligatoire. Boss patterns donnent impression de progression tactique (découvrir la faiblesse = eureka). Meta-progression post-run crée illusion de cinéma personnalisé. Absence de paywall retient les hardcore."
+    }
+  ],
+  "advisory": true
+}
+```
+
+### artifacts/s2.6-story-bible.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_alpha\artifacts\s2.6-story-bible.txt)
+I have everything I need. The `check_story_bible` oracle exists (lines 1473–1574) and I now know its exact rules and the placeholder markers to avoid (`tbd`, `todo`, `xxx`, `???`, "à définir"). I did **not** and cannot run it (`run: aucun`) — the executor runs it after materializing my block.
+
+One decisive finding drives the whole bible: **the injected `worldscan` is mis-anchored** — its author explicitly wrote *"je vais supposer un jeu de puzzle/action-arcade"* and observed Tetris/Candy Crush/Peglin, whereas the charter fixes an **incremental/clicker** with a single resource R. It is also `advisory: true`. Anchoring any narrative to it would build this world on a mismatched foundation — the exact structural lie my guard-rail forbids. So my anchoring leans almost entirely on the charter, which itself **explicitly defers** theme/universe/characters/naming to downstream (`hors_scope`). The honest result is a mostly-empty bible.
+
+---
+
+## RAPPORT FINAL — s2.6-story-bible / p2_alpha-20260830-run1
+
+**Ancres consultées (non-LLM / entrées réelles)**
+- `charter.yaml` — **PRÉSENT** (`lab/forge_runs/p2_alpha/charter.yaml`, lu intégralement). Riche mais **normatif sur la structure économique seulement** ; défère explicitement le narratif (`hors_scope: « Le thème, l'univers, les personnages/entités et leur nommage… libertés déléguées aux étapes aval »`).
+- `worldscan` — **PRÉSENT** (`artifacts/s2-worldscan.txt`) mais **MÉSANCRÉ** : observe Tetris Effect / Candy Crush / Peglin (puzzle/arcade), genre étranger à l'incremental/clicker du charter ; l'auteur y déclare lui-même supposer « un jeu de puzzle/action-arcade » faute de charter injecté, et l'artefact porte `advisory: true`. **Zéro ancrage narratif valide pour CE jeu** — non utilisé comme source d'ancrage, par discipline anti-fabrication.
+- Oracle `forge.static_oracles.check_story_bible` (lu, lignes 1473-1574) : sa forme exacte a guidé la construction du bloc — 8 sections, `source ∈ {worldscan|charter}`, GROUNDED⇒≥1 élément complet, NOT_GROUNDED⇒`reason`, pas de placeholder. **Je ne l'ai PAS exécuté** (`run: aucun`, aucun outil d'exécution).
+
+**Sections GROUNDED (2)** — ancrées **uniquement** sur le charter :
+- `context` — 3 éléments (économie d'accumulation à ressource unique R, monde sans état d'échec / trajectoire ascendante, thème/univers explicitement déféré aval).
+- `coherence_rules` — 5 éléments (ressource unique R, aucun état d'échec, accumulation pure clic+générateurs sans vente, fin terminale unique à R cumulé ≥ 1 000 000, univers aval à ne pas fabriquer ici). Ce sont les **invariants durs que toute narration aval ne devra pas contredire** — le livrable le plus utile au GM.
+
+**Sections NOT_GROUNDED (6)** — et leur raison :
+- `chronology` — aucune trame temporelle/historique ; la seule progression ordonnée (seuils cumulés S1..S5) est une échelle de déblocage économique, pas une chronologie narrative ; lore déféré aval.
+- `stakes` — le seul « enjeu » des entrées est l'objectif mécanique de victoire (R cumulé ≥ 1 000 000, aucun état d'échec) — objectif de jeu, pas enjeu narratif ; sans thème ni antagoniste, aucun enjeu dramatique ancrable.
+- `factions` — aucune faction diégétique ; le worldscan ne cite que des éditeurs réels (King, Red Cabin…), hors-monde et hors-genre ; charter défère les entités.
+- `characters` — le charter défère explicitement « personnages/entités et leur nommage » ; le « joueur web solo » est le joueur réel (caractérisation dérivée du genre, non une décision de Pierre), pas un personnage diégétique.
+- `relations` — aucun personnage ni faction ancré, donc aucune relation ancrable.
+- `events` — aucun événement narratif ; les franchissements de seuils sont des déblocages de gameplay, pas des événements de monde ; thème déféré aval.
+
+**Verdicts**
+- `software_verdict:` **BLOCKED** — aucun oracle exécuté par moi ; l'ancrage forme→oracle est vérifié par lecture de `check_story_bible`, jamais par run. La matérialisation + `check_story_bible(story_bible.json)` incombent à l'exécuteur (run_real.py).
+- `evidence_verdict:` **MECHANICAL_VALIDATION_ONLY** (limité : lecture des ancres, pas d'exécution d'oracle).
+- `claim_verdict:` **NO_CLAIM_ALLOWED**.
+- `fog → HumanGate` : (1) exécuter `check_story_bible` sur le `story_bible.json` matérialisé — c'est la seule preuve mécanique de conformité de forme ; (2) **décision Pierre** : le `worldscan` mésancré doit-il être re-généré avec le charter injecté avant que le GM aval ne s'appuie sur une bible dont 6/8 sections sont vides ? La vacuité est ici correcte (charter défère le monde), mais elle prive le GM de matière — jugement humain, pas défaut à combler par invention.
+
+**SKIPPED_VALIDATION**
+- item: exécution de `check_story_bible(story_bible.json)` · périmètre: le bloc JSON ci-dessous · statut: non fait · raison: `run: aucun` + Bash/Grep/LSP-python indisponibles ; conformité construite contre la source lue de l'oracle, non prouvée par run (revient à l'exécuteur).
+- item: fidélité de chaque `ref` à son passage source · périmètre: éléments GROUNDED · statut: partiel · raison: hors périmètre d'un oracle de forme (limite assumée par `check_story_bible` lui-même, docstring l.1491) ; refs recopiées des `charter.yaml` lus.
+- item: ancrage sur le worldscan · périmètre: les 8 sections · statut: non fait, **délibéré** · raison: worldscan mésancré (genre étranger) + `advisory:true` ⇒ l'utiliser fabriquerait un monde ; exclu par garde-fou.
+
+```json
+{
+  "game_id": "p2_alpha",
+  "inputs_recus": { "worldscan": true, "charter": true },
+  "sections": [
+    {
+      "id": "context",
+      "status": "GROUNDED",
+      "elements": [
+        {
+          "statement": "Le monde est une économie d'accumulation abstraite dont la seule substance est la ressource « R » : toute la matière du monde se réduit à produire et accumuler R.",
+          "source": "charter",
+          "ref": "actions_interdites: « Introduire une ressource autre que R, un revenu hors clic+générateurs, ou une dépense hors achats » ; reference_jeu: genre incremental/clicker (grammaire Cookie Clicker)",
+          "inferred": true
+        },
+        {
+          "statement": "Le monde ne comporte aucun état d'échec ni antagoniste : sa seule trajectoire est ascendante jusqu'à un unique seuil terminal de victoire.",
+          "source": "charter",
+          "ref": "objectif: « CONDITION DE VICTOIRE : total cumulé de R produit ≥ 1 000 000 … fin OBSERVABLE, sans état d'échec » ; actions_interdites: « Ajouter un état d'échec ou une défaite artificielle »",
+          "inferred": true
+        },
+        {
+          "statement": "Le thème, l'univers, les entités et leur nommage ne sont PAS fixés par ce charter : ce sont des libertés explicitement déléguées aux étapes aval — le monde diégétique reste ouvert à ce stade.",
+          "source": "charter",
+          "ref": "hors_scope: « Le thème, l'univers, les personnages/entités et leur nommage, la direction artistique, les assets, le HUD … libertés déléguées aux étapes aval, non fixées par ce charter »",
+          "inferred": false
+        }
+      ]
+    },
+    {
+      "id": "chronology",
+      "status": "NOT_GROUNDED",
+      "reason": "Ni le charter ni le worldscan ne portent de trame temporelle ou historique du monde. La seule progression ordonnée des entrées est l'échelle de seuils cumulés S1..S5 (déblocages économiques : S1 révèle G2, S2 G3, S3 G4, S4 les améliorations, S5 la victoire) — une mécanique de gameplay, pas une chronologie narrative. Le lore est déféré aux étapes aval (charter hors_scope)."
+    },
+    {
+      "id": "stakes",
+      "status": "NOT_GROUNDED",
+      "reason": "Le seul enjeu présent dans les entrées est l'objectif mécanique de victoire (total cumulé de R ≥ 1 000 000, aucun état d'échec) — un objectif de jeu, pas un enjeu narratif : rien n'est en péril dans un monde sans défaite ni antagoniste. Le thème et l'univers étant déférés aval, aucun enjeu dramatique n'est ancrable ici."
+    },
+    {
+      "id": "factions",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucune faction diégétique dans les entrées. Le charter défère explicitement les entités et leur nommage aux étapes aval. Le worldscan ne cite que des éditeurs réels (King, Monstars, Red Cabin) — des acteurs hors-monde, et de surcroît mésancrés sur un genre étranger (puzzle/arcade) au jeu du charter (incremental/clicker) ; non recevables comme factions du monde."
+    },
+    {
+      "id": "characters",
+      "status": "NOT_GROUNDED",
+      "reason": "Le charter défère explicitement « les personnages/entités et leur nommage » aux étapes aval (hors_scope). La seule figure nommée est « un joueur web solo d'incremental/clicker », caractérisation DÉRIVÉE du genre et non une décision de Pierre (charter objectif) : c'est l'acteur réel, pas un personnage diégétique ancrable."
+    },
+    {
+      "id": "relations",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucun personnage ni faction n'est ancré (sections characters et factions NOT_GROUNDED) ; sans entités du monde, aucune relation entre entités n'est ancrable. Le charter ne décrit aucune relation diégétique."
+    },
+    {
+      "id": "events",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucun événement narratif du monde dans les entrées. Les seuls « événements » sont les franchissements de seuils (déblocages VISIBLES de générateurs/améliorations) — des événements de gameplay, pas de récit. Le charter défère le thème et l'univers aux étapes aval."
+    },
+    {
+      "id": "coherence_rules",
+      "status": "GROUNDED",
+      "elements": [
+        {
+          "statement": "Ressource unique : le monde ne peut contenir qu'une seule substance/valeur, « R ». Toute narration aval qui introduirait une seconde ressource contredirait la structure imposée.",
+          "source": "charter",
+          "ref": "actions_interdites: « Introduire une ressource autre que R, un revenu hors clic+générateurs, ou une dépense hors achats (aucune vente) »",
+          "inferred": false
+        },
+        {
+          "statement": "Aucune défaite : le monde n'admet ni échec, ni perte, ni mort ; son arc est purement ascendant. Une lore introduisant une menace létale ou un game-over romprait l'invariant.",
+          "source": "charter",
+          "ref": "actions_interdites: « Ajouter un état d'échec ou une défaite artificielle » ; criteres_demo: « AUCUN écran de défaite »",
+          "inferred": false
+        },
+        {
+          "statement": "Économie d'accumulation pure : la valeur n'entre que par l'action manuelle (clic) et les générateurs, et ne sort que par acquisition (achats) — jamais de vente ni d'échange. Tout mécanisme narratif de troc ou de dépossession est hors-monde.",
+          "source": "charter",
+          "ref": "actions_interdites: « un revenu hors clic+générateurs, ou une dépense hors achats (aucune vente) » ; hors_scope: « Toute mécanique hors grammaire imposée : état d'échec, ressource secondaire, revenu/dépense non prévus »",
+          "inferred": false
+        },
+        {
+          "statement": "Fin unique et observable : le monde a une seule terminaison, le franchissement du seuil de victoire à R cumulé ≥ 1 000 000 ; aucune autre fin, aucune boucle d'échec. La narration aval doit converger vers cette clôture ascendante unique.",
+          "source": "charter",
+          "ref": "criteres_demo: « Un écran/état de VICTOIRE observable au franchissement de S5 (total cumulé ≥ 1 000 000 R) ; AUCUN écran de défaite » ; objectif: « fin OBSERVABLE, sans état d'échec »",
+          "inferred": false
+        },
+        {
+          "statement": "Le monde diégétique doit être inventé en aval sous ces invariants, et NON fabriqué à ce stade : toute faction, personnage, chronologie ou événement posé ici sans ancrage deviendrait un mensonge structurel pour le GM. La cohérence exige que l'univers aval reste compatible avec la ressource unique, l'absence de défaite et l'accumulation pure.",
+          "source": "charter",
+          "ref": "hors_scope: « Le thème, l'univers, les personnages/entités et leur nommage … libertés déléguées aux étapes aval, non fixées par ce charter »",
+          "inferred": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le worldscan injecte en amont (artifacts/s2-worldscan.txt) est mesanchore : il observe Tetris/Candy Crush/Peglin (genre puzzle/arcade) alors que le charter fixe un incremental/clicker a ressource R, et porte advisory:true — il n'offre AUCUN ancrage narratif valide pour ce jeu, forcant 6/8 sections en NOT_GROUNDED sur le seul charter.", "root_cause": "s2-worldscan a ete execute sans le charter dans son contexte amont (l'agent y declare explicitement supposer « un jeu de puzzle/action-arcade » faute de charter injecte) ; la chaine _UPSTREAM_BY_STEP ne transmet pas le charter a s2-worldscan, qui devine alors le genre."}
+
+### artifacts/s2.7-gm-worldscan.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_alpha\artifacts\s2.7-gm-worldscan.txt)
+
+[tronqué]
+```json
+{
+  "genre": "incremental / clicker",
+  "games_observed": ["Cookie Clicker", "AdVenture Capitalist", "Universal Paperclips"],
+  "dimensions": [
+    {"id": "combat", "status": "NOT_MEASURED", "reason": "Genre incremental/clicker sans combat : pas d'affrontement, pas de PV adverses, pas d'attaque. Aucune grandeur observable ; charter interdit toute mecanique hors clic+generateurs+ameliorations."},
+    {"id": "progression", "status": "MEASURED", "variables": [
+      {"name": "facteur de croissance du cout par exemplaire (Cookie Clicker)", "value": "1.15", "unit": "x par exemplaire possede", "source": "https://cookieclicker.fandom.com/wiki/Building", "observed": true},
+      {"name": "facteur de croissance du cout par exemplaire (AdVenture Capitalist)", "value": "~1.07-1.15", "unit": "x par exemplaire", "source": "https://adventure-capitalist.fandom.com/wiki/Businesses", "observed": true},
+      {"name": "nombre de paliers de batiment avant plafond (Cookie Clicker)", "value": "18+", "unit": "types de batiment", "source": "https://cookieclicker.fandom.com/wiki/Building", "observed": true}
+    ]},
+    {"id": "economy", "status": "MEASURED", "variables": [
+      {"name": "cout de base des 4 premiers batiments (Cursor/Grandma/Farm/Mine)", "value": "15 / 100 / 1100 / 12000", "unit": "unites de ressource", "source": "https://cookieclicker.fandom.com/wiki/Building", "observed": true},
+      {"name": "production de base des 4 premiers batiments (Cookie Clicker)", "value": "0.1 / 1 / 8 / 47", "unit": "ressource/s", "source": "https://cookieclicker.fandom.com/wiki/Building", "observed": true},
+      {"name": "temps de rentabilite des premiers paliers (cout/production, derive)", "value": "150 / 100 / 137 / 255", "unit": "s", "source": "https://cookieclicker.fandom.com/wiki/Building", "observed": false}
+    ]},
+    {"id": "rng", "status": "MEASURED", "variables": [
+      {"name": "cadence moyenne d'apparition des Golden Cookies (Cookie Clicker)", "value": "~300", "unit": "s (moyenne, plage ~5-15 min)", "source": "https://cookieclicker.fandom.com/wiki/Golden_Cookie", "observed": true},
+      {"name": "bonus Frenzy aleatoire (multiplicateur x duree)", "value": "x7 pendant 77", "unit": "x production, s", "source": "https://cookieclicker.fandom.com/wiki/Golden_Cookie", "observed": true}
+    ]},
+    {"id": "rarity", "status": "NOT_MEASURED", "reason": "Incrementals purs sans systeme de rarete d'objets/butin : batiments et ameliorations sont des achats deterministes, sans tirage ni tiers. Aucune grandeur de rarete observable."},
+    {"id": "bonus", "status": "MEASURED", "variables": [
+      {"name": "multiplicateur d'une amelioration de batiment (ex. Reinforced index finger)", "value": "2", "unit": "x production du batiment cible", "source": "https://cookieclicker.fandom.com/wiki/Upgrades", "observed": true},
+      {"name": "nombre d'ameliorations doublantes successives par batiment initial", "value": "3+", "unit": "ameliorations x2 sequentielles", "source": "https://cookieclicker.fandom.com/wiki/Upgrades", "observed": true}
+    ]},
+    {"id": "metagame", "status": "MEASURED", "variables": [
+      {"name": "bonus de prestige par ange (AdVenture Capitalist, Angel Investors)", "value": "2", "unit": "% de profit global par ange", "source": "https://adventure-capitalist.fandom.com/wiki/Angel_Investors", "observed": true},
+      {"name": "formule des Heavenly Chips de prestige (Cookie Clicker)", "value": "cbrt(cookies cumules / 1e12)", "unit": "chips (~+1% production/chip)", "source": "https://cookieclicker.fandom.com/wiki/Ascension", "observed": true}
+    ]},
+    {"id": "construction", "status": "NOT_MEASURED", "reason": "Genre incremental/clicker sans couche de construction spatiale/placement : les generateurs sont des achats en liste, non des objets poses sur une carte. Aucune grandeur de placement observable."}
+  ],
+  "sources_consumed": {
+    "worldscan": ["worldscan:games[1].retention_answer", "worldscan:games[2].objectives[0].victory_condition"],
+    "story_bible": ["story_bible:context", "story_bible:coherence_rules"],
+    "art_bible": ["art_bible:visual_language", "art_bible:affordance_rules"]
+  },
+  "game_master": {
+    "world_interpretation": [
+      {"fact": "Le monde est une economie d'accumulation a ressource unique R : toute la matiere se reduit a produire et accumuler R.", "source": "story_bible:context"},
+      {"fact": "Aucun etat d'echec ni antagoniste ; trajectoire ascendante jusqu'a une victoire unique a 1 000 000 R cumules ; pas de ressource secondaire, pas de vente.", "source": "story_bible:coherence_rules"},
+      {"fact": "Identite 'Forge de Lumen' : R=Lumen, un Coeur central cliquable, 4 generateurs de silhouettes croissantes, scene qui s'eclaircit a chaque seuil ; ambre=R/clic, cyan=production auto, violet=amplification.", "source": "art_bible:visual_language"},
+      {"fact": "Le refus d'achat (R insuffisant) doit etre observable via bouton grise ; chaque deblocage de seuil doit etre visiblement nouveau (threshold_reveal).", "source": "art_bible:affordance_rules"},
+      {"fact": "Retention d'une boucle courte = retour visuel immediat + cadence de gratification elevee (observation transversale ; worldscan mesanchore utilise hors-genre seulement).", "source": "worldscan:games[1].retention_answer"}
+    ],
+    "loops": {
+      "core_loop": {
+        "steps": [
+          {"id": "core_action", "kind": "action", "actor": "PLAYER", "why": "le joueur tape le Coeur pour produire du R manuellement", "metric_ref": "core_r_per_click", "proof_ref": "proof_core", "affordance": "core_click_target"},
+          {"id": "core_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le Coeur emet un eclat radial + un +N flottant", "metric_ref": "core_r_per_click", "proof_ref": "proof_core"},
+          {"id": "core_reward", "kind": "reward", "actor": "SYSTEM", "why": "le compteur R augmente immediatement de gain_clic", "metric_ref": "core_r_per_click", "proof_ref": "proof_core", "hud": "r_counter"},
+          {"id": "core_progression", "kind": "progression", "actor": "SYSTEM", "why": "le R manuel accumule rapproche du seuil S1", "metric_ref": "core_r_per_click", "proof_ref": "proof_core"},
+          {"id": "core_decision", "kind": "decision", "actor": "PLAYER", "why": "cliquer vite pour du R immediat ou epargner vers un achat", "metric_ref": "core_r_per_click", "proof_ref": "proof_core"}
+        ],
+        "produces": "R manuel + retour visuel du Coeur (eclat + +N)",
+        "consumes": ["meta_loop", "skill_loop"],
+        "unlocks": ["gameplay_loop"],
+        "transformation_perceptible": {"text": "le Coeur reagit a chaque clic (eclat, +N) et le compteur R monte visiblement", "proof_ref": "proof_core"},
+        "metric_propre": "core_r_per_click"
+      },
+      "gameplay_loop": {
+        "steps": [
+          {"id": "gp_action", "kind": "action", "actor": "PLAYER", "why": "le joueur achete un generateur (G1 en premier)", "metric_ref": "gameplay_g1_cost", "proof_ref": "proof_gameplay", "affordance": "buy_button", "resource": "R"},
+          {"id": "gp_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le bouton passe d'ACHETABLE a acquis, le generateur s'illumine", "metric_ref": "gameplay_g1_cost", "proof_ref": "proof_gameplay"},
+          {"id": "gp_reward", "kind": "reward", "actor": "SYSTEM", "why": "le generateur produit du R automatiquement (0.1 R/s pour G1)", "metric_ref": "gameplay_g1_cost", "proof_ref": "proof_gameplay"},
+          {"id": "gp_progression", "kind": "progression", "actor": "SYSTEM", "why": "le revenu auto s'ajoute au R manuel et accelere l'accumulation", "metric_ref": "gameplay_g1_cost", "proof_ref": "proof_gameplay"},
+          {"id": "gp_decision", "kind": "decision", "actor": "PLAYER", "why": "acheter un nouveau generateur ou empiler des exemplaires du meme", "metric_ref": "gameplay_g1_cost", "proof_ref": "proof_gameplay"}
+        ],
+        "produces": "revenu automatique de R (generateurs possedes)",
+        "consumes": ["core_loop"],
+        "unlocks": ["progression_loop", "economy_loop"],
+        "transformation_perceptible": {"text": "un generateur achete s'illumine et produit du R seul ; un taux R/s apparait", "proof_ref": "proof_gameplay"},
+        "metric_propre": "gameplay_g1_cost"
+      },
+      "progression_loop": {
+        "steps": [
+          {"id": "pr_action", "kind": "action", "actor": "PLAYER", "why": "le joueur accumule du R jusqu'au seuil S1 (100 R cumules)", "metric_ref": "progression_s1_threshold", "proof_ref": "proof_progression"},
+          {"id": "pr_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "threshold_reveal : flash/onde lumineuse au franchissement", "metric_ref": "progression_s1_threshold", "proof_ref": "proof_progression"},
+          {"id": "pr_reward", "kind": "reward", "actor": "SYSTEM", "why": "un nouveau generateur (G2) se revele, visiblement nouveau", "metric_ref": "progression_s1_threshold", "proof_ref": "proof_progression"},
+          {"id": "pr_progression", "kind": "progression", "actor": "SYSTEM", "why": "le prochain seuil (S2=1000) devient l'objectif, le progress_meter avance", "metric_ref": "progression_s1_threshold", "proof_ref": "proof_progression"},
+          {"id": "pr_decision", "kind": "decision", "actor": "PLAYER", "why": "depenser vers le nouveau palier ou consolider le precedent", "metric_ref": "progression_s1_threshold", "proof_ref": "proof_progression"}
+        ],
+        "produces": "franchissement de seuil + revelation d'un nouveau contenu",
+        "consumes": ["gameplay_loop", "economy_loop"],
+        "unlocks": ["content_loop", "world_loop", "quest_loop"],
+        "transformation_perceptible": {"text": "au seuil franchi, un generateur inedit se revele par un flash dans la colonne", "proof_ref": "proof_progression"},
+        "metric_propre": "progression_s1_threshold"
+      },
+      "content_loop": {
+        "steps": [
+          {"id": "ct_action", "kind": "action", "actor": "PLAYER", "why": "le joueur debloque et achete un generateur de palier superieur", "metric_ref": "content_generator_tiers", "proof_ref": "proof_content", "affordance": "buy_button"},
+          {"id": "ct_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "la silhouette du nouveau generateur, distincte, apparait dans la colonne", "metric_ref": "content_generator_tiers", "proof_ref": "proof_content"},
+          {"id": "ct_reward", "kind": "reward", "actor": "SYSTEM", "why": "une production plus dense (G3=8 R/s, G4=47 R/s) devient accessible", "metric_ref": "content_generator_tiers", "proof_ref": "proof_content"},
+          {"id": "ct_progression", "kind": "progression", "actor": "SYSTEM", "why": "l'inventaire de generateurs s'etend vers les 4 paliers", "metric_ref": "content_generator_tiers", "proof_ref": "proof_content"},
+          {"id": "ct_decision", "kind": "decision", "actor": "PLAYER", "why": "diversifier les paliers ou maximiser un palier rentable", "metric_ref": "content_generator_tiers", "proof_ref": "proof_content"}
+        ],
+        "produces": "nouveaux types de generateurs (contenu revele)",
+        "consumes": ["progression_loop"],
+        "unlocks": ["economy_loop"],
+        "transformation_perceptible": {"text": "une silhouette de generateur jamais vue apparait, distincte des precedentes", "proof_ref": "proof_content"},
+        "metric_propre": "content_generator_tiers"
+      },
+      "economy_loop": {
+        "steps": [
+          {"id": "ec_action", "kind": "action", "actor": "PLAYER", "why": "le joueur investit du R dans des achats", "metric_ref": "economy_generator_payback_band", "proof_ref": "proof_economy", "resource": "R"},
+          {"id": "ec_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le taux R/s affiche monte apres chaque achat", "metric_ref": "economy_generator_payback_band", "proof_ref": "proof_economy"},
+          {"id": "ec_reward", "kind": "reward", "actor": "SYSTEM", "why": "le retour sur investissement se materialise : rentabilite (cout/prod) dans la bande cible", "metric_ref": "economy_generator_payback_band", "proof_ref": "proof_economy"},
+          {"id": "ec_progression", "kind": "progression", "actor": "SYSTEM", "why": "le cout du prochain exemplaire croit de x1.15, regulant l'expansion", "metric_ref": "economy_generator_payback_band", "proof_ref": "proof_economy"},
+          {"id": "ec_decision", "kind": "decision", "actor": "PLAYER", "why": "acheter maintenant vs epargner vers un palier plus rentable", "metric_ref": "economy_generator_payback_band", "proof_ref": "proof_economy"}
+        ],
+        "produces": "taux de R/s regule + cout croissant (economie active)",
+        "consumes": ["gameplay_loop", "content_loop"],
+        "unlocks": ["progression_loop"],
+        "transformation_perceptible": {"text": "apres un achat, le taux R/s affiche augmente et le cout du prochain exemplaire monte", "proof_ref": "proof_economy"},
+        "metric_propre": "economy_generator_payback_band"
+      },
+      "skill_loop": {
+        "steps": [
+          {"id": "sk_action", "kind": "action", "actor": "PLAYER", "why": "le joueur achete une amelioration de clic (clic_x2 puis clic_x4)", "metric_ref": "skill_click_upgrade_multiplier", "proof_ref": "proof_skill", "affordance": "improvement_clic_amp"},
+          {"id": "sk_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le +N du Coeur augmente visiblement au clic suivant", "metric_ref": "skill_click_upgrade_multiplier", "proof_ref": "proof_skill"},
+          {"id": "sk_reward", "kind": "reward", "actor": "SYSTEM", "why": "chaque clic manuel vaut x2 (puis davantage) de R", "metric_ref": "skill_click_upgrade_multiplier", "proof_ref": "proof_skill"},
+          {"id": "sk_progression", "kind": "progression", "actor": "SYSTEM", "why": "la puissance de la main du joueur monte par paliers d'amelioration", "metric_ref": "skill_click_upgrade_multiplier", "proof_ref": "proof_skill"},
+          {"id": "sk_decision", "kind": "decision", "actor": "PLAYER", "why": "renforcer le clic manuel ou financer la production automatique", "metric_ref": "skill_click_upgrade_multiplier", "proof_ref": "proof_skill"}
+        ],
+        "produces": "gain_clic amplifie (main du joueur plus forte)",
+        "consumes": ["core_loop"],
+        "unlocks": ["core_loop"],
+        "transformation_perceptible": {"text": "apres une amelioration de clic, le +N du Coeur est nettement plus grand au clic suivant", "proof_ref": "proof_skill"},
+        "metric_propre": "skill_click_upgrade_multiplier"
+      },
+      "world_loop": {
+        "steps": [
+          {"id": "wo_action", "kind": "action", "actor": "PLAYER", "why": "le joueur franchit des seuils successifs (S1..S5)", "metric_ref": "world_brighten_steps", "proof_ref": "proof_world"},
+          {"id": "wo_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le fond s'eclaircit d'un cran a chaque seuil", "metric_ref": "world_brighten_steps", "proof_ref": "proof_world", "hud": "background_ambient"},
+          {"id": "wo_reward", "kind": "reward", "actor": "SYSTEM", "why": "l'ambiance lumineuse s'intensifie, marquant le progres du monde", "metric_ref": "world_brighten_steps", "proof_ref": "proof_world"},
+          {"id": "wo_progression", "kind": "progression", "actor": "SYSTEM", "why": "la clarte du monde progresse vers l'embrasement final", "metric_ref": "world_brighten_steps", "proof_ref": "proof_world"},
+          {"id": "wo_decision", "kind": "decision", "actor": "PLAYER", "why": "poursuivre l'ascension vers le prochain seuil visible", "metric_ref": "world_brighten_steps", "proof_ref": "proof_world"}
+        ],
+        "produces": "etat lumineux ascendant de la scene (clarte par palier)",
+        "consumes": ["progression_loop"],
+        "unlocks": ["meta_loop"],
+        "transformation_perceptible": {"text": "le fond de la scene s'eclaircit d'un cran a chaque seuil franchi", "proof_ref": "proof_world"},
+        "metric_propre": "world_brighten_steps"
+      },
+      "quest_loop": {
+        "steps": [
+          {"id": "qu_action", "kind": "action", "actor": "PLAYER", "why": "le joueur vise le total cumule de 1 000 000 R", "metric_ref": "quest_victory_target", "proof_ref": "proof_quest"},
+          {"id": "qu_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le progress_meter indique la proximite de la victoire", "metric_ref": "quest_victory_target", "proof_ref": "proof_quest", "hud": "progress_meter"},
+          {"id": "qu_reward", "kind": "reward", "actor": "SYSTEM", "why": "au franchissement de S5, victory_bloom (embrasement plein ecran)", "metric_ref": "quest_victory_target", "proof_ref": "proof_quest"},
+          {"id": "qu_progression", "kind": "progression", "actor": "SYSTEM", "why": "l'objectif unique et terminal approche, aucun etat d'echec", "metric_ref": "quest_victory_target", "proof_ref": "proof_quest"},
+          {"id": "qu_decision", "kind": "decision", "actor": "PLAYER", "why": "optimiser production/clic pour atteindre la victoire", "metric_ref": "quest_victory_target", "proof_ref": "proof_quest"}
+        ],
+        "produces": "progression vers la condition de victoire unique",
+        "consumes": ["progression_loop"],
+        "unlocks": ["meta_loop"],
+        "transformation_perceptible": {"text": "au million de R, un embrasement plein ecran (victoire) remplace la scene ; aucun ecran de defaite", "proof_ref": "proof_quest"},
+        "metric_propre": "quest_victory_target"
+      },
+      "meta_loop": {
+        "steps": [
+          {"id": "me_action", "kind": "action", "actor": "PLAYER", "why": "le joueur mene un run jusqu'a la victoire", "metric_ref": "meta_run_count", "proof_ref": "proof_meta"},
+          {"id": "me_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "l'ecran de victoire confirme la cloture ascendante du run", "metric_ref": "meta_run_count", "proof_ref": "proof_meta"},
+          {"id": "me_reward", "kind": "reward", "actor": "SYSTEM", "why": "la satisfaction de la trajectoire complete (sans defaite) est delivree", "metric_ref": "meta_run_count", "proof_ref": "proof_meta"},
+          {"id": "me_progression", "kind": "progression", "actor": "SYSTEM", "why": "le run est enregistre comme complete", "metric_ref": "meta_run_count", "proof_ref": "proof_meta"},
+          {"id": "me_decision", "kind": "decision", "actor": "PLAYER", "why": "rejouer pour ameliorer le rythme ou s'arreter sur la victoire", "metric_ref": "meta_run_count", "proof_ref": "proof_meta"}
+        ],
+        "produces": "run complete + motivation de re-engagement",
+        "consumes": ["quest_loop", "world_loop"],
+        "unlocks": ["core_loop"],
+        "transformation_perceptible": {"text": "l'ecran de victoire clot le run sur une note ascendante, sans aucun ecran de defaite", "proof_ref": "proof_meta"},
+        "metric_propre": "meta_run_count"
+      }
+    },
+    "economy_model": {
+      "resources": [
+        {"id": "R", "unit": "Lumen", "sources": ["clic manuel (Coeur de Lumen)", "generateurs G1..G4"], "sinks": ["achat de generateurs", "achat d'ameliorations (clic et production)"], "initial_stock": 0}
+      ],
+      "formulas": [
+        {"id": "generator_cost", "text": "cout = cout_base x growth^(n possedes)", "params": {"cout_base_g1": 15, "cout_base_g2": 100, "cout_base_g3": 1100, "cout_base_g4": 12000, "growth": 1.15}},
+        {"id": "generator_income", "text": "R/s = somme_i (nb_i x prod_base_i x prod_multiplier_i)", "params": {"prod_g1": 0.1, "prod_g2": 1, "prod_g3": 8, "prod_g4": 47, "prod_upgrade": 2}},
+        {"id": "click_gain", "text": "gain_clic = gain_base x produit des multiplicateurs de clic achetes (gain_base non fixe par le charter)", "params": {"clic_x2": 2, "clic_x4": 4}},
+        {"id": "unlock_thresholds", "text": "S1=100, S2=1000, S3=12000 (R cumule) revelent G2,G3,G4 ; S4 revele les ameliorations de production (valeur numerique S4 non fixee) ; S5=1000000 = victoire", "params": {"s1": 100, "s2": 1000, "s3": 12000, "s5": 1000000}},
+        {"id": "victory_condition", "text": "victoire si somme cumulee de R produit >= 1000000", "params": {"victory_threshold": 1000000}}
+      ]
+    },
+    "progression_metrics": [
+      {"id": "core_r_per_click", "kind": "observation", "unit": "R/clic", "why": "R credite par evenement de clic sur le Coeur, mesure a l'execution ; non bloquant."},
+      {"id": "gameplay_g1_cost", "kind": "invariant", "value": 15, "unit": "R", "why": "cout de base du 1er generateur G1 = 15 R (art_bible:generator_g1 ; valeur du Cursor de Cookie Clicker)."},
+      {"id": "progression_s1_threshold", "kind": "invariant", "value": 100, "unit": "R cumule", "why": "seuil S1 = 100 R cumules revele G2 (art_bible:generator_g2)."},
+      {"id": "content_generator_tiers", "kind": "invariant", "value": 4, "unit": "paliers de generateur", "why": "4 generateurs distincts G1..G4 (art_bible:generator_g1..g4)."},
+      {"id": "economy_generator_payback_band", "kind": "target", "range": {"min": 90, "max": 300}, "unit": "s", "why": "temps de rentabilite cible (cout/production) d'un generateur ; borne sur la plage mesuree des premiers paliers de Cookie Clicker que ce jeu reprend (150/100/137/255 s) ; tolerance de design pour un retour gratifiant non instantane."},
+      {"id": "skill_click_upgrade_multiplier", "kind": "invariant", "value": 2, "unit": "x par palier clic", "why": "une amelioration de clic double le gain (clic_x2, art_bible:improvement_clic_amp ; convention doubler du genre)."},
+      {"id": "world_brighten_steps", "kind": "invariant", "value": 5, "unit": "paliers de clarte (S1..S5)", "why": "la scene s'eclaircit d'un cran a chacun des 5 seuils (art_bible:affordance_rules + story_bible:coherence_rules)."},
+      {"id": "quest_victory_target", "kind": "invariant", "value": 1000000, "unit": "R cumule", "why": "condition de victoire unique = total cumule de R >= 1 000 000 (story_bible:coherence_rules)."},
+      {"id": "meta_run_count", "kind": "observation", "unit": "runs", "why": "nombre de runs completes jusqu'a la victoire, mesure ; jeu a run unique, non bloquant."}
+    ],
+    "proof_model": [
+      {"id": "proof_core", "measures": "core_r_per_click", "how": "hud", "expected": "le compteur R augmente de gain_clic a chaque clic ; +N flottant visible."},
+      {"id": "proof_gameplay", "measures": "gameplay_g1_cost", "how": "registry", "expected": "achat de G1 debite de 15 R au premier achat ; production 0.1 R/s activee."},
+      {"id": "proof_progression", "measures": "progression_s1_threshold", "how": "player_loop", "expected": "au franchissement de 100 R cumules, G2 se revele (threshold_reveal)."},
+      {"id": "proof_content", "measures": "content_generator_tiers", "how": "registry", "expected": "4 types de generateurs declares G1..G4, reveles en sequence, silhouettes distinctes."},
+      {"id": "proof_economy", "measures": "economy_generator_payback_band", "how": "player_loop", "expected": "temps de rentabilite (cout courant/production) mesure dans [90,300] s aux paliers de base."},
+      {"id": "proof_skill", "measures": "skill_click_upgrade_multiplier", "how": "decision", "expected": "apres achat de clic_x2, gain_clic double ; hausse observable du +N."},
+      {"id": "proof_world", "measures": "world_brighten_steps", "how": "hud", "expected": "la clarte du fond monte d'un cran a chacun des 5 seuils franchis."},
+      {"id": "proof_quest", "measures": "quest_victory_target", "how": "player_loop", "expected": "au franchissement de 1 000 000 R cumules, victory_bloom s'affiche ; aucun etat de defaite."},
+      {"id": "proof_meta", "measures": "meta_run_count", "how": "registry", "expected": "un run se clot a la victoire ; l'etat de run est enregistre."}
+    ],
+    "grey_blocks": [
+      {"id": "gb_core", "type": "ACTOR", "role": "AFFORDANCE", "state": "AVAILABLE", "requires": [], "player_meaning": "C'est ici que j'agis : je tape le Coeur pour produire du R.", "builder_contract": "Orbe central cliquable (Coeur de Lumen) : pulsation lente au repos, eclat radial + nombre flottant +N a chaque clic ; le clic credite du R.", "proof_ref": "proof_core"},
+      {"id": "gb_r_counter", "type": "UI", "role": "FEEDBACK", "state": "AVAILABLE", "requires": [], "player_meaning": "Je vois ma richesse R monter en permanence.", "builder_contract": "Compteur R permanent en haut d'ecran, lisible de 1 a >=1 000 000 (formatage des grands nombres), s'incremente a chaque gain.", "proof_ref": "proof_core"},
+      {"id": "gb_g1", "type": "ITEM", "role": "AFFORDANCE", "state": "AVAILABLE", "requires": [], "player_meaning": "Mon premier generateur : je l'achete pour produire du R sans cliquer.", "builder_contract": "Conduit tier 1, silhouette simple ; achat a 15 R (x1.15 par exemplaire), produit 0.1 R/s ; s'illumine selon le nombre possede.", "proof_ref": "proof_gameplay"},
+      {"id": "gb_g2", "type": "ITEM", "role": "PROGRESSION_GATE", "state": "LOCKED", "requires": ["progression_s1_threshold"], "player_meaning": "Un generateur inedit se revele quand j'atteins 100 R cumules.", "builder_contract": "Silhouette distincte de G1 ; cachee puis apparait par threshold_reveal a S1 (100 R cumules) ; achat 100 R, produit 1 R/s ; une nouvelle machine s'ajoute a la colonne.", "proof_ref": "proof_progression", "unlock": ["gb_g3"], "next_goal": "Prochain palier : 1000 R cumules pour reveler G3."},
+      {"id": "gb_g3", "type": "ITEM", "role": "CONTENT", "state": "LOCKED", "requires": ["gb_g2"], "player_meaning": "Un troisieme generateur, plus puissant, apparait a 1000 R cumules.", "builder_contract": "Silhouette plus haute/complexe que G2 ; threshold_reveal a S2 ; achat 1100 R, produit 8 R/s ; nouvelle machine visible.", "proof_ref": "proof_content", "unlock": ["gb_g4"], "next_goal": "Prochain palier : 12000 R cumules pour reveler G4."},
+      {"id": "gb_g4", "type": "ITEM", "role": "CONTENT", "state": "LOCKED", "requires": ["gb_g3"], "player_meaning": "Le generateur le plus imposant se debloque a 12000 R cumules.", "builder_contract": "Silhouette la plus imposante et lumineuse ; threshold_reveal a S3 ; achat 12000 R, produit 47 R/s.", "proof_ref": "proof_content", "unlock": ["gb_prod_upgrade"], "next_goal": "Objectif final : 1 000 000 R cumules (victoire)."},
+      {"id": "gb_buy_button", "type": "UI", "role": "AFFORDANCE", "state": "AVAILABLE", "requires": [], "player_meaning": "Je vois immediatement si je peux acheter (lumineux) ou non (grise).", "builder_contract": "Bouton d'achat a deux etats nets : ACHETABLE (colore, halo, cliquable) / GRISE (desature, sans halo) quand R insuffisant ; refus observable, etat inchange ; affiche le cout courant en R.", "proof_ref": "proof_gameplay"},
+      {"id": "gb_progress_meter", "type": "UI", "role": "FEEDBACK", "state": "AVAILABLE", "requires": [], "player_meaning": "Je vois a quelle distance je suis du prochain deblocage : acheter maintenant ou epargner ?", "builder_contract": "Jauge de proximite vers le prochain seuil (S1..S5) : materialise l'arbitrage acheter-maintenant vs epargner-vers-le-seuil ; avance a mesure que le R cumule approche le seuil.", "proof_ref": "proof_progression"},
+      {"id": "gb_clic_upgrade", "type": "ITEM", "role": "AFFORDANCE", "state": "AVAILABLE", "requires": [], "player_meaning": "Je peux renforcer ma main : chaque clic vaut plus (x2 puis x4).", "builder_contract": "Icone ambre (famille clic) ; achats clic_x2 puis clic_x4 en cumul sequentiel ; apres achat, le +N du Coeur augmente visiblement.", "proof_ref": "proof_skill"},
+      {"id": "gb_prod_upgrade", "type": "ITEM", "role": "CONTENT", "state": "LOCKED", "requires": ["gb_g4"], "player_meaning": "A S4, je peux doubler la production d'un generateur.", "builder_contract": "Icone cyan (famille production), debloquee groupee a S4 par threshold_reveal ; chaque amelioration double (x2) la production du generateur cible ; le taux R/s affiche monte.", "proof_ref": "proof_economy", "unlock": ["gb_victory_bloom"], "next_goal": "Pousser la production vers 1 000 000 R cumules."},
+      {"id": "gb_click_burst", "type": "UI", "role": "FEEDBACK", "state": "AVAILABLE", "requires": [], "player_meaning": "Mon clic a un effet visible immediat.", "builder_contract": "VFX instantane au clic sur le Coeur : eclat radial court + nombre flottant +N (= gain_clic courant) qui monte et s'efface.", "proof_ref": "proof_core"},
+      {"id": "gb_threshold_reveal", "type": "UI", "role": "FEEDBACK", "state": "AVAILABLE", "requires": [], "player_meaning": "Quand je franchis un seuil, je vois nettement qu'un nouvel element apparait.", "builder_contract": "VFX de franchissement : flash/onde lumineuse accompagnant l'apparition de G2 (S1), G3 (S2), G4 (S3), ameliorations (S4).", "proof_ref": "proof_progression"},
+      {"id": "gb_victory_bloom", "type": "UI", "role": "REWARD", "state": "LOCKED", "requires": ["quest_victory_target"], "player_meaning": "Atteindre le million declenche un embrasement : j'ai gagne.", "builder_contract": "Etat/ecran de victoire au franchissement de S5 (>=1 000 000 R cumules) : embrasement lumineux plein ecran ; terminaison unique ascendante ; aucun equivalent de defaite.", "proof_ref": "proof_quest", "next_goal": "Fin du run - victoire atteinte."},
+      {"id": "gb_world_background", "type": "LOCATION", "role": "META", "state": "AVAILABLE", "requires": [], "player_meaning": "Le monde lui-meme s'eclaircit a mesure que je progresse.", "builder_contract": "Fond bleu-nuit (#0B0E17) qui gagne en clarte d'un cran a chacun des 5 seuils franchis ; particules de lumiere ambiantes ; raconte l'ascension.", "proof_ref": "proof_world"}
+    ],
+    "artist_requirements": [
+      {"id": "ar_core", "grey_block": "gb_core", "states_to_show": ["AVAILABLE"], "visible_reason": false, "visible_requirement": "aucun (disponible des le depart)", "preview": false, "affordance_visual": "orbe pulsant central, halo ambre, reagit au survol", "readability": "cible de clic evidente au centre, fort contraste sur fond sombre"},
+      {"id": "ar_r_counter", "grey_block": "gb_r_counter", "states_to_show": ["AVAILABLE"], "visible_reason": false, "visible_requirement": "aucun (permanent)", "preview": false, "affordance_visual": "chiffres tabulaires ambre en haut d'ecran", "readability": "formatage des grands nombres, lisible 1 -> 1e6"},
+      {"id": "ar_g1", "grey_block": "gb_g1", "states_to_show": ["AVAILABLE", "OWNED"], "visible_reason": false, "visible_requirement": "15 R disponibles pour l'achat", "preview": false, "affordance_visual": "conduit simple, s'illumine selon nombre possede", "readability": "silhouette tier1 distincte"},
+      {"id": "ar_g2", "grey_block": "gb_g2", "states_to_show": ["LOCKED", "AVAILABLE", "OWNED"], "visible_reason": true, "visible_requirement": "100 R cumules", "preview": true, "affordance_visual": "silhouette distincte de G1, apparait par flash", "readability": "nouveaute visible via threshold_reveal"},
+      {"id": "ar_g3", "grey_block": "gb_g3", "states_to_show": ["LOCKED", "AVAILABLE", "OWNED"], "visible_reason": true, "visible_requirement": "1000 R cumules", "preview": true, "affordance_visual": "silhouette plus haute/complexe", "readability": "distincte des paliers precedents"},
+      {"id": "ar_g4", "grey_block": "gb_g4", "states_to_show": ["LOCKED", "AVAILABLE", "OWNED"], "visible_reason": true, "visible_requirement": "12000 R cumules", "preview": true, "affordance_visual": "silhouette la plus imposante et lumineuse", "readability": "sommet visuel de la colonne"},
+      {"id": "ar_buy_button", "grey_block": "gb_buy_button", "states_to_show": ["AVAILABLE"], "visible_reason": true, "visible_requirement": "R >= cout courant du generateur", "preview": false, "affordance_visual": "etat ACHETABLE lumineux vs GRISE desature", "readability": "refus d'achat observable, cout affiche"},
+      {"id": "ar_progress_meter", "grey_block": "gb_progress_meter", "states_to_show": ["AVAILABLE"], "visible_reason": true, "visible_requirement": "proximite au prochain seuil S1..S5", "preview": true, "affordance_visual": "jauge de remplissage vers le prochain seuil", "readability": "distance au deblocage lisible d'un coup d'oeil"},
+      {"id": "ar_clic_upgrade", "grey_block": "gb_clic_upgrade", "states_to_show": ["AVAILABLE", "OWNED"], "visible_reason": false, "visible_requirement": "R suffisant pour l'amelioration", "preview": false, "affordance_visual": "icone ambre famille clic", "readability": "distincte de la famille production par la couleur"},
+      {"id": "ar_prod_upgrade", "grey_block": "gb_prod_upgrade", "states_to_show": ["LOCKED", "AVAILABLE", "OWNED"], "visible_reason": true, "visible_requirement": "franchissement de S4", "preview": true, "affordance_visual": "icone cyan famille production", "readability": "deblocage groupe S4 visiblement nouveau"},
+      {"id": "ar_click_burst", "grey_block": "gb_click_burst", "states_to_show": ["AVAILABLE"], "visible_reason": false, "visible_requirement": "aucun (a chaque clic)", "preview": false, "affordance_visual": "eclat radial + +N flottant", "readability": "retour instantane net, non stroboscopique"},
+      {"id": "ar_threshold_reveal", "grey_block": "gb_threshold_reveal", "states_to_show": ["AVAILABLE"], "visible_reason": false, "visible_requirement": "franchissement d'un seuil", "preview": false, "affordance_visual": "flash/onde lumineuse", "readability": "attire l'oeil sur l'element nouveau sans le noyer"},
+      {"id": "ar_victory_bloom", "grey_block": "gb_victory_bloom", "states_to_show": ["LOCKED", "AVAILABLE"], "visible_reason": true, "visible_requirement": "1 000 000 R cumules (S5)", "preview": false, "affordance_visual": "embrasement plein ecran", "readability": "etat de victoire sans ambiguite ; aucune defaite"},
+      {"id": "ar_world_background", "grey_block": "gb_world_background", "states_to_show": ["AVAILABLE"], "visible_reason": false, "visible_requirement": "aucun (evolue par paliers)", "preview": false, "affordance_visual": "fond qui s'eclaircit par paliers", "readability": "changement progressif, jamais brutal, confort visuel"}
+    ]
+  }
+}
+```
+
+### art_bible.md (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_alpha\art_bible.md)
+---
+styles: [flat-neon-dark, luminous-glyph, radiant-burst-vfx]
+mood_keywords: [luminous, ascending, calm-focus, satisfying-feedback, abstract-industrial, warm-glow, clean-readable, no-threat]
+---
+
+# Art Bible — p2_alpha (s2.5-artbible / run1) — v0.1
+
+> Jeu : incremental/clicker WEB (HTML + JS canvas), ressource unique **R**, aucune défaite, trajectoire purement ascendante jusqu'à une victoire observable (total cumulé ≥ 1 000 000 R).
+> Ce que cette étape HÉRITE : conventions/attentes du World Scan (`worldscan:…`, advisory) et invariants du monde (`story_bible:…`). Ce que cette étape DÉCIDE : le style réel, les silhouettes, les règles d'affordance et de lisibilité, les états des entités, les contraintes d'asset.
+> `claim_verdict: NO_CLAIM_ALLOWED` — ce document décrit une identité visuelle et sa couverture structurée ; il ne certifie aucune qualité esthétique (jugement Pierre / fog).
+> Round 2 (boucle de complétion mutuelle) : `q_art_001` (ART→GM, bloquante) résolue — le Game Master CONFIRME le `progress_meter` (cf. `## affordance_rules` et l'entrée `progress_meter` en §3). Aucune question GM→ART reçue. ART converge : `ready_for_freeze: true`.
+
+## 1. IDENTITÉ VISUELLE
+
+**Thème décidé : « Forge de Lumen ».** Le monde est une chambre d'accumulation abstraite et lumineuse. La ressource **R** est matérialisée comme du **Lumen** — des unités de lumière-énergie qui s'accumulent. Le monde n'a ni ennemi, ni menace, ni mort : il ne fait que **s'éclaircir et croître** à mesure que le joueur accumule, jusqu'à un embrasement final (victoire).
+
+- **Palette.** Fond sombre presque noir (encre bleu-nuit `#0B0E17`) servant de scène neutre, sur lequel les accents lumineux ressortent : ambre-or chaud (`#FFB454`, la couleur de R/Lumen), cyan froid (`#5AD1FF`, l'énergie automatique des générateurs), violet profond (`#8A6BFF`, les amplificateurs). Le fond s'éclaircit très progressivement (jamais brutalement) à chaque seuil franchi : la scène elle-même raconte l'ascension.
+- **Mood.** Calme, concentré, gratifiant. Aucune agression visuelle, aucune alarme, aucun rouge de danger (le rouge est réservé — s'il existe — au seul état « achat impossible », et encore de façon sobre, cf. §affordance_rules). L'énergie visuelle vient de la **lueur** (glow, halo) et de la **cadence de feedback**, pas du chaos.
+- **Silhouette centrale.** Un **Cœur de Lumen** — orbe pulsant au centre de l'écran — est la cible du clic manuel. Il respire lentement (pulsation lente au repos) et émet un éclat + un nombre flottant `+N` à chaque clic.
+- **Silhouettes des générateurs.** Quatre conduits/machines de taille et de complexité croissantes (G1 → G4), rangés en colonne à droite. Chaque tier a une silhouette distincte et immédiatement reconnaissable (demande de démo : chaque déblocage doit être VISIBLEMENT nouveau), et s'illumine davantage à mesure que le joueur en possède.
+- **Références de style** (advisory, jamais un critère mécanique) : UI d'incremental sobre à fond sombre et accents néon ; iconographie de « glyphes lumineux » plats ; VFX de type « éclat radial / bloom » pour les retours d'action et les franchissements de seuil.
+
+## 2. RATIONALE
+
+Le charter défère explicitement le thème, l'univers et la direction artistique aux étapes aval (`story_bible:context` élément 3 ; `story_bible:coherence_rules` élément 5) : **c'est cette étape qui tranche**, sous les invariants durs du monde. Les choix ci-dessus sont dérivés, non arbitraires :
+
+- **Ressource unique = un seul langage de couleur.** L'ambre-or est réservé à R/Lumen et à rien d'autre. Aucune seconde couleur-ressource n'existe, parce qu'aucune seconde ressource n'existe (`story_bible:coherence_rules` élément 1). Cela ferme visuellement le risque qu'un joueur croie à une monnaie secondaire.
+- **Aucune défaite = aucun vocabulaire visuel de menace.** Pas de barre de vie, pas de compte à rebours anxiogène, pas d'écran de game-over — jamais (`story_bible:coherence_rules` élément 2 ; charter `criteres_demo` « AUCUN écran de défaite »). Le mood « no-threat » du frontmatter en découle directement.
+- **Trajectoire ascendante = scène qui s'éclaircit.** Le monde n'a qu'une fin, lumineuse (`story_bible:coherence_rules` élément 4). Faire monter la clarté du fond à chaque seuil traduit la seule dramaturgie autorisée : l'accumulation qui grandit.
+- **Feedback à haute cadence = lisibilité de l'action.** Le World Scan observe que la rétention de ce type de boucle courte tient à une gratification visuelle immédiate et fréquente (`worldscan:games[1].retention_answer`, Candy Crush : « gratification visuelle (cascades, animations) » ; `worldscan:games[0].retention_answer`, Tetris : « Cadence de gratification très haute »). Le clic doit donc produire un retour visuel instantané et net (éclat + `+N`), sinon la boucle manuelle paraît morte.
+- **Fin observable = un embrasement, pas un simple texte.** La victoire est un état perceptible (`story_bible:coherence_rules` élément 4 ; charter `criteres_demo`), au même titre que le `victory_condition` observable relevé sur un jeu du World Scan (`worldscan:games[2].objectives[0]`, Peglin). D'où le bloom final plein écran, entité visuelle à part entière.
+
+La couverture réelle de ces intentions est démontrée par la section 3 (données structurées) et par `asset_requests.json` — **jamais par cette prose**, qui n'est pas lue par l'oracle.
+
+## 3. BESOINS VISUELS
+
+Chaque entité visuelle distincte du jeu est listée ci-dessous. `required:true` = citée par une source héritée OU centrale à une condition de victoire/score/affordance de démo ; `required:false` = décor cosmétique véritablement optionnel. Une `asset_request` propre existe pour CHAQUE entité `required:true` (cf. `asset_requests.json`), jamais une requête générique censée en couvrir plusieurs.
+
+```json
+{
+  "visual_requirements": [
+    {
+      "id": "r_counter",
+      "entity_role": "ui",
+      "required": true,
+      "description": "Compteur de R (Lumen) visible en permanence, en haut de l'écran. Doit rester lisible de 1 à plus de 1 000 000 (formatage des grands nombres). Demande de démo #1 : un compteur de R visible qui augmente."
+    },
+    {
+      "id": "core_click_target",
+      "entity_role": "player",
+      "required": true,
+      "description": "Le Cœur de Lumen central : orbe pulsant que le joueur tape pour produire +gain_clic R. Affordance primaire du joueur (son agentivité manuelle). Demande de démo #2 : un clic manuel produit une hausse visible de R."
+    },
+    {
+      "id": "generator_g1",
+      "entity_role": "item",
+      "required": true,
+      "description": "Générateur tier 1 (prod 0.1 R/s, cout_base 15). Disponible dès le début. Silhouette la plus simple des quatre conduits ; s'illumine selon le nombre possédé."
+    },
+    {
+      "id": "generator_g2",
+      "entity_role": "item",
+      "required": true,
+      "description": "Générateur tier 2 (prod 1 R/s, cout_base 100). Révélé au franchissement de S1 (100 R cumulés) — son apparition doit être VISIBLEMENT nouvelle. Silhouette distincte de G1."
+    },
+    {
+      "id": "generator_g3",
+      "entity_role": "item",
+      "required": true,
+      "description": "Générateur tier 3 (prod 8 R/s, cout_base 1100). Révélé à S2 (1000 R cumulés). Silhouette plus complexe/haute que G2."
+    },
+    {
+      "id": "generator_g4",
+      "entity_role": "item",
+      "required": true,
+      "description": "Générateur tier 4 (prod 47 R/s, cout_base 12000). Révélé à S3 (12000 R cumulés). Silhouette la plus imposante et la plus lumineuse des quatre."
+    },
+    {
+      "id": "buy_button",
+      "entity_role": "ui",
+      "required": true,
+      "description": "Bouton d'achat (générateur ou amélioration), avec deux états visuels nets : ACHETABLE (accent lumineux, cliquable) et GRISÉ (R insuffisant, refus observable, état inchangé). Demande de démo #4 : le refus d'achat doit être observable."
+    },
+    {
+      "id": "progress_meter",
+      "entity_role": "ui",
+      "required": true,
+      "description": "Indicateur de proximité vers le prochain seuil de déblocage (S1..S5), servant l'arbitrage de fond « acheter maintenant vs épargner ». DÉCISION Art Director CONFIRMÉE par le Game Master (q_art_001, round 1) : la tension acheter/épargner est un ressort de design voulu, porté côté GM par le grey_block gb_progress_meter et son artist_requirement ar_progress_meter (gm_worldscan:game_master.grey_blocks.gb_progress_meter). Rend visible la tension d'épargne du core loop ; reste required:true."
+    },
+    {
+      "id": "improvement_clic_amp",
+      "entity_role": "icon",
+      "required": true,
+      "description": "Icône de la famille d'améliorations de CLIC (clic_x2, clic_x4 — cumul séquentiel, disponibles dès le début). Glyphe lumineux signifiant « la main du joueur frappe plus fort ». Se différencie de la famille production par la couleur (ambre, couleur de R)."
+    },
+    {
+      "id": "improvement_prod_amp",
+      "entity_role": "icon",
+      "required": true,
+      "description": "Icône de la famille d'améliorations de PRODUCTION (prod_g1_x2..prod_g4_x2, ×2 prod, débloquées à S4). Même glyphe paramétré par le générateur ciblé (tinte cyan, couleur de l'énergie automatique). Le déblocage groupé à S4 doit être VISIBLEMENT nouveau."
+    },
+    {
+      "id": "click_feedback_burst",
+      "entity_role": "effect",
+      "required": true,
+      "description": "VFX instantané au clic sur le Cœur : éclat radial court + nombre flottant « +N » (= gain_clic courant) qui monte et s'efface. Rend la hausse de R perceptible à chaque clic (demande de démo #2)."
+    },
+    {
+      "id": "threshold_reveal",
+      "entity_role": "effect",
+      "required": true,
+      "description": "VFX de franchissement de seuil : flash/onde lumineuse accompagnant l'apparition d'un nouvel élément (G2 à S1, G3 à S2, G4 à S3, améliorations à S4). Rend le déblocage VISIBLE (demande de démo #5)."
+    },
+    {
+      "id": "victory_bloom",
+      "entity_role": "effect",
+      "required": true,
+      "description": "État/écran de VICTOIRE au franchissement de S5 (total cumulé ≥ 1 000 000 R) : embrasement lumineux plein écran, terminaison ascendante unique. AUCUN équivalent de défaite n'existe (demande de démo #6)."
+    },
+    {
+      "id": "background_ambient",
+      "entity_role": "environment",
+      "required": false,
+      "description": "Décor de fond ambiant (dégradé bleu-nuit + fines particules de lumière) qui s'éclaircit progressivement à chaque seuil. Cosmétique : peut être rendu par des primitives canvas sans asset externe ; aucune requête d'asset émise (required:false assumé)."
+    }
+  ]
+}
+```
+
+## heritage_worldscan
+
+Le World Scan injecté (`worldscan.json`, `advisory: true`) est **mésancré** : il observe Tetris Effect, Candy Crush et Peglin — genre puzzle/arcade, **étranger à l'incremental/clicker** du charter (défaut déjà relevé par la Story Bible). Il n'est donc PAS une source de conventions de genre valides pour ce jeu, et je ne m'y adosse que pour des observations **transversales à toute boucle courte à feedback**, jamais pour une grammaire d'incremental (cf. `## world_constraints`).
+
+- Retour visuel immédiat et cadence de gratification élevée comme moteur de rétention d'une boucle courte : `worldscan:games[1].retention_answer` (« gratification visuelle (cascades, animations) ») et `worldscan:games[0].retention_answer` (« Cadence de gratification très haute »). → Décision héritée : le clic doit produire un éclat + `+N` instantané (`click_feedback_burst`).
+- Réponse visuelle immédiate à l'entrée du joueur : `worldscan:games[1].loops.minute_1` (« match = destruction + cascade »). → Le Cœur doit répondre visuellement au clic sans latence perçue.
+- Existence d'un état de victoire OBSERVABLE : `worldscan:games[2].objectives[0].has_win_state` = true, `worldscan:games[2].objectives[0].victory_condition` (Peglin, « boss final vaincu … jauge à zéro »). → Notre victoire (S5) doit elle aussi être un état perceptible, d'où `victory_bloom` ; mais SANS le `has_defeat_state:true` que ces trois jeux portent tous — notre monde n'a pas de défaite.
+
+## heritage_story_bible
+
+- Monde = économie d'accumulation abstraite à substance unique R : `story_bible:context` (élément 1, « toute la matière du monde se réduit à produire et accumuler R »). → Un seul langage de couleur-ressource (ambre-or), aucune seconde monnaie visuelle.
+- Aucune défaite, trajectoire uniquement ascendante : `story_bible:context` (élément 2) et `story_bible:coherence_rules` (élément 2, « n'admet ni échec, ni perte, ni mort ; son arc est purement ascendant »). → Aucun vocabulaire visuel de menace ; mood « no-threat ».
+- Thème/univers/entités DÉFÉRÉS à cette étape : `story_bible:context` (élément 3) et `story_bible:coherence_rules` (élément 5, « Le monde diégétique doit être inventé en aval sous ces invariants »). → C'est ici que « Forge de Lumen » est décidé ; il respecte les invariants (ressource unique, pas de défaite, accumulation pure, fin unique observable).
+- Fin unique et observable à R cumulé ≥ 1 000 000 : `story_bible:coherence_rules` (élément 4). → `victory_bloom` comme seule terminaison.
+- Sections `story_bible:chronology`, `story_bible:stakes`, `story_bible:factions`, `story_bible:characters`, `story_bible:relations`, `story_bible:events` = **NOT_GROUNDED**. → Conséquence visuelle assumée : AUCUN personnage diégétique, AUCune faction, AUCUN antagoniste à représenter. L'identité est abstraite (lumière/énergie), pas figurative ni narrative — c'est la seule voie honnête sous une bible dont 6/8 sections sont vides par construction.
+
+## visual_language
+
+*(Section DÉCIDÉE — aucune adresse héritée exigée.)*
+
+- **Registre** : plat (flat), à fort contraste lumière/fond sombre. Pas de skeuomorphisme, pas de photoréalisme. Formes géométriques nettes + halos de lumière (glow) comme seul effet de profondeur.
+- **Rôle des couleurs** : ambre-or = R/Lumen et production manuelle (le joueur) ; cyan = production automatique (les générateurs, l'énergie « qui travaille seule ») ; violet = amplification (améliorations). Cette assignation est un code de lecture stable, jamais décoratif : la couleur dit à quelle partie de l'économie une chose appartient.
+- **Mouvement** : pulsation lente au repos (le Cœur « respire »), éclats brefs et nets sur action, ondes douces sur franchissement de seuil. Aucune animation clignotante rapide ni stroboscopique (confort, mood calme).
+- **Typographie des nombres** : chiffres tabulaires, poids marqué pour R, formatage lisible des grands ordres de grandeur (cf. `## ui_readability`).
+
+## affordance_rules
+
+*(Section DÉCIDÉE.)*
+
+- **Cliquable vs non-cliquable** : tout élément interactif (Cœur, boutons d'achat) porte un accent lumineux et réagit au survol/appui (léger agrandissement + intensification du halo). Le décor ne s'illumine jamais sous le curseur.
+- **Achetable vs refusé** : un `buy_button` ACHETABLE est pleinement coloré et lumineux ; un `buy_button` GRISÉ (R insuffisant) est désaturé, à opacité réduite, sans halo — le refus est **observable** et l'é
+[tronqué]
+
+### asset_requests.json (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_alpha\asset_requests.json)
+{
+  "no_assets_needed": false,
+  "reason": null,
+  "requests": [
+    {
+      "id": "req_r_counter",
+      "entity_role": "ui",
+      "purpose": "ui",
+      "type": "sprite",
+      "style": "flat-neon-dark",
+      "references": [],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "format_runtime_match" },
+        { "check": "style_tag_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    },
+    {
+      "id": "req_core_click_target",
+      "entity_role": "player",
+      "purpose": "gameplay",
+      "type": "sprite",
+      "style": "luminous-glyph",
+      "references": [],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "format_runtime_match" },
+        { "check": "style_tag_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    },
+    {
+      "id": "req_generator_g1",
+      "entity_role": "item",
+      "purpose": "gameplay",
+      "type": "sprite",
+      "style": "luminous-glyph",
+      "references": [],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "format_runtime_match" },
+        { "check": "style_tag_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    },
+    {
+      "id": "req_generator_g2",
+      "entity_role": "item",
+      "purpose": "gameplay",
+      "type": "sprite",
+      "style": "luminous-glyph",
+      "references": [],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "format_runtime_match" },
+        { "check": "style_tag_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    },
+    {
+      "id": "req_generator_g3",
+      "entity_role": "item",
+      "purpose": "gameplay",
+      "type": "sprite",
+      "style": "luminous-glyph",
+      "references": [],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "format_runtime_match" },
+        { "check": "style_tag_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    },
+    {
+      "id": "req_generator_g4",
+      "entity_role": "item",
+      "purpose": "gameplay",
+      "type": "sprite",
+      "style": "luminous-glyph",
+      "references": [],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "format_runtime_match" },
+        { "check": "style_tag_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    },
+    {
+      "id": "req_buy_button",
+      "entity_role": "ui",
+      "purpose": "ui",
+      "type": "sprite",
+      "style": "flat-neon-dark",
+      "references": [],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "format_runtime_match" },
+        { "check": "style_tag_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    },
+    {
+      "id": "req_progress_meter",
+      "entity_role": "ui",
+      "purpose": "ui",
+      "type": "sprite",
+      "style": "flat-neon-dark",
+      "references": [],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "format_runtime_match" },
+        { "check": "style_tag_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    },
+    {
+      "id": "req_improvement_clic_amp",
+      "entity_role": "icon",
+      "purpose": "gameplay",
+      "type": "icon",
+      "style": "luminous-glyph",
+      "references": [],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "format_runtime_match" },
+        { "check": "style_tag_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    },
+    {
+      "id": "req_improvement_prod_amp",
+      "entity_role": "icon",
+      "purpose": "gameplay",
+      "type": "icon",
+      "style": "luminous-glyph",
+      "references": [],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "format_runtime_match" },
+        { "check": "style_tag_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    },
+    {
+      "id": "req_click_feedback_burst",
+      "entity_role": "effect",
+      "purpose": "feedback",
+      "type": "vfx",
+      "style": "radiant-burst-vfx",
+      "references": [],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "format_runtime_match" },
+        { "check": "style_tag_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    },
+    {
+      "id": "req_threshold_reveal",
+      "entity_role": "effect",
+      "purpose": "feedback",
+      "type": "vfx",
+      "style": "radiant-burst-vfx",
+      "references": [],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "format_runtime_match" },
+        { "check": "style_tag_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    },
+    {
+      "id": "req_victory_bloom",
+      "entity_role": "effect",
+      "purpose": "feedback",
+      "type": "vfx",
+      "style": "radiant-burst-vfx",
+      "references": [],
+      "constraints": {
+        "format": "2D",
+        "runtime": "html",
+        "license_allowed": null,
+        "genre": [],
+        "max_size_kb": null
+      },
+      "acceptance_tests": [
+        { "check": "resolved" },
+        { "check": "format_runtime_match" },
+        { "check": "style_tag_match" },
+        { "check": "license_in_allowlist" }
+      ]
+    }
+  ]
+}
+
+
+### loop.json (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_alpha\loop.json)
+{
+ "schema_version": 1,
+ "game_id": "p2_alpha",
+ "steps": [
+  {
+   "role": "PLAYER_GOAL",
+   "ref": "E1",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "nonempty"
+   }
+  },
+  {
+   "role": "PLAYER_ACTION",
+   "ref": "E2",
+   "affordance": "coeur_de_lumen",
+   "repeat": 1,
+   "observe": {
+    "hud": "r_counter",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "PLAYER_ACTION",
+   "ref": "E3",
+   "affordance": "acheter_generateur",
+   "repeat": 1,
+   "observe": {
+    "hud": "r_counter",
+    "predicate": "decreases"
+   }
+  },
+  {
+   "role": "GAME_RESPONSE",
+   "ref": "E4",
+   "repeat": 1,
+   "observe": {
+    "hud": "r_counter",
+    "predicate": "changes"
+   }
+  },
+  {
+   "role": "REWARD",
+   "ref": "E5",
+   "repeat": 1,
+   "observe": {
+    "hud": "taux_rs",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "DECISION",
+   "ref": "E6",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "changes"
+   },
+   "options": [
+    "E2",
+    "E3"
+   ],
+   "metric": "r_counter",
+   "horizon_frames": 300,
+   "policies": [
+    {
+     "name": "repos",
+     "click": null,
+     "every_frames": 0
+    },
+    {
+     "name": "actif",
+     "click": "coeur_de_lumen",
+     "every_frames": 3
+    }
+   ]
+  },
+  {
+   "role": "UNLOCK",
+   "ref": "E7",
+   "affordance": "acheter_generateur_g2",
+   "repeat": 1,
+   "observe": {
+    "hud": "colonne_generateurs",
+    "predicate": "new_distinct",
+    "appears": "generateurs"
+   }
+  },
+  {
+   "role": "NEXT_GOAL",
+   "ref": "E8",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   }
+  },
+  {
+   "role": "NEXT_GOAL",
+   "ref": "E9",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   }
+  },
+  {
+   "role": "REPEAT",
+   "ref": "E10",
+   "repeat": 1,
+   "observe": {
+    "hud": "r_counter",
+    "predicate": "increases"
+   },
+   "replay": [
+    "E2",
+    "E3",
+    "E5",
+    "E7"
+   ]
+  },
+  {
+   "role": "META_LOOP",
+   "ref": "E11",
+   "affordance": "rejouer",
+   "repeat": 1,
+   "observe": {
+    "hud": "r_counter",
+    "predicate": "resets"
+   }
+  },
+  {
+   "role": "ADVANTAGE",
+   "ref": "E12",
+   "repeat": 1,
+   "observe": {
+    "hud": "r_counter",
+    "predicate": "increases_more_than:E2"
+   },
+   "replay_ref": "E2"
+  }
+ ]
+}
+
+## PRÉ-MORTEM (erreurs des runs passés)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [s2-worldscan] échec d'une tentative précédente à s2-worldscan → ✅ RÉPARÉ: réparé à la tentative 2 (tier haiku)
+- [s2.7-gm-worldscan] échec d'une tentative précédente à s2.7-gm-worldscan → ✅ RÉPARÉ: réparé à la tentative 2 (tier opus)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [manifest-8ea68f0ad8f5d882] Le dossier cible games/p1_beta contient deja le jeu complet du run precedent (p1_beta-20260830-run1) — fichiers suivis par git, identiques aux entites de la featuremap E1 — alors que le charter E1 exige un jeu 'cree de zero sous games/p1_beta' ; de plus lab/forge_runs/p1_beta_E1/blueprint.json est une copie octet pour octet de lab/forge_runs/p1_beta/blueprint.json — cause: non etablie — le mecanisme de seeding du run dir E1 depuis le run dir p1_beta n'a pas ete observe, seulement son resultat -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-77bd52f72b0df715] echec de la tentative 0 a s4-archi -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-c02158869a24c1ef] La jauge de fin (endGauge) etait indexee sur elapsedTicks : un bot inactif atteignait 100% en attendant 72000 ticks sans jamais jouer, rendant inertes la decision d'allocation (R5) et la repetition de boucle (R12) ; de plus prestigeReset remettait elapsedTicks a 0, faisant DECROITRE la jauge en violation de la monotonie exigee par R10. Les 4 oracles etaient verts malgre cela. — cause: L'oracle de solvabilite ne testait qu'une seule politique (un bot joue et gagne) sans contre-epreuve : un jeu qui se gagne en attendant satisfait cette assertion a l'identique, donc le volet solvabilite ne discriminait pas un jeu jouable d'un minuteur. Il faut mesurer la DIVERGENCE entre plusieurs politiques, pas la reussite d'une seule. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-13fcd2170bc24836] wiremap.json portait des champs 'fonction' composes (ex. 'createState + renderHTML') qui ne matchent jamais la recherche exacte de check_wiremap contre les noms reellement definis, faisant echouer s10c-oracle-wiremap independamment du gate mutation — cause: le builder precedent (haiku) a documente plusieurs fonctions collaboratrices par feature au lieu d'une seule reference exacte attendue par l'oracle statique -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-a1e8b435ec71c8bf] run-oracle.mjs converted a missing-Playwright import exception into passed:true (fake-green e2e), and the underlying game had a DOM-rebuild bug that silently broke click buttons after the first render — both were hidden by the fake-green e2e — cause: e2e.mjs was dynamically imported in-process without NODE_PATH wired to the studio's shared playwright install, so it always threw ERR_MODULE_NOT_FOUND, and run-oracle.mjs caught that specific error and marked it passed instead of failed -- GENERATION_DIFFERENTE_A_REEXAMINER
+
+FORGE_DISPATCH:s3-decompo:p2_alpha-20260830-run1:1

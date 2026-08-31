@@ -1,0 +1,42 @@
+`verdict: OK` — coverage fully satisfied (11/11 `required:true` entities), resolution 0 OK / 11 BLOCKED (advisory: the catalog holds no incremental/clicker assets, and my decided style tags are new — a legitimate BLOCKED, reported as-is, never gamed by relaxing constraints).
+
+---
+
+## RAPPORT FINAL — s2.5-artbible / p2_beta-20260830-run1
+
+**Livrables** (dans `lab/forge_runs/p2_beta/`) : `art_bible.md` (frontmatter `styles[]`/`mood_keywords[]` + sections 1/2/3 + les 8 sections héritage/décision) et `asset_requests.json` (11 requests, une par entité `required:true`).
+
+**Oracle cité** : `scripts/forge/check_artbible.mjs` (déterministe non-LLM). Auto-contrôle exécuté (discipline de travail, SANS autorité de preuve) → `verdict: OK`, `coverage.missing: []` (11/11 satisfaites), `findings: []`. Le reçu faisant foi est celui que le **DRIVER** ré-exécutera (`evidence/check_artbible_<run_id>.json`, `executed_by: driver`) — fiche 3.
+
+**Verdicts (séparés)** :
+- `software_verdict:` **OK** — adossé à l'oracle `check_artbible.mjs` (forme + couverture besoin↔requête), ré-exécuté par le driver au gate.
+- `evidence_verdict:` **MECHANICAL_VALIDATION_ONLY** — porte uniquement sur la conformité structurelle et la couverture ; **jamais** sur la qualité esthétique.
+- `claim_verdict:` **NO_CLAIM_ALLOWED** — l'adéquation esthétique et la véracité de la prose ne sont pas mesurées ; remontées en **fog** → HumanGate.
+
+**asset_requests produits + statut de résolution (advisory, OK/BLOCKED — jamais jugé)** : les 11 requests résolvent **BLOCKED** contre le catalogue réel (`req_click_target`, `req_resource_counter`, `req_generator_icon`, `req_upgrade_icon`, `req_buy_button`, `req_currency_symbol`, `req_click_feedback_vfx`, `req_transient_bonus_token`, `req_progress_end_indicator`, `req_victory_screen`, `req_background`). Cause unique : le catalogue ne contient aucun asset de genre `incremental`/`clicker` ni des styles décidés (`flat-vector-ui`, `warm-tactile-illustration`, `soft-glow-vfx`). **BLOCKED de résolution ≠ défaut** — c'est un fait légitime (catalogue incomplet), distinct de `coverage.missing` (qui, lui, est vide). Je n'ai **pas** assoupli les `constraints` pour forcer un OK (garde-fou anti-gaming respecté).
+
+**Fog remontés (jugement Pierre / GM requis)** :
+- Conformité esthétique de tout asset qui résoudrait un jour : `style_tag_match` compare des tags, pas des pixels.
+- Sujet/thème de production **indéfini** (Story Bible 6/8 `NOT_GROUNDED`) → apparence concrète des entités illustrées non tranchée → question `q_art_001` au GM.
+- Runtime `html`/`2D` **dérivé** (profil `full_content` + références World Scan web) car la valeur `plateforme_cible` du charter n'est pas matérialisée → question `q_art_003`.
+
+**SKIPPED_VALIDATION :**
+- item: exécution faisant-foi de `check_artbible.mjs` · périmètre: reçu driver `evidence/check_artbible_<run_id>.json` · statut: **non fait par cet agent** · raison: par conception (fiche 3, 2026-08-30) l'auto-contrôle n'a pas d'autorité de preuve ; le reçu gatant est produit par le DRIVER après livraison.
+- item: résolution effective des 11 requests contre un catalogue complet · périmètre: `asset_requests.json` · statut: **partiel (BLOCKED advisory)** · raison: le catalogue réel n'offre aucun asset du genre/style demandé ; sourcing = HumanGate (hors périmètre de l'Art Director, qui ne télécharge aucun octet).
+- item: lecture de `design/content_requirements.md` (C.5, listé « à lire obligatoirement ») · périmètre: entrées amont · statut: **non fait** · raison: le fichier n'a **pas** été injecté dans le run (absent de `run_dir` et de `design/`) ; j'ai travaillé sur les entrées réellement présentes (charter, worldscan, story_bible). Signalé comme écart d'injection, pas comme omission volontaire.
+
+**RETURN LINEAGE :**
+- `why_task_existed:`
+  - `problem:` le bras Libre L2 de la PAIRE 2 doit produire une identité visuelle héritée+décidée avant la conception de structure aval (chaîne `full_content`).
+  - `oracle:` aucun — activation par la chaîne/décision humaine (GO paire 2, Pierre 2026-08-30) ; hérité du charter, non transmis comme défaut mesuré.
+  - `root_cause:` non établie (activation par protocole, pas par un défaut).
+  - `action_reason:` produire `art_bible.md` + `asset_requests.json` conformes (couverture besoin↔requête) sans inventer la STRUCTURE déléguée.
+- `result:` deux artefacts livrés ; `check_artbible.mjs` → `verdict OK`, 11/11 entités couvertes, 0 finding de forme ; résolution 11 BLOCKED (advisory).
+- `proof:` `node scripts/forge/check_artbible.mjs lab/forge_runs/p2_beta/art_bible.md lab/forge_runs/p2_beta/asset_requests.json --json` → `{"pass":true,"verdict":"OK","coverage":{"missing":[],"satisfied":[…11…]},"resolution_stats":{"ok":0,"blocked":11,"total":11}}`.
+- `learning:` dans un bras Libre où le thème est délégué et la Story Bible majoritairement `NOT_GROUNDED`, l'Art Director peut décider un **style agnostique au thème** (palette « valeur/accumulation », chrome re-skinnable) et porter le SUJET en question ouverte plutôt qu'en invention — la couverture besoin↔requête se démontre par entité-rôle, la résolution catalogue reste un fait advisory.
+- `next_reason:` lignée NON fermée — le GM doit répondre à `q_art_001`/`q_art_002` (thème, portée prestige) pour spécialiser les requests en round 2 ; la conception de structure aval consomme ensuite cette bible. Une cause non résolue (thème indéfini) persiste → le niveau supérieur doit agir.
+
+```design_questions
+{"schema_version": 1, "round": 1, "questions": [{"id": "q_art_001", "from": "ART", "to": "GM", "round": 1, "about": "art_bible:heritage_story_bible", "loop_id": "core_loop", "missing": ["production_subject", "click_target_motif", "generator_theme"], "why": "Le sujet de production est indefini (story_bible:context + characters/factions/events NOT_GROUNDED, structure deleguee par le charter). J'ai decide un style agnostique au theme, mais l'apparence CONCRETE de la cible de clic (vr_click_target), des generateurs (vr_generator_icon) et du jeton (vr_transient_bonus_token) ne peut etre specialisee sans le sujet. Je ne l'invente pas : je le demande.", "blocking": true, "answer": null}, {"id": "q_art_002", "from": "ART", "to": "GM", "round": 1, "about": "art_bible:world_constraints", "loop_id": "core_loop", "missing": ["prestige_reset_in_scope"], "why": "Le genre s'appuie massivement sur des cycles de prestige/reset (worldscan:games[0].retention_answer, worldscan:games[2].retention_answer), mais le charter impose une fin observable bornee <= 72000 ticks (story_bible:coherence_rules). Une entite de prestige (icone/ecran) est-elle dans le perimetre ? Tant que non tranche je ne declare aucune entite prestige (ni required:true=invention, ni required:false=preemption de structure).", "blocking": true, "answer": null}, {"id": "q_art_003", "from": "ART", "to": "GM", "round": 1, "about": "art_bible:world_constraints", "loop_id": "art_gm", "missing": ["target_runtime_confirmation"], "why": "constraints.runtime='html'/format='2D' est DERIVE (profil full_content + references World Scan 100% web) car la valeur plateforme_cible du charter n'est pas materialisee dans l'entree recue (charter = rapport de retour s0). Confirmer html-web pour que les 11 requests portent le bon runtime. Non bloquant : defaut defendable applique et documente.", "blocking": false, "answer": null}], "declarations": {"ART": {"round": 1, "ready_for_freeze": false, "open_to_gm": 3}, "GM": {"round": 1, "ready_for_freeze": false, "open_to_art": 0}}}
+```
+RETURN_REASON: {"status": "DISCOVERED", "problem": "content_requirements.md (C.5, listee 'a lire obligatoirement' dans le contrat s2.5) n'a pas ete injectee dans le run p2_beta (absente du run_dir et de design/), et le charter injecte est le rapport de retour s0 sans ses champs de design-intent materialises (plateforme_cible/reference_jeu/criteres_demo) : l'Art Director a donc travaille sans la Gameplay Map et a du DERIVER le runtime au lieu de le lire.", "root_cause": "Le bras Libre delegue la STRUCTURE a l'aval et transmet la forme meta du charter (why/result/proof/learning), pas ses champs valides par check_charter ; la carte de contenu C.5 n'existe pas encore a ce point de la chaine full_content, en amont de la conception de structure."}

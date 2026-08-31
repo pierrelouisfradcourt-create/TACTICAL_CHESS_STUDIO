@@ -1,0 +1,35 @@
+**Oracle receipt:** `check_artbible.mjs` → `VERDICT ART_BIBLE: OK` (the 13 BLOCKED are advisory resolution against an incomplete catalogue — a legitimate result, not a failure). The artefacts are unchanged and still conform.
+
+## Rapport final — s2.5-artbible-r3 (SAS CORRECTIF C2)
+
+**Nature de la tâche** : micro-re-déclaration bornée. Ma déclaration ART (`declarations.ART`, round 2) était **antérieure** à la réponse du Game Master à `q_art_001`. J'ai relu `design_questions.json` (réponse présente), **confronté cette réponse au réel** (`gm_worldscan.json`), et je re-déclare mon état honnêtement. Aucune modification d'`art_bible.md` ni d'`asset_requests.json` n'était requise.
+
+**Ce que j'ai vérifié (confrontation au réel, pas sur parole)** — la réponse GM à `q_art_001` prétend avoir matérialisé le `progress_meter` côté GM. Contrôle mécanique sur `gm_worldscan.json` :
+- `grey_blocks.gb_progress_meter` : **présent** (UI/FEEDBACK, AVAILABLE, `proof_ref: proof_progression`)
+- `ar_progress_meter`, `pr_progression`, `qu_feedback`, `proof_progression`, câblage `progression_loop`/`quest_loop` : **tous présents**
+- `answer.modification_locus.type = gm_worldscan` : **authentique** (la modification vit bien dans le `game_master` du GM, pas fabriquée)
+
+Ma question bloquante unique est donc **réellement résolue**. Ma re-déclaration converge : `ready_for_freeze: true`, `open_to_gm: 0` — désormais postérieure ET vérifiée. Append-only respecté : `q_art_001` recopiée intacte (aucune question retirée).
+
+- **software_verdict: OK** — appuyé par l'oracle `scripts/forge/check_artbible.mjs` → `VERDICT ART_BIBLE: OK`.
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY**
+- **claim_verdict: NO_CLAIM_ALLOWED**
+
+Aucune question de conformité esthétique n'est remontée en claim ; la résolution d'assets (13 BLOCKED) reste **advisory** (catalogue incomplet — légitime, `resolution_stats.blocked`, jamais réassoupli).
+
+**SKIPPED_VALIDATION**
+- item : re-génération/édition d'`art_bible.md` et `asset_requests.json` · où : run p2_alpha · statut : non fait (volontaire) · raison : tâche C2 = re-déclaration seule ; la question est déjà résolue et reflétée dans l'art bible (§ affordance_rules + §3 `progress_meter` required:true), aucun contenu à compléter.
+- item : écriture directe de `design_questions.json` · où : run p2_alpha · statut : non fait (volontaire) · raison : hors périmètre d'écriture (art_bible.md + asset_requests.json seulement) ; le fence est consommé/mergé par le matérialiseur, re-gaté par le driver.
+
+**RETURN LINEAGE**
+- `why_task_existed:` { `problem:` la déclaration ART (round 2) précédait la réponse GM à `q_art_001` → `ready_for_freeze` potentiellement posé sans avoir lu/confronté la réponse (sas C2) · `oracle:` contrôle de fraîcheur déclaration-vs-réponses du protocole C2 (décision de protocole, pas un oracle non-LLM) · `root_cause:` ordre d'arrivée — déclaration écrite avant la matérialisation de la réponse dans `design_questions.json` · `action_reason:` relire la réponse, la confronter au `gm_worldscan` réel, puis re-déclarer réellement }
+- `result:` `q_art_001` vérifiée résolue (`gb_progress_meter` + `ar_progress_meter` + câblage + `proof_progression` réellement présents) ; re-déclaration ART round 3 = `ready_for_freeze:true`, `open_to_gm:0`, append-only ; artefacts inchangés, oracle OK.
+- `proof:` `node scripts/forge/check_artbible.mjs …` → `VERDICT ART_BIBLE: OK` ; `python` sur `gm_worldscan.json` → `gb_progress_meter present: True`, `ar_progress_meter/pr_progression/qu_feedback/proof_progression` → True.
+- `learning:` une déclaration `ready_for_freeze` n'est valide que si elle est postérieure ET confrontée aux réponses reçues ; la fraîcheur de déclaration est un invariant du canal (C2).
+- `next_reason:` chaîne causale **FERMÉE** — unique question bloquante résolue et vérifiée, deux piliers `ready_for_freeze:true`, 0 question ouverte ; plus aucune action worker requise, seul reste le gate du driver (re-check + freeze HumanGate).
+
+```design_questions
+{"schema_version": 1, "round": 3, "questions": [{"id": "q_art_001", "from": "ART", "to": "GM", "round": 1, "about": "art_bible:affordance_rules", "loop_id": "progression_loop", "missing": ["confirmation GM que la tension acheter-maintenant vs epargner-vers-le-seuil est un ressort de design voulu justifiant un indicateur de proximite au seuil"], "why": "L'Art Director a provisoirement decide un progress_meter (proximite aux seuils S1..S5) pour rendre visible l'arbitrage acheter/epargner ; cette decision doit etre confirmee par le Game Master qui possede la metrique de progression.", "blocking": true, "answer": {"ref": "gm_worldscan:game_master.grey_blocks.gb_progress_meter", "text": "Confirme. La tension acheter-maintenant vs epargner-vers-le-seuil est un ressort de design voulu, porte par progression_s1_threshold (seuils S1..S5) et l'economie a cout croissant (x1.15). Le progress_meter est integre comme grey_block gb_progress_meter (UI/FEEDBACK), disponible, avec artist_requirement ar_progress_meter ; il affiche la proximite au prochain seuil et est cite par progression_loop.pr_progression et quest_loop.qu_feedback (hud=progress_meter).", "modification_locus": {"type": "gm_worldscan", "justification": "La confirmation a materialise le grey_block gb_progress_meter et son artist_requirement ar_progress_meter dans le game_master du GM, et l'a cable dans progression_loop (etape pr_progression) et quest_loop (etape qu_feedback, hud=progress_meter) ; la possibilite perceptible (jauge de proximite au seuil) y est decrite et prouvee par proof_progression (how=player_loop, != humangate)."}, "round": 2, "by": "GM"}}], "declarations": {"ART": {"round": 3, "ready_for_freeze": true, "open_to_gm": 0}, "GM": {"round": 2, "ready_for_freeze": true, "open_to_art": 0}}}
+```
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

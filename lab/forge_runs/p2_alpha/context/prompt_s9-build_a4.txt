@@ -1,0 +1,561 @@
+## RÔLE
+Builder (délégation bornée par l'ownership). Point de vue : développeur discipliné qui reste dans son module.
+
+## EXIGENCES COGNITIVES
+Exécution bornée, micro-commits, tenue à jour de la WireMap. Discipline de périmètre supérieure à la vitesse : ne déborde jamais l'ownership.
+
+## MÉMOIRE DE TRAVAIL
+Consomme le blueprint (étape 7) qui fixe son ownership et la WireMap (étape 5) qu'il doit tenir à jour. Conventions : CLAUDE.md + rules/ (par lane). Le repo a déjà été créé à l'étape 8 (Create Repo).
+
+## OBJECTIF
+Produire le code borné à l'ownership, avec la WireMap tenue à jour. Micro-commits exécutés. Consulter knowledge_base/search.mjs avant d'écrire une pièce de logique réutilisable, importer réellement ce qui matche, n'écrire que le delta (§2bis).
+
+## DANS LE PÉRIMÈTRE (in_scope)
+Implémentation du code UNIQUEMENT dans l'ownership défini par le blueprint ; mise à jour de la WireMap (colonnes fichiers/fonction/version/preuve/statut).
+
+## HORS PÉRIMÈTRE (out_of_scope)
+Ne sort JAMAIS de son ownership (blueprint). Ne touche pas à tests/** (zone protégée). Ne modifie pas l'architecture (blueprint, deps).
+
+## PERMISSIONS
+read: repo entier. write: UNIQUEMENT les fichiers de son ownership + la WireMap. run: l'oracle code (cargo/pytest/vitest via scripts/forge/oracles.json). create: fichiers de son ownership uniquement. delete: aucun. INTERDIT: tests/**.
+
+## GARDE-FOU
+Respecte l'ownership : n'écrit que dans les fichiers que le blueprint lui attribue. Micro-commits. Ne franchit pas les deps interdites du blueprint.
+
+## CRITÈRES DE RÉUSSITE
+Code dans l'ownership (aucun fichier hors périmètre modifié) ; oracle code vert ; WireMap à jour. Pour un JEU (objectif/condition de victoire joueur) : oracle de SOLVABILITÉ vert (un bot joue et GAGNE réellement) ET preuve e2e verte (click-through navigateur réel, cf. scripts/forge/contracts/PLAYABLE_CONTRACT.md).
+
+## ORACLES / TESTS
+Oracle CODE déterministe non-LLM : cargo / pytest / vitest via scripts/forge/oracles.json selon la lane. Jamais de LLM-as-judge. Pour un JEU : l'oracle CODE inclut OBLIGATOIREMENT un volet SOLVABILITÉ (solvability.mjs câblé dans run-oracle.mjs) — les mécaniques testées EN ISOLATION ne suffisent pas : un jeu aux objectifs inatteignables passe tous les tests de mécanique tout en étant injouable. Le volet mesure l'enveloppe d'action réelle du moteur, vérifie que les objectifs requis y sont, et fait JOUER un bot qui doit gagner. Modèle : scripts/forge/templates/solvability.template.mjs. L'oracle CODE d'un JEU inclut AUSSI OBLIGATOIREMENT un volet e2e (e2e.mjs, click-through navigateur réel câblé dans run-oracle.mjs) conforme au contrat de jouabilité (scripts/forge/contracts/PLAYABLE_CONTRACT.md) : la garde structurelle forge.static_oracles.check_e2e_harness REJETTE un e2e absent, non câblé, ou coquille (qui imprime PASS sans piloter). Enfin, pour un JEU, l'oracle-code inclut un GATE MUTATION (forge.mutation.run_mutation_test sur game.mjs + forge.static_oracles.check_mutation_gate) : « 100% des mutants tués OU chaque survivant trié équivalent avec justification dans games/<projet>/mutation_triage.json ». Un survivant non justifié => oracle rouge (auto-correction).
+
+## CONTRAT DE SORTIE
+diff (micro-commits) + WireMap à jour (colonnes fichiers/fonction/version/preuve/ statut) + reçu reuse_ratio.mjs (scripts/forge/reuse_ratio.mjs <dossier du jeu>). Pour un JEU : un volet solvability.mjs (bot-joue-et-gagne) ET un e2e.mjs (click-through navigateur réel, contrat de jouabilité) tous deux câblés dans run-oracle.mjs, en plus des mécaniques.
+
+## RAPPORT FINAL
+software/evidence/claim séparés ; cite l'oracle code utilisé ; liste les fichiers touchés vs ownership ; cite la sortie de reuse_ratio.mjs (evidence_path) et les requêtes SEARCH effectuées avant écriture (§2bis) ; claim_verdict: NO_CLAIM_ALLOWED. Sans oracle disponible => remonte un besoin HumanGate (fog), pas de claim. RETURN LINEAGE (doctrine FORGE_CAUSAL_LINEAGE_V2 §3, ratifiee Pierre 2026-08-06) — aucun worker ne meurt seul : le retour porte la CAUSALITE, pas seulement le resultat. Termine TOUJOURS par ce bloc, succes comme echec : `why_task_existed:` {`problem:` le probleme mesure qui a active cette tache · `oracle:` l'oracle ou la mesure qui l'a detecte, ou "aucun" si l'activation vient d'une decision humaine · `root_cause:` la cause racine identifiee, ou "non etablie" · `action_reason:` pourquoi CETTE action y repond} · `result:` l'etat reellement obtenu · `proof:` la commande executee et sa sortie · `learning:` ce que tu as appris et qui resservira, ou "aucun" · `next_reason:` pourquoi le niveau superieur doit agir OU pourquoi la chaine causale est FERMEE et se termine ici. Regles : ces champs sont HERITES ou CONSTATES, jamais inventes — si tu n'as pas recu le `why`, ecris "non transmis" plutot que de le deviner (une cause fabriquee est la meme faute qu'un `validated_by` fabrique). En ECHEC, `result` porte ce que tu as essaye et ce qui a echoue. `next_reason` ne vaut escalade que si une cause non resolue persiste, une preuve manque ou contredit l'etat attendu, ou une correction reste possible — sinon la lignee se termine proprement, sans action supplementaire.
+
+## À LIRE OBLIGATOIREMENT AVANT TOUTE ACTION
+- scripts/forge/contracts/SCHEMA.md
+- le blueprint.yaml (ownership) qui borne strictement sa zone d'écriture
+- la WireMap produite à l'étape 5 (fichiers/fonction/version/preuve/statut)
+
+## RÈGLE DE RESTITUTION — Chaque affirmation du final_report doit citer l'oracle/l'ancre non-LLM qui l'appuie. Appuyée par un oracle => software_verdict (OK/FAIL/BLOCKED) + evidence_verdict: MECHANICAL_VALIDATION_ONLY. Sans oracle disponible => claim_verdict: NO_CLAIM_ALLOWED et remonte un besoin HumanGate (fog), jamais un claim auto-certifié. Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement. En dernier lieu, une section finale SKIPPED_VALIDATION, structurée et EXPLICITE : pour chaque validation que tu n'as PAS faite, liste l'item de validation (quoi), le périmètre concerné (où), le statut (ex. non fait / partiel / hors délai) et la raison (pourquoi). Rien sauté => écris `SKIPPED_VALIDATION: aucun` — une décision assumée, jamais un silence. Le silence sur cette section est traité comme un oubli, pas comme 'rien à signaler'. TOUTE DERNIÈRE LIGNE DU RAPPORT, OBLIGATOIRE — lignée Return : une ligne unique `RETURN_REASON: {"status": "NOT_DISCOVERED"}` si tu n'as découvert AUCUN problème pendant ce travail. Si (et SEULEMENT si) tu as réellement découvert un problème — défaut rencontré, cause d'un échec, écart mesuré — écris à la place `RETURN_REASON: {"status": "DISCOVERED", "problem": "<le problème, factuel>", "root_cause": "<la cause racine si connue, sinon omets ce champ>"}`. JSON valide sur UNE seule ligne, aucun texte après. N'invente JAMAIS un problème pour remplir ce champ : un NOT_DISCOVERED honnête vaut mieux qu'un DISCOVERED de complaisance.
+
+## MARQUEUR DE DISPATCH (ne pas modifier)
+FORGE_DISPATCH:s9-build:p2_alpha-20260830-run1:4
+
+## TÂCHE CONCRÈTE (p2_alpha-20260830-run1 / s9-build)
+Implémente le projet 'p2_alpha' sous games/p2_alpha, borné à ton ownership (blueprint) : code + harnais de preuve COMPLET conformément au contrat — run-oracle.mjs, e2e.mjs et solvability.mjs à la RACINE du jeu, PLUS logic.test.mjs et properties.test.mjs à la racine (convention mutation du driver). Chaque asset_request.id resolved (fichier réel) ou blocked justifié dans asset_resolution.json (clé 'requests'). WireMap à jour (jamais wiremap_frozen.json). AUCUN commit.
+
+## ARTEFACTS AMONT (run_dir)
+Rappel ownership : tu n'écris QUE dans les fichiers que le blueprint.json ci-dessous t'attribue (contrat s9-build §5).
+
+### blueprint.json (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_alpha\blueprint.json)
+{
+ "modules": [
+  "economy",
+  "render",
+  "input",
+  "main",
+  "solvability"
+ ],
+ "deps_interdites": [
+  [
+   "economy",
+   "render"
+  ],
+  [
+   "economy",
+   "input"
+  ],
+  [
+   "economy",
+   "main"
+  ],
+  [
+   "render",
+   "input"
+  ],
+  [
+   "input",
+   "render"
+  ],
+  [
+   "render",
+   "main"
+  ],
+  [
+   "input",
+   "main"
+  ],
+  [
+   "solvability",
+   "render"
+  ],
+  [
+   "solvability",
+   "input"
+  ]
+ ],
+ "ownership": {
+  "economy": "Logique économique pure (état milli-R, coûts, production, seuils, victoire, reset) — structure_imposee_v2.yaml encapsulée en données internes",
+  "render": "Rendu canvas en lecture seule de l'état economy (HUD, Cœur, VFX, colonne générateurs, boutons, jauge, fond, écran de victoire)",
+  "input": "Traduction des entrées pointeur en intentions economy (clic Cœur, achats, rejouer)",
+  "main": "Orchestration : boucle de tick, câblage input→economy→render, exposition window.__game, transitions victoire/reset",
+  "solvability": "Preuve de solvabilité runtime : bot headless pilotant economy jusqu'à S5 en ≤72000 ticks, câblé run-oracle.mjs"
+ },
+ "responsabilites": [
+  {
+   "module": "economy",
+   "responsabilite": "Simulation économique pure et déterministe en milli-R entiers (aucun flottant dans l'état) : gain_clic, coût des générateurs (cout_base×1.12^n), production par tick, franchissement des seuils S1..S5, améliorations ×2, condition de victoire (cumul ≥ 1 000 000 R), reset. Encapsule la structure imposée (structure_imposee_v2.yaml) comme données internes ; toute déviation est un champ structuré M3.",
+   "couvre": [
+    "feat_clic_coeur",
+    "feat_achat_generateur",
+    "feat_production_auto",
+    "feat_bouton_achat",
+    "feat_unlock_g2",
+    "feat_objectif",
+    "feat_ameliorations",
+    "feat_repeat",
+    "feat_victoire",
+    "feat_rejouer",
+    "feat_avantage_rejeu"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "Tests unitaires + mutation sur economy/ : invariant solde_mR == Σ(gains_clic_mR)+Σ(production_mR)−Σ(dépenses_mR) en entiers ; coût == cout_base×1.12^n (strict, jamais un >= tautologique) ; victoire au cumul == 1 000 000 R ; aucun flottant dans l'état."
+   }
+  },
+  {
+   "module": "render",
+   "responsabilite": "Rendu canvas en lecture seule de l'état economy : compteur R permanent, Cœur de Lumen cliquable avec VFX de clic, colonne de générateurs, boutons d'achat à deux états (achetable/grisé), jauge/objectif, VFX de franchissement de seuil, fond ascendant, écran de victoire. Ne mute jamais l'état ; ne lit jamais l'input.",
+   "couvre": [
+    "feat_feedback_clic",
+    "feat_reveal_vfx",
+    "feat_fond_ascendant",
+    "feat_objectif",
+    "feat_victoire",
+    "feat_bouton_achat",
+    "feat_unlock_g2"
+   ],
+   "dependances": [
+    "economy"
+   ],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "e2e navigateur réel observe via window.__game/canvas : le compteur augmente au clic, le bouton est grisé quand R est insuffisant (état inchangé), le VFX/entrée de G2 apparaît à S1, l'écran de victoire s'affiche à S5."
+   }
+  },
+  {
+   "module": "input",
+   "responsabilite": "Traduction des entrées pointeur en actions economy : clic sur le Cœur (gain_clic), achats de générateurs et d'améliorations quand abordable, action rejouer depuis l'écran de victoire. Émet des intentions vers economy ; ne dessine jamais et n'importe pas render.",
+   "couvre": [
+    "feat_clic_coeur",
+    "feat_achat_generateur",
+    "feat_unlock_g2",
+    "feat_ameliorations",
+    "feat_rejouer"
+   ],
+   "dependances": [
+    "economy"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "Un bot/e2e envoie un vrai clic sur coeur_de_lumen puis sur acheter_generateur ; economy exécute l'entrée et l'effet strict est observable (R passe à v+gain_clic ; R diminue de cout exact et un G1 est acquis)."
+   }
+  },
+  {
+   "module": "main",
+   "responsabilite": "Orchestration : boucle de tick (tick_ms 100) qui avance economy et déclenche le rendu, câblage input→economy→render, exposition de window.__game (état seedé déterministe) et du harnais N1, transition vers l'écran de victoire et le reset. Ne contient aucune règle économique.",
+   "couvre": [
+    "feat_production_auto",
+    "feat_repeat",
+    "feat_victoire",
+    "feat_rejouer"
+   ],
+   "dependances": [
+    "economy",
+    "render",
+    "input"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "e2e observe window.__game : après l'achat d'un générateur, R augmente automatiquement à chaque tick sans clic ; après S1 la boucle reprend vers le seuil suivant ; la victoire est déclenchée à S5 et R retombe à 0 après rejouer."
+   }
+  },
+  {
+   "module": "solvability",
+   "responsabilite": "Preuve de solvabilité runtime : bot scripté headless pilotant economy (jamais render ni input) pour atteindre S5 (cumul ≥ 1 000 000 R) en ≤ 72000 ticks ; métriques à variance non triviale (ticks-jusqu'à-S5, jalons S1..S5). Câblé dans run-oracle.mjs. Aucun flag de succès en dur.",
+   "couvre": [
+    "feat_victoire",
+    "feat_repeat",
+    "feat_avantage_rejeu"
+   ],
+   "dependances": [
+    "economy"
+   ],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "solvability.mjs (câblé dans run-oracle.mjs) : un bot atteint S5 en ≤ 72000 ticks, statut CALCULÉ (jamais { solvable: true } littéral) ; l'oracle échoue mécaniquement si les objectifs sont inatteignables."
+   }
+  }
+ ]
+}
+
+### wiremap.json (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p2_alpha\wiremap.json)
+{
+  "features": [
+    {
+      "feature": "R1 objectif terminal affiché dès le tick 0",
+      "fonction": "currentObjective",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "e2e.mjs: depuis index.html, getElementById('objectif').innerText au tick 0 est non vide et cite le seuil terminal '1000000' ; logic.test.mjs: currentObjective(etatInitial) est une chaine non vide nommant S1 (100 R) et le generateur a viser.",
+      "couvre": [
+        "currentObjective"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R2 recompense stricte +gain_clic par clic (comptabilite milli-R entiers)",
+      "fonction": "click",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs: apres N appels click() sans achat, solde_mR === N*1000 EXACTEMENT (gain_clic_initial=1 R = 1000 mR ; egalite stricte, jamais >=) ; aucun flottant dans l'etat (typeof solde_mR === 'number' && Number.isInteger).",
+      "couvre": [
+        "logic.test.mjs: apres N appels click() sans achat, solde_mR === N*1000 EXACTEMENT (gain_clic_initial=1 R = 1000 mR ; egalite stricte, jamais >=) ; aucun flottan…"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R3 achat strict d'un generateur : R diminue du cout exact cout_base x 1.12^n",
+      "fonction": "buyGenerator",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs: pour n exemplaires deja possedes, buyGenerator(0) debite EXACTEMENT floor(15000 * 1.12^n) mR et count passe de n a n+1 (egalite stricte du cout, jamais un >= tautologique) ; verifie sur G1..G4 avec cout_base [15,100,1100,12000] R.",
+      "couvre": [
+        "buyGenerator"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R4 refus strict d'achat quand R insuffisant : etat inchange (arbitrage observable)",
+      "fonction": "canAfford",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs: canAfford(g) === false quand solde_mR < cout(g) => buyGenerator(g) est un no-op (solde_mR et count strictement INCHANGES, deep-equal de l'etat avant/apres) ; devient true au premier mR suffisant.",
+      "couvre": [
+        "requires"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R5 production passive deterministe par tick (milli-R entiers)",
+      "fonction": "applyProduction",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs seede: avec counts fixes et sans clic, applyProduction() incremente solde_mR de EXACTEMENT Σ(count_i * prodTick_mR_i) par appel, avec prodTick_mR = [10,100,800,4700] (prod [0.1,1,8,47] R/s a tick_ms=100) ; deterministe au rejeu (meme etat => meme delta).",
+      "couvre": [
+        "applyProduction"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R6 divergence de decision idle vs actif (variance non triviale)",
+      "fonction": "step",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs: deux trajectoires seedees sur horizon 300 frames (politique 'repos' click=null vs 'actif' click toutes les 3 frames, cf loop.json E6) => solde_mR final distinct et non trivial (repos < actif, ecart > 0), prouvant que la decision porte une information variable (regle de variance des metriques).",
+      "couvre": [
+        "logic.test.mjs: deux trajectoires seedees sur horizon 300 frames (politique 'repos' click=null vs 'actif' click toutes les 3 frames, cf loop.json E6) => solde_m…"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R7 deblocage de G2 au franchissement de S1 (et G3/G4 aux seuils suivants)",
+      "fonction": "unlockedGenerators",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs: unlockedGenerators(etat) rend [G1] tant que cumul_R < 100, puis inclut G2 des cumul_R >= 100 (S1), G3 des 1000 (S2), G4 des 12000 (S3) ; une entree auparavant absente apparait EXACTEMENT au franchissement du seuil (comparaison de longueur stricte n -> n+1).",
+      "couvre": [
+        "unlock_G2_at_S1",
+        "unlock_G3_at_S2",
+        "unlock_G4_at_S3"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R8 amelioration x2 (famille clic puis famille production, debloquee a S4)",
+      "fonction": "buyUpgrade",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs: buyUpgrade('clic_x2') double gain_clic_mR (1000 -> 2000, egalite stricte), puis 'clic_x4' -> 4000 ; buyUpgrade('prod_g1_x2') indisponible tant que cumul_R < 150000 (S4) puis double prodTick_mR du generateur cible (facteur EXACT x2).",
+      "couvre": [
+        "buyUpgrade"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R9 changement d'objectif apres chaque seuil franchi (S1 puis S2)",
+      "fonction": "currentObjective",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs: currentObjective apres S1 (cumul>=100) differe caractere pour caractere de l'objectif du tick 0 et cite 1000 R + G3 ; apres S2 (cumul>=1000) differe encore et cite 12000 R + G4 (predicat loop.json E8/E9 new_distinct).",
+      "couvre": [
+        "currentObjective"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R10 victoire au cumul >= 1 000 000 R ; aucun etat d'echec (statut calcule)",
+      "fonction": "isVictory",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs: isVictory(etat) === false pour cumul_R_mR < 1_000_000_000 et === true au premier tick ou cumul_R_mR >= 1_000_000_000 ; valeur CALCULEE depuis l'etat (jamais un booleen litteral) ; aucune fonction isDefeat n'existe (grep du module : 0 occurrence d'un etat de defaite).",
+      "couvre": [
+        "isVictory"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R11 reset du solde a 0 au rejouer (nouveau run)",
+      "fonction": "reset",
+      "fichiers": [
+        "economy.mjs"
+      ],
+      "preuve": "logic.test.mjs: depuis un etat post-victoire (cumul_R_mR >= 1_000_000_000), reset() ramene solde_mR a 0, cumul_R_mR a 0 et tous les counts a 0 (egalite stricte a l'etat initial), sans introduire de bonus persistant (charter run-unique : aucun report inter-run).",
+      "couvre": [
+        "reset"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R12 entree clic sur le Coeur de Lumen (affordance coeur_de_lumen)",
+      "fonction": "handleCoreClick",
+      "fichiers": [
+        "input.mjs"
+      ],
+      "preuve": "e2e.mjs: depuis index.html, 10 vrais clics Playwright sur #coeur-de-lumen => window.__game.solde_mR strictement croissant, delta EXACT +10000 mR (gain_clic 1 R par clic) ; input n'importe jamais render (verifie par analyse statique du module).",
+      "couvre": [
+        "handleCoreClick"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R13 entree achat generateur/amelioration (affordances acheter_generateur, acheter_generateur_g2)",
+      "fonction": "handleBuy",
+      "fichiers": [
+        "input.mjs"
+      ],
+      "preuve": "e2e.mjs: depuis index.html, clic Playwright sur #buy-g1 au premier moment ou R>=15 => window.__game generators[0].count 0->1 (delta STRICT=1) et solde debite ; clic sur #buy-g2 apres S1 => generators[1].count 0->1 ; clic grise (R insuffisant) => aucun effet.",
+      "couvre": [
+        "acheter_generateur",
+        "acheter_generateur_g2"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R14 entree rejouer depuis l'ecran de victoire (affordance rejouer)",
+      "fonction": "handleReplay",
+      "fichiers": [
+        "input.mjs"
+      ],
+      "preuve": "e2e.mjs: depuis index.html, apres franchissement de S5 (via __game_debug.reachThreshold), clic Playwright reel sur #rejouer => window.__game.solde_mR repasse a EXACTEMENT 0 et l'ecran de victoire se ferme.",
+      "couvre": [
+        "handleReplay"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R15 compteur R permanent lisible en continu",
+      "fonction": "renderRCounter",
+      "fichiers": [
+        "render.mjs"
+      ],
+      "preuve": "properties.test.mjs: #r_counter (police tabulaire, plus gros element textuel du HUD) reflete EXACTEMENT floor(solde_mR/1000) a chaque appel de render(), lisible de 1 a >=1 000 000 (formatage des grands nombres) ; e2e.mjs confirme la visibilite permanente.",
+      "couvre": [
+        "renderRCounter"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R16 VFX de clic (+N) sur le Coeur de Lumen",
+      "fonction": "renderClickBurst",
+      "fichiers": [
+        "render.mjs"
+      ],
+      "preuve": "e2e.mjs: nombre flottant '+N' (= gain_clic courant) et eclat radial observes sur #coeur-de-lumen dans la fenetre du flash declenche par un clic reel (main.mjs consomme lastClick -> renderClickBurst, retire apres ~600ms) ; render ne mute jamais l'etat (analyse statique).",
+      "couvre": [
+        "renderClickBurst"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R17 bouton d'achat a deux etats : achetable vs grise (refus observable)",
+      "fonction": "renderBuyButtons",
+      "fichiers": [
+        "render.mjs"
+      ],
+      "preuve": "e2e.mjs: #buy-g1.disabled===true tant que solde_mR < cout (canAfford false, refus observable), puis disabled===false une fois abordable (clic reel verifie a chaque etat) ; render.syncOverlay met a jour l'attribut disabled et la classe .disabled a chaque frame depuis l'etat economy (jamais mute par render).",
+      "couvre": [
+        "renderBuyButtons"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.1.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R18 colonne des generateurs + apparition visible de G2 au franchissement de S1",
+      "fonction": "renderGeneratorColumn",
+      "fichiers": [
+        "render.mjs"
+      ],
+      "preuve": "e2e.mjs: #colonne_generateurs contient une seule silhouette (G1) tant que cumul_R < 100, puis une entree G2 auparavant absente y apparait des S1 (predicat loop.json E7 new_distinct) ; G3 a S2, G4 a S3 ; chaque tier a une silhouette distincte.",
+      "couvre": [
+        "renderGeneratorColumn"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R19 VFX de franchissement de seuil",
+      "fonction": "renderThresholdReveal",
+      "fichiers": [
+        "render.mjs"
+      ],
+      "preuve": "e2e.mjs: flash/onde lumineuse observe (opacite d'un overlay #threshold-reveal passe transitoirement > 0) au moment exact de chaque franchissement de seuil declenchant une revelation (G2@S1, G3@S2, G4@S3, ameliorations@S4).",
+      "couvre": [
+        "renderThresholdReveal"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R20 jauge de proximite vers le prochain seuil (arbitrage acheter/epargner)",
+      "fonction": "renderProgressMeter",
+      "fichiers": [
+        "render.mjs"
+      ],
+      "preuve": "properties.test.mjs: la largeur/ratio de #progress-meter est une fonction MONOTONE croissante de cumul_R vers le prochain seuil (0 juste apres un seuil, ~1 juste avant le suivant), captee a plusieurs valeurs de cumul (jamais decroissante entre deux seuils).",
+      "couvre": [
+        "renderProgressMeter"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R21 fond ascendant s'eclaircissant d'un cran a chaque seuil franchi",
+      "fonction": "renderBackground",
+      "fichiers": [
+        "render.mjs"
+      ],
+      "preuve": "properties.test.mjs: capture du canal de luminosite du fond a 0/1/2/3/4/5 seuils franchis => la clarte croit de facon MONOTONE (jamais decroissante), un cran par seuil ; base bleu-nuit #0B0E17 au depart ; borne au-dela de S5.",
+      "couvre": [
+        "renderBackground"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R22 ecran de victoire au franchissement de S5 ; aucun ecran de defaite",
+      "fonction": "renderVictory",
+      "fichiers": [
+        "render.mjs"
+      ],
+      "preuve": "e2e.mjs: au franchissement de S5 (cumul_R >= 1 000 000), #victory-overlay (embrasement plein ecran) s'affiche et les affordances de jeu (#coeur-de-lumen/#buy-*) sont neutralisees jusqu'a #rejouer ; aucun element de defaite/game-over n'existe dans le DOM (grep 0 occurrence).",
+      "couvre": [
+        "renderVictory"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.0.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R23 boucle de tick, cablage input->economy->render, exposition window.__game, transitions victoire/reset",
+      "fonction": "gameLoop",
+      "fichiers": [
+        "main.mjs"
+      ],
+      "preuve": "e2e.mjs: window.__game est expose et deterministe ; apres l'achat d'un generateur, solde_mR augmente AUTOMATIQUEMENT a chaque tick (tick_ms=100) sans clic ; le franchissement de seuil est detecte a CHAQUE tick (gameLoop, pas seulement sur clic) et declenche le VFX #threshold-reveal ; la victoire arrete gameLoop a S5 (running=false) puis #rejouer relance startGame() -> gameLoop ; main ne contient aucune regle economique (analyse statique, aucun import forbidden).",
+      "couvre": [
+        "gameLoop"
+      ],
+      "statut": "IMPLEMENTED",
+      "version": "1.1.0",
+      "implemented_at": "2026-08-31"
+    },
+    {
+      "feature": "R24 solvabilite runtime : un bot scripte atteint S5 en <= 72000 ticks",
+      "fonction": "solvabilityProof",
+      "fichiers": [
+        "solvability.mjs"
+      ],
+      "preuve": "solvability.mjs (cable dans run-oracle.mjs): solvabilityProof() pilote economy (jamais render/input) et ATTEINT reellement cumul_mR >= 1 000 000 000 en 47845 ticks (<= 72000 budget), statut CALCULE (proof.solveSuccessful derive de isVictory(state), jamais { solvable: true 
+[tronqué]
+
+## PRÉ-MORTEM (erreurs des runs passés)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [s9-build] échec d'une tentative précédente à s9-build → ✅ RÉPARÉ: réparé à la tentative 2 (tier haiku)
+- [s10a-oracle-code] returncode=0; mutation=FAIL
+- [s10c-oracle-wiremap] FAIL
+- [s9-build] échec d'une tentative précédente à s9-build → ✅ RÉPARÉ: réparé à la tentative 3 (tier sonnet)
+- [s10a-oracle-code] returncode=0; mutation=FAIL
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [manifest-7b1a52e1001f1ef0] Le gm_worldscan de la ronde precedente portait 3 deviations par rapport a structure_imposee_v2.yaml (normatif ratifie) : coefficient x1.15 au lieu de x1.12 aux 3 emplacements CE-JEU, seuil S4 declare 'non fixee' au lieu de 150000, et gain_clic_initial declare 'non fixe par le charter' au lieu de 1 ; de plus l'ancienne reponse a q_art_001 declarait locus=gm_worldscan sur un bloc identique r1<->r2 (theatre, refuse a juste titre). — cause: La ronde precedente a calibre CE jeu sur le canon de genre Cookie Clicker (1.15) et a laisse indefinies les valeurs que la structure ratifiee fixe pourtant (S4=150000, gain_clic_initial=1), au lieu de reprendre TELS QUELS les invariants de structure_imposee_v2.yaml ; la reponse a q_art_001 n'induisait aucune modification reelle du game_master. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-b8a9f731ccc164ce] Le GAMEPLAY CONTRACT impose les maillons META_LOOP (I) et ADVANTAGE (J) taillés pour un jeu à prestige avec report inter-run, or le charter de p2_alpha fixe un jeu à run unique (victoire terminale à 1 000 000 R, aucune méta-progression persistante, initial_stock=0) : l'exigence E12/J affirme un avantage mécanique du second run que le charter ne garantit pas, son expected_proof échouerait pour un rejeu naïf. — cause: Le contrat A..J présuppose une grammaire de prestige (Kitten Clicker) sans clause d'exemption pour les jeux à run unique ; le charter p2_alpha n'autorise aucun mécanisme hors clic+générateurs+améliorations, donc aucun report inter-run mesurable. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-de5ab65de60d029f] Le charter p2_alpha (incremental pur : ressource unique R, aucune meta-progression, victoire terminale unique, aucun etat d'echec) ne peut satisfaire les maillons I/J du contrat de boucle V4 sans introduire un bonus persistant que le charter interdit explicitement : E11 (ADVANTAGE) exige un delta mesure strictement superieur apres rallumage, impossible en accumulation pure sans multiplicateur persistant, et est donc emise en ADDITIONS hors charter. — cause: Le contrat de boucle V4 (10 maillons) a ete calibre sur Kitten Clicker qui possede un prestige mecanique ; il presume une meta-progression que la grammaire imposee du charter p2_alpha proscrit. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-2b65a96ca8e8ebc5] Le projet p1_beta_E1 n'a aucune entree dans scripts/forge/oracles.json (resolve_oracle leve OracleNotFound, driver._oracle_argv() rend () => gate BLOCKED), et lab/forge_runs/p1_beta_E1/wiremap_frozen.json ancre les 15 features accentuees du run p1_beta alors que le wiremap.json E1 en porte 22 non accentuees (intersection 0), ce qui rend check_feature_set_frozen rouge independamment du code produit — cause: le run dir p1_beta_E1 a ete seede depuis le run dir p1_beta (blueprint copie octet pour octet, wiremap_frozen herite) sans que l'enregistrement d'oracle ni la re-ancre du gel du jeu de regles ne soient refaits pour le nouveau projet -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-440784e869f4320c] echec de la tentative 0 a s9-build -- GENERATION_DIFFERENTE_A_REEXAMINER
+
+FORGE_DISPATCH:s9-build:p2_alpha-20260830-run1:4

@@ -1,0 +1,62 @@
+projet: p2_beta
+intention: >
+  Bras LIBRE (L2) de la PAIRE 2 (protocole docs/forge/RUN2_PROTOCOLE_V1.md, RATIFIÉ Pierre
+  2026-08-30). Produire un jeu incremental/clicker web jouable dont la STRUCTURE (boucles,
+  ressources, actions, progression, déblocages, économie, dimensionnement, condition de fin)
+  est ENTIÈREMENT INVENTÉE par la chaîne, en fermant toute la chaîne de preuve full_content.
+  La qualité ludique n'est pas jugée (donnée M7). Première paire VALIDE visée — le pilote
+  (p1_*) reste l'archive dégradée.
+contraintes:
+  normative_refs:
+    - spec: FORGE_DESIGN_FREEDOM_SPEC_V0
+      rules: [N1, N2, N3, N4, N7, N8, N9]
+  project_specific:
+    techniques:
+      - "genre : incremental/clicker — FIXÉ PAR PIERRE (paire pilote 2026-08-30, reconduit paire 2)"
+      - "fin de partie OBSERVABLE requise (une sonde doit finir — un idle infini n'est pas prouvable)"
+      - >
+        budget_ticks_mesure: 72000 ticks de 100 ms (constante de MESURE du protocole V1,
+        symétrique aux deux bras — ferme la grandeur orpheline détectée au pilote, règle A5) :
+        les bots de mesure jouent dans CETTE fenêtre ; la fin inventée doit y être atteignable
+        par un bot compétent
+      - "socle sonde web (N1) : HTML+JS, déterminisme seedé, window.__game, harnais complet à la racine"
+      - "A1 (protocole V1) : le charter DOIT être matérialisé par s0 (bloc ```yaml) — un bras sans charter.yaml est invalide"
+      - >
+        ISOLEMENT DU BRAS (protocole V1) : ce projet ne consulte JAMAIS lab/forge_briefs/p2_alpha/**
+        ni p1_alpha/** ni aucune valeur des structures du bras dirigé. Toute grandeur structurelle
+        est inventée ici avec provenance tracée au charter (N2). La revue post-hoc cherche les
+        valeurs signatures du bras D dans les sorties de ce bras : contamination = paire invalidée.
+    experimentales:
+      - "bras L de la PAIRE 2 — variable manipulée : l'AUTEUR DE LA STRUCTURE"
+      - "preuves par propriétaires distincts du producteur (gates fiches 2/3/5 + prérequis pair_preflight)"
+      - "SOLVABILITÉ RUNTIME obligatoire : un bot scripté atteint la fin inventée dans budget_ticks_mesure"
+cible: web (HTML+JS canvas)
+references_autorisees:
+  - ref: "Cookie Clicker — grammaire de genre UNIQUEMENT, jamais une copie (aucun asset, nom, contenu, aucune valeur numérique reprise)"
+    source: "Pierre 2026-08-30 (genre de la paire)"
+criteres_sortie:
+  - "chaîne full_content complète : verdict signé + verify_run AUTHENTIQUE"
+  - "charter.yaml MATÉRIALISÉ par s0 (A1 — condition de validité de bras)"
+  - "structure entièrement documentée au charter avec provenance agent (N2) — mesures M2a (inventé-silencieux = défaut) / M2b (délégué-explicite tracé)"
+  - "design_questions/r2/design_freeze exercés normalement — modification_locus utilisé pour toute réponse"
+  - "chaque asset_request.id resolved-avec-fichier ou blocked-justifié (check_asset_consumption)"
+  - "check_artbible exécuté par le driver (executed_by: driver)"
+  - "product_snapshot.md matérialisé (exigible pour M7(a), protocole V1 A3)"
+  - "s11 red-team Qwen réel independent: true ; LM Studio down → HALT sans fallback"
+  - "SOLVABILITÉ RUNTIME : bot scripté atteint la fin en ≤ 72000 ticks ; bots de mesure à variance non triviale (temps-jusqu'à-la-fin, jalons)"
+libertes_deleguees:
+  - "TOUTE la structure : boucles, ressources, actions, progression, déblocages, économie, dimensionnement, condition de fin (dans la fenêtre de mesure imposée)"
+  - "thème et univers"
+  - "personnages/entités et leur nommage"
+  - "direction artistique"
+  - "assets nécessaires à la production"
+  - "présentation/HUD et micro-interactions"
+provenance:
+  genre: "Pierre 2026-08-30 (paire pilote, reconduit paire 2)"
+  structure: "DÉLÉGUÉE à la chaîne — définition du bras Libre (variable expérimentale)"
+  budget_mesure: "constante de protocole V1 (72000 ticks), ratifiée Pierre 2026-08-30, symétrique aux deux bras — PAS une valeur de design du jeu"
+  isolement: "protocole V1 (tirage scellé PAIRE2_SEALED_assignment.json) — aucune valeur du bras D ne doit atteindre ce bras"
+  protocole: "RUN2_PROTOCOLE_V1.md RATIFIÉ Pierre 2026-08-30 ; GO paire 2 Pierre 2026-08-30"
+  criteres_sortie: "Pierre 2026-08-30 (protocole V1 + GO paire 2)"
+  libertes_deleguees: "Pierre 2026-08-30 — thème/DA/assets libres dans les DEUX bras (une seule variable)"
+  redaction: "Fable (poste de commande), session 2026-08-30"

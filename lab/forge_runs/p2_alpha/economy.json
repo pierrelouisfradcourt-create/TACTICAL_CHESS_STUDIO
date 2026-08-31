@@ -1,0 +1,105 @@
+{
+ "schema_version": 1,
+ "resources": [
+  {
+   "id": "R",
+   "unit": "Lumen",
+   "sources": [
+    "clic manuel (Coeur de Lumen)",
+    "generateurs G1..G4"
+   ],
+   "sinks": [
+    "achat de generateurs",
+    "achat d'ameliorations (clic et production)"
+   ],
+   "initial_stock": 0
+  }
+ ],
+ "formulas": [
+  {
+   "id": "click_gain",
+   "text": "gain_clic = gain_base x produit des multiplicateurs de clic achetes (gain_base non fixe par le charter)",
+   "params": {
+    "clic_x2": 2,
+    "clic_x4": 4
+   }
+  },
+  {
+   "id": "generator_cost",
+   "text": "cout = cout_base x growth^(n possedes)",
+   "params": {
+    "cout_base_g1": 15,
+    "cout_base_g2": 100,
+    "cout_base_g3": 1100,
+    "cout_base_g4": 12000,
+    "growth": 1.15
+   }
+  },
+  {
+   "id": "generator_income",
+   "text": "R/s = somme_i (nb_i x prod_base_i x prod_multiplier_i)",
+   "params": {
+    "prod_g1": 0.1,
+    "prod_g2": 1,
+    "prod_g3": 8,
+    "prod_g4": 47,
+    "prod_upgrade": 2
+   }
+  },
+  {
+   "id": "unlock_thresholds",
+   "text": "S1=100, S2=1000, S3=12000 (R cumule) revelent G2,G3,G4 ; S4 revele les ameliorations de production (valeur numerique S4 non fixee) ; S5=1000000 = victoire",
+   "params": {
+    "s1": 100,
+    "s2": 1000,
+    "s3": 12000,
+    "s5": 1000000
+   }
+  },
+  {
+   "id": "victory_condition",
+   "text": "victoire si somme cumulee de R produit >= 1000000",
+   "params": {
+    "victory_threshold": 1000000
+   }
+  }
+ ],
+ "invariants": [
+  {
+   "id": "content_generator_tiers",
+   "value": 4,
+   "unit": "paliers de generateur",
+   "why": "4 generateurs distincts G1..G4 (art_bible:generator_g1..g4)."
+  },
+  {
+   "id": "gameplay_g1_cost",
+   "value": 15,
+   "unit": "R",
+   "why": "cout de base du 1er generateur G1 = 15 R (art_bible:generator_g1 ; valeur du Cursor de Cookie Clicker)."
+  },
+  {
+   "id": "progression_s1_threshold",
+   "value": 100,
+   "unit": "R cumule",
+   "why": "seuil S1 = 100 R cumules revele G2 (art_bible:generator_g2)."
+  },
+  {
+   "id": "quest_victory_target",
+   "value": 1000000,
+   "unit": "R cumule",
+   "why": "condition de victoire unique = total cumule de R >= 1 000 000 (story_bible:coherence_rules)."
+  },
+  {
+   "id": "skill_click_upgrade_multiplier",
+   "value": 2,
+   "unit": "x par palier clic",
+   "why": "une amelioration de clic double le gain (clic_x2, art_bible:improvement_clic_amp ; convention doubler du genre)."
+  },
+  {
+   "id": "world_brighten_steps",
+   "value": 5,
+   "unit": "paliers de clarte (S1..S5)",
+   "why": "la scene s'eclaircit d'un cran a chacun des 5 seuils (art_bible:affordance_rules + story_bible:coherence_rules)."
+  }
+ ]
+}

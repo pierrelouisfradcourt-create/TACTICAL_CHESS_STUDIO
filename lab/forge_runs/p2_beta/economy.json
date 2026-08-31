@@ -1,0 +1,64 @@
+{
+ "schema_version": 1,
+ "resources": [
+  {
+   "id": "units",
+   "unit": "unit",
+   "sources": [
+    "manual_click",
+    "passive_generators",
+    "bonus_token"
+   ],
+   "sinks": [
+    "generator_purchase",
+    "upgrade_purchase"
+   ],
+   "initial_stock": 0
+  }
+ ],
+ "formulas": [
+  {
+   "id": "end_progress",
+   "text": "progress = min(1, elapsed_ticks / end_ticks) gated by stage_thresholds and quest_completion",
+   "params": {
+    "end_ticks": 72000,
+    "stages": 5
+   }
+  },
+  {
+   "id": "generator_cost",
+   "text": "cost(n) = base_cost * multiplier^n",
+   "params": {
+    "base_cost": 15,
+    "multiplier": 1.15
+   }
+  },
+  {
+   "id": "idle_income",
+   "text": "cps = sum_over_generators(count_i * yield_i) * upgrade_multiplier",
+   "params": {
+    "upgrade_multiplier_base": 1
+   }
+  }
+ ],
+ "invariants": [
+  {
+   "id": "m_economy_cost_mult",
+   "value": 1.15,
+   "unit": "ratio",
+   "why": "multiplicateur de cout exponentiel par unite de generateur (Cookie Clicker ~15%)"
+  },
+  {
+   "id": "m_meta_end_ticks",
+   "value": 72000,
+   "unit": "ticks",
+   "why": "fin observable bornee imposee par le charter (story_bible:coherence_rules <=72000 ticks)"
+  },
+  {
+   "id": "m_world_stage_threshold",
+   "value": 5,
+   "unit": "stages",
+   "why": "nombre de seuils de stage sur le chemin de la fin observable (Universal Paperclips est stage-gated)"
+  }
+ ]
+}

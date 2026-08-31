@@ -1,0 +1,122 @@
+I have what I need. Glob/Grep/Bash and Python-LSP are all disabled in this session (as prior steps in this run also recorded), so I work from the injected upstream artifacts (charter, featuremap/s3-decompo, blueprint.json, art_bible, loop.json) plus the one authoritative file I could Read directly: `repo_map.yaml`. The game source under `games/p2_beta` does not exist yet — this is s5, upstream of s9-build — so the WireMap is **prescriptive**: it fixes the file/function skeleton the build must satisfy, verified post-build by `forge.static_oracles.check_wiremap` (fichiers existants, fonctions définies).
+
+## RAPPORT — s5-wiremap / p2_beta-20260830-run1
+
+### Isomorphisme au blueprint (ancré, non deviné)
+Le blueprint (`blueprint.json`) fixe 5 modules — `main · logic · input · render · data` — avec dépendances interdites (logic n'importe ni render/input/main ; data feuille). Runtime hérité **HTML/2D** (art_bible `## world_constraints` + blueprint ownership « index.html+main.mjs selon moteur »). J'épouse cet arbre : chaque règle est ancrée sur le module **propriétaire** de son mécanisme (logic = état/règles headless ; input = gestes→commandes ; render = HUD/scènes ; data = config). La colonne `fichiers` porte le module propriétaire de la fonction PLUS les modules-arêtes qui rendent la règle observable — c'est l'isomorphisme section=module=fichier, encodé dans le seul schéma que l'exécuteur de CETTE étape parse.
+
+### Couverture featuremap — 13/13 exigences présentes
+`ex_a_goal→R1 · ex_b_action→R2 · ex_c_response→R3 · ex_d_reward→R4 · ex_e_decision→R5 · ex_f_unlock→R6 · ex_g_goal1→R7 · ex_g_goal2→R8 · ex_i_meta→R9 · ex_n_endgauge→R10 · ex_n_victory→R11 · ex_h_repeat→R12 (rejeu) · ex_j_advantage→R13 (rejeu)`. Grey blocks du GM portés par ces règles : `gb_click_target→R2, gb_generator→R6, gb_quest_tracker→R1/R7/R8, gb_end_gauge/gb_stage_gate→R10, gb_victory_screen→R11`.
+
+**Capacités NON couvertes (fog hérité, non refermé ici) :** `gb_upgrade` et `gb_bonus_token` — s3-decompo a établi qu'AUCUNE exigence du Prisme ne les cite (`ex_b_action` exclut même structurellement un jeton bonus précoce). Les mapper à une fonction serait une **invention de traçabilité** ; je ne fabrique aucune ligne pour eux et je maintiens le fog remonté à Pierre par s3.
+
+### Reçu d'oracle
+`check_wiremap_contract.mjs` (oracle AVANT-build nommé au contrat) **non exécuté** — `permissions run: aucun`, shell/glob/grep désactivés. De surcroît cet oracle attend le schéma-arbre `{systems, lines}` + champ `couvre`, incompatible avec le format plat `{features}` que la TÂCHE CONCRÈTE impose pour l'exécuteur de cette étape (`forge.static_oracles.check_wiremap`). Je produis le format que l'exécuteur matérialise réellement ; la vérification carte↔code est donc déportée en s10c (post-build). `claim_verdict: NO_CLAIM_ALLOWED`.
+
+### Verdicts
+- **software_verdict: BLOCKED** — aucun oracle exécuté par cet agent ; l'artefact est prescriptif, prouvable seulement post-build (s10c).
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — ne vaut que pour le reçu exécuteur, non revendiqué par moi.
+- **claim_verdict: NO_CLAIM_ALLOWED.**
+
+### SKIPPED_VALIDATION
+- item: exécution de `check_wiremap_contract.mjs` (couverture + `maillon_non_lie`) · où: `wiremap` p2_beta run1 · statut: **non fait** · raison: `run: aucun` + shell désactivé ; ET incompatibilité de schéma (oracle attend `{systems,lines}`+`couvre`, dispatch impose `{features}`).
+- item: `forge.static_oracles.check_wiremap` (fichiers existants / fonctions définies) · où: `games/p2_beta` · statut: **non exécutable ici** · raison: source de jeu inexistante avant s9-build ; vérification déférée à s10c.
+- item: lecture du code de jeu pour ancrer fonctions réelles · où: `games/p2_beta` · statut: **impossible** · raison: le code n'existe pas encore (s5 < s9) et Glob/Grep/Bash désactivés — fonctions/chemins sont PRESCRITS pour que le build s'y conforme, non constatés.
+
+### RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2 §3)
+- **why_task_existed:**
+  - problem: la chaîne full_content de p2_beta a produit blueprint (s4) + featuremap (s3) ; sans WireMap isomorphe, le build s9 n'a aucun contrat fichier/fonction à satisfaire et s10c n'a rien à confronter au code.
+  - oracle: aucun — activation par séquencement de la chaîne (décision humaine GO paire 2), non par un défaut mesuré.
+  - root_cause: non établie — activation par protocole.
+  - action_reason: produire la carte qui fixe, pour chaque règle R1–R13, le module propriétaire, la fonction et les fichiers attendus, isomorphes au blueprint, avec une preuve falsifiable par ligne.
+- **result:** WireMap plate `{features}` de 13 lignes, chacune `fonction` non vide + `fichiers` non vides, isomorphe aux 5 modules du blueprint ; 13/13 exigences featuremap portées ; gb_upgrade/gb_bonus_token laissés non couverts (fog hérité, non fabriqué).
+- **proof:** commande non exécutée (run: aucun) ; conformité de schéma vérifiée par LECTURE de la spec du dispatch (`{feature,fonction,fichiers,preuve}`, non-vides) et de `repo_map.yaml`. Reçu mécanique = `forge.static_oracles.check_wiremap`, `executed_by: run_real.py` post-matérialisation — PAS par cet agent.
+- **learning:** à s5 en bras full_content, la WireMap ne CONSTATE pas le code (inexistant) — elle le PRESCRIT depuis le blueprint ; nommer une fonction propriétaire par règle rend chaque feuille falsifiable par s10c. Piège de contrat mesuré : le régime oracle-arbre du contrat s5 (`check_wiremap_contract`+`couvre`) et le format plat du dispatch (`check_wiremap`) sont mutuellement incompatibles sur la forme d'artefact.
+- **next_reason:** chaîne NON fermée — s9-build doit matérialiser `games/p2_beta` en respectant ces chemins/fonctions, puis s10a (solvabilité : un bot GAGNE ≤72000 ticks) et s10c (check_wiremap) confrontent carte↔code. Le fog gb_upgrade/gb_bonus_token et l'incompatibilité de schéma d'oracle restent des décisions HumanGate.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le contrat s5 nomme comme oracle AVANT-build check_wiremap_contract.mjs, qui exige le schema-arbre {systems,lines} avec champ 'couvre' + featuremap ; mais la TACHE CONCRETE du dispatch impose le format plat {features:[{feature,fonction,fichiers,preuve}]} lu par forge.static_oracles.check_wiremap et materialise par l'executeur. Les deux regimes d'oracle sont mutuellement incompatibles sur la forme d'artefact : produire l'arbre casse le parseur de l'executeur, produire le plat rend inapplicable la verification de couverture/maillon_non_lie a cette etape.", "root_cause": "Le contrat s5 porte le regime d'oracle v2 (arbre + couvre, check_wiremap_contract) tandis que ce dispatch epingle le schema plat legacy (check_wiremap) que run_real materialise ; la migration de schema n'a pas ete propagee de bout en bout dans le contrat de l'etape."}
+
+```json
+{
+  "features": [
+    {
+      "feature": "R1 Premier objectif au lancement",
+      "fonction": "createState",
+      "fichiers": ["main.mjs", "logic.mjs", "render.mjs", "data.mjs"],
+      "preuve": "Test unitaire: createState() initialise objectif = data.goals[0] ; au frame 0, apres montage par main.mjs, le label objectif rendu par render est une chaine NON VIDE, avant toute interaction (ex_a_goal, kind bot_action)."
+    },
+    {
+      "feature": "R2 Clic producteur (entree)",
+      "fonction": "applyClick",
+      "fichiers": ["input.mjs", "logic.mjs"],
+      "preuve": "Test unitaire: input route click_target -> logic.applyClick(state) ; resource_counter passe strictement de 0 a N*valeur_clic apres N clics et ne change PAS entre deux clics (assertion stricte ==, pas >=). Seul gain avant achat (ex_b_action)."
+    },
+    {
+      "feature": "R3 Feedback de clic (effet)",
+      "fonction": "renderClickFeedback",
+      "fichiers": ["render.mjs"],
+      "preuve": "Test de capture: au tick du clic, renderClickFeedback affiche le flotteur +N ET l'animation d'appui de click_target ; les deux sont ABSENTS de la capture du tick precedent (ex_c_response, kind visual)."
+    },
+    {
+      "feature": "R4 Recompense persistante (effet)",
+      "fonction": "accrue",
+      "fichiers": ["logic.mjs"],
+      "preuve": "Test unitaire: accrue(state, amount) est le seul ecrivain du total ; resource_counter croit strictement puis PERSISTE au frame suivant sans decroitre (monotonie stricte verifiee sur 2 frames, ex_d_reward)."
+    },
+    {
+      "feature": "R5 Decision d'allocation",
+      "fonction": "step",
+      "fichiers": ["logic.mjs"],
+      "preuve": "Sim de divergence: deux politiques pilotent step() sur 300 frames — idle (aucun clic) vs actif (applyClick tous les 3 frames) ; les trajectoires de resource_counter DIVERGENT strictement, prouvant que le choix porte a consequence (ex_e_decision)."
+    },
+    {
+      "feature": "R6 Deverrouillage generateur (entree)",
+      "fonction": "buyGenerator",
+      "fichiers": ["input.mjs", "logic.mjs", "data.mjs"],
+      "preuve": "Test unitaire: input route buy_generator -> logic.buyGenerator(state) apres accumulation du cout (data.generateurs[0].cout) ; une rangee du groupe generateurs apparait et cps_readout passe strictement de 0 a >0, cout deduit (ex_f_unlock)."
+    },
+    {
+      "feature": "R7 Objectif #2 (effet visible)",
+      "fonction": "advanceObjective",
+      "fichiers": ["logic.mjs", "render.mjs", "data.mjs"],
+      "preuve": "Test unitaire: apres le premier achat, advanceObjective fait passer objectif a data.goals[1] ; le label rendu est un texte NOUVEAU, textuellement DISTINCT de l'objectif de depart (ex_g_goal1, kind visual)."
+    },
+    {
+      "feature": "R8 Objectif #3 (effet visible)",
+      "fonction": "advanceObjective",
+      "fichiers": ["logic.mjs", "render.mjs", "data.mjs"],
+      "preuve": "Test unitaire: apres la premiere amelioration, advanceObjective fait passer objectif a data.goals[2] ; le label rendu est un TROISIEME texte, distinct des deux precedents (ex_g_goal2, kind visual)."
+    },
+    {
+      "feature": "R9 Relance bornee (entree)",
+      "fonction": "prestigeReset",
+      "fichiers": ["input.mjs", "logic.mjs"],
+      "preuve": "Test unitaire: input route prestige_reset -> logic.prestigeReset(state) ; resource_counter vaut EXACTEMENT 0 au frame suivant, contre une valeur strictement positive avant la relance (ex_i_meta)."
+    },
+    {
+      "feature": "R10 Jauge de fin persistante",
+      "fonction": "endGauge",
+      "fichiers": ["logic.mjs", "render.mjs", "data.mjs"],
+      "preuve": "Sim de reference: endGauge(state) retourne une valeur monotone NON DECROISSANTE de 0 a 1 (100%) au fil des stages/ticks (seuils data) ; render la montre a chaque capture, toujours visible et distincte de resource_counter (ex_n_endgauge, kind visual)."
+    },
+    {
+      "feature": "R11 Ecran de victoire",
+      "fonction": "isVictory",
+      "fichiers": ["logic.mjs", "render.mjs"],
+      "preuve": "Test unitaire+capture: isVictory(state) devient vrai quand endGauge==1.0 ; render remplace REELLEMENT la surface de jeu par une scene de victoire plein ecran affichant les totaux finaux (vrai changement de scene, pas une overlay ; ex_n_victory, kind visual)."
+    },
+    {
+      "feature": "R12 Repetition de boucle (rejeu)",
+      "fonction": "step",
+      "fichiers": ["logic.mjs"],
+      "preuve": "Oracle de solvabilite: un bot pilote step() en rejouant la boucle clic->reponse->recompense->achat (R2/R3/R4/R6) sur un total croissant et atteint endGauge=100% en <=72000 ticks — la boucle repete ET progresse (ex_h_repeat)."
+    },
+    {
+      "feature": "R13 Avantage post-relance (rejeu)",
+      "fonction": "prestigeMultiplier",
+      "fichiers": ["logic.mjs"],
+      "preuve": "Test unitaire: prestigeMultiplier(state) applique un multiplicateur lu par applyClick apres relance ; le delta/clic post-relance est STRICTEMENT superieur au delta/clic initial (assertion stricte >, ex_j_advantage / increases_more_than:ex_b_action)."
+    }
+  ]
+}
+```

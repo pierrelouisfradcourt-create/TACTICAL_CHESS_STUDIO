@@ -1,0 +1,43 @@
+{
+ "schema_version": 1,
+ "round": 3,
+ "questions": [
+  {
+   "id": "q_art_001",
+   "from": "ART",
+   "to": "GM",
+   "round": 1,
+   "about": "art_bible:affordance_rules",
+   "loop_id": "progression_loop",
+   "missing": [
+    "confirmation GM que la tension acheter-maintenant vs epargner-vers-le-seuil est un ressort de design voulu justifiant un indicateur de proximite au seuil"
+   ],
+   "why": "L'Art Director a provisoirement decide un progress_meter (proximite aux seuils S1..S5) pour rendre visible l'arbitrage acheter/epargner ; cette decision doit etre confirmee par le Game Master qui possede la metrique de progression.",
+   "blocking": true,
+   "answer": {
+    "ref": "gm_worldscan:game_master.grey_blocks.gb_progress_meter",
+    "text": "Confirme. La tension acheter-maintenant vs epargner-vers-le-seuil EST un ressort de design voulu, materialise par gb_progress_meter (UI/FEEDBACK) et par la boucle progression_loop. Cette ronde la modification est REELLE et non-identique a la ronde 1 (dont le bloc etait identique, refuse a juste titre) : (1) l'echelle de seuils cumules que le progress_meter affiche est desormais COMPLETE — S4 fixe a 150000 R cumules (structure_imposee_v2 dimensioning ; precedemment declaree 'non fixee', une deviation normative), ajoutee comme metrique invariant progression_s4_threshold, mesuree par proof_s4, et cablee dans gb_prod_upgrade.requires (le reveal des ameliorations de production passe du proxy gb_g4 au vrai seuil cumule S4) ; (2) le coefficient de croissance dont depend l'arbitrage est corrige de x1.15 a x1.12 (structure_imposee_v2, ratifie Pierre 2026-08-30) dans economy_model.generator_cost, ec_progression et gb_g1 ; (3) gb_progress_meter.player_meaning et builder_contract nomment maintenant l'echelle complete [100,1000,12000,150000,1000000] et l'arbitrage x1.12 ; (4) la boucle concernee progression_loop est reecrite : pr_progression.why decrit l'echelle complete et le progress_meter confirme, et gagne hud=progress_meter. Le progress_meter est consomme par progression_loop.pr_progression et quest_loop.qu_feedback.",
+    "modification_locus": {
+     "type": "gm_worldscan",
+     "justification": "Modification REELLE et localisee du game_master, verifiable par diff contre la ronde 1 : progression_s4_threshold (150000) cree + proof_s4 ajoute ; gb_prod_upgrade.requires re-cable de [gb_g4] a [progression_s4_threshold] et proof_ref -> proof_s4 ; gb_g4.next_goal reecrit pour nommer S4=150000 ; gb_progress_meter.player_meaning + builder_contract reecrits pour nommer l'echelle complete des 5 seuils incluant S4 ; progression_loop.pr_progression.why reecrit + hud=progress_meter ajoute ; coefficient x1.12 substitue a x1.15 aux 3 emplacements CE-JEU (generator_cost.params.growth, ec_progression.why, gb_g1.builder_contract). Sans S4 defini, la 'proximite au prochain seuil' du progress_meter confirme etait indefinie entre S3 et S5 : la confirmation rend donc l'element confirme reellement implementable. Ce n'est PAS 'aucune_requise' (le progress_meter n'est pas un objet normatif immuable du Brief) mais une vraie modification du gm_worldscan.",
+     "round": 2,
+     "by": "GM"
+    },
+    "round": 2,
+    "by": "GM"
+   }
+  }
+ ],
+ "declarations": {
+  "ART": {
+   "round": 3,
+   "ready_for_freeze": true,
+   "open_to_gm": 0
+  },
+  "GM": {
+   "round": 2,
+   "ready_for_freeze": true,
+   "open_to_art": 0
+  }
+ }
+}
