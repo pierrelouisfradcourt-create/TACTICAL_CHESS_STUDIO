@@ -1408,3 +1408,26 @@ amender le moteur de production au-delà des findings.
 
 **Critères de révision** : validation du protocole amendé (sas de pré-enregistrement) avant
 toute paire 2.
+
+## 2026-08-30 — Ratification pré-enregistrement RUN 2 : protocole V1 + grammaire D v2
+
+**Décision** : le protocole RUN 2 V1 est RATIFIÉ (docs/forge/RUN2_PROTOCOLE_V1.md — A1-A7
+outillés : pair_preflight bloquant, m7_masking à contrôle mécanique, product_snapshot exigible
+des deux bras, checklist anti-grandeurs-orphelines, M2a/M2b). La grammaire D v2 est RATIFIÉE
+(lab/forge_briefs/p1_alpha/structure_imposee_v2.yaml) : économie et mappings inchangés ·
+tick_ms 100 · budget_ticks_mesure 72000 (porté de 36000 — raison MÉTHODOLOGIQUE : marge de
+mesure, un bot quasi-optimal consommait 95,4 % du budget) · comptabilité milli-R entiers ·
+clic_x4 cumul séquentiel · fin S5 = 1 000 000 R cumulés · pas d'état d'échec.
+CAVEAT (verbatim Pierre) : la simulation de bureau établit la cohérence de dimensionnement
+rapportée, elle ne devient PAS une preuve de solvabilité runtime — obligation de la future paire.
+Statuts : C1-C3, A1/A2/A3/A5/A7, grammaire v2 = TESTED · A6 = DOCUMENTED_ONLY · paire 2 =
+BLOCKED jusqu'au GO séparé · claims L/D = BLOCKED · verdict global = interdit.
+
+**Contexte** : sas de pré-enregistrement post-pilote ; contre-vérifications fraîches (21 tests
+outils + pair_preflight --run-tests 28 verts exit 0 + T0 2452 verts) ; simulation de bureau
+greedy tick 34346 / click-only jamais.
+
+**Alternatives rejetées** : budget 36000 assumé serré (marge non robuste) ; retouche de
+l'économie (validée par la simulation) ; ratification sur description sans contenu exact du fichier.
+
+**Critères de révision** : GO séparé pour décider si une paire 2 vaut le coût (~2 runs).

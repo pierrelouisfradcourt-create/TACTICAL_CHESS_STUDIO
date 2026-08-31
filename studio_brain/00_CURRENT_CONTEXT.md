@@ -4,6 +4,17 @@ full_content prouvée, verdict AUTHENTIQUE HUMANGATE_READY) après consolidation
 Project Input · 2026-08-29 — run tower_defense_sonde COMPLET puis CLOS. Archive :
 `journal/context-archive-2026-08-29-avant-audit-paquetA.md`.)*
 
+## Pré-enregistrement RUN 2 (2026-08-30) — **RATIFIÉ Pierre** (protocole V1 + grammaire D v2)
+- `docs/forge/RUN2_PROTOCOLE_V1.md` RATIFIÉ : A1-A7 outillés — `forge.pair_preflight --run-tests`
+  BLOQUANT (3 checks + 28 tests, exit 0 frais) · `forge.m7_masking` (blocs + verify fail-closed,
+  non-régression gain_clic) · product_snapshot exigible des 2 bras · anti-grandeurs-orphelines.
+- `lab/forge_briefs/p1_alpha/structure_imposee_v2.yaml` RATIFIÉE : économie inchangée, tick_ms
+  100, budget 72000 (raison méthodologique — marge de mesure), milli-R entiers, mapping 6
+  améliorations. CAVEAT : simulation de bureau ≠ preuve de solvabilité runtime (obligation de la
+  future paire). Simulation : greedy tick 34346, click-only jamais.
+- Statuts : C1-C3/A1-A3/A5/A7/v2 TESTED · A6 DOCUMENTED_ONLY · **paire 2 BLOCKED (GO séparé,
+  ~2 runs à décider)** · claims L/D BLOCKED · verdict global interdit. T0 = 2452 verts.
+
 ## Analyse M1-M7 paire pilote (2026-08-30) — **CLOSE** (`p1_beta/ANALYSE_PAIRE_M1M7_20260830.md`)
 - Grille pré-enregistrée exécutée (4 revues contexte propre + M2/M3 mécanique + M7 aveugle
   Pierre AVANT descellement : (a) envie de jouer = D1 · (b) ratifiable = L1, caveats consignés).
