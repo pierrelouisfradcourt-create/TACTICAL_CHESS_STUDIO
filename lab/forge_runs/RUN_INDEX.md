@@ -302,3 +302,12 @@ résultat         : projet=p1_alpha · statut=HALTED · verdict=BLOCKED · ts=20
 
 ## p1_beta-20260830-run1 — 2026-08-30
 résultat         : projet=p1_beta · statut=HALTED · verdict=BLOCKED · ts=2026-08-30T14:37:37Z
+
+## p2_alpha-20260830-run1 — 2026-08-31
+résultat         : projet=p2_alpha · statut=HALTED · verdict=BLOCKED · ts=2026-08-31T10:57:36Z
+
+## p2_beta-20260830-run1 — 2026-08-31
+résultat         : projet=p2_beta · statut=HALTED · verdict=BLOCKED · ts=2026-08-31T10:59:26Z
+
+## p1_beta_E1-20260831-run1 — 2026-08-31
+résultat         : projet=p1_beta_E1 · statut=DONE · verdict=BLOCKED · ts=2026-08-31T15:52:29Z

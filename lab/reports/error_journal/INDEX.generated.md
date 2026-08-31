@@ -5,7 +5,7 @@
 | _global_ | 0 | non | C:\TACTICAL_CHESS_STUDIO\lab\reports\error_journal\_global_.jsonl |
 | forge | 10 | oui | C:\TACTICAL_CHESS_STUDIO\lab\reports\error_journal\forge.jsonl |
 | godot | 56 | oui | C:\TACTICAL_CHESS_STUDIO\lab\reports\error_journal\godot.jsonl |
-| html | 139 | oui | C:\TACTICAL_CHESS_STUDIO\lab\reports\error_journal\html.jsonl |
+| html | 171 | oui | C:\TACTICAL_CHESS_STUDIO\lab\reports\error_journal\html.jsonl |
 | playtest | 4 | oui | C:\TACTICAL_CHESS_STUDIO\lab\reports\error_journal\playtest.jsonl |
 | python | 0 | non | C:\TACTICAL_CHESS_STUDIO\lab\reports\error_journal\python.jsonl |
 | rust | 0 | non | C:\TACTICAL_CHESS_STUDIO\lab\reports\error_journal\rust.jsonl |
