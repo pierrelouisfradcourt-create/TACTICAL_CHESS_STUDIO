@@ -4,6 +4,17 @@ full_content prouvée, verdict AUTHENTIQUE HUMANGATE_READY) après consolidation
 Project Input · 2026-08-29 — run tower_defense_sonde COMPLET puis CLOS. Archive :
 `journal/context-archive-2026-08-29-avant-audit-paquetA.md`.)*
 
+## PAIRE 2 (2026-08-30) — **CLOSE : première paire VALIDE, 2 HumanGates ACCEPTÉS**
+- D2 (p2_alpha, grammaire v2 imposée) : 18/18, AUTHENTIQUE — **1.12 a traversé worldscan ET
+  build** (1.12 ×3 / 1.15 ×0) ; théâtre attrapé (prise valide) puis corrigé par reprise gatée.
+  L2 (p2_beta, libre) : 18/18, AUTHENTIQUE, C2 exercée (1re fois) ; **finding #6** : économie =
+  canon Cookie Clicker (interdit du Brief violé, non gardé par oracle) — valide expérimentalement,
+  conformité Brief BLOCKED. Asymétrie assets D2 0/13-justifiés vs L2 11/13 = MESURE pour la
+  grille. Convergence ×1.15 des 2 GM = hypothèse « attracteur canonique » (signal, pas causalité).
+- Coûts ~1,71 M tokens. Évidence préservée SANS nettoyage (CLOSURE_PAIRE2_20260830.md, p2_beta).
+- **GO analyse M1-M7 sous V1 donné** (masquage V2, M2a/M2b, M7 deux temps, attribution d'origine).
+  **Conclusion L/D : BLOCKED — règle ≥2 paires valides, celle-ci est la première.**
+
 ## Pré-enregistrement RUN 2 (2026-08-30) — **RATIFIÉ Pierre** (protocole V1 + grammaire D v2)
 - `docs/forge/RUN2_PROTOCOLE_V1.md` RATIFIÉ : A1-A7 outillés — `forge.pair_preflight --run-tests`
   BLOQUANT (3 checks + 28 tests, exit 0 frais) · `forge.m7_masking` (blocs + verify fail-closed,

@@ -1431,3 +1431,21 @@ greedy tick 34346 / click-only jamais.
 l'économie (validée par la simulation) ; ratification sur description sans contenu exact du fichier.
 
 **Critères de révision** : GO séparé pour décider si une paire 2 vaut le coût (~2 runs).
+
+## 2026-08-30 — Clôture PAIRE 2 : première paire VALIDE, deux HumanGates acceptés
+
+**Décision** : D2 ACCEPTÉ (1.12 a traversé worldscan ET build — 1.12 ×3 / 1.15 ×0, coûts de base
+présents ; théâtre attrapé puis corrigé par reprise gatée réelle) · L2 ACCEPTÉ (décision
+antérieure : valide expérimentalement, non conforme au Brief — finding #6 conservé) · Paire 2 =
+TESTED. Évidence préservée sans nettoyage (HALTs, reprises, finding #6, asymétrie assets 0/13 vs
+11/13, convergence ×1.15 = hypothèse « attracteur canonique », coûts ~1,71 M tokens). GO analyse
+M1-M7 sous protocole V1 (masquage V2 outillé, M2a/M2b séparés, M7 deux temps, attribution
+GM/grammaire/protocole/oracle/pipeline/design, asymétrie assets = mesure pas verdict, ×1.15 =
+signal pas causalité). CONCLUSION L/D : BLOCKED — une seule paire valide, la règle exige ≥2.
+Dossier : lab/forge_runs/p2_beta/CLOSURE_PAIRE2_20260830.md.
+
+**Alternatives rejetées** : invalider L2 pour le finding #6 (perte d'information expérimentale) ;
+abandonner D2 au théâtre (déviation objectivement corrigeable) ; nettoyer les anomalies du dossier.
+
+**Critères de révision** : l'analyse M1-M7 produit la grille ; toute conclusion L/D attendra une
+2e paire valide.
