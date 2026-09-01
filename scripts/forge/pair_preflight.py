@@ -34,6 +34,15 @@ REPO_ROOT_DEFAULT = Path(__file__).resolve().parents[2]
 
 _TEST_R3_LOCUS = "test_r3_locus.py"
 _TEST_MICRO_REDECLARATION = "test_micro_redeclaration.py"
+# Registre de non-régression de paire (pré-enregistrement P4, 2026-09-01) : les
+# fixtures des findings des paires passées gardent la gate — paire 2 (finding 7 :
+# charter bloquant ; finding 8 : tick de mesure) et paire 3 (P3-2 : chemins
+# wiremap repo-relatifs + crash→HALT). Une suite absente = préflight FAIL.
+_TESTS_PAIR_FIXTURES = (
+    "test_charter_gate.py",
+    "test_measure_tick.py",
+    "test_mutation_path_repo_relative.py",
+)
 
 
 def _check_c1(repo_root: Path) -> dict[str, Any]:
@@ -151,7 +160,14 @@ def _run_dedicated_tests(repo_root: Path) -> dict[str, Any]:
     targets = [
         str(test_dir / _TEST_R3_LOCUS),
         str(test_dir / _TEST_MICRO_REDECLARATION),
+        *(str(test_dir / name) for name in _TESTS_PAIR_FIXTURES),
     ]
+    missing = [t for t in targets if not Path(t).is_file()]
+    if missing:
+        return {
+            "ok": False,
+            "detail": f"suite(s) de non-régression absente(s) : {missing}",
+        }
     cmd = [
         sys.executable,
         "-m",
