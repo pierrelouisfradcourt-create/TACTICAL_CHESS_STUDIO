@@ -4,7 +4,23 @@ full_content prouvée, verdict AUTHENTIQUE HUMANGATE_READY) après consolidation
 Project Input · 2026-08-29 — run tower_defense_sonde COMPLET puis CLOS. Archive :
 `journal/context-archive-2026-08-29-avant-audit-paquetA.md`.)*
 
-## PAIRE 2 (2026-08-30) — **CLOSE : première paire VALIDE, 2 HumanGates ACCEPTÉS**
+## Analyse PAIRE 2 (2026-09-01) — **CLOSE** ; requalification : PAS encore de paire valide
+- **Finding n°7** : charter.yaml L2 = bloc RETURN LINEAGE (« dernier bloc yaml » + check_charter
+  FAIL advisory) — l'aval a consommé le mauvais objet. **L2 requalifié : run authentique,
+  expérimentalement INVALIDE** ; paire comparative BLOCKED ; D2 = seul bras valide. **RÈGLE
+  VERROUILLÉE Pierre** : un verdict de chaîne ne promeut jamais seul une expérience en valide —
+  l'identité de l'input normatif consommé s'établit indépendamment du verdict aval.
+- **Finding n°8** : tick de mesure non gardé (L2 boucle 16 ms vs 100 ms spécifié → 72000 ticks
+  = 2 h vs ~19 min). Findings 7-8 = défauts STRUCTURELS enregistrés, AUCUN hotfix.
+- Réparation ANALYTIQUE (jamais du run) : vrai charter L2 extrait (1er bloc yaml s0), revues X
+  ré-exécutées (TESTED), M2a-L2 recalculé (TESTED : 20 non-sourcées au point mesuré, M2b 4) ;
+  anciennes mesures conservées comme évidence. **M7 sauté définitivement** (aveugle rompu par
+  descellement prématuré orchestrateur, consigné). Attribution d'origine consignée : findings
+  structurels → système expérimental (protocole/oracle/pipeline) ; défauts de contenu → agents.
+- Dossier : `p2_beta/ANALYSE_PAIRE2_CONSOLIDEE_20260901.md` + addendum CLOSURE. NO_CLAIM maintenu.
+
+## PAIRE 2 (2026-08-30) — **CLOSE : première paire VALIDE, 2 HumanGates ACCEPTÉS** *(SUPERSÉDÉ
+par la requalification du 2026-09-01 ci-dessus — conservé comme historique)*
 - D2 (p2_alpha, grammaire v2 imposée) : 18/18, AUTHENTIQUE — **1.12 a traversé worldscan ET
   build** (1.12 ×3 / 1.15 ×0) ; théâtre attrapé (prise valide) puis corrigé par reprise gatée.
   L2 (p2_beta, libre) : 18/18, AUTHENTIQUE, C2 exercée (1re fois) ; **finding #6** : économie =

@@ -1449,3 +1449,46 @@ abandonner D2 au théâtre (déviation objectivement corrigeable) ; nettoyer les
 
 **Critères de révision** : l'analyse M1-M7 produit la grille ; toute conclusion L/D attendra une
 2e paire valide.
+
+## 2026-09-01 — Requalification L2 (finding n°7) + règle d'identité de l'input normatif
+
+**Décision** : L2 requalifié « exécution authentique, expérimentalement invalide pour le bras tel
+que spécifié » (charter.yaml matérialisé = bloc RETURN LINEAGE, vrai charter jamais transmis à
+l'aval, check_charter FAIL resté advisory). Paire 2 : D2 valide · L2 invalide expérimentalement ·
+paire comparative BLOCKED — pas encore la première paire valide. Findings 7-8 enregistrés comme
+défauts STRUCTURELS (matérialisation « dernier bloc » + advisory ; sémantique du tick non gardée),
+aucun hotfix — défauts laissés observables. Réparation ANALYTIQUE seule autorisée (revues X sur
+le vrai charter extrait + M2a recalculé ; anciennes revues conservées comme évidence). M7 bloqué
+jusqu'à consolidation. **RÈGLE VERROUILLÉE** : « Un verdict de chaîne ne peut jamais promouvoir à
+lui seul une expérience en valide. L'identité et la validité de l'input normatif consommé doivent
+être établies indépendamment du verdict aval. »
+
+**Alternatives rejetées** : maintenir « L2 valide avec caveat » (l'entrée normative consommée
+était le mauvais objet) ; hotfix de la paire 2 ; présenter la réparation analytique comme
+réparation du run.
+
+**Critères de révision** : futur sas moteur (check_charter bloquant, désambiguïsation du bloc,
+tick de mesure gardé par oracle) ; toute inférence L/D attend une paire réellement valide.
+
+## 2026-09-01 — Clôture de l'analyse PAIRE 2 (M1-M6 consolidés, attribution, M7 sauté)
+
+**Décision** : analyse CLOSE (lab/forge_runs/p2_beta/ANALYSE_PAIRE2_CONSOLIDEE_20260901.md).
+Audit documentaire Pierre : séparations contaminé/réparé, réparation M1-L2, recalcul M2a-L2,
+consolidation, traçabilité findings 7-8, préservation de l'historique = TESTED ; 3 corrections
+documentaires appliquées (libellé M2a « non sourcées au point de décision mesuré », M3-L2 « 1/1
+sur les contraintes effectivement fixées » non comparable au 9/9, statut M2a homogénéisé
+TESTED). **M7 : SAUTÉ définitivement pour cette paire** (aveugle rompu par descellement
+prématuré de l'orchestrateur — écart consigné). Attribution d'origine consignée
+(GM/grammaire/protocole/oracle/pipeline/design + orchestrateur) : les findings STRUCTURELS
+relèvent majoritairement du système expérimental (protocole/oracle/pipeline), les défauts de
+CONTENU des agents — constat d'attribution, pas une conclusion comparative.
+**claim_verdict: NO_CLAIM_ALLOWED maintenu APRÈS attribution** : aucune inférence L/D (paire
+comparative BLOCKED — D2 valide, L2 authentique mais expérimentalement invalide).
+
+**Alternatives rejetées** : exécuter M7 non-aveugle (valeur réduite, paire déjà BLOCKED) ;
+transformer les observations (1.12/1.15, M2a 0-vs-20, assets 0/13-vs-11/13, ticks) en
+comparaison causale L/D.
+
+**Critères de révision** : futur sas moteur/protocole (findings 7-8 : check_charter bloquant,
+bloc unique, tick de mesure gardé) ; toute inférence L/D exige ≥2 paires valides — il n'en
+existe encore AUCUNE (D2 seul bras valide).

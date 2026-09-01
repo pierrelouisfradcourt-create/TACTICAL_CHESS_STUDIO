@@ -44,3 +44,39 @@ deux HumanGates ACCEPTÉS. Protocole : RUN2_PROTOCOLE_V1.md (ratifié). HEAD des
 | Conclusion comparative L/D | BLOCKED — une seule paire valide (règle ≥2 paires) |
 
 claim_verdict: NO_CLAIM_ALLOWED
+
+---
+
+# ADDENDUM — REQUALIFICATION L2 (Pierre, 2026-09-01, finding n°7 établi)
+
+**L2 = exécution authentique, mais expérimentalement INVALIDE pour le bras L2 tel que spécifié.**
+L'entrée normative consommée par la chaîne était le MAUVAIS objet : `charter.yaml` matérialisé =
+bloc RETURN LINEAGE (le « dernier bloc yaml » de s0), le vrai charter (1er bloc, l.5-80 de
+l'artefact s0) jamais transmis ; `check_charter = FAIL` enregistré et resté advisory. Le
+HUMANGATE_READY reste une preuve de fonctionnement de la chaîne sur son entrée effectivement
+matérialisée — il ne certifie plus la validité de l'expérience L2 prévue.
+
+Statuts L2 requalifiés (Pierre, verbatim) : exécution 18/18 TESTED · authenticité TESTED ·
+HumanGate mécanique TESTED · expérience L2 conforme au charter prévu **BLOCKED** · M1 initial X
+**BLOCKED** · M2a initial L2 **BLOCKED** · finding n°7 TESTED · données runtime L2 **PASSIVE**
+pour la comparaison L/D. **La paire 2 n'est PAS encore la première paire valide** : D2 valide ·
+L2 run authentique mais invalide expérimentalement · paire comparative BLOCKED.
+
+Findings structurels enregistrés (AUCUN hotfix — défauts laissés observables) :
+- **n°7** : la matérialisation autorise un bloc YAML valide mais sémantiquement faux à devenir
+  charter.yaml ; yaml_check=FAIL advisory. Futur sas : check_charter FAIL = BLOQUANT avant
+  consommation + suppression de l'ambiguïté « dernier bloc valide ».
+- **n°8** : la grandeur « tick » n'est pas gardée au niveau où elle devient métrique comparative
+  (D2 tick_ms=100 sourcé ; L2 boucle 16 ms non sourcée → 72000 ticks = ~2 h vs ~19 min).
+- Faute d'exécution consignée (orchestrateur) : le contrôle A1 a vérifié l'existence du fichier,
+  pas le reçu yaml_check que le protocole exigeait de lire.
+
+**RÈGLE VERROUILLÉE (Pierre, 2026-09-01, verbatim)** : « Un verdict de chaîne ne peut jamais
+promouvoir à lui seul une expérience en "valide". L'identité et la validité de l'input normatif
+consommé doivent être établies indépendamment du verdict aval. »
+
+Réparation ANALYTIQUE autorisée (jamais du run) : revues X ré-exécutées sur le vrai charter
+extrait (`m7_blind_v2/L2_charter_vrai_extrait.yaml`, extraction déterministe l.6-79) + M2a-L2
+recalculé avec cette source ; anciennes X-revues CONSERVÉES comme évidence du finding n°7.
+M7 : BLOQUÉ jusqu'à consolidation (ordre : X-vrai → M2a corrigé → consolidation → M7(a) →
+M7(b) → descellement → attribution).
