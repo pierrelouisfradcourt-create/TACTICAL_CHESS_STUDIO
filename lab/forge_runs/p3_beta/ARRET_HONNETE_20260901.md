@@ -32,6 +32,13 @@ les deux GM de la paire 2 → exigence satisfaisable, échec propre à ce bras.
   protocole/oracle ou une limite de ce GM · P4 telle quelle ou nouveau sas justifié) — pour
   éviter le piège d'ajouter des sas indéfiniment à chaque échec d'agent.
 
+## Portée du finding (distinction Pierre, 2026-09-01)
+
+Le fait que beta échoue quatre fois alors qu'alpha réussit **ne permet pas de conclure
+« Opus est incapable de X »**. Ça établit seulement le comportement observé de CE run,
+CE bras, CETTE trajectoire et CE contexte. La qualification (trou protocole/oracle vs
+limite du GM) appartient au post-mortem, preuves à l'appui.
+
 ## Coût du bras
 
 s2.7 : 4 appels Opus (~10 min chacun) ; chaîne amont s0/s2/s2.5/s2.6 exécutée et conservée.
