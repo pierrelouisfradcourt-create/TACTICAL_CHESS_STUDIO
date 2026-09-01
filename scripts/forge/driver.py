@@ -550,7 +550,31 @@ class ForgeDriver:
                 if etape == first_post and self._maybe_escalate(state):
                     continue  # s9 + oracles remis à PENDING — la boucle les rejoue
                 if is_deterministic_step(etape):
-                    self._run_deterministic(state, etape)
+                    try:
+                        self._run_deterministic(state, etape)
+                    except Exception as exc:  # noqa: BLE001 — SAS MOTEUR MINIMAL
+                        # (P3-2, 2026-09-01) : une exception non gérée À
+                        # L'INTÉRIEUR d'une étape déterministe (ex.
+                        # `FileNotFoundError` de mutation_proof.py sur un chemin
+                        # de wiremap doublé, run p3_alpha) faisait mourir le
+                        # PROCESS (exit 1) en laissant `state.json` à RUNNING —
+                        # un état MENTEUR (le run semble en cours alors
+                        # qu'aucun process ne tourne plus). Seul CE point
+                        # d'appel est enveloppé (pas les étapes LLM, `_run_llm_
+                        # gated` gère déjà son propre échec via `_halt_step`) :
+                        # même chemin HALT que les autres arrêts d'étape —
+                        # `_halt_step` persiste run_status=HALTED + reason et
+                        # marque l'étape BLOCKED avec un `detail` structuré,
+                        # `_halted_report` produit le même rapport que le
+                        # chemin LLM HALTED ci-dessous.
+                        entry = state["steps"][etape]
+                        reason = f"exception non gérée à {etape}: {exc!r}"
+                        logger.exception(
+                            "exception non gérée dans _run_deterministic à "
+                            "%s (run=%s) — conversion en HALT propre",
+                            etape, self.run_id)
+                        self._halt_step(state, entry, reason, etape=etape)
+                        return self._halted_report(state.get("reason", ""), state=state)
                     self._record_design_state_best_effort(state, etape)
                 elif not self._run_llm_gated(state, etape):
                     # R1'' (GO Pierre 2026-08-13) : la promotion des lessons tourne
@@ -3577,6 +3601,57 @@ class ForgeDriver:
                 "preuve mutation impossible ; hypothèse inconnue = BLOCKED")
             self._finish_step(state, entry, "BLOCKED", detail)
             return
+
+        # SAS MOTEUR MINIMAL (P3-2, 2026-09-01) : une wiremap de run peut citer ses
+        # fichiers en chemins REPO-relatifs (ex. `games/p3_alpha/economy.mjs`,
+        # constaté sur `lab/forge_runs/p3_alpha/wiremap.json`) alors que
+        # `run_mutation_for_game`/`mutation_proof.py` joignent `self.src_root / f`
+        # — un `src_root` déjà pointé sur `games/p3_alpha` double alors le préfixe
+        # (`games/p3_alpha/games/p3_alpha/economy.mjs`, `FileNotFoundError` non
+        # géré). Normalisation MINIMALE, un seul sens (retirer le préfixe repo-
+        # relatif de `src_root` s'il est présent) — jamais l'inverse, jamais une
+        # heuristique plus large. Fichiers déjà nus (convention paire 2, cas
+        # historique) : `(self.src_root / f).exists()` est vrai directement,
+        # AUCUNE réécriture, boucle no-op pour eux.
+        files_normalized = []
+        logic_files_normalized: dict[str, str] = {}
+        missing_after_normalization: list[str] = []
+        try:
+            src_root_prefix = self.src_root.resolve().relative_to(_REPO_ROOT).as_posix() + "/"
+        except (ValueError, OSError):
+            src_root_prefix = None
+        for f in files:
+            if (self.src_root / f).exists():
+                files_normalized.append(f)
+                continue
+            f_posix = f.replace("\\", "/")
+            candidate = f
+            if src_root_prefix and f_posix.startswith(src_root_prefix):
+                candidate = f_posix[len(src_root_prefix):]
+            if candidate != f and (self.src_root / candidate).exists():
+                logic_files_normalized[f] = candidate
+                files_normalized.append(candidate)
+            else:
+                missing_after_normalization.append(f)
+                files_normalized.append(f)
+        if logic_files_normalized:
+            detail["logic_files_normalized"] = logic_files_normalized
+        if missing_after_normalization:
+            detail["reason"] = (
+                "fichiers logiques introuvables sous src_root, même après "
+                "normalisation du préfixe repo-relatif — hypothèse inconnue = "
+                f"BLOCKED : {missing_after_normalization}")
+            self._finish_step(state, entry, "BLOCKED", detail)
+            return
+        files = files_normalized
+        if logic_files_normalized:
+            # Cohérence reçu/exécution (consigne du sas) : le `scope` signé dans le
+            # reçu mutation doit refléter les MÊMES chemins que ceux réellement
+            # passés à `run_mutation_for_game`, pas les chemins bruts de la wiremap.
+            scope = dict(scope)
+            scope["included"] = [
+                logic_files_normalized.get(f, f) for f in scope.get("included", [])
+            ]
 
         # C4 (suite) : la commande de test qui juge les mutants. Défaut historique
         # (DEFAULT_TEST_ARGV = `node --test logic.test.mjs properties.test.mjs`) = la
