@@ -300,7 +300,9 @@ def test_premortem_different_generation_injected_and_marked(tmp_path):
     réexaminer (pas silencieusement traitée comme une règle courante)."""
     path = tmp_path / "lessons.jsonl"
     lm.record_lesson_event("lesson-g", status=lm.LESSON_STATUS_CANDIDATE,
-                            statement="TEXTE_AUTRE_GENERATION", generation=1, path=path)
+                            statement="TEXTE_AUTRE_GENERATION", generation=1, path=path,
+                            cause="le seuil etait code en dur dans le builder au lieu"
+                                  " d'etre lu du charter")
     out = lm.premortem_lessons(current_generation=2, lessons_path=path, include_legacy=False)
     line = next(l for l in out if "TEXTE_AUTRE_GENERATION" in l)
     assert lm.MARKER_GENERATION_MISMATCH in line
@@ -309,7 +311,9 @@ def test_premortem_different_generation_injected_and_marked(tmp_path):
 def test_premortem_same_generation_no_marker(tmp_path):
     path = tmp_path / "lessons.jsonl"
     lm.record_lesson_event("lesson-s", status=lm.LESSON_STATUS_CANDIDATE,
-                            statement="TEXTE_MEME_GENERATION", generation=3, path=path)
+                            statement="TEXTE_MEME_GENERATION", generation=3, path=path,
+                            cause="l'oracle lisait le wiremap du run_dir alors que la"
+                                  " topologie STANDARD le place dans 09_WIREMAP/")
     out = lm.premortem_lessons(current_generation=3, lessons_path=path, include_legacy=False)
     line = next(l for l in out if "TEXTE_MEME_GENERATION" in l)
     assert lm.MARKER_GENERATION_MISMATCH not in line
@@ -322,7 +326,9 @@ def test_premortem_deprecated_marked_historical_even_if_generation_matches(tmp_p
     déclarée coïncide."""
     path = tmp_path / "lessons.jsonl"
     lm.record_lesson_event("lesson-d", status=lm.LESSON_STATUS_CANDIDATE,
-                            statement="TEXTE_DEPRECIEE", generation=5, path=path)
+                            statement="TEXTE_DEPRECIEE", generation=5, path=path,
+                            cause="le harnais e2e transformait une exception d'import"
+                                  " manquant en passed:true (faux vert)")
     lm.record_lesson_event("lesson-d", status=lm.LESSON_STATUS_DEPRECATED,
                             generation=5, path=path)
     out = lm.premortem_lessons(current_generation=5, lessons_path=path, include_legacy=False)
@@ -336,7 +342,9 @@ def test_premortem_unknown_current_generation_flags_everything(tmp_path):
     ne doivent JAMAIS se lire comme une correspondance silencieuse."""
     path = tmp_path / "lessons.jsonl"
     lm.record_lesson_event("lesson-u", status=lm.LESSON_STATUS_CANDIDATE,
-                            statement="TEXTE_GENERATION_INCONNUE", generation=1, path=path)
+                            statement="TEXTE_GENERATION_INCONNUE", generation=1, path=path,
+                            cause="la regex de derivation de projet n'anticipait pas le"
+                                  " suffixe horaire -HHMM du run_id")
     out = lm.premortem_lessons(current_generation=None, lessons_path=path, include_legacy=False)
     line = next(l for l in out if "TEXTE_GENERATION_INCONNUE" in l)
     assert lm.MARKER_GENERATION_MISMATCH in line
@@ -380,16 +388,25 @@ def test_premortem_lessons_sort_is_structural_not_read_order(tmp_path):
     continuer de prouver la même propriété (l'ordre d'écriture/lecture ne décide
     rien, seuls les champs écrits décident)."""
     path_a = tmp_path / "order_a.jsonl"
+    # Les DEUX corpus portent les MÊMES champs (statement, generation, ts, cause) :
+    # seul l'ordre d'ÉCRITURE diffère. `cause` entre dans la structure comparée depuis
+    # v2 — une fixture sans cause serait exclue par Gate 1 et ne prouverait plus rien.
+    CAUSE_BB = "le builder documentait plusieurs fonctions par feature au lieu d'une"
+    CAUSE_AA = "le timeout de dispatch etait calibre sur un squelette, pas sur un greenfield"
     lm.record_lesson_event("lesson-bb", status=lm.LESSON_STATUS_CANDIDATE,
-                            statement="BB", generation=1, path=path_a, ts=100.0)
+                            statement="BB", generation=1, path=path_a, ts=100.0,
+                            cause=CAUSE_BB)
     lm.record_lesson_event("lesson-aa", status=lm.LESSON_STATUS_CANDIDATE,
-                            statement="AA", generation=1, path=path_a, ts=200.0)
+                            statement="AA", generation=1, path=path_a, ts=200.0,
+                            cause=CAUSE_AA)
 
     path_b = tmp_path / "order_b.jsonl"
     lm.record_lesson_event("lesson-aa", status=lm.LESSON_STATUS_CANDIDATE,
-                            statement="AA", generation=1, path=path_b, ts=200.0)
+                            statement="AA", generation=1, path=path_b, ts=200.0,
+                            cause=CAUSE_AA)
     lm.record_lesson_event("lesson-bb", status=lm.LESSON_STATUS_CANDIDATE,
-                            statement="BB", generation=1, path=path_b, ts=100.0)
+                            statement="BB", generation=1, path=path_b, ts=100.0,
+                            cause=CAUSE_BB)
 
     out_a = lm.premortem_lessons(current_generation=1, lessons_path=path_a, include_legacy=False)
     out_b = lm.premortem_lessons(current_generation=1, lessons_path=path_b, include_legacy=False)
@@ -406,12 +423,16 @@ def test_premortem_lessons_limit_excludes_rejected_from_budget(tmp_path):
     for suffix in ("a", "b"):
         lid = f"lesson-{suffix}"
         lm.record_lesson_event(lid, status=lm.LESSON_STATUS_CANDIDATE, statement="x",
-                                generation=1, path=path)
+                                generation=1, path=path,
+                                cause="volet d'oracle rouge sur un mode d'execution ou la"
+                                      " mesure etait impossible")
         lm.record_lesson_event(lid, status=lm.LESSON_STATUS_VALIDATED, path=path)
         lm.record_lesson_event(lid, status=lm.LESSON_STATUS_WEAKENED, path=path)
         lm.record_lesson_event(lid, status=lm.LESSON_STATUS_REJECTED, path=path)
     lm.record_lesson_event("lesson-c", status=lm.LESSON_STATUS_CANDIDATE,
-                            statement="TEXTE_ACTIF_UNIQUE", generation=1, path=path)
+                            statement="TEXTE_ACTIF_UNIQUE", generation=1, path=path,
+                            cause="le projet n'etait pas enregistre dans oracles.json avant"
+                                  " le premier dispatch LLM")
 
     out = lm.premortem_lessons(current_generation=1, lessons_path=path,
                                 include_legacy=False, limit=1)
@@ -457,3 +478,54 @@ def test_cli_lesson_invalid_transition_exits_nonzero(tmp_path, monkeypatch):
 
 def test_cli_no_subcommand_prints_usage_and_exits_nonzero():
     assert lm.main([]) == 2
+
+
+# ---------------------------------------------------------------------------
+# GATE 1 — regle des trois etats sur `cause` (ratifiee Pierre 2026-09-01).
+# Ces deux tests sont les SEULS gardiens de la politique : les sept tests
+# d'injection preexistants portent desormais une cause reelle, donc aucun
+# d'eux ne verifie plus la frontiere elle-meme.
+# ---------------------------------------------------------------------------
+
+def test_gate1_cause_vide_est_exclue_du_premortem(tmp_path):
+    """Cause PRESENTE et VIDE = absence DECLAREE => evenement d'execution, jamais
+    injecte. C'est le cas des 21 lecons « echec de la tentative 0 a <etape> » :
+    leur manifeste ne portait aucun `root_cause`."""
+    path = tmp_path / "lessons.jsonl"
+    lm.record_lesson_event("lesson-sans-cause", status=lm.LESSON_STATUS_CANDIDATE,
+                            statement="TEXTE_EVENEMENT_EXECUTION", generation=1,
+                            path=path, cause="")
+    lm.record_lesson_event("lesson-avec-cause", status=lm.LESSON_STATUS_CANDIDATE,
+                            statement="TEXTE_CONNAISSANCE", generation=1, path=path,
+                            cause="l'entree declaree n'existait pas dans le wrapper")
+
+    out = lm.premortem_lessons(current_generation=1, lessons_path=path,
+                                include_legacy=False)
+    assert any("TEXTE_CONNAISSANCE" in l for l in out)
+    assert not any("TEXTE_EVENEMENT_EXECUTION" in l for l in out)
+
+    # Exclue du CONTEXTE, jamais du JOURNAL : l'historique reste complet.
+    assert "lesson-sans-cause" in lm.fold_lessons(path)
+
+
+def test_gate1_cause_absente_reste_toleree_pour_les_lecons_v1(tmp_path):
+    """Cause ABSENTE = cause INCONNUE, pas niee. Sans cette tolerance, les 326
+    lecons v1 du journal sortiraient DEFINITIVEMENT du contexte agent :
+    `promote_manifest_lessons` est idempotente (`if lesson_id in existing:
+    continue`), elles ne seraient jamais re-emises avec le champ.
+
+    Ecriture DIRECTE d'un enregistrement v1 (sans le champ) : passer par
+    `record_lesson_event` ecrirait toujours `cause`, donc ne pourrait pas
+    reproduire l'historique reel."""
+    path = tmp_path / "lessons.jsonl"
+    v1 = {"schema": "forge.lesson.v1", "lesson_id": "lesson-v1",
+          "statement": "TEXTE_HISTORIQUE_V1", "status": lm.LESSON_STATUS_CANDIDATE,
+          "evidence_count": 1, "supporting_runs": ["r1"], "counter_examples": [],
+          "generation": 1, "caused_by": {"failure_id": "", "experience": ""},
+          "ts": 100.0}
+    assert "cause" not in v1
+    path.write_text(json.dumps(v1, ensure_ascii=False) + "\n", encoding="utf-8")
+
+    out = lm.premortem_lessons(current_generation=1, lessons_path=path,
+                                include_legacy=False)
+    assert any("TEXTE_HISTORIQUE_V1" in l for l in out)

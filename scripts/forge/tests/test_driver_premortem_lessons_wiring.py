@@ -57,20 +57,29 @@ def capture_calls(monkeypatch):
 
 
 def _populate_lessons(path):
+    # v2 (Gate 1, ratifiee Pierre 2026-09-01) : une lecon qui PRETEND etre injectee dans
+    # le contexte d'un agent doit declarer sa cause. Ces fixtures exercent exactement
+    # cette pretention -- elles portent donc une cause REELLE, jamais un remplissage.
     lm.record_lesson_event("lesson-rejetee", status=lm.LESSON_STATUS_CANDIDATE,
                             statement="TEXTE_REJETE_NE_DOIT_JAMAIS_APPARAITRE",
-                            generation=2, path=path)
+                            generation=2, path=path,
+                            cause="le mutant survivant avait ete trie equivalent par son"
+                                  " propre producteur, sans verification independante")
     lm.record_lesson_event("lesson-rejetee", status=lm.LESSON_STATUS_VALIDATED, path=path)
     lm.record_lesson_event("lesson-rejetee", status=lm.LESSON_STATUS_WEAKENED, path=path)
     lm.record_lesson_event("lesson-rejetee", status=lm.LESSON_STATUS_REJECTED, path=path)
 
     lm.record_lesson_event("lesson-autre-gen", status=lm.LESSON_STATUS_CANDIDATE,
                             statement="TEXTE_AUTRE_GENERATION_A_REEXAMINER",
-                            generation=1, path=path)
+                            generation=1, path=path,
+                            cause="un test ecrit pendant le run n'etait liste par aucune"
+                                  " commande d'oracle du projet")
 
     lm.record_lesson_event("lesson-meme-gen", status=lm.LESSON_STATUS_CANDIDATE,
                             statement="TEXTE_MEME_GENERATION_NORMAL",
-                            generation=2, path=path)
+                            generation=2, path=path,
+                            cause="run_status: RUNNING etait lu comme une preuve de vie"
+                                  " alors qu'aucun process ne tournait")
 
 
 def test_lesson_texte_atteint_le_prompt_final_reel(tmp_path, capture_calls, monkeypatch):

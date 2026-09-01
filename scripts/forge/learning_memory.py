@@ -68,7 +68,16 @@ DEFAULT_LESSONS_PATH = FORGE_REPORTS / "lessons.jsonl"
 DEFAULT_GENERATION_PATH = Path(__file__).resolve().parent / "genome_generation.yaml"
 
 FAILURE_EVENT_SCHEMA = "forge.failure_event.v1"
-LESSON_SCHEMA = "forge.lesson.v1"
+# v2 (2026-09-01) : ajout du champ `cause`. La cause EXISTAIT déjà, structurée, chez le
+# producteur (`_iter_manifest_reason_records` extrait `problem` ET `root_cause` du
+# manifeste) — puis `promote_manifest_lessons` les APLATISSAIT en prose dans `statement`
+# (`" — cause: ".join(...)`), détruisant le seul discriminant mécanique disponible. v2 ne
+# crée donc aucune donnée : elle cesse d'en jeter une. `statement` reste identique au bit
+# près (tous les lecteurs actuels sont inchangés). Mesuré au 2026-09-01 : 287 leçons sur
+# 331 portent une analyse causale, 21 sont des événements d'exécution sans cause
+# (« echec de la tentative 0 a s4-archi ») — c'est cette frontière que le champ rend
+# opposable, sans jamais inférer depuis `statement` (règle ratifiée Pierre).
+LESSON_SCHEMA = "forge.lesson.v2"
 
 # --- Taxonomie des causes racines (doctrine §4.0, RATIFIÉE, telle quelle) -----------
 # `etape_detection` (le LIEU où l'erreur a été vue) et `causes_suspectees` (le NIVEAU
@@ -331,6 +340,7 @@ def record_lesson_event(
     *,
     status: str,
     statement: str | None = None,
+    cause: str | None = None,
     generation: int | None = None,
     add_supporting_run: str | None = None,
     add_counter_example: str | None = None,
@@ -372,6 +382,10 @@ def record_lesson_event(
         if not statement:
             raise ValueError("statement requis à la création d'une leçon")
         statement_final = statement
+        # `cause` vide est un ÉTAT DÉCLARÉ, jamais un oubli : c'est ainsi qu'un
+        # événement d'exécution (pas de `root_cause` au manifeste) se distingue d'une
+        # connaissance. Aucune inférence depuis `statement` — règle ratifiée Pierre.
+        cause_final = cause or ""
         supporting_runs: list[str] = []
         counter_examples: list[str] = []
         evidence_count = 0
@@ -384,6 +398,10 @@ def record_lesson_event(
                     f"{prior.get('status')!r} -> {status!r} (autorisées: {sorted(allowed)})"
                 )
         statement_final = statement if statement is not None else prior.get("statement", "")
+        # Même patron que `statement`/`generation` : une transition qui ne fournit pas
+        # `cause` HÉRITE de la précédente. Une leçon v1 (sans le champ) reste sans cause
+        # — aucune migration implicite : l'historique reste ce qu'il est.
+        cause_final = cause if cause is not None else prior.get("cause", "")
         supporting_runs = list(prior.get("supporting_runs", []))
         counter_examples = list(prior.get("counter_examples", []))
         evidence_count = int(prior.get("evidence_count", 0))
@@ -400,6 +418,7 @@ def record_lesson_event(
         "schema": LESSON_SCHEMA,
         "lesson_id": lesson_id,
         "statement": statement_final,
+        "cause": cause_final,
         "status": status,
         "evidence_count": evidence_count,
         "supporting_runs": supporting_runs,
@@ -516,6 +535,11 @@ def promote_manifest_lessons(
         statement = " — cause: ".join(part for part in (problem, root_cause) if part)
         record = record_lesson_event(
             lesson_id, status=LESSON_STATUS_CANDIDATE, statement=statement,
+            # v2 : `root_cause` voyage AUSSI en champ. `statement` est INCHANGÉ (même
+            # concaténation, mêmes octets) — la cause n'est pas déplacée, elle cesse
+            # d'être UNIQUEMENT en prose. `root_cause` vide => `cause` vide : le
+            # manifeste ne portait pas de cause, on ne l'invente pas.
+            cause=root_cause,
             add_supporting_run=str(run_id),
             caused_by_experience=f"{etape} ({manifest_path.name})",
             path=lessons_path, ts=ts,
@@ -523,6 +547,63 @@ def promote_manifest_lessons(
         existing[lesson_id] = record
         written.append(record)
     return written
+
+
+def backfill_cause_from_manifests(
+    runs_root: Path | None = None,
+    lessons_path: Path | None = None,
+    *,
+    dry_run: bool = True,
+) -> list[dict]:
+    """Renseigne `cause` sur les leçons v1 EN LA RELISANT DEPUIS SON MANIFESTE D'ORIGINE.
+
+    Ce n'est PAS une migration ni une inférence : `_iter_manifest_reason_records` relit
+    `reason.root_cause` du fichier source, exactement comme à la première promotion. La
+    prose de `statement` n'est jamais lue (règle ratifiée Pierre 2026-09-01).
+
+    NÉCESSAIRE parce que `promote_manifest_lessons` est IDEMPOTENTE : une leçon déjà
+    promue n'est jamais ré-émise, donc les leçons v1 ne recevraient jamais de champ.
+
+    APPEND-ONLY : écrit un ÉVÉNEMENT de plus sur la leçon (même `status`, donc aucune
+    transition — `record_lesson_event` ne contrôle la table que si le statut change).
+    L'historique n'est jamais réécrit ; `fold_lessons` replie sur le dernier événement.
+
+    Traite UNIQUEMENT les leçons dont le champ est ABSENT et dont le manifeste porte une
+    `root_cause` non vide. Une leçon déjà pourvue n'est pas retouchée ; un manifeste
+    disparu avec son run_dir laisse la leçon sans cause — un trou MESURÉ, jamais comblé.
+
+    `dry_run=True` (défaut) ne touche RIEN : rend la liste de ce qui serait écrit.
+    """
+    root = Path(runs_root) if runs_root is not None else (REPO_ROOT / "lab" / "forge_runs")
+    store = lessons_path or DEFAULT_LESSONS_PATH
+    connues = fold_lessons(store)
+
+    # Reconstruire id -> root_cause depuis les manifestes encore présents.
+    causes: dict[str, str] = {}
+    if root.is_dir():
+        for run_dir in sorted(p for p in root.iterdir() if p.is_dir()):
+            try:
+                for manifest_path, _row, problem, root_cause in _iter_manifest_reason_records(run_dir):
+                    if not root_cause:
+                        continue
+                    etape = manifest_path.name.split(".")[0]
+                    causes.setdefault(make_manifest_lesson_id(etape, problem, root_cause), root_cause)
+            except OSError:
+                continue  # run_dir illisible : trou mesuré, jamais une exception
+
+    plan: list[dict] = []
+    for lesson_id, cause in sorted(causes.items()):
+        prior = connues.get(lesson_id)
+        if prior is None or "cause" in prior:
+            continue  # inconnue du journal, ou déjà pourvue : on ne retouche rien
+        plan.append({"lesson_id": lesson_id, "cause": cause, "status": prior.get("status")})
+
+    if dry_run:
+        return plan
+    for item in plan:
+        record_lesson_event(item["lesson_id"], status=item["status"],
+                            cause=item["cause"], path=store)
+    return plan
 
 
 # --- Compatibilité : anciennes leçons de méthode (pré-schéma) ----------------------
@@ -623,6 +704,22 @@ def apply_injection_policy(lessons: list[dict], current_generation: int | None) 
     for lesson in lessons:
         status = lesson.get("status")
         if status == LESSON_STATUS_REJECTED:
+            continue
+        # GATE 1 (ratifiée Pierre 2026-09-01) — RÈGLE DES TROIS ÉTATS sur `cause` :
+        #   absent  (leçon v1) -> TOLÉRÉ : la cause est INCONNUE, pas niée. Exclure ici
+        #                         supprimerait définitivement les 287 leçons causales de
+        #                         l'historique — `promote_manifest_lessons` est idempotente
+        #                         (`if lesson_id in existing: continue`), elles ne seraient
+        #                         JAMAIS ré-émises avec un champ. Mesuré : 0/326 passeraient.
+        #   vide    (leçon v2) -> EXCLU : le manifeste ne portait pas de `root_cause`, donc
+        #                         l'absence de cause est DÉCLARÉE. C'est un événement
+        #                         d'exécution (« echec de la tentative 0 a s4-archi »), pas
+        #                         une connaissance : stocké à l'historique, hors contexte agent.
+        #   rempli             -> ADMIS.
+        # Reste un filtre sur CHAMP, jamais sur le CONTENU (aucune lecture de `statement`,
+        # aucun jugement de pertinence) — l'invariant de cette fonction est conservé.
+        # Gate 2 (`valider()` -> KB) est SÉPARÉE : une leçon `candidate` causale entre ici.
+        if "cause" in lesson and not str(lesson.get("cause") or "").strip():
             continue
         marker: str | None = None
         if status == LESSON_STATUS_DEPRECATED:
