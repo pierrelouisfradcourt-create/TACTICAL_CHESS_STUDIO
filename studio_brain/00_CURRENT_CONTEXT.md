@@ -1,8 +1,59 @@
 # Contexte courant TCS
-*(Handoff. Dernières sessions : 2026-08-30 — **RUN 1 chain_probe_v1 CLOS par Pierre** (chaîne
-full_content prouvée, verdict AUTHENTIQUE HUMANGATE_READY) après consolidation fiches 1-5 +
-Project Input · 2026-08-29 — run tower_defense_sonde COMPLET puis CLOS. Archive :
+*(Handoff. Dernières sessions : 2026-09-01 — **Shadow Audit V1→V6 CLOS** (campagne de
+falsification, aucun patch) · 2026-08-30 — **RUN 1 chain_probe_v1 CLOS par Pierre** (chaîne
+full_content prouvée, verdict AUTHENTIQUE HUMANGATE_READY) · 2026-08-29 — run
+tower_defense_sonde COMPLET puis CLOS. Archive :
 `journal/context-archive-2026-08-29-avant-audit-paquetA.md`.)*
+
+## Shadow Audit V1→V6 (2026-08-31 → 2026-09-01) — **CLOS, aucun patch, aucune mesure rejouée**
+- **Carte** : artefact `claude.ai/code/artifact/15ab188c-0b5e-4ac9-8e85-7eb0db0e5714`, horodatée
+  **état audité `619b29c → 36420d2`**. HEAD a depuis avancé à `e8c42270` (+5 commits paire 2, +217
+  lignes non commitées dans driver/run_real/static_oracles). **Preuve HISTORIQUE ≠ état courant** —
+  chiffres (85 runs, 234,05 $, 3,26 M tokens, 349 diffs) valides sur l'état audité SEULEMENT.
+- **Méthode : falsification.** 4 thèses successives réfutées par la mesure — « relations non
+  modélisées » (faux : `check_collisions` + `check_line_states` câblés) · « boucle asset cassée »
+  (faux : complète, dry-run OK, attend une signature humaine) · « faille composition s5/s10s »
+  (faux : s10s lit le squelette `09_WIREMAP/`, pas la sortie de s5) · « deux sources de vérité
+  wiremap » (faux : même dispatch, deux moments `frozen`→`built`, transformation contractualisée).
+- **Résidu unique : `TRANSITION_INTEGRITY` NOT_FOUND** — aucun mécanisme ne garantit la
+  conservation des ids entre wiremap de gel et wiremap après-build ; TESTED sur breakout_v2 (52/52).
+- **Confirmés (état audité)** : producteur = son propre juge (`reference_guard` 0 occurrence dans
+  verdict/verify_run/gate, DRIFT n'atteint aucune décision) · Brief sans champ capacitaire (Brief
+  MMO+SQL+multijoueur `passed: True`) · télémétrie de jeu NOT_FOUND · 5 contrôleurs dormants.
+- **E0 — POUSSÉ (`fcf666c2`)** : `games/p1_beta/solvability.mjs` émet `FORGE_ORACLE_SUMMARY` →
+  `driver.py:3248` range la marge réelle en `detail["oracle_measures"]` (2454/8000, margin_ratio
+  0,30675). Zéro modification Forge : le tuyau existait, l'émetteur manquait.
+- **lesson.v2 — POUSSÉ (`25e31b37`)** : `cause` devient un champ ET la porte du contexte agent.
+  Producteur (`promote_manifest_lessons` cesse d'aplatir `root_cause` en prose, `statement`
+  inchangé au bit près) · Gate 1 à **trois états** dans `apply_injection_policy` (absent v1 =
+  toléré · vide v2 = événement exclu · rempli = injecté) · 8 fixtures de test traitées comme
+  PRODUCTEURS, causes réelles, jamais de vert cosmétique · 2 gardiens neufs · migration append-only
+  de **121 leçons** re-dérivées des manifestes d'origine (jamais de `statement`). Invariants
+  vérifiés : 326→326, aucun statut ni statement modifié. **205 causes définitivement perdues**
+  (run_dirs supprimés) — mesure inédite de ce que le studio a déjà perdu.
+- **Bilan de campagne** : artefact `claude.ai/code/artifact/6e2f2e55-2fc3-4dbb-a731-7c7e2d8e02d6`.
+  Diagnostic : *la Forge n'a pas un problème de capacités manquantes, mais de mécanismes construits
+  et jamais exercés*. Goulot mesuré = la ratification humaine (18 validated / 326). Meilleur levier
+  restant = **sélection du pre-mortem par étape** (204/326 portent leur étape, le sélecteur l'ignore
+  et trie par horodatage puis alphabétiquement).
+- **Boucle lesson → KB : FERMÉE, et elle a déjà tourné 18 fois.** R3 v4 admet `provenance_internal`
+  (« leçon Forge validée ») ; 18 entrées du catalogue en portent une, exactement les 18 `validated`.
+  Ma conclusion inverse du 2026-09-01 venait d'une docstring PÉRIMÉE de `_lesson_to_pattern_entry`.
+- **E1/E1b** (fork `p1_beta_E1`, non suivi) : Architecte débridé → blueprint 483 o → 15 013 o,
+  passe son contrat que le contrôle échoue, pilote `economy.mjs`/`objective.mjs` réels. **Mais
+  margin_ratio IDENTIQUE au bit près, pour 4,4× le coût, run final BLOCKED** (wiremap frozen).
+  Le builder a réécrit son propre oracle sans détection. **P0 « débrider l'Architecte » retiré.**
+- **Incident consigné** : dry-run de ratification asset a écrit dans `batch_constraints.json`
+  (suivi) — redirection de bac à sable incomplète. Restauré, blob == commit, vérifié par hash.
+- Leçon durable en mémoire : `audit_measure_carries_its_head` (une mesure porte son HEAD).
+- **NON SUIVI, conservé comme évidence (décision Pierre)** : `games/p1_beta_E1/`,
+  `lab/forge_runs/p1_beta_E1/`, `lab/forge_briefs/p1_beta_E1/`. Réserve posée et non levée :
+  *untracked ≠ durable* — un `git clean` les emporterait. Versionner ou non = gate Pierre.
+- **Ouvert, par levier décroissant** : sélection pre-mortem par étape · ratification en lot
+  (308 candidate) · 5 contrôleurs dormants · champ capacitaire au Brief · recalibrage
+  `reference_guard` (349 diffs à chaque run depuis le 2026-07-31) · DRIFT non propagé au verdict.
+- **E2–E5 suspendus** · **P0 « débrider l'Architecte » RETIRÉ** (E1b : effet architecture réel,
+  effet gameplay nul, 4,4× le coût) · rouge `p3_alpha` hors périmètre (`oracles.json`, autre session).
 
 ## Analyse PAIRE 2 (2026-09-01) — **CLOSE** ; requalification : PAS encore de paire valide
 - **Finding n°7** : charter.yaml L2 = bloc RETURN LINEAGE (« dernier bloc yaml » + check_charter
