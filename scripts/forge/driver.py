@@ -109,6 +109,7 @@ from forge.static_oracles import (
     check_e2e_harness,
     check_feature_set_frozen,
     check_harness_no_hardcoded_flags,
+    check_measure_tick,
     check_reuse_ratio_wired,
     check_search_consulted,
     check_solvability_wired,
@@ -3279,6 +3280,33 @@ class ForgeDriver:
             e2e = check_e2e_harness(self.src_root)
             e2e_ok = bool(e2e["passed"])
         detail["e2e"] = e2e
+        # C-c(3) (sas moteur, GO Pierre 2026-09-01, finding n°8 paire 2) : si le
+        # Brief canonique du projet porte `mesure.tick_ms` (validé optionnel par
+        # check_project_brief), le jeu doit DÉCLARER ce même pas logique
+        # (check_measure_tick) — sinon la boucle réelle peut tourner à un pas
+        # différent sans qu'aucun oracle ne le garde (p2_beta : setInterval(16)
+        # non sourcé, "72000 ticks" incomparable au tick_ms=100 de p2_alpha).
+        # CONTRIBUE au gate comme e2e_ok (FAIL alimente la même boucle
+        # d'escalade) — jamais advisory, comportement voulu par Pierre. Brief
+        # SANS champ `mesure` : volet SKIPPED, AUCUNE contribution — non-
+        # régression absolue des profils/briefs existants (défaut du champ =
+        # comportement STRICTEMENT inchangé).
+        brief = self._read_yaml(_REPO_ROOT / "lab" / "forge_briefs" / self.project
+                                / "project_brief.yaml")
+        mesure = brief.get("mesure") if isinstance(brief, dict) else None
+        tick_ms_attendu = mesure.get("tick_ms") if isinstance(mesure, dict) else None
+        if isinstance(tick_ms_attendu, int) and not isinstance(tick_ms_attendu, bool) \
+                and tick_ms_attendu > 0:
+            measure_tick = check_measure_tick(self.src_root, tick_ms_attendu)
+            detail["measure_tick"] = measure_tick
+            if not measure_tick.get("passed"):
+                e2e_ok = False
+        else:
+            detail["measure_tick"] = {
+                "status": "SKIPPED", "checked": False,
+                "reason": "Brief sans 'mesure.tick_ms' valide — aucune contribution "
+                          "au gate (non-régression des profils/briefs existants)",
+            }
         # P2 (leçon survival_arena/collect_runner : deux jeux injouables tous gates
         # verts) : la solvabilité contribue au gate AU MÊME TITRE que la garde e2e —
         # un jeu sans solvability.mjs câblé dans run-oracle.mjs ne peut pas verdir

@@ -97,15 +97,31 @@ def _chemins_artefact_reel():
 
 
 def test_cas_reel_kitten_clicker_s0_contrat(tmp_path):
+    """SAS MOTEUR (GO Pierre 2026-09-01, C-a) — assertion MISE À JOUR, signalée
+    explicitement : cette fixture réelle unique-bloc, mesurée en re-vérifiant le
+    test contre le corpus, contient déjà des items de liste non quotés portant un
+    « : » (ex. « Portage mobile / tactile ou build web : la cible est... ») —
+    YAML les parse comme des mappings à une clé, pas des chaînes, ce que
+    `check_charter` rejette à bon droit (`hors_scope[2]/[4]/[5]`,
+    `criteres_succes[2]/[4]` « absent ou vide »). Avant ce correctif, ce défaut
+    de la fixture était INVISIBLE : `check_charter` tournait déjà (reçu
+    `res["check"]`) mais restait ADVISORY — le fichier s'écrivait quand même
+    (`written: True`), l'assertion de ce test ne regardait jamais le verdict du
+    check. Le correctif C-a rend ce même défaut BLOQUANT (comportement voulu :
+    un charter qui échoue check_charter ne doit plus jamais être matérialisé,
+    unique bloc ou non) — ce test prouve désormais le refus, motifs inclus,
+    plutôt que l'ancienne écriture silencieuse d'un charter déjà invalide."""
     chemin = next((p for p in _chemins_artefact_reel() if p.exists()), None)
     if chemin is None:
         pytest.skip("artefact réel s0-contrat.txt introuvable (aucun des deux chemins "
                     "connus) — non copié dans le dépôt, cf. consigne")
     texte = chemin.read_text(encoding="utf-8")
     res = run_real._materialize_yaml("s0-contrat", texte, tmp_path)
-    assert res["written"] is True, res
-    data = yaml.safe_load((tmp_path / "charter.yaml").read_text(encoding="utf-8"))
-    assert isinstance(data, dict)
-    for champ in ("objectif", "hors_scope", "criteres_succes", "actions_interdites",
-                  "plateforme_cible", "reference_jeu", "criteres_demo"):
-        assert champ in data, f"champ R7 manquant : {champ}"
+    assert res["ok"] is False, res
+    assert res["written"] is False
+    assert "non matérialisable" in res["reason"]
+    assert "hors_scope" in res["reason"] or "criteres_succes" in res["reason"]
+    assert not (tmp_path / "charter.yaml").exists()
+
+    from forge.driver import _is_materialize_refusal_reason
+    assert _is_materialize_refusal_reason(res["reason"]) is True

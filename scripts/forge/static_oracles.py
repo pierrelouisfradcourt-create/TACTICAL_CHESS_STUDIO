@@ -1334,9 +1334,103 @@ def check_project_brief(brief: dict) -> dict:
                                 f"'contraintes.project_specific.{sub}[{i}]' contient "
                                 f"un « à définir » résiduel : {item!r}")
 
+    # C-c(1) (sas moteur, GO Pierre 2026-09-01, finding n°8 paire 2) : `mesure`
+    # est OPTIONNEL — jamais requis (rétrocompatibilité stricte des Briefs
+    # existants qui n'en portent pas) — mais VALIDÉ dès qu'il est présent :
+    # {tick_ms: int>0, budget_ticks: int>0}. Défaut mesuré : p2_beta déclarait
+    # un pas de mesure implicite (setInterval(16) non sourcé) qu'aucun oracle
+    # ne gardait — 72000 "ticks" incomparables à ceux de p2_alpha (tick_ms=100).
+    mesure = brief.get("mesure")
+    if mesure is not None:
+        if not isinstance(mesure, dict):
+            raisons.append(
+                f"'mesure' présent mais n'est pas un mapping (reçu {type(mesure).__name__})")
+        else:
+            for champ in ("tick_ms", "budget_ticks"):
+                valeur = mesure.get(champ)
+                if not isinstance(valeur, int) or isinstance(valeur, bool) or valeur <= 0:
+                    raisons.append(
+                        f"'mesure.{champ}' absent ou invalide (entier > 0 attendu, "
+                        f"reçu {valeur!r})")
+
     _scan_todo_anywhere(brief, "brief", raisons)
 
     return {"passed": not raisons, "raisons": raisons}
+
+
+# --- C-c(2) · check_measure_tick (sas moteur, GO Pierre 2026-09-01) ----------------
+# Jumeau de `check_e2e_harness`/`check_architecture` côté « le jeu déclare-t-il
+# statiquement ce qu'on attend de lui ? » — appliqué au pas de mesure (tick_ms)
+# porté par `project_brief.yaml.mesure.tick_ms` (cf. check_project_brief ci-dessus).
+#
+# Défaut mesuré (finding n°8, paire 2) : p2_alpha déclarait tick_ms=100 (sourcé),
+# p2_beta tournait sur une boucle `setInterval(16)` NON sourcée — « 72000 ticks »
+# valait ~2h pour l'un, ~19 minutes pour l'autre : une métrique de comparaison
+# incomparable, sans qu'aucun oracle ne l'ait jamais gardée.
+#
+# Détection statique, déterministe, aucun LLM : une constante nommée TICK_MS/
+# tick_ms (déclaration `const TICK_MS = 100`, champ d'objet `tick_ms: 100`,
+# affectation `this.tick_ms = 100`, ou champ exposé par `window.__game = {...,
+# tick_ms: 100}` — la MÊME forme syntaxique couvre les deux cas du contrat, un
+# champ d'objet ne se distingue pas structurellement selon qu'il est niché sous
+# `window.__game` ou ailleurs) valant la valeur attendue, quelque part dans les
+# fichiers `.mjs` du jeu.
+_TICK_DECL = re.compile(r"\b(?:TICK_MS|tick_ms)\b\s*[:=]\s*(\d+)")
+
+
+def check_measure_tick(src_root: Path, tick_ms_attendu: int) -> dict:
+    """Le jeu DÉCLARE-t-il statiquement son pas logique de mesure (tick_ms) égal
+    à la valeur attendue (`project_brief.yaml.mesure.tick_ms`) ?
+
+    Retourne {passed, checked, raisons[]}. Jamais d'exception sur entrée
+    malformée (src_root absent, tick_ms_attendu <= 0) — FAIL honnête avec raison
+    explicite, même doctrine que `check_charter`/`check_project_brief`.
+
+    CE QUE CET ORACLE MESURE : la DÉCLARATION statique du pas logique (une
+    constante/un champ nommé TICK_MS ou tick_ms, valant la valeur attendue,
+    présent dans le code source .mjs du jeu).
+
+    CE QU'IL NE MESURE PAS : que la boucle d'exécution RÉELLE (setInterval,
+    requestAnimationFrame...) honore effectivement cette valeur au runtime —
+    ce volet relève de la preuve e2e/solvabilité, qui court en ticks, oracle
+    séparé et non dupliqué ici. Un jeu peut déclarer TICK_MS=100 et ne pas le
+    respecter à l'exécution : ce cas reste HORS PÉRIMÈTRE de cette garde,
+    honnêteté assumée dans le docstring, pas cachée."""
+    if not isinstance(tick_ms_attendu, int) or isinstance(tick_ms_attendu, bool) or tick_ms_attendu <= 0:
+        return {"passed": False, "checked": False,
+                "raisons": [f"tick_ms_attendu invalide ({tick_ms_attendu!r}) — "
+                            "entier > 0 attendu"]}
+    src_root = Path(src_root)
+    if not src_root.is_dir():
+        return {"passed": False, "checked": False,
+                "raisons": [f"src_root introuvable ou n'est pas un dossier ({src_root})"]}
+
+    trouvailles: list[tuple[str, int]] = []
+    for path in src_root.rglob("*.mjs"):
+        if not path.is_file():
+            continue
+        texte = _read(path)
+        for m in _TICK_DECL.finditer(texte):
+            try:
+                trouvailles.append((str(path.relative_to(src_root)), int(m.group(1))))
+            except ValueError:
+                continue
+
+    if not trouvailles:
+        return {"passed": False, "checked": True,
+                "raisons": [f"aucune déclaration TICK_MS/tick_ms trouvée dans les "
+                            f".mjs sous {src_root} — pas logique de mesure non "
+                            f"déclaré (attendu {tick_ms_attendu})"]}
+
+    matches = [(f, v) for f, v in trouvailles if v == tick_ms_attendu]
+    if not matches:
+        valeurs = sorted({v for _, v in trouvailles})
+        return {"passed": False, "checked": True,
+                "raisons": [f"TICK_MS/tick_ms déclaré mais différent de l'attendu "
+                            f"{tick_ms_attendu} (valeurs trouvées : {valeurs})"]}
+
+    return {"passed": True, "checked": True, "raisons": [],
+            "declarations": [f"{f}:{v}" for f, v in matches]}
 
 
 # --- §7.2 · s2.7-gm-worldscan (GO Pierre 2026-08-14) --------------------------------

@@ -398,9 +398,27 @@ def test_full_greenfield_offline_verdict_ok(tmp_path, offline, monkeypatch):
         }]}]}],
     }
 
+    # Sas moteur (GO Pierre 2026-09-01, C-a) : _materialize_yaml GATE désormais
+    # s0-contrat sur un charter non matérialisable — avant ce correctif, l'absence
+    # de bloc ```yaml``` à s0-contrat restait ADVISORY (yaml_check informatif) et
+    # ce test n'avait pas besoin d'un charter dans son mock. Charter complet (7
+    # champs R7) ajouté ici pour que s0-contrat matérialise et passe check_charter,
+    # comme les autres étapes structurées de ce mock (s1/s2/s4/s5).
+    charter_yaml = (
+        "objectif: Livrer un jeu minimal jouable.\n"
+        "hors_scope:\n  - multijoueur\n"
+        "criteres_succes:\n  - boot() ne leve jamais\n"
+        "actions_interdites:\n  - toucher tests/\n"
+        "plateforme_cible: web/HTML5\n"
+        "reference_jeu: jeu de test (choisi pour ce mock)\n"
+        "criteres_demo:\n  - le jeu demarre sans erreur\n"
+    )
+
     def fake(prompt, model, **kwargs):
         # La sortie dépend de l'étape, identifiée par le dispatch_marker du prompt.
-        if "FORGE_DISPATCH:s4-archi:" in prompt:
+        if "FORGE_DISPATCH:s0-contrat:" in prompt:
+            out = f"charter\n```yaml\n{charter_yaml}```"
+        elif "FORGE_DISPATCH:s4-archi:" in prompt:
             out = f"archi\n```json\n{json.dumps(blueprint)}\n```"
         elif "FORGE_DISPATCH:s5-wiremap:" in prompt:
             out = f"wiremap\n```json\n{json.dumps(wiremap)}\n```"

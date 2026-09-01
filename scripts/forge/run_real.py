@@ -2259,13 +2259,35 @@ _MARKDOWN_CHECKERS: dict[str, tuple[str, ...]] = {
 # MATÉRIALISE selon le contrat. Le défaut n'était pas un manque de pouvoir de l'agent,
 # c'était le passage manquant entre sa sortie et l'artefact déclaré.
 #
-# Bloc ```yaml``` fencé, DERNIER valide — même règle déterministe que
-# `extract_json_payload`. Un charter est CONSOMMÉ par cinq étapes : un fichier
-# illisible les empoisonnerait toutes. La garde de parse BLOQUE donc l'écriture
-# (même doctrine que `_materialize_artifact` : « aucun fichier écrit » si le schéma
-# échoue), tandis que `check_charter` — l'oracle de vérité sur les 7 champs — est
-# joint en REÇU sans gater : un charter parsable mais incomplet est un fait mesuré à
-# remonter, pas une raison de ne rien écrire.
+# Bloc ```yaml``` fencé — SÉLECTION DÉTERMINISTE ET FAIL-CLOSED (C-b, sas moteur
+# GO Pierre 2026-09-01, finding n°7 paire 2). L'ancienne règle « DERNIER bloc
+# valide » (même patron que `extract_json_payload`) matérialisait n'importe quel
+# mapping fencé, y compris le bloc RETURN LINEAGE (`why_task_existed/result/
+# proof/...`) quand il apparaissait EN DERNIER après le vrai charter — mesuré
+# sur lab/forge_runs/p2_beta/artifacts/s0-contrat.txt (l.5-80 = charter réel,
+# l.103-132 = RETURN LINEAGE, matérialisé À LA PLACE du charter). La nouvelle
+# règle ne retient QUE les blocs qui parsent en mapping ET passent `check_charter`
+# (les 7 champs R7) : le bloc RETURN LINEAGE (aucun de ces champs) ne peut plus
+# jamais devenir charter.yaml, quelle que soit sa position.
+#   - EXACTEMENT UN bloc mapping+PASS  -> c'est le charter, matérialisé.
+#   - ZÉRO                              -> refus de matérialisation (les raisons
+#     check_charter de chaque candidat mapping sont jointes) ; comportement
+#     RETROCOMPATIBLE avec l'unique-bloc historique : un bloc unique qui échoue
+#     check_charter est DÉSORMAIS un refus (C-a), plus un fichier FAIL écrit.
+#   - DEUX OU PLUS                      -> refus « ambiguïté » (l'agent doit
+#     n'en rendre qu'un) — jamais un choix arbitraire (dernier/premier).
+# Rétrocompat explicite : une sortie à un seul bloc valide (chain_probe/p2_alpha)
+# garde EXACTEMENT le même résultat qu'avant ce correctif.
+#
+# C-a — GATE, plus advisory : un refus de matérialisation (0 ou >=2 candidats)
+# est désormais un ÉCHEC DE L'ÉTAPE (même contrat que `_materialize_artifact` :
+# {"ok": False, "reason": ...}, motif "non matérialisable" REJOUABLE par le
+# driver — cf. `driver._is_materialize_refusal_reason` — jusqu'à
+# `materialize_attempts_max`). Avant ce correctif, `check_charter` FAIL était
+# joint en REÇU (`res["yaml_check"]`) SANS jamais bloquer l'étape : la chaîne
+# continuait 18/18 sur le mauvais objet (finding n°7). Le reçu `yaml_check`
+# reste écrit par l'appelant pour traçabilité même sur refus — seul le GATE
+# change.
 _YAML_BY_STEP: dict[str, str] = {
     "s0-contrat": "charter.yaml",
 }
@@ -2275,56 +2297,75 @@ _FENCED_YAML = re.compile(r"^```ya?ml[ \t]*\r?\n(.*?)^```[ \t]*$", re.S | re.M)
 
 def _materialize_yaml(etape: str, output: str, run_dir: Path) -> dict | None:
     """Écrit l'artefact YAML de l'étape (charter.yaml pour s0-contrat) et joint le
-    reçu de son oracle. Retourne None si l'étape n'a pas d'artefact YAML, sinon un
-    reçu {written, ...}. Ne lève jamais — un échec est un reçu honnête, jamais un
-    crash de chaîne."""
+    reçu de son oracle. Retourne None si l'étape n'a pas d'artefact YAML.
+
+    Sinon :
+      - succès : {"written": True, "path", "champs", "check": {verdict: "PASS", ...}} ;
+      - refus de matérialisation (C-a/C-b, voir commentaire ci-dessus) :
+        {"ok": False, "written": False, "reason": "<artefact> non matérialisable — ..."}
+        — GATE l'étape (l'appelant doit traiter ce cas comme `_materialize_artifact`,
+        return immédiat), jamais un fichier corrompu ni un mauvais objet écrit.
+
+    Ne lève jamais — un échec est un reçu honnête, jamais un crash de chaîne."""
     artefact = _YAML_BY_STEP.get(etape)
     if artefact is None:
         return None
     try:
         blocs = _FENCED_YAML.findall(output or "")
         if not blocs:
-            return {"written": False,
+            return {"ok": False, "written": False,
                     "reason": f"{artefact} non matérialisable — aucun bloc ```yaml``` "
                               "dans la réponse (0 bloc inspecté)"}
         import yaml as _yaml
-        data = None
-        why = ""
-        for brut in reversed(blocs):  # DERNIER bloc valide, règle déterministe
+        from forge.static_oracles import check_charter
+
+        diagnostics: list[str] = []
+        valides: list[tuple[int, dict, dict]] = []  # (index 1-based, data, check)
+        for i, brut in enumerate(blocs, start=1):
             try:
                 candidat = _yaml.safe_load(brut)
             except Exception as exc:  # noqa: BLE001 — YAML illisible : on continue
-                why = f"YAML illisible ({str(exc)[:120]})"
+                diagnostics.append(f"bloc {i}: YAML illisible ({str(exc)[:120]})")
                 continue
-            if isinstance(candidat, dict):
-                data = candidat
-                break
-            why = f"le bloc YAML n'est pas un mapping (reçu {type(candidat).__name__})"
-        if data is None:
-            return {"written": False,
-                    "reason": f"{artefact} non matérialisable — {why or 'aucun bloc '
-                              'YAML exploitable'} (aucun fichier écrit)"}
+            if not isinstance(candidat, dict):
+                diagnostics.append(
+                    f"bloc {i}: le bloc YAML n'est pas un mapping "
+                    f"(reçu {type(candidat).__name__})")
+                continue
+            check = check_charter(candidat)
+            if check.get("passed"):
+                valides.append((i, candidat, check))
+            else:
+                raisons = "; ".join(list(check.get("raisons") or [])[:5])
+                diagnostics.append(f"bloc {i}: check_charter FAIL — {raisons}")
+
+        if len(valides) == 0:
+            detail = " | ".join(diagnostics) or "aucun diagnostic"
+            return {"ok": False, "written": False,
+                    "reason": f"{artefact} non matérialisable — aucun bloc charter "
+                              f"valide ({len(blocs)} bloc(s) yaml inspecté(s)) : {detail}"}
+        if len(valides) > 1:
+            indices = [i for i, _, _ in valides]
+            return {"ok": False, "written": False,
+                    "reason": f"{artefact} non matérialisable — ambiguïté : "
+                              f"{len(valides)} blocs charter valides (blocs {indices}) "
+                              "— l'agent doit n'en rendre qu'un"}
+
+        _, data, check = valides[0]
         run_dir.mkdir(parents=True, exist_ok=True)
         path = run_dir / artefact
         path.write_text(
             _yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
             encoding="utf-8",
         )
-        recu: dict = {"written": True, "path": str(path), "champs": sorted(data)}
-        # Oracle de vérité, ADVISORY : lu sur le fichier RÉELLEMENT écrit.
-        try:
-            from forge.static_oracles import check_charter
-            r = check_charter(data)
-            recu["check"] = {"oracle": "check_charter",
-                             "verdict": "PASS" if r.get("passed") else "FAIL",
-                             "raisons": list(r.get("raisons") or [])[:5]}
-        except Exception as exc:  # noqa: BLE001
-            recu["check"] = {"verdict": "NOT_MEASURED", "reason": str(exc)[:200]}
-        return recu
-    except Exception:  # noqa: BLE001 — advisory, jamais bloquant
-        logger.warning("matérialiseur YAML en échec pour étape=%s (advisory)",
+        return {"written": True, "path": str(path), "champs": sorted(data),
+                "check": {"oracle": "check_charter", "verdict": "PASS",
+                         "raisons": list(check.get("raisons") or [])[:5]}}
+    except Exception:  # noqa: BLE001 — un échec du matérialiseur reste un reçu, jamais un crash
+        logger.warning("matérialiseur YAML en échec pour étape=%s",
                        etape, exc_info=True)
-        return {"written": False, "reason": "exception du matérialiseur (voir run.log)"}
+        return {"ok": False, "written": False,
+                "reason": "exception du matérialiseur (voir run.log)"}
 
 
 # --- V4 GAME LOOP (GO Pierre 2026-08-22) — matérialiseur `loop.json` --------------
@@ -3254,10 +3295,26 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
                                                Path(context["run_dir"]))
             if md_receipt is not None:
                 res["markdown_check"] = md_receipt
-            # M4 : artefact YAML (charter.yaml pour s0-contrat) + reçu check_charter.
+            # M4/C-a (sas moteur, GO Pierre 2026-09-01) : artefact YAML (charter.yaml
+            # pour s0-contrat) + reçu check_charter — GATE désormais l'étape sur refus
+            # de matérialisation (0 ou >=2 blocs charter valides, cf. _materialize_yaml).
             yaml_receipt = _materialize_yaml(etape, str(res.get("output", "")),
                                              Path(context["run_dir"]))
             if yaml_receipt is not None:
+                if yaml_receipt.get("ok") is False:
+                    # Même contrat que _materialize_artifact/_materialize_design_
+                    # questions ci-dessus/dessous : return immédiat, sortie brute et
+                    # spawn_link préservés — le driver rejoue (motif "non
+                    # matérialisable" reconnu par _is_materialize_refusal_reason)
+                    # jusqu'à materialize_attempts_max, puis HALT.
+                    yaml_receipt.setdefault("output", str(res.get("output", "")))
+                    if res.get("spawn_link") is not None:
+                        yaml_receipt.setdefault("spawn_link", res["spawn_link"])
+                    for champ in ("tokens", "duration_s", "cost_usd",
+                                  "cache_creation_tokens", "cache_read_tokens"):
+                        if champ in res:
+                            yaml_receipt.setdefault(champ, res.get(champ))
+                    return yaml_receipt
                 res["yaml_check"] = yaml_receipt
             # V4 GAME LOOP : loop.json = PROJECTION DÉTERMINISTE de prisme.json,
             # dérivée par l'exécuteur APRÈS que prisme.json soit sur disque (jamais
