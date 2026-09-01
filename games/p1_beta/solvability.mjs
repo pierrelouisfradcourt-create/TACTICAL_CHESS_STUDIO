@@ -34,13 +34,20 @@ function playWithPolicy(seed, policyParam) {
   return { terminal, light: state.light, ticks: state.frameCount, emitters: state.emitterCount };
 }
 
+// Cadences de clic balayées. Hissée en constante pour que le RÉSUMÉ MACHINE
+// puisse rapporter combien d'essais ont réellement été joués (`tried`) sans
+// dupliquer la liste — un compte inventé serait une mesure fausse.
+const POLICY_PARAMS = [1, 2, 3, 5, 8, 13];
+
 function searchWinningPlan(seed) {
   let best = { terminal: false, light: -1, param: -1 };
+  let tried = 0;
 
   // Balaye des cadences de clic de plus en plus lâches — le studio exige un
   // VRAI plan qui gagne, pas juste le meilleur essai.
-  for (const param of [1, 2, 3, 5, 8, 13]) {
+  for (const param of POLICY_PARAMS) {
     const result = playWithPolicy(seed, param);
+    tried += 1;
     if (result.light > best.light) {
       best = { ...result, param };
     }
@@ -49,11 +56,32 @@ function searchWinningPlan(seed) {
     // branche de ce fichier ne peut affirmer OUI sans qu'un bot ait atteint
     // l'Embrasement. Garde mécanique : check_harness_no_hardcoded_flags.
     if (result.terminal) {
-      return { solvable: result.terminal, best: { ...result, param } };
+      return { solvable: result.terminal, best: { ...result, param }, tried };
     }
   }
 
-  return { solvable: best.terminal, best };
+  return { solvable: best.terminal, best, tried };
+}
+
+// Prefixe du RESUME MACHINE, convention `oracle._SUMMARY_PREFIX` (scripts/forge/
+// oracle.py:57) : un prefixe, un JSON, UNE ligne — extractible d'un flux bruite.
+// `run_oracle` le releve dans stdout et `driver.py:3248` le range en
+// `detail["oracle_measures"]`, qui est SIGNE. Le tuyau existait deja et ne servait
+// qu'a `godot_oracle.mjs` ; ce jeu ne l'alimentait pas, donc sa solvabilite REELLE
+// mourait dans `evidence/*.log`, exclu par `.gitignore:81`. Aucune modification de
+// la Forge n'est necessaire : seul l'emetteur manquait.
+const SUMMARY_PREFIX = 'FORGE_ORACLE_SUMMARY ';
+
+/** Emet le resume machine. TOUJOURS appele, meme quand il n'y a pas de plan :
+ *  `solvabilite: null` est une INFORMATION, une ligne absente serait
+ *  indistinguable d'un oracle qui n'a pas tourne (NOT_MEASURED != FAIL).
+ *  `mecanique: null` parce que CE fichier ne mesure pas la mecanique — la
+ *  declarer vraie serait affirmer ce qu'on n'a pas observe. */
+function emitSummary(solvabilite) {
+  console.log(SUMMARY_PREFIX + JSON.stringify({
+    mecanique: null,
+    solvabilite: solvabilite ?? null,
+  }));
 }
 
 function main() {
@@ -69,6 +97,16 @@ function main() {
 
   if (env.lightAfter100 <= 0) {
     console.log('✗ Aucune progression mesurée sur 100 ticks — objectif hors d\'atteinte structurellement.');
+    // Aucun essai joue : `trials: 0` et `won: 0` disent exactement cela. Le
+    // resume part AVANT la sortie, sinon ce cas — le plus grave — serait le
+    // seul a ne rien remonter.
+    emitSummary({
+      project: 'p1_beta', verdict: 'INJOUABLE', solvable: false, deterministic: null,
+      trials: 0, won: 0, lost: 0,
+      ticks_to_win: null, tick_budget: MAX_TICKS, margin_ratio: null,
+      light_final: env.lightAfter100, threshold: env.threshold,
+      reason: 'aucune progression mesuree sur 100 ticks',
+    });
     process.exit(1);
   }
 
@@ -93,6 +131,26 @@ function main() {
 
   const ok = plan.solvable && deterministic;
   console.log(`\nVERDICT SOLVABILITÉ: ${ok ? 'SOLVABLE' : 'INJOUABLE'}`);
+
+  // MESURE, pas booleen. `margin_ratio` est le signal que le `passed: true`
+  // historique ne portait pas : a quelle distance du budget le bot gagne. Tous
+  // les champs sont LUS sur la partie reellement jouee (`plan.best`, `replay`),
+  // jamais ecrits en litteral — meme discipline que `solvable` ci-dessus.
+  emitSummary({
+    project: 'p1_beta',
+    verdict: ok ? 'SOLVABLE' : 'INJOUABLE',
+    solvable: plan.solvable,
+    deterministic,
+    trials: plan.tried,
+    won: plan.solvable ? 1 : 0,
+    lost: plan.tried - (plan.solvable ? 1 : 0),
+    ticks_to_win: plan.solvable ? plan.best.ticks : null,
+    tick_budget: MAX_TICKS,
+    margin_ratio: plan.solvable ? plan.best.ticks / MAX_TICKS : null,
+    light_final: plan.best.light,
+    threshold: TERMINAL_THRESHOLD,
+    winning_param: plan.solvable ? plan.best.param : null,
+  });
 
   process.exit(ok ? 0 : 1);
 }
