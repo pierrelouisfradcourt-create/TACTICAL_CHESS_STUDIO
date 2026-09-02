@@ -149,15 +149,21 @@ def test_verify_run_est_appele_et_trace_authentique_dans_le_detail(tmp_path, off
     assert s12["detail"]["verify_run"] == "AUTHENTIQUE"
 
 
-def test_knowledge_trace_theatrale_bloque_s12_meme_si_oracles_verts(tmp_path, offline):
-    """(b) échec volontaire : un knowledge_trace.json THÉÂTRAL (référence tracée
-    introuvable dans les artefacts du run — cf. test_verify_run_knowledge_trace.py)
-    déposé dans run_dir AVANT le run. `build_aggregate_verdict` ne regarde JAMAIS
-    ce fichier (aucun rapport avec les oracles code/archi/wiremap) : AVANT ce
-    correctif, ce théâtre passait donc en OK silencieux malgré des oracles
-    parfaitement verts — seul verify_run le détecte. APRÈS le correctif, s12 doit
-    être BLOCKED. Nécessite node (skip sinon, même garde que test_verify_run_
-    knowledge_trace.py)."""
+def test_knowledge_trace_theatrale_rapporte_sans_bloquer_s12(tmp_path, offline):
+    """(b) un knowledge_trace.json THÉÂTRAL (référence tracée introuvable dans les
+    artefacts du run — cf. test_verify_run_knowledge_trace.py) déposé dans run_dir
+    AVANT le run. `build_aggregate_verdict` ne regarde JAMAIS ce fichier (aucun
+    rapport avec les oracles code/archi/wiremap) : seul verify_run le détecte.
+
+    RÉGIME ADVISORY — décision N-2, ratifiée Pierre 2026-09-02. Ce test prouvait
+    auparavant que s12 devenait BLOCKED ; il prouve désormais la DÉCOUPLE ratifiée,
+    dans ses deux moitiés :
+      - s12 reste OK — le lineage n'a plus d'autorité sur le verdict ;
+      - le théâtre est TOUJOURS rapporté (`detail.knowledge_trace_advisory`) —
+        advisory ne veut pas dire silencieux, sinon la mesure d'adoption qui doit
+        précéder la décision sur le gate n'aurait rien à observer.
+    Un retour de `BLOCKED` ici signalerait un ré-armement non ratifié.
+    Nécessite node (skip sinon, même garde que test_verify_run_knowledge_trace.py)."""
     import shutil
     if shutil.which("node") is None:
         pytest.skip("node indisponible")
@@ -180,9 +186,10 @@ def test_knowledge_trace_theatrale_bloque_s12_meme_si_oracles_verts(tmp_path, of
 
     state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
     s12 = state["steps"]["s12-verdict"]
-    assert s12["status"] == "BLOCKED"
-    assert "verify_run" in s12["detail"]["reason"]
-    assert report["software_verdict"] == "BLOCKED"
+    assert s12["status"] == "OK"                       # N-2 : plus d'autorité
+    assert report["software_verdict"] == "OK"
+    advisory = s12["detail"]["knowledge_trace_advisory"]   # ... mais toujours visible
+    assert any("échoué" in w for w in advisory)
 
 
 def test_verify_run_appele_une_seule_fois_par_appel_de_run_verdict(tmp_path, offline, monkeypatch):

@@ -9,9 +9,14 @@ travaillent sur des COPIES écrites sous tmp_path (jamais git stash/checkout/
 restore sur le dépôt réel).
 
 NOT_MEASURED ≠ OK (garde-fou du contrat) : `check_visual_capture` ne rend
-JAMAIS `status == "OK"` quand un volet n'a pas pu être mesuré — vérifié
-explicitement ici via un fixture SANS capture_godot.mjs (le champ godot est
-alors "ran: False", jamais confondu avec un vert).
+JAMAIS `status == "OK"` quand AUCUN volet n'a pu être mesuré.
+
+W-2 (GO Pierre 2026-09-02) — l'agrégat porte désormais sur les volets APPLICABLES
+(script présent) ET MESURÉS. Un moteur dont le script de capture est absent n'existe
+pas pour ce jeu et n'entre pas dans l'agrégat ; un script présent mais non mesurable
+reste listé dans `not_measured_volets` et n'emporte plus le statut. Motif : avant W-2,
+un jeu purement web — 68 des 79 attentes `expected_proof.kind: visual` du dépôt — ne
+pouvait jamais atteindre OK, la conjonction exigeant un volet Godot inapplicable.
 """
 from __future__ import annotations
 
@@ -264,22 +269,73 @@ def test_3c_rouge_captures_identiques(tmp_path):
     assert result["browser"]["json"]["differ"] is False
 
 
-def test_3c_not_measured_jamais_ok_quand_godot_absent(tmp_path):
-    """godot absent de la fixture (capture_godot.mjs n'existe pas) : le volet
-    NE PEUT PAS revendiquer OK sur la moitié Godot. Ici la moitié navigateur est
-    VERTE (fixture non patchée) — vérifie que godot.ran est False et que le
-    statut global n'est jamais confondu avec OK par la seule vertu du navigateur."""
+def test_3c_moteur_absent_nentre_pas_dans_l_agregat(tmp_path):
+    """W-2 (GO Pierre 2026-09-02) — `capture_godot.mjs` ABSENT : ce moteur n'existe pas
+    pour ce jeu, il ne doit donc pas emporter le statut.
+
+    AVANT W-2, ce cas rendait NOT_MEASURED : une capture navigateur parfaitement verte
+    ne pouvait jamais valoir OK sur un jeu purement web — soit 68 des 79 attentes
+    `expected_proof.kind: visual` du dépôt. Le volet était de ce fait inutilisable comme
+    source de preuve visuelle pour le web."""
     pres = _copy_capture_graph(tmp_path)
     assert not (pres / "capture_godot.mjs").exists()
 
     result = check_visual_capture(pres, timeout_s=60)
     print("check 3c (godot absent de la fixture):", json.dumps(result, ensure_ascii=False, indent=1))
 
-    assert result["browser"]["json"]["passed"] is True     # navigateur mesuré vert
-    assert result["godot"]["ran"] is False                  # godot jamais mesuré
-    # Le statut global ne doit JAMAIS être "OK" quand godot n'a pas tourné du tout —
-    # ici il tombe en NOT_MEASURED (godot.get("json") is None => branche NOT_MEASURED).
+    assert result["browser"]["json"]["passed"] is True
+    assert result["godot"]["ran"] is False
+    assert result["volets"]["godot"]["applicable"] is False   # pas un moteur de ce jeu
+    assert result["measured_volets"] == ["browser"]
+    assert result["not_measured_volets"] == []               # rien d'applicable n'est resté non mesuré
+    assert result["status"] == "OK"
+    assert result["passed"] is True
+
+
+def test_3c_moteur_present_mais_non_mesurable_reste_visible_et_nemporte_pas_le_statut(tmp_path):
+    """W-2, l'autre moitié : un script PRÉSENT qu'on n'a pas su mesurer ne devient
+    JAMAIS invisible. Il ne bloque plus le statut, mais il est listé — « moins
+    d'autorité, même capacité de détection, signal observable »."""
+    pres = _copy_capture_graph(tmp_path)
+    (pres / "capture_godot.mjs").write_text(
+        'console.log(JSON.stringify({adapter:"godot",passed:false,blocked:true,'
+        'reason:"binaire Godot non configure (simule)"}));',
+        encoding="utf-8")
+
+    result = check_visual_capture(pres, timeout_s=60)
+
+    assert result["volets"]["godot"]["applicable"] is True
+    assert result["volets"]["godot"]["measured"] is False
+    assert result["not_measured_volets"] == ["godot"]     # jamais effacé
+    assert result["status"] == "OK"                        # ... mais n'emporte pas le statut
+    assert result["passed"] is True
+
+
+def test_3c_aucun_volet_mesure_ne_gagne_aucun_vert(tmp_path):
+    """Garde anti-vert-par-vacuité : W-2 ne fabrique pas de preuve là où il n'y a
+    AUCUN producteur. Un jeu sans aucun script de capture reste NOT_MEASURED — c'est
+    exactement l'état des 8 jeux qui portent des attentes `visual` aujourd'hui."""
+    pres = tmp_path / "presentation"
+    pres.mkdir()
+    result = check_visual_capture(pres, timeout_s=60)
+
+    assert result["measured_volets"] == []
     assert result["status"] == "NOT_MEASURED"
+    assert result["passed"] is False
+
+
+def test_3c_rouge_mesure_reste_rouge(tmp_path):
+    """W-2 ne relâche RIEN sur ce qui a été mesuré : un volet applicable, mesuré et
+    rouge rend FAIL — jamais dilué par un autre volet vert."""
+    pres = _copy_capture_graph(tmp_path)
+    cb = pres / "capture_browser.mjs"
+    cb.write_text(
+        cb.read_text(encoding="utf-8").replace(
+            "const b = render(midGameState(1, 45));", "const b = render(boot(1));", 1),
+        encoding="utf-8")
+
+    result = check_visual_capture(pres, timeout_s=60)
+    assert result["status"] == "FAIL"
     assert result["passed"] is False
 
 

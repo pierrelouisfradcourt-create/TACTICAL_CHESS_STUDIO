@@ -2578,6 +2578,31 @@ class ForgeDriver:
         design_questions_check = res.get("design_questions_check") if isinstance(res, dict) else None
         if design_questions_check is not None:
             entry["detail"]["design_questions_check"] = design_questions_check
+        # J-1 (GO Pierre 2026-09-02) — MEME MOTIF, 6e occurrence fermee : le reçu de
+        # jointure expected <-> actual (`run_real.check_wiremap_join` -> res["join_check"])
+        # serait PERDU au litteral `entry["detail"]` fixe ci-dessus s'il n'etait pas
+        # recopie ici. C'est exactement ce qui est arrive a `economy_check` et
+        # `design_questions_check` — produits pendant des mois, jamais dans state.json.
+        # ADVISORY : ce reçu ne change ni le statut de l'etape, ni aucun verdict. Il rend
+        # la jointure OBSERVABLE avant toute decision de gate (sas 3, J-1) : sans surface,
+        # on aurait un oracle qui mesure et personne qui voit — le defaut meme que ce
+        # branchement corrige.
+        join_check = res.get("join_check") if isinstance(res, dict) else None
+        if join_check is not None:
+            entry["detail"]["join_check"] = join_check
+        # J-2 (GO Pierre 2026-09-02) — 7e occurrence du motif, et la plus lourde :
+        # `run_real` pose `res["repair"]` sur CHAQUE étape réparable depuis le
+        # branchement de la boucle de réparation, et RIEN dans tout `scripts/forge` ne
+        # le lisait (mesuré : 0 consommateur). Conséquence directe : on ne pouvait pas
+        # savoir si la réparation avait tourné, ni ce qu'elle avait changé — sur les
+        # runs mêmes où la jointure est vide et où c'est ELLE qui aurait dû corriger le
+        # `couvre`. Un mécanisme d'auto-correction dont personne ne voit le reçu ne se
+        # distingue pas d'un mécanisme absent.
+        # ADVISORY : recopie seule. La boucle reste « capteur, pas juge » — elle ne
+        # change ni le statut de l'étape, ni aucun verdict.
+        repair = res.get("repair") if isinstance(res, dict) else None
+        if repair is not None:
+            entry["detail"]["repair"] = repair
         # P3 (2026-08-15) — même motif, 4e et 5e occurrences fermées ensemble :
         # `tools_used` (Expérience C : usage RÉEL d'outils par le worker, {} = zéro
         # invocation mesuré) et `findings_note` (note d'honnêteté de l'extraction
@@ -4662,8 +4687,17 @@ class ForgeDriver:
         # après coup, HMAC incohérent, lineage théâtral) ne peut plus se
         # présenter à HumanGate comme un OK silencieux — l'étape devient
         # BLOCKED avec une raison explicite, jamais un vert masqué.
+        # N-2 (ratifiée Pierre 2026-09-02) : le LINEAGE (knowledge_trace) est SORTI de
+        # cet ensemble bloquant — il est passé en ADVISORY. Un lineage théâtral est
+        # désormais RAPPORTÉ (knowledge_trace_warnings, knowledge_trace_ok=False) sans
+        # bloquer l'étape, le temps de mesurer l'adoption réelle des traces. HMAC,
+        # évidence et cohérence restent, eux, des gates DURS.
         verification = verify_run(verdict_path, key_file=self.key_file)
         blocking: list[str] = list(verification.get("evidence_problems", ()))
+        # N-2 : `knowledge_trace_problems` est TOUJOURS VIDE depuis le passage en
+        # advisory (cf. verify_run._check_knowledge_trace). La ligne est CONSERVÉE
+        # comme point de ré-armement explicite de la décision ultérieure sur le gate
+        # — elle n'agrège rien aujourd'hui, et ne doit pas être lue comme un gate actif.
         blocking += list(verification.get("knowledge_trace_problems", ()))
         if not verification.get("hmac_ok", False):
             blocking.insert(0, "HMAC du verdict invalide")
@@ -4677,9 +4711,10 @@ class ForgeDriver:
         # donc TOUJOURS pas ce pas quand le verdict affiché est déjà honnêtement
         # FAIL/BLOCKED (`coherence_problems` reste vide dans ce cas) ; mais un
         # OK affiché sur un gate mutation rouge (vert fabriqué) reste un GATE
-        # DUR. HMAC/évidence/knowledge_trace restent des gates DURS quel que
-        # soit le statut affiché (falsifier un log reste une falsification, OK
-        # ou FAIL) — inchangés ci-dessus.
+        # DUR. HMAC et évidence restent des gates DURS quel que soit le statut
+        # affiché (falsifier un log reste une falsification, OK ou FAIL) —
+        # inchangés ci-dessus. `knowledge_trace` NE L'EST PLUS : advisory depuis
+        # la décision N-2 (2026-09-02).
         blocking += list(verification.get("coherence_problems", ()))
         if blocking:
             self._finish_step(state, entry, "BLOCKED", {
@@ -4698,12 +4733,21 @@ class ForgeDriver:
         # OK = l'agrégation a tourné ET verify_run confirme l'authenticité du
         # reçu signé ; le verdict LOGICIEL (OK/FAIL/BLOCKED) est porté par son
         # contenu, pas par ce statut d'étape.
-        self._finish_step(state, entry, "OK", {
+        ok_detail = {
             "verdict_path": str(verdict_path),
             "software_verdict": record["software_verdict"],
             "decision": record["decision"],
             "verify_run": "AUTHENTIQUE",
-        })
+        }
+        # N-2 : advisory ne veut pas dire SILENCIEUX. Un lineage théâtral ne bloque
+        # plus (ci-dessus), mais il doit rester LISIBLE dans l'état du run — sans
+        # cette ligne, la rétrogradation supprimerait le signal au lieu de lui
+        # retirer son autorité, et la mesure d'adoption qui doit suivre n'aurait
+        # aucune surface où observer quoi que ce soit.
+        if not verification.get("knowledge_trace_ok", True):
+            ok_detail["knowledge_trace_advisory"] = list(
+                verification.get("knowledge_trace_warnings", ()))
+        self._finish_step(state, entry, "OK", ok_detail)
 
     def _propose_bricks(self, record: dict) -> None:
         """Dépose une PROPOSITION de brique (studio_link.propose_brick,

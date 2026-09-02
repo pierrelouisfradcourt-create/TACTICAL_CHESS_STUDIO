@@ -2136,6 +2136,137 @@ _REPAIR_STEP_BY_STEP: dict[str, str] = {
 _REPAIR_SCRIPT = Path(__file__).resolve().parent / "repair_step.mjs"
 _REPAIR_TIMEOUT_S = 180.0
 
+# --- J-1 : jointure expected <-> actual, en ADVISORY (GO Pierre 2026-09-02) ----------
+# `check_wiremap_contract.mjs --featuremap` repond « la carte couvre-t-elle le plan ? »
+# (toute capacite portee par >=1 ligne, aucun `couvre` fantome). Il fonctionne, rend
+# exit 1, et nomme la faute avec le vocabulaire du contrat (« omission silencieuse »).
+# MESURE DU SAS 3 : personne ne lisait son verdict. Seul `repair_step.mjs` l'importait,
+# et `run_real` enregistrait le resultat de la reparation sans jamais bloquer — d'ou des
+# etapes `s5-wiremap` en OK avec 0 capacite sur 20 couverte (p1_beta, p2_alpha).
+#
+# ADVISORY, a la lettre : ce reçu ne pose JAMAIS `res["blocked"]`, ne change aucun
+# statut d'etape, aucun `software_verdict`. Il rend la jointure LISIBLE (state.json)
+# avant toute decision de gate — chemin ratifie 2026-07-26, et N-2 vient d'en payer le
+# prix inverse. Le passage en gate dur est une decision Pierre distincte et ulterieure,
+# prise au vu des chiffres que ce reçu rend enfin observables.
+_JOIN_SCRIPT = Path(__file__).resolve().parent / "check_wiremap_contract.mjs"
+_JOIN_TIMEOUT_S = 60.0
+
+
+# --- J-2 : durcir la LECTURE de la jointure, pas la prose du contrat -----------------
+# (GO Pierre 2026-09-02.) L'oracle detecte deja tout ce qu'il faut ; ce qui manquait,
+# c'est un verdict qu'on ne puisse pas lire comme une conformite. Mesure du sas 3 : sur
+# 6 runs, `couvre` est REMPLI (donc `lignes_sans_couvre: 0`, la lettre du contrat est
+# tenue) et `capacites_couvertes: 0` — la forme passe, la jointure est vide. Un binaire
+# JOINED/NOT_JOINED confondait ce cas avec celui des 4 runs d'ancienne generation, ou il
+# n'y a simplement RIEN a couvrir. Ce ne sont pas les memes faits, et les fondre revient
+# a perdre le seul qui accuse.
+#
+# Cinq regimes, exclusifs et deterministes, calcules sur les compteurs de l'oracle —
+# AUCUNE modification de `check_wiremap_contract.mjs` (reutiliser l'oracle existant,
+# consigne Pierre) :
+#   NOT_APPLICABLE  la featuremap n'identifie aucune capacite : rien a couvrir
+#   EMPTY_FORM      aucune ligne ne porte `couvre` : la lettre du contrat est violee
+#   VOID            `couvre` rempli, 0 capacite resolue -> forme tenue, jointure vide
+#   PARTIAL         couverture incomplete, ou au moins un `couvre` fantome
+#   JOINED          toutes les capacites couvertes, aucun fantome
+JOIN_REGIMES = ("NOT_APPLICABLE", "EMPTY_FORM", "VOID", "PARTIAL", "JOINED")
+
+
+def _join_regime(stats: dict, fantomes: int) -> tuple[str, bool]:
+    """(regime, forme_satisfaite) depuis les compteurs de l'oracle. Ne leve jamais."""
+    def _n(cle: str) -> int:
+        valeur = stats.get(cle)
+        return int(valeur) if isinstance(valeur, (int, float)) else 0
+
+    capacites = _n("capacites")
+    couvertes = _n("capacites_couvertes")
+    lignes = _n("lignes")
+    sans_couvre = _n("lignes_sans_couvre")
+    lignes_avec_couvre = max(lignes - sans_couvre, 0)
+    # « Forme satisfaite » = ce que le contrat exige LITTERALEMENT : chaque ligne porte
+    # un `couvre` non vide. Vrai ici ne dit RIEN de la jointure — c'est tout le sujet.
+    forme_satisfaite = lignes > 0 and sans_couvre == 0
+
+    if capacites == 0:
+        return "NOT_APPLICABLE", forme_satisfaite
+    if lignes_avec_couvre == 0:
+        return "EMPTY_FORM", forme_satisfaite
+    if couvertes == 0:
+        return "VOID", forme_satisfaite
+    if couvertes < capacites or fantomes > 0:
+        return "PARTIAL", forme_satisfaite
+    return "JOINED", forme_satisfaite
+
+
+def check_wiremap_join(run_dir: Path, timeout_s: float = _JOIN_TIMEOUT_S) -> dict | None:
+    """Reçu ADVISORY de la jointure featuremap <-> wiremap. Ne leve jamais.
+
+    Rend ``None`` si l'un des deux artefacts manque — il n'y a alors rien a joindre, et
+    inventer un reçu vide ferait passer une absence pour une mesure.
+    Rend ``{"status": "NOT_MEASURED", ...}`` si l'outil est injoignable : l'absence
+    d'outil ne se travestit JAMAIS en jointure verifiee (meme discipline que
+    `verify_run._check_knowledge_trace` face a un `node` absent).
+    """
+    run_dir = Path(run_dir)
+    wiremap = run_dir / "wiremap.json"
+    featuremap = run_dir / "featuremap.json"
+    if not wiremap.exists() or not featuremap.exists():
+        return None
+
+    node_cmd = shutil.which("node")
+    if node_cmd is None:
+        return {"status": "NOT_MEASURED", "regime": "NOT_MEASURED",
+                "reason": "node indisponible", "advisory": True}
+    try:
+        proc = subprocess.run(
+            [node_cmd, str(_JOIN_SCRIPT), str(wiremap), "--featuremap", str(featuremap)],
+            capture_output=True, text=True, encoding="utf-8", timeout=timeout_s,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {"status": "NOT_MEASURED", "regime": "NOT_MEASURED",
+                "reason": f"check_wiremap_contract injoignable : {exc}", "advisory": True}
+
+    # Le script imprime une ligne humaine (« VERDICT WIREMAP ... ») AVANT son JSON :
+    # on repart de la premiere accolade. Pas de JSON exploitable => NOT_MEASURED, jamais
+    # un vert par defaut.
+    raw = proc.stdout or ""
+    start = raw.find("{")
+    if start < 0:
+        return {"status": "NOT_MEASURED", "regime": "NOT_MEASURED",
+                "reason": "sortie sans JSON exploitable",
+                "exit_code": proc.returncode, "advisory": True}
+    try:
+        data = json.loads(raw[start:])
+    except json.JSONDecodeError as exc:
+        return {"status": "NOT_MEASURED", "regime": "NOT_MEASURED",
+                "reason": f"JSON illisible : {exc}",
+                "exit_code": proc.returncode, "advisory": True}
+
+    stats = data.get("stats") if isinstance(data.get("stats"), dict) else {}
+    non_couvertes = data.get("capacites_non_couvertes") or []
+    fantomes = data.get("couverture_fantome") or []
+    regime, forme_satisfaite = _join_regime(stats, len(fantomes))
+    return {
+        "status": "JOINED" if data.get("ok") else "NOT_JOINED",
+        "regime": regime,
+        # Le piège nommé : la LETTRE du contrat (« `couvre` NON VIDE ») peut être
+        # satisfaite alors que la jointure est vide. Ce booléen rend la contradiction
+        # lisible d'un coup d'oeil au lieu de la laisser se déduire de deux compteurs.
+        "forme_satisfaite": forme_satisfaite,
+        "advisory": True,           # ne bloque rien, par decision (J-1)
+        "exit_code": proc.returncode,
+        "capacites": stats.get("capacites"),
+        "capacites_couvertes": stats.get("capacites_couvertes"),
+        "lignes": stats.get("lignes"),
+        "lignes_sans_couvre": stats.get("lignes_sans_couvre"),
+        "capacites_non_couvertes": len(non_couvertes),
+        "couverture_fantome": len(fantomes),
+        "problems": len(data.get("problems") or []),
+        "maillon_non_lie": len(data.get("maillon_non_lie") or []),
+        "exemples": [str(x) for x in (list(non_couvertes)[:3] + list(fantomes)[:3])],
+    }
+
 
 def run_repair_step(etape: str, run_dir: Path, timeout_s: float = _REPAIR_TIMEOUT_S,
                     run_id: str = "", attempt: int = 0,
@@ -3349,6 +3480,13 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
                             dq_receipt.setdefault(champ, res.get(champ))
                     return dq_receipt
                 res["design_questions_check"] = dq_receipt
+            # (b-bis) J-1 (GO Pierre 2026-09-02) : reçu ADVISORY de la jointure
+            # expected <-> actual, pose ICI parce que c'est l'instant ou wiremap.json
+            # vient d'etre ecrit et ou featuremap.json existe deja. Ne bloque rien.
+            if etape == "s5-wiremap":
+                join_check = check_wiremap_join(Path(context["run_dir"]))
+                if join_check is not None:
+                    res["join_check"] = join_check
             # (c) oracle amont + reparation ciblee, immediatement apres l'ecriture de
 
             # l'artefact. C'est le seul instant où l'artefact existe, est frais, et où

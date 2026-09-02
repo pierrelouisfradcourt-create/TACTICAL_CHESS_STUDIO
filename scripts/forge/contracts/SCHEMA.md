@@ -99,6 +99,43 @@ Conséquences mécaniques de cet amendement (implémentées le même jour, même
   `CONFORME_DOCUMENTAIRE` pour `delegation_context`/`parent_agent` (hors matrice d'exécution par
   construction). Aucun statut historique n'est supprimé.
 
+### Amendement `verification` — ratifié Pierre 2026-09-02 (décision P3, sas 2)
+
+> Un message opposé à une capacité (amendement, objection, question) n'est acquitté que si la
+> capacité en a incorporé la référence **dans sa propre production**. Encore faut-il savoir
+> **quel artefact fait foi** pour cette capacité — sinon la vérification cherche partout, et
+> « trouver » ne prouve plus rien.
+
+**Ce n'est pas un 18e champ du contrat d'entrée** — au même titre que `SKIPPED_VALIDATION[]`, il ne
+s'ajoute ni à Critique, ni à Important, ni à Recommandé, et **ne touche pas** le compte des champs
+ci-dessus. Mais il s'en distingue sur un point qui a décidé sa forme : `SKIPPED_VALIDATION` est une
+exigence sur ce que l'agent **produit**, uniforme pour tous, donc injectable verbatim par
+`RESTITUTION_RULE` sans éditer un seul YAML. `consumption_evidence` est **une déclaration de
+l'auteur du contrat** — l'agent ne l'écrit jamais, la vérification la lit après coup, et **sa valeur
+diffère par capacité** (`s2.5-artbible` produit `art_bible.md`, `asset_requests.json` et
+`gm_worldscan.json` : lequel fait foi ?). Une règle uniforme ne peut pas porter une valeur qui varie.
+Le chemin bon marché de 2026-07-26 est donc mécaniquement indisponible ici.
+
+| Couche | Définition | Champs | Consommateur réel |
+|---|---|---|---|
+| `verification` | Lu par la vérification **après production**, jamais rendu à l'agent, jamais dans le payload | `consumption_evidence` | `contract.py::consumption_evidence_status` et `::consumption_evidence_adoption` (**ADVISORY**) |
+
+Conséquences mécaniques (implémentées le même jour, mêmes fichiers) :
+
+- `contract.py` : `VERIFICATION` et `LAYER_VERIFICATION`. Le champ est **OPTIONNEL** — hors des
+  trois niveaux d'exigence, donc son absence ne peut rien bloquer (**0 contrat sur 28 le portait au
+  jour de l'amendement** ; l'exiger les aurait tous invalidés d'un coup). Présent, il est
+  type-vérifié — précédent `delegation_context` : une décision assumée n'a jamais le droit d'être
+  malformée. Il est tenu **hors de `LAYER_PROMPT`** par construction, donc
+  `_verify_prompt_layer_rendered` reste intact, **sans exception ajoutée**.
+- **Le point de mesure arrive avec le champ**, pas après : `consumption_evidence_status(contract)`
+  rend `filled` / `declared_empty` / `absent`, et `consumption_evidence_adoption()` balaie tout un
+  répertoire de contrats. C'est la condition posée en 2026-07-26 — *« le corpus Codex est mort
+  d'avoir été déclaratif sans lecteur »*.
+- **ADVISORY, et seulement advisory** : aucun verdict lu ou modifié, aucun gate touché. Le passage
+  en gate dur est une **décision Pierre distincte et ultérieure**, prise au vu des chiffres
+  d'adoption — jamais déduite de l'existence du champ.
+
 ---
 
 ## Relations à ne pas confondre (le schéma n'est pas redondant)

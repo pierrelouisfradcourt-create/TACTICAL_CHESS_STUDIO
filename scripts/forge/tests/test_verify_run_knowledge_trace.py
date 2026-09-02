@@ -6,7 +6,15 @@ par verify_run — un run pouvait déclarer avoir consommé un item sans que qui
 vérifie que la référence apparaît RÉELLEMENT dans un artefact du run (auto-attesté,
 AM1). Ces tests prouvent : trace ABSENTE -> avertissement non bloquant (OK global) ;
 trace VALIDE (ref trouvée dans un artefact) -> OK ; trace THÉÂTRALE (ref introuvable)
--> REJET dur, même sévérité que la preuve mutation. NO_CLAIM_ALLOWED.
+-> constat FAUX rapporté, mais NON BLOQUANT.
+
+RÉGIME ADVISORY — décision N-2, ratifiée Pierre 2026-09-02. Le contrôle mesure et
+rapporte ; il ne décide plus. Ces tests figent donc les DEUX moitiés de la décision :
+(1) le constat reste VRAI et visible — `knowledge_trace_ok is False` sur théâtre et sur
+corruption, jamais un faux vert ; (2) il n'a plus d'autorité — `overall` reste True et
+`knowledge_trace_problems` reste vide (la liste que le driver agrège pour bloquer).
+Un test qui re-verrait `overall is False` ici signalerait un ré-armement non ratifié.
+NO_CLAIM_ALLOWED.
 """
 from __future__ import annotations
 
@@ -82,31 +90,34 @@ def test_trace_valide_ref_trouvee_ok(tmp_path):
     assert res["knowledge_trace_problems"] == []
 
 
-# --- trace théâtrale : ref introuvable dans les artefacts -> REJET dur -------------
+# --- trace théâtrale : ref introuvable -> constat FAUX, ADVISORY (N-2) -------------
 
 @pytest.mark.skipif(_NODE_ABSENT, reason="node indisponible")
-def test_trace_theatrale_ref_introuvable_rejetee(tmp_path):
+def test_trace_theatrale_ref_introuvable_rapportee_sans_bloquer(tmp_path):
     vpath = _write_verdict(tmp_path)
     _write_trace(tmp_path, [{
         "source": "knowledge_base", "ref": "REF-INTROUVABLE-XYZ-999", "provenance": "ADVISORY",
         "valid_as_of": "2026-07-20T00:00:00Z", "reason": "test R3 théâtre",
     }])
     res = verify_run(vpath, key_file=KEY)
+    # le constat reste VRAI : le théâtre est détecté et nommé
     assert res["knowledge_trace_ok"] is False
-    assert res["overall"] is False
-    assert res["knowledge_trace_problems"]
-    assert any("échoué" in p for p in res["knowledge_trace_problems"])
+    assert any("échoué" in w for w in res["knowledge_trace_warnings"])
+    # ... et il n'a plus d'autorité (N-2) : ni gate driver, ni code de sortie CLI
+    assert res["knowledge_trace_problems"] == []
+    assert res["overall"] is True
 
 
-# --- trace corrompue -> REJET dur (pas un vert par défaut) -------------------------
+# --- trace corrompue -> constat FAUX (pas un vert par défaut), ADVISORY ------------
 
 @pytest.mark.skipif(_NODE_ABSENT, reason="node indisponible")
-def test_trace_corrompue_rejetee(tmp_path):
+def test_trace_corrompue_rapportee_sans_bloquer(tmp_path):
     vpath = _write_verdict(tmp_path)
     (tmp_path / "knowledge_trace.json").write_text("{ceci n'est pas du JSON", encoding="utf-8")
     res = verify_run(vpath, key_file=KEY)
-    assert res["knowledge_trace_ok"] is False
-    assert res["overall"] is False
+    assert res["knowledge_trace_ok"] is False   # jamais un vert par défaut
+    assert res["knowledge_trace_problems"] == []
+    assert res["overall"] is True
 
 
 # --- node indisponible : avertissement honnête, jamais un faux vert ---------------

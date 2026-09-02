@@ -144,19 +144,33 @@ def _check_mutation_proof(data: dict, key_file: Path | None, *,
             "status": chk.get("status") or None, "checked": True}
 
 
-def _check_knowledge_trace(run_dir: Path) -> tuple[list[str], list[str]]:
+def _check_knowledge_trace(run_dir: Path) -> tuple[list[str], list[str], bool]:
     """R3 — recoupe <run_dir>/knowledge_trace.json via `node knowledge_trace.mjs
     --verify` (ferme AM1) : le lineage de lecture (pré-mortem/knowledge_base/
     mandatory_read/packet servis à un run) était jusqu'ici AUTO-ATTESTÉ, jamais
-    recoupé par un tiers mécanique. Retourne (problems, warnings) — jamais ne lève.
+    recoupé par un tiers mécanique. Retourne (problems, warnings, ok) — jamais ne lève.
 
-    - trace ABSENTE : simple avertissement NON BLOQUANT (tous les runs n'en portent
-      pas encore) — pas la même sévérité qu'une trace présente mais falsifiée.
+    RÉGIME : **ADVISORY** — décision N-2, ratifiée Pierre 2026-09-02.
+    Ce contrôle MESURE et RAPPORTE ; il ne bloque plus rien. Motif ratifié : le gate
+    dur n'avait pas la mesure d'adoption qui conditionne sa ratification (précédent
+    2026-07-26 : advisory + point de mesure d'abord, gate dur = décision ULTÉRIEURE),
+    et brancher l'émetteur de traces aurait transformé une anomalie marginale
+    (1 run_dir sur 89 portait une trace) en blocage systémique.
+    Séquence ratifiée : advisory -> émission réelle -> mesure d'adoption -> décision
+    Pierre sur le gate. La sonde (`knowledge_trace.mjs`, `verifyTrace`) est INCHANGÉE :
+    cette décision retire une AUTORITÉ, pas une CAPACITÉ.
+
+    - trace ABSENTE : avertissement (tous les runs n'en portent pas encore), `ok` True.
     - trace PRÉSENTE et le sous-processus échoue (exit != 0 : au moins un item
-      NOT_FOUND = théâtre, ou trace corrompue/run_dir absent) : échec DUR, listé
-      dans `problems` — même sévérité que la preuve mutation (P0.3).
+      NOT_FOUND = théâtre, ou trace corrompue/run_dir absent) : `ok` **False** et
+      avertissement explicite. Le constat reste VRAI et VISIBLE (jamais un faux vert) ;
+      seul son effet bloquant est retiré.
     - node INDISPONIBLE (introuvable, erreur de spawn, timeout) : avertissement
-      honnête. L'absence d'outil ne se travestit JAMAIS en vérification réussie.
+      honnête, `ok` True. L'absence d'outil ne se travestit JAMAIS en vérification
+      réussie, ni en échec imputé à la trace.
+
+    `problems` reste retourné et TOUJOURS VIDE sous ce régime : c'est le point de
+    ré-armement de la décision ultérieure sur le gate, pas un canal mort.
     """
     problems: list[str] = []
     warnings: list[str] = []
@@ -166,7 +180,7 @@ def _check_knowledge_trace(run_dir: Path) -> tuple[list[str], list[str]]:
         warnings.append(
             "knowledge_trace.json absent — lineage non recoupé (tous les runs "
             "n'en portent pas encore, cf. FORGE_V2_CONSOLIDATION.md R3)")
-        return problems, warnings
+        return problems, warnings, True
 
     node_cmd = shutil.which("node") or "node"
     try:
@@ -178,14 +192,18 @@ def _check_knowledge_trace(run_dir: Path) -> tuple[list[str], list[str]]:
     except (OSError, subprocess.SubprocessError) as exc:
         warnings.append(
             f"knowledge_trace.mjs --verify non exécutable (node indisponible ?) : {exc}")
-        return problems, warnings
+        return problems, warnings, True
 
     if proc.returncode != 0:
         detail = "\n".join(part for part in (proc.stderr, proc.stdout) if part).strip()
-        problems.append(
-            f"knowledge_trace --verify a échoué (exit {proc.returncode}) : {detail[-2000:]}"
+        # ADVISORY (N-2, 2026-09-02) : le constat part dans `warnings`, JAMAIS dans
+        # `problems` — le driver agrège `problems` dans sa liste bloquante.
+        warnings.append(
+            f"knowledge_trace --verify a échoué (exit {proc.returncode}) "
+            f"[ADVISORY, ne bloque pas — décision N-2] : {detail[-2000:]}"
         )
-    return problems, warnings
+        return problems, warnings, False
+    return problems, warnings, True
 
 
 def _check_context_manifest(run_dir: Path, key_file: Path | None) -> tuple[list[str], list[str]]:
@@ -334,10 +352,14 @@ def verify_run(verdict_path: Path | str, key_file: Path | None = None) -> dict:
     git_current = current_git_head()
     git_ok = (not git_stored) or (git_current == git_stored)
 
-    # (4) knowledge_trace (R3, ferme AM1) : échec DUR si présente et falsifiée ;
-    # absente = avertissement seul (tous les runs n'en portent pas encore).
-    knowledge_trace_problems, knowledge_trace_warnings = _check_knowledge_trace(path.parent)
-    knowledge_trace_ok = not knowledge_trace_problems
+    # (4) knowledge_trace (R3, ferme AM1) : **ADVISORY** depuis la décision N-2
+    # (ratifiée Pierre 2026-09-02). `knowledge_trace_ok` reste un CONSTAT VRAI (False
+    # sur théâtre/corruption — ne jamais afficher un faux vert) mais n'entre plus dans
+    # `integrity_ok`/`overall` : même patron que le Context Manifest ci-dessous.
+    # `knowledge_trace_problems` reste retourné, TOUJOURS VIDE — point de ré-armement
+    # de la décision ultérieure, une fois l'adoption réellement mesurée.
+    (knowledge_trace_problems, knowledge_trace_warnings,
+     knowledge_trace_ok) = _check_knowledge_trace(path.parent)
 
     # (5) Context Manifest (advisory, jamais un gate) : recoupe les lignes déjà
     # écrites, n'entre PAS dans `overall` — c'est une mesure de fraîcheur, pas
@@ -348,8 +370,10 @@ def verify_run(verdict_path: Path | str, key_file: Path | None = None) -> dict:
     # la couleur du gate mutation d'un verdict honnête — seulement de son
     # authenticité (mutation_integrity_ok) et de sa cohérence interne
     # (coherence_problems, gate dur décrit ci-dessus).
+    # N-2 (2026-09-02) : `knowledge_trace_ok` RETIRÉ de cette conjonction — un contrôle
+    # advisory qui décide encore le code de sortie de la CLI resterait un gate.
     integrity_ok = (hmac_ok and evidence_ok and mutation_integrity_ok
-                    and knowledge_trace_ok and not coherence_problems)
+                    and not coherence_problems)
     overall = integrity_ok
     return {
         "overall": overall,
@@ -431,7 +455,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"gate mutation (verdict logiciel, non bloquant) : {vert} (status={mutation_status})")
     for p in res.get("coherence_problems", []):
         print(f"   ✗ [cohérence] {p}")
-    print(f"knowledge_trace  : {'OK' if res.get('knowledge_trace_ok', True) else 'REJET (théâtre/corrompu)'}")
+    print("knowledge_trace  : " + ("OK" if res.get("knowledge_trace_ok", True)
+          else "THÉÂTRE/CORROMPU — ADVISORY, n'entre pas dans l'intégrité (N-2)"))
     for p in res.get("knowledge_trace_problems", []):
         print(f"   ✗ {p}")
     for w in res.get("knowledge_trace_warnings", []):

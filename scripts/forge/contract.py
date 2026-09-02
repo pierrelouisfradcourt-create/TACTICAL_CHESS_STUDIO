@@ -98,6 +98,30 @@ CRITICAL = (
 IMPORTANT = ("skill", "plugin")
 RECOMMENDED = ("delegation_context",)
 
+# Couche `verification` — amendement ratifié Pierre 2026-09-02 (décision P3).
+#
+# `consumption_evidence` déclare QUEL artefact produit par la capacité fait foi pour
+# vérifier qu'un message qui lui a été opposé (amendement/objection/question) a bien
+# été incorporé à sa PRODUCTION. Il n'entre dans AUCUNE des trois couches existantes :
+#   - pas `prompt`      : l'agent n'a pas à le lire, il ne lui est jamais rendu ;
+#   - pas `dispatch`    : il ne touche pas le payload (modèle/provider/outils) ;
+#   - pas `documentation` : celle-ci se définit par « aucun consommateur d'exécution »,
+#                           or ce champ a un consommateur machine, APRÈS production.
+# D'où une 4e couche, du même ordre que l'amendement layer du 2026-08-02.
+#
+# OPTIONNEL, et c'est structurant : il ne figure ni dans CRITICAL, ni dans IMPORTANT,
+# ni dans RECOMMENDED. Un contrat qui ne le porte pas reste chargeable et activable —
+# sans quoi les 23 contrats existants deviendraient invalides d'un coup. Présent, il
+# est type-vérifié (précédent `delegation_context` : une décision assumée n'a jamais
+# le droit d'être malformée).
+#
+# ADVISORY (condition 2 du précédent ratifié 2026-07-26) : rien ici ne lit ni ne
+# modifie un verdict, un gate ou `verify_run`. Le point de mesure d'adoption arrive
+# le même jour que le champ (condition 1) : `consumption_evidence_status` et
+# `consumption_evidence_adoption` ci-dessous — un champ déclaratif sans lecteur est
+# exactement la faute que ce studio a déjà payée (corpus Codex, `reference_guard`).
+VERIFICATION = ("consumption_evidence",)
+
 # Couche par champ (SCHEMA.md, "Amendement layer — ratifié Pierre 2026-08-02") :
 #   prompt        champ rendu comme section de texte par `_render_prompt`.
 #   dispatch      champ consommé pour construire le payload (modèle/provider/outils),
@@ -114,6 +138,11 @@ LAYER_PROMPT = (
 )
 LAYER_DISPATCH = ("capability_role", "skill", "plugin")
 LAYER_DOCUMENTATION = ("delegation_context",)
+# 4e couche (P3, ratifiée Pierre 2026-09-02) : champ LU PAR LA VÉRIFICATION, après
+# production. Tenu HORS de `LAYER_PROMPT` par construction — `_verify_prompt_layer_
+# rendered` fige « tout champ prompt rempli est rendu », et ce champ ne doit jamais
+# être rendu. L'invariant reste donc intact, sans exception ajoutée.
+LAYER_VERIFICATION = ("consumption_evidence",)
 # `parent_agent` (SCHEMA.md #16) n'est PAS un champ canonique de ce module : il n'a
 # jamais figuré dans CRITICAL/IMPORTANT/RECOMMENDED et n'est validé/rendu nulle part
 # ici — inchangé par cet amendement. Son repli existe uniquement côté Observer
@@ -197,6 +226,49 @@ def field_state(value: object) -> str:
     return "filled"
 
 
+def consumption_evidence_status(contract: dict) -> str:
+    """État d'adoption de `consumption_evidence` pour UN contrat.
+
+    Point de mesure livré le même jour que le champ (condition 1 du précédent ratifié
+    2026-07-26 : « la primitive arrive avec son point de mesure »), et calqué sur
+    `forge.skipped_validation.skipped_validation_status` : trois états, vocabulaire de
+    `field_state`.
+
+      filled          la capacité a désigné le ou les artefacts qui font foi
+      declared_empty  la sentinelle `aucun` — décision assumée : rien à opposer ici
+      absent          la capacité n'a pas déclaré quel artefact fait foi
+
+    ADVISORY UNIQUEMENT : ne lève jamais, ne lit aucun verdict, ne bloque rien. Le
+    passage en gate dur est une décision Pierre distincte et ultérieure, prise au vu
+    des chiffres — pas ici.
+    """
+    if not isinstance(contract, dict):
+        return "absent"
+    return field_state(contract.get("consumption_evidence"))
+
+
+def consumption_evidence_adoption(contracts_dir: Path | None = None) -> dict:
+    """Adoption de `consumption_evidence` sur TOUS les contrats d'un répertoire.
+
+    Retourne ``{"filled": n, "declared_empty": n, "absent": n, "total": n,
+    "by_contract": {etape: état}}``. Best-effort strict : un YAML illisible est compté
+    ``absent`` et n'interrompt jamais la mesure — mesurer ne doit pas pouvoir échouer.
+    """
+    directory = contracts_dir or CONTRACTS_DIR
+    counts = {"filled": 0, "declared_empty": 0, "absent": 0}
+    by_contract: dict[str, str] = {}
+    for path in sorted(Path(directory).glob("*.yaml")):
+        try:
+            with open(path, encoding="utf-8") as fh:
+                data = yaml.safe_load(fh)
+        except Exception:
+            data = None
+        state = consumption_evidence_status(data if isinstance(data, dict) else {})
+        by_contract[path.stem] = state
+        counts[state] += 1
+    return {**counts, "total": len(by_contract), "by_contract": by_contract}
+
+
 def load_contract(etape: str, contracts_dir: Path | None = None) -> dict:
     """Charge le contrat YAML canonique d'une étape.
 
@@ -232,6 +304,16 @@ def validate_contract(contract: dict) -> None:
     # n'a jamais le droit d'être malformée. Un contrat futur sans ce champ passe
     # désormais ; un contrat qui le porte avec un type invalide est toujours refusé.
     for field in RECOMMENDED:
+        value = contract.get(field)
+        if value is not None and not isinstance(value, (str, list, tuple)):
+            problems.append(
+                f"{field!r} présent mais de type invalide ({type(value).__name__}, "
+                "attendu str/list)"
+            )
+    # VERIFICATION (couche 4, P3 ratifiée Pierre 2026-09-02) : OPTIONNEL — son absence
+    # ne peut RIEN bloquer (23 contrats sur 23 ne le portent pas au jour de l'amendement).
+    # Présent, il est type-vérifié, même discipline que RECOMMENDED.
+    for field in VERIFICATION:
         value = contract.get(field)
         if value is not None and not isinstance(value, (str, list, tuple)):
             problems.append(
@@ -304,7 +386,11 @@ class DispatchPayload:
 # append_execution_manifest`), JAMAIS la CONSOMMATION. Le lecteur de consommation
 # existe déjà et est câblé (`knowledge_trace.mjs --verify`, appelé par
 # `forge.verify_run`) ; lui donner un producteur est un lot SÉPARÉ, et une décision
-# Pierre — `verify_run` traite les problèmes de knowledge_trace comme BLOQUANTS.
+# Pierre. MISE À JOUR (décision N-2, ratifiée Pierre 2026-09-02) : `verify_run` ne
+# traite PLUS les problèmes de knowledge_trace comme bloquants — le contrôle est passé
+# en ADVISORY, précisément pour que le branchement d'un producteur de traces ne
+# transforme pas un gate marginal (1 run_dir sur 89) en blocage systémique. Séquence
+# ratifiée : advisory -> émission -> mesure d'adoption -> décision Pierre sur le gate.
 # =====================================================================================
 
 KB_CATALOG = REPO_ROOT / "knowledge_base" / "catalog.json"

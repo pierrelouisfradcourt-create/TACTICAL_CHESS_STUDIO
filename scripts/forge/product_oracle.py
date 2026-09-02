@@ -469,14 +469,21 @@ def check_visual_capture(
     indisponible) => NOT_MEASURED motivé pour le volet Godot, JAMAIS un vert
     fabriqué pour ce qui n'a pas été mesuré.
 
-    Retourne {status: OK|FAIL|NOT_MEASURED, passed, browser{}, godot{}, reason, limites[]}.
-    `passed` est True SSI status == "OK" (les deux volets réellement mesurés ET verts).
+    Retourne {status, passed, not_measured, reason, volets{}, measured_volets[],
+    not_measured_volets[], browser{}, godot{}, limites[]}.
+
+    W-2 (GO Pierre 2026-09-02) — `passed` est True SSI status == "OK", et OK signifie
+    « **tout volet APPLICABLE (script présent) ET MESURÉ est vert** », jamais « tout a
+    été mesuré ». Un moteur dont le script de capture est ABSENT n'existe pas pour ce
+    jeu et n'entre pas dans l'agrégat ; un script PRÉSENT mais non mesurable reste
+    NOT_MEASURED, figure dans `not_measured_volets`, et n'emporte plus le statut.
+    Aucun volet mesuré => NOT_MEASURED (un jeu sans capture ne gagne aucun vert).
     """
     presentation_dir = Path(presentation_dir)
-    browser = _run_capture_script(
-        presentation_dir / "capture_browser.mjs", node_bin, timeout_s)
-    godot = _run_capture_script(
-        presentation_dir / "capture_godot.mjs", node_bin, timeout_s)
+    browser_script = presentation_dir / "capture_browser.mjs"
+    godot_script = presentation_dir / "capture_godot.mjs"
+    browser = _run_capture_script(browser_script, node_bin, timeout_s)
+    godot = _run_capture_script(godot_script, node_bin, timeout_s)
 
     browser_json = browser.get("json") or {}
     browser_measured = bool(browser.get("ran")) and browser.get("json") is not None
@@ -487,26 +494,51 @@ def check_visual_capture(
     godot_measured = bool(godot.get("ran")) and godot.get("json") is not None and not godot_blocked
     godot_ok = godot_measured and bool(godot_json.get("passed"))
 
-    if not browser_measured:
-        # Contre-vérification P7 : NOT_MEASURED (pas FAIL) — script absent/
-        # illisible/timeout/JSON invalide = aucune mesure n'a eu lieu, ce n'est
-        # PAS un critère pixel rouge mesuré. FAIL affirmerait à tort qu'une
-        # exécution a eu lieu et a échoué le critère ; NOT_MEASURED dit
-        # honnêtement qu'on ne sait rien du critère ici.
-        status = "NOT_MEASURED"
-        reason = (browser.get("error")
-                  or "capture_browser.mjs non mesurable (absent/illisible/timeout/"
-                     "JSON invalide) — absence de mesure, jamais un vert ni un rouge mécanique")
-    elif not browser_ok:
+    # W-2 (GO Pierre 2026-09-02) — DÉCOUPLAGE PAR MOTEUR.
+    #
+    # AVANT : `passed` exigeait que les DEUX volets soient mesurés ET verts. Conséquence
+    # mesurée : un jeu PUREMENT WEB — donc 68 des 79 attentes `expected_proof.kind:
+    # visual` du dépôt — ne pouvait JAMAIS atteindre OK, puisque le volet Godot n'y est
+    # pas applicable. Une capture navigateur parfaitement verte retombait en
+    # NOT_MEASURED. Ce n'était pas malhonnête (le statut le disait), mais cela rendait
+    # le volet inutilisable comme source de preuve visuelle pour un jeu web.
+    #
+    # APRÈS : l'agrégat porte sur les volets APPLICABLES (script présent) ET MESURÉS.
+    #   - script ABSENT      -> ce moteur n'existe pas pour ce jeu : n'entre pas dans l'agrégat
+    #   - script PRÉSENT mais non mesurable (bloqué/timeout/JSON invalide) -> reste
+    #     NOT_MEASURED, est LISTÉ dans `not_measured_volets`, et n'emporte pas le statut
+    #   - aucun volet mesuré -> NOT_MEASURED (INCHANGÉ : un jeu sans aucune capture ne
+    #     gagne aucun vert — W-2 ne fabrique pas de preuve là où il n'y a pas de producteur)
+    #
+    # Ce que `passed` signifie désormais, et il faut le lire ainsi : « tout volet
+    # applicable ET mesuré est vert ». Jamais « tout a été mesuré ». C'est pourquoi
+    # `not_measured_volets` est exposé : moins d'autorité conjonctive, même capacité de
+    # détection, absence toujours visible.
+    volets = {
+        "browser": {"applicable": browser_script.exists(),
+                    "measured": browser_measured, "ok": browser_ok},
+        "godot": {"applicable": godot_script.exists(),
+                  "measured": godot_measured, "ok": godot_ok},
+    }
+    mesures = [nom for nom, v in volets.items() if v["applicable"] and v["measured"]]
+    rouges = [nom for nom in mesures if not volets[nom]["ok"]]
+    non_mesures = [nom for nom, v in volets.items() if v["applicable"] and not v["measured"]]
+
+    if rouges:
         status = "FAIL"
-        reason = "capture_browser.mjs mesuré, critère pixel (differ + non-monochrome) rouge"
-    elif godot_blocked or not godot.get("ran") or godot.get("json") is None:
+        detail_rouge = {
+            "browser": "capture_browser.mjs mesuré, critère pixel (differ + non-monochrome) rouge",
+            "godot": "capture_godot.mjs exécuté, critère pixel (differ + non-monochrome) rouge",
+        }
+        reason = " ; ".join(detail_rouge[nom] for nom in rouges)
+    elif not mesures:
+        # Contre-vérification P7, INCHANGÉE : aucune mesure n'a eu lieu, ce n'est PAS un
+        # critère pixel rouge. FAIL affirmerait à tort qu'une exécution a eu lieu et a
+        # échoué le critère ; NOT_MEASURED dit honnêtement qu'on ne sait rien ici.
         status = "NOT_MEASURED"
-        reason = (godot_json.get("reason") or godot.get("error")
-                  or "capture Godot non exécutable sur ce poste (binaire/fenêtre GPU absents)")
-    elif not godot_ok:
-        status = "FAIL"
-        reason = "capture_godot.mjs exécuté, critère pixel (differ + non-monochrome) rouge"
+        reason = (browser.get("error") or godot_json.get("reason") or godot.get("error")
+                  or "aucun volet de capture applicable et mesurable (scripts absents/"
+                     "illisibles/timeout/JSON invalide) — absence de mesure, jamais un vert")
     else:
         status = "OK"
         reason = ""
@@ -516,6 +548,9 @@ def check_visual_capture(
         "passed": status == "OK",
         "not_measured": status == "NOT_MEASURED",
         "reason": reason,
+        "volets": volets,
+        "measured_volets": mesures,
+        "not_measured_volets": non_mesures,
         "browser": browser,
         "godot": godot,
         "limites": [
@@ -524,6 +559,12 @@ def check_visual_capture(
             "le volet Godot exige un binaire configuré ET une fenêtre GPU réelle "
             "(--rendering-driver vulkan) ; son absence rend le volet NOT_MEASURED, "
             "jamais un vert.",
+            "W-2 : `passed` signifie « tout volet APPLICABLE ET MESURÉ est vert », "
+            "jamais « tout a été mesuré » — lire `not_measured_volets` avant d'en "
+            "conclure quoi que ce soit.",
+            "le critère pixel détecte un rendu MORT ou FIGÉ (falsification V-2 : "
+            "captures identiques et rendu monochrome sont détectés), PAS une "
+            "dégradation visuelle (un rendu qui bouge d'un pixel passe).",
         ],
     }
 
