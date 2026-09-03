@@ -1,0 +1,437 @@
+<title>Carte de vérité V2</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#F1F3F5; --paper:#FFFFFF; --ink:#161D26; --ink2:#3D4955; --mute:#5C6B7A; --line:#D3D9DF; --line2:#E6EAEE;
+  --exists:#2C7A4B; --partial:#A8690F; --absent:#B03A2E; --legacy:#6B6785; --unknown:#3F6C9B; --target:#0E6F7C;
+  --exists-bg:#E4F2E9; --partial-bg:#F8ECD6; --absent-bg:#F6E1DD; --legacy-bg:#E8E6F0; --unknown-bg:#DFE9F4; --target-bg:#DDEFF1;
+  --display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+  --body:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",Consolas,"Courier New",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#131920; --paper:#1B232C; --ink:#E8ECF0; --ink2:#C3CBD3; --mute:#8E9BA8; --line:#2E3944; --line2:#242E38;
+    --exists:#63C48A; --partial:#E0A64A; --absent:#E5776A; --legacy:#A9A4C8; --unknown:#7FA8DA; --target:#5CC3CF;
+    --exists-bg:#1D3227; --partial-bg:#3A2D14; --absent-bg:#3C1F1B; --legacy-bg:#2A2838; --unknown-bg:#1C2C3D; --target-bg:#143236;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131920; --paper:#1B232C; --ink:#E8ECF0; --ink2:#C3CBD3; --mute:#8E9BA8; --line:#2E3944; --line2:#242E38;
+  --exists:#63C48A; --partial:#E0A64A; --absent:#E5776A; --legacy:#A9A4C8; --unknown:#7FA8DA; --target:#5CC3CF;
+  --exists-bg:#1D3227; --partial-bg:#3A2D14; --absent-bg:#3C1F1B; --legacy-bg:#2A2838; --unknown-bg:#1C2C3D; --target-bg:#143236;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
+.wrap{max-width:1080px;margin:0 auto;padding:40px 28px 96px}
+header{border-bottom:2px solid var(--ink);padding-bottom:22px;margin-bottom:34px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(34px,5vw,52px);line-height:1.02;margin:8px 0 12px;text-wrap:balance;letter-spacing:-.01em}
+h2{font-family:var(--display);font-weight:700;font-size:28px;line-height:1.1;margin:0 0 6px;text-wrap:balance}
+h3{font-family:var(--display);font-weight:500;font-size:19px;margin:28px 0 8px}
+p{max-width:68ch;margin:0 0 12px}
+.lede{font-size:18px;color:var(--ink2);max-width:70ch}
+.basis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0;border:1px solid var(--line);margin-top:20px;font-family:var(--mono);font-size:12.5px}
+.basis div{padding:10px 12px;border-right:1px solid var(--line)}
+.basis div:last-child{border-right:0}
+.basis b{display:block;color:var(--mute);font-weight:500;letter-spacing:.06em;text-transform:uppercase;font-size:10.5px;margin-bottom:3px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin:18px 0 0;font-family:var(--mono);font-size:12px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:2px;border:1.5px solid currentColor;display:inline-block}
+.st{font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.04em;padding:1px 7px;border-radius:2px;white-space:nowrap;border:1px solid currentColor}
+.EXISTE{color:var(--exists);background:var(--exists-bg)} .PARTIEL{color:var(--partial);background:var(--partial-bg)}
+.ABSENT{color:var(--absent);background:var(--absent-bg)} .LEGACY{color:var(--legacy);background:var(--legacy-bg)}
+.UNKNOWN{color:var(--unknown);background:var(--unknown-bg)} .CIBLE{color:var(--target);background:var(--target-bg);border-style:dashed}
+nav.toc{position:sticky;top:0;background:var(--bg);z-index:2;display:flex;gap:18px;padding:10px 0;border-bottom:1px solid var(--line);margin-bottom:30px;font-family:var(--mono);font-size:12.5px}
+nav.toc a{color:var(--ink2);text-decoration:none;border-bottom:1px solid transparent}
+nav.toc a:hover,nav.toc a:focus-visible{border-bottom-color:var(--ink);outline:none}
+section{margin:0 0 64px}
+.chapnum{font-family:var(--mono);font-size:12px;color:var(--mute);letter-spacing:.08em}
+.claim{border-left:3px solid var(--ink);padding:6px 14px;margin:14px 0 20px;font-size:17px;max-width:72ch}
+.claim.t{border-color:var(--target);color:var(--ink2)}
+figure{margin:20px 0 26px;background:var(--paper);border:1px solid var(--line);padding:14px}
+figure .scroll{overflow-x:auto}
+figure svg{display:block;min-width:900px;width:100%;height:auto;color:var(--ink);font-family:var(--mono)}
+figcaption{font-size:13.5px;color:var(--mute);margin-top:10px;max-width:none}
+table{border-collapse:collapse;width:100%;font-size:14px;margin:8px 0 14px}
+th{text-align:left;font-family:var(--mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);font-weight:500;padding:6px 8px;border-bottom:1.5px solid var(--ink)}
+td{padding:7px 8px;border-bottom:1px solid var(--line2);vertical-align:top}
+td.id{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+td.pf{font-family:var(--mono);font-size:12px;color:var(--ink2)}
+code{font-family:var(--mono);font-size:.92em;background:var(--line2);padding:0 4px;border-radius:2px}
+.tw{overflow-x:auto}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:760px){.grid2{grid-template-columns:1fr}}
+.note{background:var(--paper);border:1px solid var(--line);padding:12px 16px;font-size:14.5px}
+.note.t{border-style:dashed;border-color:var(--target)}
+.verdict{font-family:var(--mono);font-size:13px;background:var(--paper);border:1px solid var(--line);padding:14px 16px;white-space:pre;overflow-x:auto;margin-top:40px}
+ul{padding-left:20px;max-width:72ch} li{margin-bottom:5px}
+.small{font-size:13px;color:var(--mute)}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Studio V2 · audit de préparation · lecture seule</div>
+  <h1>Carte de vérité V2</h1>
+  <p class="lede">Trois schémas, une seule source : le dépôt. L'<b>actuel</b> est ce que <code>forge/</code> exécute réellement. La <b>cible</b> est ce que les documents V2 décrivent — elle n'affirme rien sur l'implémentation. Le <b>contre-schéma</b> corrige l'un et l'autre là où ils contredisent le code mesuré.</p>
+  <div class="basis">
+    <div><b>Dépôt V2 mesuré</b>C:\Users\…\Desktop\Studio · HEAD 7f201fd · arbre propre</div>
+    <div><b>Source canonique V1</b>C:\TACTICAL_CHESS_STUDIO · 58095ba9 · non touchée</div>
+    <div><b>Baseline de référence</b>EVIDENCE/runs/runm_breakout · RUN M ter · 13/13 · verdict AUTHENTIQUE</div>
+    <div><b>Date · mode</b>2026-09-03 · rien codé, rien modifié</div>
+  </div>
+  <div class="legend">
+    <span class="st EXISTE">EXISTE</span><span class="small">mécanisme présent <i>et</i> appelé par la chaîne</span>
+    <span class="st PARTIEL">PARTIEL</span><span class="small">présent, mais amputé, muet ou hors du chemin mesuré</span>
+    <span class="st ABSENT">ABSENT</span><span class="small">cité, sans code ni producteur</span>
+    <span class="st LEGACY">LEGACY</span><span class="small">présent en V2, gelé ou sans appelant</span>
+    <span class="st UNKNOWN">UNKNOWN</span><span class="small">présent, effet non mesuré cette session</span>
+    <span class="st CIBLE">CIBLE</span><span class="small">intention documentée — jamais un statut d'implémentation</span>
+  </div>
+</header>
+
+<nav class="toc"><a href="#actuel">1 · Actuel</a><a href="#cible">2 · Cible</a><a href="#verite">3 · Contre-schéma vérité</a><a href="#hors">Ce que la carte ne fait pas</a></nav>
+
+<!-- ============================== 1 · ACTUEL ============================== -->
+<section id="actuel">
+  <div class="chapnum">1 · SCHÉMA ACTUEL — mesuré sur le dépôt</div>
+  <h2>Treize stations fixes, quatre contrôles durs, six contrôles qui parlent sans bloquer</h2>
+  <div class="claim">La chaîne réelle est <code>run_real.py → ForgeDriver → dispatch.ORDER</code>. L'ordre est une constante de 13 étapes ; 19 profils en prennent des sous-ensembles. Chaque flèche ci-dessous est un <code>mandatory_read</code> ou un <code>output_contract</code> lu dans le contrat de l'étape, ou un fichier constaté dans la baseline.</div>
+
+  <figure>
+    <div class="scroll"><svg id="svg-actuel" role="img" aria-label="Les 13 stations de dispatch.ORDER, les artefacts que chacune produit ou lit, et les contrôles durs ou advisory branchés sur la chaîne, avec leur statut mesuré."></svg></div>
+    <figcaption>Flux réels de la chaîne V2. Trait plein = artefact produit puis lu par l'étape suivante (constaté dans la baseline). Trait pointillé = entrée déclarée par le contrat mais <b>absente</b> du run (aucun producteur). Contrôles : cadre plein = bloque le run (HALT / refus de build) ; cadre pointillé = advisory, consigné dans <code>detail</code> et jamais décisionnel.</figcaption>
+  </figure>
+
+  <h3>Les stations</h3>
+  <div class="tw"><table>
+    <tr><th>étape</th><th>statut</th><th>lit (contrat)</th><th>écrit</th><th>preuve · remarque</th></tr>
+    <tr><td class="id">s0-contrat</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">SCHEMA.md · brief</td><td class="pf">charter.yaml</td><td class="pf">check_charter = gate (10 réf. driver/run_real)</td></tr>
+    <tr><td class="id">s2-worldscan</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">charter.yaml</td><td class="pf">worldscan.json</td><td class="pf">verrou Q2/R8 intact · réparation branchée</td></tr>
+    <tr><td class="id">s1-prisme</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">charter.yaml</td><td class="pf">prisme.json · product_snapshot.md → loop.json (projection <code>loop_spec.mjs</code>)</td><td class="pf">panel multi-lentilles jamais appelé (LEGACY)</td></tr>
+    <tr><td class="id">s3-decompo</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">charter · product_snapshot · <b>knowledge_packet.json</b></td><td class="pf">featuremap.json</td><td class="pf">knowledge_packet.json : 0 producteur dans forge/, absent de la baseline</td></tr>
+    <tr><td class="id">s4-archi</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">charter · repo_map.yaml · <b>blueprint.yaml</b> · knowledge_packet.json</td><td class="pf"><b>blueprint.json</b></td><td class="pf">le contrat lit « .yaml », la chaîne écrit « .json » (5 contrats citent blueprint.yaml)</td></tr>
+    <tr><td class="id">s5-wiremap</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">blueprint · featuremap · repo_map</td><td class="pf">wiremap.json (+ wiremap_frozen.json par le driver)</td><td class="pf">join_check ×2 après cette étape (advisory)</td></tr>
+    <tr><td class="id">s6-redteam-plan</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">blueprint · charter</td><td class="pf">artifacts/s6-redteam-plan.txt</td><td class="pf">runner Qwen · <b>0 finding par construction</b> sur 3 runs V1 + baseline</td></tr>
+    <tr><td class="id">s9-build</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">blueprint · catalog.json · wiremap</td><td class="pf">GAMES/&lt;jeu&gt;/</td><td class="pf">6 tentatives, 2 escalades haiku→sonnet→opus, mutation gate = 4 refus</td></tr>
+    <tr><td class="id">s10a · s10b · s10c</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">GAMES · blueprint · wiremap</td><td class="pf">reçus d'oracle</td><td class="pf">déterministes, non-LLM · encodage corrigé (oracle.py:122)</td></tr>
+    <tr><td class="id">s10s-oracle-standard</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">repo_map.yaml</td><td class="pf">—</td><td class="pf">contrat + étape dédiée déterministe, hors du profil <code>full</code> → SKIPPED dans la baseline</td></tr>
+    <tr><td class="id">s11-redteam-code</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">GAMES</td><td class="pf">artifacts/s11-redteam-code.txt</td><td class="pf">baseline : <code>redteam_ran: False</code> — la revue indépendante n'a pas eu lieu (cause ESC-1, corrigée au point de décision, non rejouée)</td></tr>
+    <tr><td class="id">s12-verdict → verify_run</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">reçus · state</td><td class="pf">verdict.json signé HMAC</td><td class="pf">integrity_ok = hmac ∧ evidence ∧ mutation ∧ ¬coherence_problems (verify_run.py:375)</td></tr>
+  </table></div>
+
+  <h3>Les contrôles branchés sur la chaîne</h3>
+  <div class="tw"><table>
+    <tr><th>contrôle</th><th>régime</th><th>statut</th><th>preuve</th></tr>
+    <tr><td class="id">check_charter</td><td>gate — HALT</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">10 appels driver/run_real</td></tr>
+    <tr><td class="id">mutation gate (verify_mutation_receipt)</td><td>gate — refus de build</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">17 réf. · 4 refus sur la baseline · reçu signé dans evidence/</td></tr>
+    <tr><td class="id">evidence_seal</td><td>gate — dans verdict.py</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">critère = .gitignore ; le .log est ignoré → evidence_sha256 vide (régime hérité V1)</td></tr>
+    <tr><td class="id">observable_coverage</td><td>gate sur violation</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">driver.py:4503 → detail</td></tr>
+    <tr><td class="id">join_check · join_check_apres_reparation</td><td>advisory</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">présents dans state.json de la baseline · régimes EMPTY_FORM → VOID</td></tr>
+    <tr><td class="id">repair_loop (5 étapes amont)</td><td>correctif local, advisory sur le compte</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">enveloppe complète depuis D-1-tuyau · a transformé EMPTY_FORM en VOID sur M ter</td></tr>
+    <tr><td class="id">knowledge_trace</td><td>advisory (N-2)</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">36 réf. · retiré d'integrity_ok · clé absente du state.json de la baseline</td></tr>
+    <tr><td class="id">route_degradation</td><td>advisory</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">1 site d'écriture · non déclenché sur la baseline (Qwen disponible)</td></tr>
+    <tr><td class="id">reference_guard</td><td>advisory best-effort</td><td><span class="st UNKNOWN">UNKNOWN</span></td><td class="pf">driver.py:1847 · reference_guard.jsonl produit · effet d'un DRIFT jamais mesuré</td></tr>
+    <tr><td class="id">escalade (escalate.py, model_override_scope)</td><td>politique de tier, portée = builder</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">ESC-1 : 7 tests au point de décision · aucun run réel après le lot</td></tr>
+    <tr><td class="id">pretool_forge_guard (porte de spawn)</td><td>gate fail-closed</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">.claude/settings.json · traversé par 3 runs réels</td></tr>
+  </table></div>
+
+  <h3>Ce qui existe en V2 sans être dans la chaîne</h3>
+  <div class="tw"><table>
+    <tr><th>élément</th><th>statut</th><th>mesure</th></tr>
+    <tr><td class="id">forge/emitter.py · amendment_log.py · consumption.py</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">code + tests présents · <b>0 appel</b> depuis driver/run_real/verify_run (notify, append_message, consumption_status : 0)</td></tr>
+    <tr><td class="id">control_plane.registry</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">importé par contract.py, run_real.py, repair_dispatch.py — la lane est exclue, le registre est vivant</td></tr>
+    <tr><td class="id">forge/lm_adapter.py (Qwen)</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">runner de s6 et s11 via route_step · 51 lignes extraites de council.py (lot B)</td></tr>
+    <tr><td class="id">TOOLS/observer/</td><td><span class="st UNKNOWN">UNKNOWN</span></td><td class="pf">présent · 0 appel depuis forge/ ou .claude/ · seul lecteur nommé de knowledge_packet.json (pedagogy.py)</td></tr>
+    <tr><td class="id">learning_hook · kb_proposal · preflight</td><td><span class="st UNKNOWN">UNKNOWN</span></td><td class="pf">appelés par le driver · aucune proposition KB mesurée sur la baseline</td></tr>
+    <tr><td class="id">chaîne asset (asset_producer/, s-asset-*)</td><td><span class="st UNKNOWN">UNKNOWN</span></td><td class="pf">2 contrats orphelins de tout profil · hors fermeture de run_real</td></tr>
+    <tr><td class="id">panel.py · prisme/ · mcts_selector · candidate_selector · wiremap_nav.mjs</td><td><span class="st LEGACY">LEGACY</span></td><td class="pf">copiés en V2, gelés (Paquet A #5/#6), 0 appelant dans driver/run_real</td></tr>
+    <tr><td class="id">9 contrats orphelins / 28</td><td><span class="st LEGACY">LEGACY</span></td><td class="pf">orchestrator · roles · redteam-artdirector · s-asset-produce · s-asset-spec · s10d-oracle-visual · s9-build-godot · wm1-wiremap-breakout · wm1-wiremap-tetris</td></tr>
+    <tr><td class="id">economy.json</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">produit seulement par s2.7 (profil gm_worldscan) · absent de la baseline <code>full</code></td></tr>
+    <tr><td class="id">GAME_BLUEPRINT · GAME_FLOW · ARCHITECTURE_CONTRACT · Fable Director · capacités dynamiques</td><td><span class="st ABSENT">ABSENT</span></td><td class="pf">0 fichier de code · dispatch.ORDER inchangé</td></tr>
+  </table></div>
+</section>
+
+<!-- ============================== 2 · CIBLE ============================== -->
+<section id="cible">
+  <div class="chapnum">2 · SCHÉMA CIBLE — documenté, jamais implémenté</div>
+  <h2>Un objet central, un directeur, des capacités convoquées, huit liaisons</h2>
+  <div class="claim t">Source : <code>FORGE_TARGET_MODEL.md</code> (16 §), <code>CAPABILITY_MAP.md</code> (22 cartes), <code>TARGET_INTERACTION_MODEL.md</code> (8 liaisons), tous datés 2026-09-01 et marqués <code>DOCUMENTED_ONLY</code>. Tout ce qui suit est <b>CIBLE</b> : une intention. Aucun élément de ce chapitre n'est présenté comme existant.</div>
+
+  <figure>
+    <div class="scroll"><svg id="svg-cible" role="img" aria-label="Schéma cible : GAME_BLUEPRINT au centre, Fable Director qui convoque des capacités Research, Prisme, Design, UX, Art, Narration, Architecture ; Build, QA, Observer, Evidence, Human Gate ; huit liaisons L1 à L8, quatre boucles sans ordre interne."></svg></div>
+    <figcaption>La cible dessinée telle que les documents la décrivent : les flèches sont des <b>relations</b>, pas des étapes, et toute capacité peut être rappelée quand une information nouvelle apparaît. Tout est en pointillé sarcelle : rien ici n'est un statut.</figcaption>
+  </figure>
+
+  <div class="grid2">
+    <div>
+      <h3>Objets nommés (Décision 1, figée)</h3>
+      <div class="tw"><table>
+        <tr><th>objet</th><th>rôle dans la cible</th></tr>
+        <tr><td class="id">GAME_BLUEPRINT</td><td>vision / design du jeu, objet central vivant, amendé par tous</td></tr>
+        <tr><td class="id">ARCHITECTURE_CONTRACT</td><td>ex-<code>blueprint.json</code> : modules · deps_interdites · ownership</td></tr>
+        <tr><td class="id">chaîne portée</td><td class="pf">VISION → REQUIREMENTS → FEATURES → DESIGN → METRICS → INTENT → EXPECTED PROOF → ACTUAL PROOF</td></tr>
+      </table></div>
+      <h3>Les quatre boucles</h3>
+      <p class="pf">UNDERSTAND → DESIGN → BUILD → PROVE → HUMAN → REWORK → FABLE — « aucun ordre obligatoire à l'intérieur » ; l'architecture technique « n'est pas l'étape 4 ».</p>
+    </div>
+    <div>
+      <h3>Les huit liaisons</h3>
+      <div class="tw"><table>
+        <tr><th>L</th><th>de → vers</th></tr>
+        <tr><td class="id">L1</td><td>HUMAN → FABLE</td></tr>
+        <tr><td class="id">L2</td><td>FABLE → CAPABILITY</td></tr>
+        <tr><td class="id">L3</td><td>CAPABILITY ↔ CAPABILITY — « la liaison qui fait la différence »</td></tr>
+        <tr><td class="id">L4</td><td>CAPABILITY → GAME_BLUEPRINT</td></tr>
+        <tr><td class="id">L5</td><td>GAME_BLUEPRINT → BUILD</td></tr>
+        <tr><td class="id">L6</td><td>BUILD → EVIDENCE</td></tr>
+        <tr><td class="id">L7</td><td>EVIDENCE → FABLE</td></tr>
+        <tr><td class="id">L8</td><td>EVIDENCE → HUMAN</td></tr>
+      </table></div>
+    </div>
+  </div>
+
+  <h3>Les 22 capacités de la carte</h3>
+  <div class="tw"><table>
+    <tr><th>#</th><th>capacité</th><th>#</th><th>capacité</th></tr>
+    <tr><td class="id">C1</td><td>GAME_BLUEPRINT</td><td class="id">C12</td><td>Jointure expected_proof ↔ actual_proof</td></tr>
+    <tr><td class="id">C2</td><td>FABLE — Game Director</td><td class="id">C13</td><td>Build Orchestrator + workers</td></tr>
+    <tr><td class="id">C3</td><td>Research</td><td class="id">C14</td><td>QA mécanique · visuelle · design</td></tr>
+    <tr><td class="id">C4</td><td>Prisme (rétro-ingénierie)</td><td class="id">C15</td><td>Red Team</td></tr>
+    <tr><td class="id">C5</td><td>Design : gameplay · systems · economy · progression</td><td class="id">C16</td><td>Evidence</td></tr>
+    <tr><td class="id">C6</td><td>UX</td><td class="id">C17</td><td>Observer</td></tr>
+    <tr><td class="id">C7</td><td>Design breakdown / feature definition</td><td class="id">C18</td><td>KB</td></tr>
+    <tr><td class="id">C8</td><td>Art Direction</td><td class="id">C19</td><td>Boucle d'apprentissage</td></tr>
+    <tr><td class="id">C9</td><td>Narration / Game Master</td><td class="id">C20</td><td>Human Gate</td></tr>
+    <tr><td class="id">C10</td><td>Technical Architecture</td><td class="id">C21</td><td>Porte de spawn (infrastructure)</td></tr>
+    <tr><td class="id">C11</td><td>Wiremap — la réalité construite</td><td class="id">C22</td><td>Boucle des métriques</td></tr>
+  </table></div>
+  <div class="note t">Le document cible pose lui-même sept questions ouvertes (Q1–Q7) — verrou World Scan, Research par genre ou par run, propriétaire des <code>design_metrics</code>, UX et System Design à créer ou absences assumées, statut du rail, <code>reference_guard</code> et chaîne asset, tenue de §12 à l'exécution. Elles restent ouvertes ; cette carte n'en tranche aucune.</div>
+</section>
+
+<!-- ============================== 3 · CONTRE-SCHÉMA ============================== -->
+<section id="verite">
+  <div class="chapnum">3 · CONTRE-SCHÉMA VÉRITÉ — là où les deux schémas contredisent le dépôt</div>
+  <h2>Ce qui, dans la cible, existe déjà ; ce qui, dans l'actuel, est moins solide qu'annoncé</h2>
+  <div class="claim">Méthode : chaque capacité cible est posée au-dessus du mécanisme réel qui en tient lieu aujourd'hui. Une attache pleine = le mécanisme existe et est appelé. Une attache pointillée = il existe mais n'agit pas sur le chemin mesuré. Pas d'attache = rien en dessous.</div>
+
+  <figure>
+    <div class="scroll"><svg id="svg-verite" role="img" aria-label="Contre-schéma : les capacités cibles en haut, les mécanismes réels de la chaîne V2 en bas, reliés par des attaches pleines, pointillées ou absentes selon le statut mesuré."></svg></div>
+    <figcaption>Superposition cible ↔ réel. Le dépôt possède déjà, sous un autre nom et dans un ordre fixe, une part de la cible : contrats + porte, Prisme, Research, oracles + verdict, KB, red team, jointure (advisory), gate humain. Il ne possède ni l'objet central, ni le directeur, ni l'orchestrateur de build, ni l'UX, ni la boucle des métriques.</figcaption>
+  </figure>
+
+  <h3>Corrections au schéma actuel — ce qu'on croit acquis et qui ne l'est pas</h3>
+  <div class="tw"><table>
+    <tr><th>affirmation courante</th><th>ce que le dépôt montre</th><th>statut corrigé</th></tr>
+    <tr><td>« 13 stations fixes, aucune composition dynamique »</td><td>ORDER est fixe, mais 19 profils dont 5 mono-étape (artbible, gm_worldscan, story_bible, oracle_only, proof_only) sont déjà des appels de capacité par sous-ensemble</td><td><span class="st PARTIEL">PARTIEL</span> composition par profil, pas par directeur</td></tr>
+    <tr><td>« blueprint.json est le contrat d'architecture »</td><td>cinq contrats (s4, s5, s6, s9, s10b) déclarent lire <code>blueprint.yaml</code> ; la chaîne écrit <code>blueprint.json</code>. La collision de nom dénoncée par la cible existe <i>déjà</i> à l'intérieur de l'actuel</td><td><span class="st PARTIEL">PARTIEL</span> nom instable</td></tr>
+    <tr><td>« s3 et s4 lisent le paquet de connaissance »</td><td><code>knowledge_packet.json</code> est mandatory_read de s3 et s4, n'a aucun producteur dans <code>forge/</code>, et est absent de la baseline — un validateur sans producteur</td><td><span class="st ABSENT">ABSENT</span></td></tr>
+    <tr><td>« la baseline a une revue indépendante du code »</td><td><code>redteam_ran: False</code> dans le verdict signé ; s11 a été exécuté par le modèle d'escalade du builder. Le verdict le signale ; il n'en reste pas moins une baseline sans revue indépendante</td><td><span class="st PARTIEL">PARTIEL</span></td></tr>
+    <tr><td>« s6 fait du red-team de plan »</td><td>0 finding par construction, profil identique sur 3 runs V1 et la baseline : l'étape tourne, ne mesure rien</td><td><span class="st PARTIEL">PARTIEL</span></td></tr>
+    <tr><td>« l'oracle de solvabilité valide le jeu »</td><td>le jeu se gagne sans joueur (456 frames sans entrée) et l'oracle rend SOLVABLE : variance nulle, la métrique ne porte pas ce que son nom promet</td><td><span class="st PARTIEL">PARTIEL</span> oracle correct, faux</td></tr>
+    <tr><td>« la jointure est observée »</td><td>observée, oui — mais sur la baseline elle vaut EMPTY_FORM (agent) puis VOID (après réparation) : 0 capacité jointe à sa preuve</td><td><span class="st PARTIEL">PARTIEL</span> mécanisme oui, jointure non</td></tr>
+    <tr><td>« la communication amendment/question/objection existe (emitter) »</td><td>le geste existe et est testé ; personne ne le pose : 0 appel de notify/append_message dans la chaîne</td><td><span class="st PARTIEL">PARTIEL</span> lettre morte</td></tr>
+    <tr><td>« Fable orchestre la Forge »</td><td>Fable pilote <code>run_real.py</code> depuis l'extérieur (skill <code>/forge</code>, porte de spawn) ; à l'intérieur de la chaîne, aucun rôle Director : le contrat <code>orchestrator.yaml</code> est orphelin de tout profil</td><td><span class="st PARTIEL">PARTIEL</span> pilote, pas directeur</td></tr>
+  </table></div>
+
+  <h3>Corrections au schéma cible — §14/§15 de FORGE_TARGET_MODEL vs le dépôt d'aujourd'hui</h3>
+  <div class="tw"><table>
+    <tr><th>la cible dit</th><th>le dépôt V2 montre</th><th>statut réel</th></tr>
+    <tr><td>« jointure expected_proof ↔ preuve : 0 id partagé — <b>CONSTRUIRE</b> »</td><td>construite depuis (J-1…J-5) : <code>check_wiremap_join</code>, 5 régimes, deux reçus dans state.json. Ce qui manque n'est plus le mécanisme, c'est une jointure non VOID et un lecteur décisionnel</td><td><span class="st PARTIEL">PARTIEL</span> — la cible est périmée ici</td></tr>
+    <tr><td>« council / Qwen — <b>hors V2</b> »</td><td>Qwen est <i>dans</i> V2 : <code>forge/lm_adapter.py</code> extrait (lot B), runner de s6 et s11, prouvé par appel réel</td><td><span class="st EXISTE">EXISTE</span> — la cible se trompe</td></tr>
+    <tr><td>« control_plane — hors V2 »</td><td>la lane est exclue, mais <code>control_plane.registry</code> est conservé et importé par contract.py, run_real.py, repair_dispatch.py (frontière tranchée par Pierre)</td><td><span class="st EXISTE">EXISTE</span> registre seul</td></tr>
+    <tr><td>« panel Prisme (8 f.) · île MCTS (17 f.) · wiremap_nav — <b>retirer du V2</b> »</td><td>tous présents dans V2, gelés, 0 appelant. La décision « retirer » n'est pas exécutée</td><td><span class="st LEGACY">LEGACY</span> présent</td></tr>
+    <tr><td>« Observer — conserver / rebrancher sur EVIDENCE »</td><td><code>TOOLS/observer/</code> présent, 0 appel depuis forge/ ou .claude/ ; rien n'écrit vers EVIDENCE</td><td><span class="st UNKNOWN">UNKNOWN</span> non branché</td></tr>
+    <tr><td>« boucle d'apprentissage — seule boucle qui tourne (18/326) »</td><td>chiffre V1 non remesuré en V2 ; learning_hook appelé par le driver, aucune proposition observée sur la baseline</td><td><span class="st UNKNOWN">UNKNOWN</span></td></tr>
+    <tr><td>« rail des 25 nœuds (RAIL_REGISTER.md) — UNKNOWN »</td><td>fichier absent de V2 : le UNKNOWN est devenu une absence</td><td><span class="st ABSENT">ABSENT</span></td></tr>
+    <tr><td>« .claude — conserver ⚠ câblage non testé »</td><td><code>pretool_forge_guard</code> actif dans settings.json et traversé par 3 runs réels ; les autres hooks (agent_classify, git_guard, posttool) non mesurés</td><td><span class="st PARTIEL">PARTIEL</span> testé pour la porte</td></tr>
+    <tr><td>« s9-build ×4 workers — conserver »</td><td>4 contrats existent ; <code>s9-build-godot</code> est orphelin de tout profil</td><td><span class="st PARTIEL">PARTIEL</span></td></tr>
+    <tr><td>« System Design — <code>economy.json</code>/<code>loop.json</code> orphelins »</td><td>loop.json est produit sur le chemin <code>full</code> et lu par s3, s5, context_manifest ; economy.json n'est produit que par s2.7</td><td><span class="st PARTIEL">PARTIEL</span> loop oui, economy hors chemin</td></tr>
+    <tr><td>« UX — absente »</td><td>confirmé : aucun contrat, aucune section</td><td><span class="st ABSENT">ABSENT</span></td></tr>
+    <tr><td>« design_metrics avec preuve de variance — AJOUTER »</td><td>aucune métrique de design ; la seule métrique de sortie (solvabilité) a une variance nulle mesurée</td><td><span class="st ABSENT">ABSENT</span></td></tr>
+    <tr><td>« GAME_BLUEPRINT / ARCHITECTURE_CONTRACT — renommage enregistré »</td><td>0 occurrence dans le code ; les contrats eux-mêmes ne s'accordent pas encore sur <code>blueprint.yaml</code> vs <code>.json</code></td><td><span class="st ABSENT">ABSENT</span></td></tr>
+  </table></div>
+
+  <h3>Ce que la vérité laisse comme socle pour construire</h3>
+  <div class="grid2">
+    <div class="note"><b>Réutilisable tel quel</b> — contrats 17 champs + porte de spawn (C21) · oracles déterministes, verdict HMAC, <code>verify_run</code> (C16) · mutation gate · Prisme et Research comme capacités déjà isolables par profil (C3/C4) · KB (C18) · escalade avec portée builder.</div>
+    <div class="note"><b>Existe mais ne porte pas encore</b> — jointure advisory sans lecteur décisionnel (C12) · emitter sans émetteur · red team s6 vide, s11 dégradé sur la baseline (C15) · <code>knowledge_packet</code> attendu par deux contrats et produit par personne · <code>blueprint.yaml/.json</code> à unifier avant tout renommage cible.</div>
+  </div>
+  <p style="margin-top:14px"><b>Rien en dessous</b> — C1 GAME_BLUEPRINT · C2 Director · C6 UX · C13 Build Orchestrator · C22 boucle des métriques · GAME_FLOW. Ce sont les cinq objets que la construction de la V2 doit créer, pas réparer.</p>
+</section>
+
+<section id="hors">
+  <div class="chapnum">CE QUE CETTE CARTE NE FAIT PAS</div>
+  <ul>
+    <li>Elle ne tranche pas Q1–Q7 ni le verrou World Scan (Q2/R8), intact.</li>
+    <li>Elle n'affirme pas que la cible est bonne — seulement où elle contredit le dépôt.</li>
+    <li>Elle ne remesure pas les chiffres V1 (18/326, 349 diffs/run) : ils restent UNKNOWN en V2.</li>
+    <li>Elle n'a rien modifié : V2 à <code>7f201fd</code>, V1 à <code>58095ba9</code>.</li>
+  </ul>
+  <div class="verdict">software_verdict: OK          # carte dérivée de mesures reproductibles (ORDER, contrats, baseline, appelants)
+evidence_verdict: MECHANICAL_VALIDATION_ONLY
+claim_verdict: NO_CLAIM_ALLOWED</div>
+</section>
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  const col={EXISTE:'var(--exists)',PARTIEL:'var(--partial)',ABSENT:'var(--absent)',LEGACY:'var(--legacy)',UNKNOWN:'var(--unknown)',CIBLE:'var(--target)'};
+  const bg={EXISTE:'var(--exists-bg)',PARTIEL:'var(--partial-bg)',ABSENT:'var(--absent-bg)',LEGACY:'var(--legacy-bg)',UNKNOWN:'var(--unknown-bg)',CIBLE:'var(--target-bg)'};
+  function el(t,a,parent){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(parent)parent.appendChild(e);return e;}
+  function txt(p,x,y,s,a){const t=el('text',Object.assign({x,y,'font-size':11,fill:'currentColor'},a||{}),p);t.textContent=s;return t;}
+  function box(p,x,y,w,h,label,status,sub){
+    const dash=(status==='CIBLE'||status==='ABSENT')?'5 4':null;
+    const a={x,y,width:w,height:h,rx:2,fill:bg[status],stroke:col[status],'stroke-width':1.5};
+    if(dash)a['stroke-dasharray']=dash;
+    el('rect',a,p);
+    txt(p,x+w/2,y+(sub?h/2-3:h/2+4),label,{'text-anchor':'middle','font-size':11.5,'font-weight':500});
+    if(sub)txt(p,x+w/2,y+h/2+11,sub,{'text-anchor':'middle','font-size':9.5,fill:'var(--mute)'});
+  }
+  function arrow(p,x1,y1,x2,y2,opt){
+    opt=opt||{};const a={d:`M${x1},${y1} L${x2},${y2}`,fill:'none',stroke:opt.stroke||'currentColor','stroke-width':opt.w||1.2,'marker-end':opt.noHead?'':'url(#'+(opt.marker||'ah')+')'};
+    if(opt.dash)a['stroke-dasharray']=opt.dash;el('path',a,p);
+  }
+  function path(p,d,opt){opt=opt||{};const a={d,fill:'none',stroke:opt.stroke||'currentColor','stroke-width':opt.w||1.2,'marker-end':opt.noHead?'':'url(#'+(opt.marker||'ah')+')'};if(opt.dash)a['stroke-dasharray']=opt.dash;el('path',a,p);}
+  function defs(svg){
+    const d=el('defs',{},svg);
+    for(const [id,c] of [['ah','currentColor'],['ah-t','var(--target)'],['ah-a','var(--absent)'],['ah-m','var(--mute)']]){
+      const m=el('marker',{id,viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:7,markerHeight:7,orient:'auto-start-reverse'},d);
+      el('path',{d:'M0,0 L10,5 L0,10 z',fill:c},m);
+    }
+  }
+
+  /* ---------- 1 · ACTUEL ---------- */
+  (function(){
+    const svg=document.getElementById('svg-actuel');const W=1180,H=470;svg.setAttribute('viewBox',`0 0 ${W} ${H}`);defs(svg);
+    const steps=[['s0','contrat','EXISTE'],['s2','worldscan','EXISTE'],['s1','prisme','EXISTE'],['s3','decompo','PARTIEL'],['s4','archi','PARTIEL'],['s5','wiremap','EXISTE'],['s6','redteam-plan','PARTIEL'],['s9','build','EXISTE'],['s10a','oracle-code','EXISTE'],['s10b','oracle-archi','EXISTE'],['s10c','oracle-wiremap','EXISTE'],['s11','redteam-code','PARTIEL'],['s12','verdict','EXISTE']];
+    const x0=110,bw=72,gap=8,y=120,bh=40;
+    const cx=i=>x0+i*(bw+gap)+bw/2;
+    // Fable / run_real entrée
+    box(svg,8,y,88,bh,'Fable','EXISTE','run_real CLI');
+    arrow(svg,96,y+bh/2,x0-2,y+bh/2);
+    txt(svg,8,y-10,'porte de spawn · pretool_forge_guard (gate)',{'font-size':9.5,fill:'var(--mute)'});
+    steps.forEach((s,i)=>{box(svg,x0+i*(bw+gap),y,bw,bh,s[0],s[2],s[1]);if(i<steps.length-1)arrow(svg,x0+i*(bw+gap)+bw,y+bh/2,x0+(i+1)*(bw+gap)-1,y+bh/2);});
+    txt(svg,x0,y-10,'dispatch.ORDER — constante, 13 étapes · 19 profils en prennent des sous-ensembles',{'font-size':9.5,fill:'var(--mute)'});
+    // verify_run
+    box(svg,x0+13*(bw+gap)+4,y,84,bh,'verify_run','EXISTE','HMAC re-vérifié');
+    arrow(svg,x0+12*(bw+gap)+bw,y+bh/2,x0+13*(bw+gap)+2,y+bh/2);
+    // artefacts row
+    const ay=215,ah=34;
+    const arts=[[0,'charter.yaml','EXISTE'],[1,'worldscan.json','EXISTE'],[2,'prisme.json + loop.json','EXISTE'],[3,'featuremap.json','EXISTE'],[4,'blueprint.json','PARTIEL'],[5,'wiremap.json','EXISTE'],[7,'GAMES/<jeu>/','EXISTE'],[8.9,'reçus oracle','EXISTE'],[12,'verdict.json','EXISTE']];
+    arts.forEach(a=>{const x=cx(a[0])-44;box(svg,x,ay,88,ah,a[1],a[2]);arrow(svg,cx(a[0]),y+bh,cx(a[0]),ay-1);});
+    txt(svg,x0,ay-8,'artefacts constatés dans EVIDENCE/runs/runm_breakout',{'font-size':9.5,fill:'var(--mute)'});
+    // reads (lecture par étapes suivantes) — quelques flux clés en dessous
+    const ry=290;
+    path(svg,`M${cx(0)},${ay+ah} L${cx(0)},${ry} L${cx(6)},${ry} L${cx(6)},${y+bh+2}`,{stroke:'var(--mute)',marker:'ah-m'});txt(svg,cx(3),ry-4,'charter.yaml lu par s2 · s1 · s3 · s4 · s5 · s6',{'text-anchor':'middle','font-size':9.5,fill:'var(--mute)'});
+    path(svg,`M${cx(4)},${ay+ah} L${cx(4)},${ry+18} L${cx(9)},${ry+18} L${cx(9)},${y+bh+2}`,{stroke:'var(--mute)',marker:'ah-m'});txt(svg,cx(7),ry+14,'blueprint (« .yaml » dans 5 contrats, « .json » produit) lu par s5 · s6 · s9 · s10b',{'text-anchor':'middle','font-size':9.5,fill:'var(--mute)'});
+    path(svg,`M${cx(5)},${ay+ah} L${cx(5)},${ry+36} L${cx(10)},${ry+36} L${cx(10)},${y+bh+2}`,{stroke:'var(--mute)',marker:'ah-m'});txt(svg,cx(8),ry+32,'wiremap.json lu par s9 · s10c',{'text-anchor':'middle','font-size':9.5,fill:'var(--mute)'});
+    // absent inputs
+    box(svg,cx(3.5)-70,ry+52,140,30,'knowledge_packet.json','ABSENT','0 producteur');
+    arrow(svg,cx(3.5),ry+52,cx(3),y+bh+2,{stroke:'var(--absent)',dash:'4 3',marker:'ah-a'});
+    arrow(svg,cx(3.5),ry+52,cx(4),y+bh+2,{stroke:'var(--absent)',dash:'4 3',marker:'ah-a'});
+    box(svg,cx(9.5)-64,ry+52,128,30,'economy.json','PARTIEL','hors profil full');
+    // controls band
+    const gy=395;
+    txt(svg,x0,gy-10,'contrôles',{'font-size':9.5,fill:'var(--mute)'});
+    const ctrls=[[0,'check_charter','gate',1],[5,'join_check ×2','advisory',0],[2.5,'repair_loop s2→s5','advisory',0],[7,'mutation gate','gate',1],[7.9,'escalade → builder','portée',0],[6.5,'Qwen lm_adapter','runner s6 · s11',1],[11,'redteam_ran: False','baseline',0],[5.8,'observable_coverage','gate',1],[12.5,'evidence_seal','.gitignore',0]];
+    // positions with manual x to avoid overlap
+    const cpos=[[0,'check_charter','gate','EXISTE',1],[1.6,'repair_loop s2→s5','correctif · advisory','EXISTE',0],[3.3,'knowledge_trace','advisory','PARTIEL',0],[4.9,'join_check ×2','advisory','EXISTE',0],[6.4,'Qwen · lm_adapter','runner s6 · s11','EXISTE',1],[7.9,'mutation gate','gate · 4 refus','EXISTE',1],[9.4,'escalade','portée builder','PARTIEL',0],[10.9,'emitter / amendment','0 appel','PARTIEL',0],[12.4,'evidence_seal','par .gitignore','PARTIEL',0]];
+    cpos.forEach(c=>{const x=cx(c[0])-56;box(svg,x,gy,112,36,c[1],c[3],c[2]);if(c[4]){/* gate: plain*/}else{el('rect',{x:x-2,y:gy-2,width:116,height:40,fill:'none',stroke:col[c[3]],'stroke-dasharray':'3 3','stroke-width':1},svg);}});
+    // attach lines to steps
+    const att=[[0,0],[1.6,3],[3.3,4],[4.9,5],[6.4,6],[6.4,11],[7.9,7],[9.4,7],[12.4,12]];
+    att.forEach(a=>{arrow(svg,cx(a[0]),gy,cx(a[1]),y+bh+2,{stroke:'var(--mute)',dash:'2 3',noHead:true,w:0.8});});
+    txt(svg,W-8,H-8,'cadre plein = bloque · cadre pointillé = advisory (consigné dans detail, jamais décisionnel)',{'text-anchor':'end','font-size':9.5,fill:'var(--mute)'});
+  })();
+
+  /* ---------- 2 · CIBLE ---------- */
+  (function(){
+    const svg=document.getElementById('svg-cible');const W=1180,H=520;svg.setAttribute('viewBox',`0 0 ${W} ${H}`);defs(svg);
+    const T={stroke:'var(--target)',dash:'5 4',marker:'ah-t'};
+    const c=(x,y,w,h,l,s)=>box(svg,x,y,w,h,l,'CIBLE',s);
+    // human -> fable -> blueprint
+    c(60,40,120,40,'HUMAN','vision · gate');
+    c(60,200,120,40,'FABLE','Game Director');
+    c(470,200,240,52,'GAME_BLUEPRINT','objet central · amendé par tous');
+    arrow(svg,120,80,120,199,T);txt(svg,128,140,'L1',{'font-size':10,fill:'var(--target)'});
+    // capabilities ring
+    const caps=[[300,60,'RESEARCH','C3'],[300,130,'PRISME','C4'],[300,300,'DESIGN','C5 · gameplay·systems·economy'],[300,370,'UX','C6'],[760,60,'ART DIRECTION','C8'],[760,130,'NARRATION / GM','C9'],[760,300,'TECH ARCHITECTURE','C10'],[760,370,'DESIGN BREAKDOWN','C7 · feature map']];
+    caps.forEach(k=>c(k[0],k[1],150,36,k[2],k[3]));
+    // L2 fable -> capabilities (representative)
+    path(svg,'M180,220 C240,220 240,78 299,78',T);txt(svg,205,205,'L2 convoque',{'font-size':10,fill:'var(--target)'});
+    path(svg,'M180,222 C240,222 240,318 299,318',T);
+    // L3 capability <-> capability
+    arrow(svg,375,96,375,129,T);arrow(svg,375,129,375,96,T);txt(svg,382,116,'L3',{'font-size':10,fill:'var(--target)'});
+    arrow(svg,450,318,759,318,T);arrow(svg,759,318,450,318,T);txt(svg,600,310,'L3 · Design ↔ Tech',{'text-anchor':'middle','font-size':10,fill:'var(--target)'});
+    // L4 capabilities -> blueprint
+    path(svg,'M450,78 C470,78 470,200 520,200',T);path(svg,'M450,148 C470,148 470,200 540,200',T);
+    path(svg,'M760,78 C740,78 740,200 660,200',T);path(svg,'M760,148 C740,148 740,200 640,200',T);
+    txt(svg,590,190,'L4 amendent',{'text-anchor':'middle','font-size':10,fill:'var(--target)'});
+    path(svg,'M450,388 C470,388 470,252 520,252',T);path(svg,'M760,388 C740,388 740,252 660,252',T);
+    // L5 blueprint -> build
+    c(520,330,140,40,'BUILD','C13 orchestrator + workers');
+    arrow(svg,590,252,590,329,T);txt(svg,598,295,'L5',{'font-size':10,fill:'var(--target)'});
+    // QA / observer
+    c(430,410,110,36,'QA','C14');c(640,410,110,36,'OBSERVER','C17');
+    arrow(svg,560,370,490,409,T);arrow(svg,620,370,690,409,T);
+    // evidence
+    c(520,470,140,36,'EVIDENCE','C16 · jointure C12');
+    arrow(svg,485,446,560,469,T);arrow(svg,695,446,620,469,T);txt(svg,670,462,'L6',{'font-size':10,fill:'var(--target)'});
+    // L7 evidence -> fable ; L8 evidence -> human
+    path(svg,'M520,488 L120,488 L120,241',T);txt(svg,130,470,'L7 rework via Fable',{'font-size':10,fill:'var(--target)'});
+    path(svg,'M660,488 L1100,488 L1100,60 L181,60',T);txt(svg,1000,52,'L8 → HUMAN GATE (C20)',{'text-anchor':'end','font-size':10,fill:'var(--target)'});
+    // KB
+    c(950,200,150,36,'KB','C18 · règle de service');
+    path(svg,'M950,218 L711,218',{stroke:'var(--target)',dash:'2 3',marker:'ah-t'});
+    c(950,330,150,36,'RED TEAM','C15 · advisory');
+    path(svg,'M950,348 L661,348',{stroke:'var(--target)',dash:'2 3',marker:'ah-t'});
+    txt(svg,W-8,H-8,'tout en pointillé : intention documentée (2026-09-01) — aucune affirmation d’implémentation',{'text-anchor':'end','font-size':9.5,fill:'var(--target)'});
+  })();
+
+  /* ---------- 3 · CONTRE-SCHÉMA ---------- */
+  (function(){
+    const svg=document.getElementById('svg-verite');const W=1180,H=400;svg.setAttribute('viewBox',`0 0 ${W} ${H}`);defs(svg);
+    const cols=[
+      ['C1 GAME_BLUEPRINT','—','ABSENT','rien'],
+      ['C2 DIRECTOR','Fable pilote run_real','PARTIEL','pilote, pas directeur'],
+      ['C3 RESEARCH','s2-worldscan','EXISTE','station fixe'],
+      ['C4 PRISME','s1-prisme + loop.json','EXISTE','station fixe'],
+      ['C5 DESIGN','s3-decompo','PARTIEL','entrée sans producteur'],
+      ['C6 UX','—','ABSENT','rien'],
+      ['C10 ARCHI','s4 → blueprint.json','PARTIEL','nom instable'],
+      ['C11 WIREMAP','s5-wiremap','EXISTE',''],
+      ['C12 JOINTURE','join_check ×2','PARTIEL','VOID sur baseline'],
+      ['C13 ORCHESTRATOR','s9-build + escalade','PARTIEL','worker, pas orchestrateur'],
+      ['C14 QA','s10a/b/c + mutation','EXISTE','solvabilité variance 0'],
+      ['C15 RED TEAM','s6 · s11 (Qwen)','PARTIEL','0 finding · ran:False'],
+      ['C16 EVIDENCE','verdict + verify_run','EXISTE','HMAC vérifié'],
+      ['C17 OBSERVER','TOOLS/observer','UNKNOWN','0 appel'],
+      ['C18 KB','knowledge_base/','EXISTE','proposals non mesurées'],
+      ['C20 HUMAN GATE','HUMANGATE_READY → Pierre','EXISTE',''],
+      ['C21 PORTE','contrats + forge_guard','EXISTE','fail-closed'],
+      ['C22 MÉTRIQUES','—','ABSENT','rien'],
+    ];
+    const n=cols.length,left=20,cw=(W-40)/n,ty=40,by=250,bh=44,th=36;
+    txt(svg,left,ty-14,'CIBLE (intention)',{'font-size':10,fill:'var(--target)','font-weight':500});
+    txt(svg,left,by-14,'RÉEL (dépôt V2, chaîne mesurée)',{'font-size':10,fill:'var(--mute)','font-weight':500});
+    cols.forEach((c,i)=>{
+      const x=left+i*cw+3,w=cw-6,mx=x+w/2;
+      box(svg,x,ty,w,th,c[0].split(' ')[0],'CIBLE',c[0].split(' ').slice(1).join(' '));
+      if(c[2]==='ABSENT'){
+        txt(svg,mx,by+bh/2+4,'∅',{'text-anchor':'middle','font-size':16,fill:'var(--absent)'});
+        el('rect',{x,y:by,width:w,height:bh,fill:'none',stroke:'var(--absent)','stroke-dasharray':'4 3'},svg);
+      }else{
+        const lines=c[1].split(' + ');
+        box(svg,x,by,w,bh,lines[0],c[2],lines[1]||'');
+        const solid=(c[2]==='EXISTE');
+        arrow(svg,mx,ty+th,mx,by-1,{stroke:col[c[2]],dash:solid?null:'4 3',noHead:true,w:solid?2:1.2});
+      }
+      // status label + note
+      txt(svg,mx,by+bh+16,c[2],{'text-anchor':'middle','font-size':9.5,fill:col[c[2]],'font-weight':500});
+      if(c[3]){const parts=c[3].split(' · ');parts.forEach((p,k)=>txt(svg,mx,by+bh+30+k*11,p,{'text-anchor':'middle','font-size':8.8,fill:'var(--mute)'}));}
+    });
+    txt(svg,W-8,H-8,'attache pleine = existe et agit · pointillée = existe sans agir sur le chemin mesuré · ∅ = rien en dessous',{'text-anchor':'end','font-size':9.5,fill:'var(--mute)'});
+  })();
+})();
+</script>
