@@ -106,18 +106,20 @@ ul{padding-left:20px;max-width:72ch} li{margin-bottom:5px}
   <h3>Les stations</h3>
   <div class="tw"><table>
     <tr><th>étape</th><th>statut</th><th>lit (contrat)</th><th>écrit</th><th>preuve · remarque</th></tr>
-    <tr><td class="id">s0-contrat</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">SCHEMA.md · brief</td><td class="pf">charter.yaml</td><td class="pf">check_charter = gate (10 réf. driver/run_real)</td></tr>
-    <tr><td class="id">s2-worldscan</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">charter.yaml</td><td class="pf">worldscan.json</td><td class="pf">verrou Q2/R8 intact · réparation branchée</td></tr>
-    <tr><td class="id">s1-prisme</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">charter.yaml</td><td class="pf">prisme.json · product_snapshot.md → loop.json (projection <code>loop_spec.mjs</code>)</td><td class="pf">panel multi-lentilles jamais appelé (LEGACY)</td></tr>
-    <tr><td class="id">s3-decompo</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">charter · product_snapshot · <b>knowledge_packet.json</b></td><td class="pf">featuremap.json</td><td class="pf">knowledge_packet.json : 0 producteur dans forge/, absent de la baseline</td></tr>
-    <tr><td class="id">s4-archi</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">charter · repo_map.yaml · <b>blueprint.yaml</b> · knowledge_packet.json</td><td class="pf"><b>blueprint.json</b></td><td class="pf">le contrat lit « .yaml », la chaîne écrit « .json » (5 contrats citent blueprint.yaml)</td></tr>
-    <tr><td class="id">s5-wiremap</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">blueprint · featuremap · repo_map</td><td class="pf">wiremap.json (+ wiremap_frozen.json par le driver)</td><td class="pf">join_check ×2 après cette étape (advisory)</td></tr>
-    <tr><td class="id">s6-redteam-plan</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">blueprint · charter</td><td class="pf">artifacts/s6-redteam-plan.txt</td><td class="pf">runner Qwen · <b>0 finding par construction</b> sur 3 runs V1 + baseline</td></tr>
-    <tr><td class="id">s9-build</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">blueprint · catalog.json · wiremap</td><td class="pf">GAMES/&lt;jeu&gt;/</td><td class="pf">6 tentatives, 2 escalades haiku→sonnet→opus, mutation gate = 4 refus</td></tr>
-    <tr><td class="id">s10a · s10b · s10c</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">GAMES · blueprint · wiremap</td><td class="pf">reçus d'oracle</td><td class="pf">déterministes, non-LLM · encodage corrigé (oracle.py:122)</td></tr>
-    <tr><td class="id">s10s-oracle-standard</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">repo_map.yaml</td><td class="pf">—</td><td class="pf">contrat + étape dédiée déterministe, hors du profil <code>full</code> → SKIPPED dans la baseline</td></tr>
-    <tr><td class="id">s11-redteam-code</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">GAMES</td><td class="pf">artifacts/s11-redteam-code.txt</td><td class="pf">baseline : <code>redteam_ran: False</code> — la revue indépendante n'a pas eu lieu (cause ESC-1, corrigée au point de décision, non rejouée)</td></tr>
-    <tr><td class="id">s12-verdict → verify_run</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">reçus · state</td><td class="pf">verdict.json signé HMAC</td><td class="pf">integrity_ok = hmac ∧ evidence ∧ mutation ∧ ¬coherence_problems (verify_run.py:375)</td></tr>
+    <tr><td class="id">1 · s0-contrat</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">SCHEMA.md · brief</td><td class="pf">charter.yaml</td><td class="pf">check_charter = gate (10 réf. driver/run_real)</td></tr>
+    <tr><td class="id">2 · s2-worldscan</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">charter.yaml</td><td class="pf">worldscan.json</td><td class="pf">verrou Q2/R8 intact · réparation branchée</td></tr>
+    <tr><td class="id">3 · s1-prisme</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">charter.yaml</td><td class="pf">prisme.json · product_snapshot.md → loop.json (projection <code>loop_spec.mjs</code>)</td><td class="pf">panel multi-lentilles jamais appelé (LEGACY)</td></tr>
+    <tr><td class="id">4 · s3-decompo</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">charter · product_snapshot · <b>knowledge_packet.json</b></td><td class="pf">featuremap.json</td><td class="pf">knowledge_packet.json : 0 producteur dans forge/, absent de la baseline</td></tr>
+    <tr><td class="id">5 · s4-archi</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">charter · repo_map.yaml · <b>blueprint.yaml</b> · knowledge_packet.json</td><td class="pf"><b>blueprint.json</b></td><td class="pf">le contrat lit « .yaml », la chaîne écrit « .json » (5 contrats citent blueprint.yaml)</td></tr>
+    <tr><td class="id">6 · s5-wiremap</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">blueprint · featuremap · repo_map</td><td class="pf">wiremap.json (+ wiremap_frozen.json par le driver)</td><td class="pf">join_check ×2 après cette étape (advisory)</td></tr>
+    <tr><td class="id">7 · s6-redteam-plan</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">blueprint · charter</td><td class="pf">artifacts/s6-redteam-plan.txt</td><td class="pf">runner Qwen · <b>0 finding par construction</b> sur 3 runs V1 + baseline</td></tr>
+    <tr><td class="id">8 · s9-build</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">blueprint · catalog.json · wiremap</td><td class="pf">GAMES/&lt;jeu&gt;/</td><td class="pf">6 tentatives, 2 escalades haiku→sonnet→opus, mutation gate = 4 refus</td></tr>
+    <tr><td class="id">9 · s10a-oracle-code</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">GAMES/&lt;jeu&gt;</td><td class="pf">reçu d'oracle code</td><td class="pf">déterministe, non-LLM · encodage corrigé (oracle.py:122) — c'est ici que M bis tombait</td></tr>
+    <tr><td class="id">10 · s10b-oracle-archi</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">blueprint · GAMES</td><td class="pf">reçu d'oracle archi</td><td class="pf">déterministe · vérifie modules / deps_interdites de blueprint.json</td></tr>
+    <tr><td class="id">11 · s10c-oracle-wiremap</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">wiremap · GAMES</td><td class="pf">reçu d'oracle wiremap</td><td class="pf">déterministe · fichiers déclarés vs fichiers présents</td></tr>
+    <tr><td class="id">12 · s11-redteam-code</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">GAMES</td><td class="pf">artifacts/s11-redteam-code.txt</td><td class="pf">baseline : <code>redteam_ran: False</code> — la revue indépendante n'a pas eu lieu (cause ESC-1, corrigée au point de décision, non rejouée)</td></tr>
+    <tr><td class="id">13 · s12-verdict → verify_run</td><td><span class="st EXISTE">EXISTE</span></td><td class="pf">reçus · state</td><td class="pf">verdict.json signé HMAC</td><td class="pf">integrity_ok = hmac ∧ evidence ∧ mutation ∧ ¬coherence_problems (verify_run.py:375)</td></tr>
+    <tr><td class="id" style="color:var(--mute)">hors ORDER · s10s-oracle-standard</td><td><span class="st PARTIEL">PARTIEL</span></td><td class="pf">repo_map.yaml</td><td class="pf">—</td><td class="pf"><b>non comptée dans les 13</b> : étape déterministe dédiée (dispatch.py:99), présente dans les profils <code>standard*</code> seulement → SKIPPED dans la baseline</td></tr>
   </table></div>
 
   <h3>Les contrôles branchés sur la chaîne</h3>
@@ -217,7 +219,7 @@ ul{padding-left:20px;max-width:72ch} li{margin-bottom:5px}
 
   <figure>
     <div class="scroll"><svg id="svg-verite" role="img" aria-label="Contre-schéma : les capacités cibles en haut, les mécanismes réels de la chaîne V2 en bas, reliés par des attaches pleines, pointillées ou absentes selon le statut mesuré."></svg></div>
-    <figcaption>Superposition cible ↔ réel. Le dépôt possède déjà, sous un autre nom et dans un ordre fixe, une part de la cible : contrats + porte, Prisme, Research, oracles + verdict, KB, red team, jointure (advisory), gate humain. Il ne possède ni l'objet central, ni le directeur, ni l'orchestrateur de build, ni l'UX, ni la boucle des métriques.</figcaption>
+    <figcaption>Superposition cible ↔ réel, les <b>22 capacités</b> de la carte sur deux rangées (C1–C11, puis C12–C22). Le dépôt possède déjà, sous un autre nom et dans un ordre fixe, une part de la cible : contrats + porte, Prisme, Research, oracles + verdict, KB, red team, jointure (advisory), gate humain. Il ne possède ni l'objet central, ni le directeur, ni l'orchestrateur de build, ni l'UX, ni la boucle des métriques. C5 Design n'est <i>pas</i> s3 : s3-decompo n'en couvre qu'une sous-capacité, avec une entrée sans producteur.</figcaption>
   </figure>
 
   <h3>Corrections au schéma actuel — ce qu'on croit acquis et qui ne l'est pas</h3>
@@ -391,14 +393,18 @@ claim_verdict: NO_CLAIM_ALLOWED</div>
 
   /* ---------- 3 · CONTRE-SCHÉMA ---------- */
   (function(){
-    const svg=document.getElementById('svg-verite');const W=1180,H=400;svg.setAttribute('viewBox',`0 0 ${W} ${H}`);defs(svg);
+    const svg=document.getElementById('svg-verite');const W=1180,H=700;svg.setAttribute('viewBox',`0 0 ${W} ${H}`);defs(svg);
+    // Les 22 capacités de CAPABILITY_MAP, dans l'ordre, aucune omise.
     const cols=[
       ['C1 GAME_BLUEPRINT','—','ABSENT','rien'],
       ['C2 DIRECTOR','Fable pilote run_real','PARTIEL','pilote, pas directeur'],
       ['C3 RESEARCH','s2-worldscan','EXISTE','station fixe'],
       ['C4 PRISME','s1-prisme + loop.json','EXISTE','station fixe'],
-      ['C5 DESIGN','s3-decompo','PARTIEL','entrée sans producteur'],
+      ['C5 DESIGN','s3-decompo + sous-capacité','PARTIEL','s3 ≠ Design · entrée sans producteur'],
       ['C6 UX','—','ABSENT','rien'],
+      ['C7 BREAKDOWN','featuremap.json + sortie de s3','PARTIEL','section, pas capacité'],
+      ['C8 ART DIRECTION','s2.5-artbible + profil artbible','PARTIEL','hors profil full'],
+      ['C9 NARRATION / GM','s2.6 · s2.7 + profils dédiés','PARTIEL','hors profil full'],
       ['C10 ARCHI','s4 → blueprint.json','PARTIEL','nom instable'],
       ['C11 WIREMAP','s5-wiremap','EXISTE',''],
       ['C12 JOINTURE','join_check ×2','PARTIEL','VOID sur baseline'],
@@ -408,15 +414,20 @@ claim_verdict: NO_CLAIM_ALLOWED</div>
       ['C16 EVIDENCE','verdict + verify_run','EXISTE','HMAC vérifié'],
       ['C17 OBSERVER','TOOLS/observer','UNKNOWN','0 appel'],
       ['C18 KB','knowledge_base/','EXISTE','proposals non mesurées'],
+      ['C19 APPRENTISSAGE','learning_hook + kb_proposal','UNKNOWN','appelé par le driver · 0 proposition mesurée'],
       ['C20 HUMAN GATE','HUMANGATE_READY → Pierre','EXISTE',''],
       ['C21 PORTE','contrats + forge_guard','EXISTE','fail-closed'],
       ['C22 MÉTRIQUES','—','ABSENT','rien'],
     ];
-    const n=cols.length,left=20,cw=(W-40)/n,ty=40,by=250,bh=44,th=36;
-    txt(svg,left,ty-14,'CIBLE (intention)',{'font-size':10,fill:'var(--target)','font-weight':500});
-    txt(svg,left,by-14,'RÉEL (dépôt V2, chaîne mesurée)',{'font-size':10,fill:'var(--mute)','font-weight':500});
+    const perRow=11,left=20,cw=(W-40)/perRow,th=36,bh=44,rowH=330;
     cols.forEach((c,i)=>{
-      const x=left+i*cw+3,w=cw-6,mx=x+w/2;
+      const r=Math.floor(i/perRow),j=i%perRow;
+      const ty=40+r*rowH,by=ty+210;
+      if(j===0){
+        txt(svg,left,ty-14,'CIBLE (intention) · '+(r===0?'C1 – C11':'C12 – C22'),{'font-size':10,fill:'var(--target)','font-weight':500});
+        txt(svg,left,by-14,'RÉEL (dépôt V2, chaîne mesurée)',{'font-size':10,fill:'var(--mute)','font-weight':500});
+      }
+      const x=left+j*cw+3,w=cw-6,mx=x+w/2;
       box(svg,x,ty,w,th,c[0].split(' ')[0],'CIBLE',c[0].split(' ').slice(1).join(' '));
       if(c[2]==='ABSENT'){
         txt(svg,mx,by+bh/2+4,'∅',{'text-anchor':'middle','font-size':16,fill:'var(--absent)'});
@@ -427,7 +438,6 @@ claim_verdict: NO_CLAIM_ALLOWED</div>
         const solid=(c[2]==='EXISTE');
         arrow(svg,mx,ty+th,mx,by-1,{stroke:col[c[2]],dash:solid?null:'4 3',noHead:true,w:solid?2:1.2});
       }
-      // status label + note
       txt(svg,mx,by+bh+16,c[2],{'text-anchor':'middle','font-size':9.5,fill:col[c[2]],'font-weight':500});
       if(c[3]){const parts=c[3].split(' · ');parts.forEach((p,k)=>txt(svg,mx,by+bh+30+k*11,p,{'text-anchor':'middle','font-size':8.8,fill:'var(--mute)'}));}
     });
