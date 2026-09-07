@@ -1,0 +1,33 @@
+schema: kb.proposal.v1
+status: PROPOSED
+proposal_id: forge.journal_is_not_emission
+origine: run Bomberman 3D — lane habillage, piste musicale, 2026-08-10
+claim_verdict: NO_CLAIM_ALLOWED
+
+statement: >
+  Un JOURNAL de declenchement ne prouve pas une EMISSION. Quand une capacite est rendue
+  observable par une trace, l'oracle doit compter ce qui est SORTI, jamais ce qui a ete
+  DEMANDE — sinon la trace devient la preuve d'elle-meme.
+
+cas_du_parc_reutilise: >
+  `games/pacman/06_RUNTIME/adapters/audio/audio.gd` documente en commentaire un defaut
+  mesure au playtest (« la musique j'ai rien ») : la fonction de musique synthetisait un
+  tampon, l'inscrivait au journal, puis RENDAIT LA MAIN sans pousser les trames. Le journal
+  affirmait qu'une piste jouait ; aucun echantillon ne sortait.
+
+application_et_falsification: |
+  · La piste musicale de Bomberman 3D a ete ecrite avec un journal SEPARE des effets, mais
+    son oracle (`07_TESTS/oracle/musique_piste.gd`) ne regarde QUE `echantillons_pousses`.
+  · Falsification exécutée : le defaut Pacman a ete reproduit volontairement (journalisation
+    puis `return 0` avant la boucle de synthese). Mesure :
+        journal    : 12 notes  (INCHANGE)
+        echantillons pousses : 0
+        oracle     : ok=false, « piste MUETTE », exit 1
+    Puis restaure : 16 383 echantillons, ok=true.
+  · C'est la separation des deux grandeurs qui rend l'oracle discriminant : un oracle qui
+    aurait compte les entrees de journal aurait rendu VERT sur la version muette.
+
+portee_honnete: >
+  Regle de redaction d'oracle, aucun consommateur automatique, deposee en PROPOSED. Elle
+  generalise au-dela de l'audio : toute capacite prouvee par une trace (captures, evenements,
+  telemetrie) doit distinguer « demande » et « effectue ».

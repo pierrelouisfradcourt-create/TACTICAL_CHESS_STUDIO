@@ -1,0 +1,85 @@
+schema: kb.proposal.v1
+status: PROPOSED
+proposal_id: forge.green_suite_untested_by_mutation
+origine: run Bomberman 3D — cycle mutation, 2026-08-10
+claim_verdict: NO_CLAIM_ALLOWED
+
+statement: >
+  Une suite verte n'est pas une suite qui attrape. Tant que la MUTATION n'a pas tourne,
+  le pouvoir discriminant d'un jeu de tests est INCONNU — pas bon, pas mauvais : non mesure.
+  Le nombre d'assertions ne le renseigne pas.
+
+mesure:
+  avant: "402 assertions vertes, aucune mutation jamais lancee sur ce jeu"
+  premiere_mesure:
+    explosion.gd: "score 0.18 — 9 survivants sur 11, sur le systeme le plus critique du jeu"
+    loop.gd: "score 0.62 — 3 survivants"
+    sudden_death.gd: "score 0.87 — 2 survivants"
+  nature_des_survivants: >
+    7 equivalents (dictionnaires employes comme ENSEMBLES : `x[k] = true` dont la valeur
+    n'est jamais lue — recensement exhaustif des lectures a l'appui) et 7 VRAIS TROUS.
+  trous_reels_trouves:
+    - "explosion.gd:81 `if autre >= 0` — `bombe_sur` rend -1 ou un INDEX, et l'index 0 est
+       VALIDE. Mute en `> 0`, la chaine cesse de se propager vers la PREMIERE bombe posee,
+       en silence. Les tests amorcaient toujours DEPUIS l'index 0, ou le cas n'existe pas."
+    - "explosion.gd:57 borne superieure exacte non couverte (les tests essayaient 42, jamais
+       une valeur EGALE a la taille)."
+    - "loop.gd:71 un power-up n'etait jamais verifie NON VIDE ; seuls des comptes l'etaient."
+    - "loop.gd:115 l'evenement `fin` n'etait jamais verifie emis AU tick terminal et pas avant."
+    - "loop.gd:120 la prime de victoire n'etait verifiee qu'en unitaire, jamais de bout en bout :
+       mutee, elle se versait sur une DEFAITE."
+    - "sudden_death.gd:83 `vivant AND cellule == c` mute en `or` : TOUT acteur vivant mourrait
+       au premier bloc tombe. Le cas NEGATIF — un acteur ailleurs SURVIT — n'etait pas asserte."
+    - "sudden_death.gd:77 garde de bornes du proprietaire, cas hors bornes non couvert."
+  apres: "417 assertions ; loop.gd 8/8, sudden_death.gd 15/15, explosion.gd 4/11 + 7 triages
+          EQUIVALENT ; agrege 27/34 = 0.79 ; check_mutation_gate passed=true, 0 survivant non trie"
+
+motif_recurrent_a_retenir: >
+  Cinq des sept trous sont des CAS NEGATIFS ou des BORNES EXACTES : ce qui NE doit PAS se
+  produire, et la valeur limite. Les tests ecrits a la main couvrent spontanement le cas
+  nominal et la valeur franchement hors bornes ; ils sautent la valeur EGALE a la borne et
+  l'assertion « et rien d'autre ne se produit ».
+
+reutilisation: >
+  Aucune couche nouvelle. `forge.mutation` supporte deja GDScript nativement
+  (`_HASH_COMMENT_EXTENSIONS = (".gd", ".py")`), et `mutation_triage.json` +
+  `check_mutation_gate` sont le mecanisme ratifie « 100 % ou survivant justifie ». Le format
+  de justification est repris de games/pacman/mutation_triage.json, exigence de verification
+  mecanique comprise.
+
+portee_honnete: >
+  Deposee en PROPOSED. Ne dit rien de la qualite du JEU : la mutation mesure les TESTS.
+  Trois fichiers mutes sur onze systemes — le pouvoir discriminant des huit autres reste
+  NON MESURE.
+
+suite_du_run_2026-08-10:
+  balayage_complet: "11 systemes mutes, 113 mutants. Avant : score inconnu. Apres : 105/113 = 0.93,
+                     8 survivants tous tries EQUIVALENT avec recensement a l appui, gate passed."
+  scores_finaux: "loop 8/8 · sudden_death 15/15 · movement 17/17 · bombs 9/9 · damage 1/1 ·
+                  victory 4/4 · app_state 15/15 · score 6/6 · arena 18/18 · powerups 8/9 ·
+                  explosion 4/11 (7 equivalents)"
+  confirmation_du_motif: >
+    Sur les 14 vrais trous fermes au total, la quasi-totalite sont des BORNES EXACTES
+    (valeur EGALE a la limite) ou des CAS NEGATIFS (« et rien d autre ne se produit »).
+    arena.gd est le cas extreme : 8/18 avant, 18/18 apres, sans toucher une ligne de
+    production — dix mutants vivaient uniquement parce que personne n avait asserte les
+    valeurs de retour `false` ni les quatre bornes de `dans_bornes`.
+  cas_d_ecole_a_retenir: >
+    `bombs.gd:15` survivait DERRIERE UNE GARDE REDONDANTE : le test posait deux bombes
+    depuis la meme case, et la seconde garde (« une bombe est deja ici ») masquait la
+    premiere (« plafond atteint »). Il a fallu deplacer l acteur pour exercer la garde
+    visee. Un mutant peut survivre non par absence de test, mais parce qu un AUTRE
+    chemin produit le meme refus.
+
+limite_du_garde_fou_2026_08_12: >
+  EXPECTED_ASSERTS prouve le VOLUME d'assertions, jamais leur EXECUTION EFFECTIVE.
+  Cas mesure pendant P8 (navigation bomberman_3d) : un volet de test attachait le shell a la
+  racine du SceneTree ; `_ready()` n'y est jamais appele dans ce harnais (le verdict est rendu
+  avant la premiere frame), le volet s'interrompait EN SILENCE — et le total retombait
+  EXACTEMENT sur EXPECTED_ASSERTS. La garde anti-faux-vert n'a rien vu, parce qu'elle compare
+  un TOTAL et pas une COUVERTURE : des assertions manquantes ici peuvent etre compensees par
+  des assertions ajoutees ailleurs.
+  Detecte par l'agent lui-meme, corrige (`_ready()` appele explicitement + controle positif).
+  ARBITRAGE PIERRE 2026-08-12 : constat CONSERVE tel quel, aucune nouvelle architecture de
+  harnais demandee. A traiter le jour venu par une mutation ciblee du harnais, pas par une
+  couche de plus.

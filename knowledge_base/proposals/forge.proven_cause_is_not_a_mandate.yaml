@@ -1,0 +1,69 @@
+schema: kb.proposal.v1
+status: PROPOSED
+proposal_id: forge.proven_cause_is_not_a_mandate
+origine: run Bomberman 3D — Lane 1, experiences A/B/C, 2026-08-11
+claim_verdict: NO_CLAIM_ALLOWED
+
+statement: >
+  Une cause racine DEMONTREE ne justifie pas automatiquement sa correction. Le diagnostic
+  etablit d'ou vient un symptome ; seule la mesure produit etablit si le supprimer ameliore
+  quoi que ce soit. Entre les deux il y a une decision, et elle appartient a l'oracle, pas au
+  raisonnement qui a produit le diagnostic.
+
+mesure:
+  baseline_avant_lane: "R9 = 2/20"
+  A_retenue: "garde de securite sur la branche FUITE — suicides 15/20 -> 5/20, R9 2/20 -> 7/20"
+  B_revoquee: "repli sur le moins mauvais pas — R9 2/20"
+  C_revoquee: "ne pas exempter `cap` des murs quand `cap` est menacee — R9 6/20"
+  retour_baseline: "apres revocation de C, R9 re-mesure a 7/20 — la revocation est complete"
+
+le_cas_C: >
+  La cause etait etablie avec une trace complete : sur les graines 4 et 9, le bot occupe deux
+  cases en alternance, quitte la case SURE pour la case MENACEE, et y meurt. Le mecanisme
+  etait nomme : `erase(cap)` exempte la cible des obstacles, y compris quand cette cible est
+  sous bombe ; la garde de letalite ne s'y oppose pas, car une case menacee n'est pas ENCORE
+  letale. Tout etait vrai. La correction a quand meme fait perdre une graine.
+
+pourquoi: >
+  Rendre `cap` infranchissable supprime le chemin vers la cible : le bot ne meurt plus de
+  cette facon et n'arrive plus au contact non plus. La securite gagnee est payee en occasions
+  perdues. C'est la loi du deplacement de la qualite deja ratifiee ici — durcir un axe pousse
+  le defaut sur un axe non mesure — observee cette fois entre securite et efficacite.
+
+regle: >
+  Trois etats distincts, a ne jamais confondre : cause NON DEMONTREE (on mesure), cause
+  DEMONTREE (on peut experimenter), correction VALIDEE (l'oracle produit a mesure un gain).
+  Une experience dont la cause est demontree et dont le gain est nul ou negatif se REVOQUE
+  INTEGRALEMENT et se conserve comme connaissance, pas comme code. Le diagnostic reste vrai
+  et reste utile ; il ne devient pas un mandat.
+
+protocole_valide: >
+  Une variante = un point de modification identifiable, les 20 graines du harnais officiel,
+  comparaison au chiffre en vigueur, suite complete, revocation integrale si le gain n'est pas
+  reel, re-mesure APRES revocation pour prouver qu'elle est complete. Applique trois fois
+  (A, B, C) ; deux revocations sur trois.
+
+lien:
+  - oracle_quality_displacement_law
+  - forge.consumer_is_not_found_by_shape
+  - "les tests verts ne suffisent pas comme critere de fin (memoire studio)"
+
+quatrieme_cas_D_2026_08_11: >
+  Mutation REJETEE, venue d'une autre session, sur le meme fichier. Cause reelle et connue :
+  en face-a-face, `_cap` rendait la case du bot lui-meme comme meilleure cible voisine d'un
+  ennemi, donc `cap == depart`, donc AUCUNE, donc gel. Correction testee : exclure la
+  self-cell des cibles (`if voisin == depart: continue`, 2 lignes dans `_cap`).
+  MESURE : R9 avec la garde = 5/20 ; sans la garde = 7/20 ; 584 tests verts dans les DEUX
+  cas. La garde est donc une regression mesuree de 2 graines.
+  ARBITRAGE PIERRE 2026-08-11 : garde RETIREE, R9 conserve a 7/20. Motif inscrit : corriger
+  un comportement reel ne suffit pas a conserver une mutation qui degrade l'unique mesure
+  produit disponible.
+  Le probleme de gel n'est PAS resolu pour autant — il devient une anomalie connue et
+  documentee, pas un ticket ferme.
+  ATTRIBUTION : etablie par diff hors commentaires contre une copie de l'etat 2/20, qui
+  isolait exactement TROIS differences — deux etant la correction A retenue, la troisieme
+  cette garde. Retirer la troisieme restaure 7/20 exactement. Sans cette copie de reference,
+  l'attribution aurait ete impossible : `games/bomberman_3d/**` n'est suivi par aucun git.
+  BILAN DU FICHIER : sur quatre mutations de `bot_policy.gd` dont la cause etait demontree,
+  UNE seule (A) a ameliore R9. Trois l'ont degrade. La demonstration d'une cause n'a, sur ce
+  fichier, aucune valeur predictive sur le gain.

@@ -1,0 +1,80 @@
+schema: kb.proposal.v1
+status: PROPOSED
+proposal_id: forge.proof_text_must_be_derived
+origine: run Bomberman 3D — cycle P2 cablage, 2026-08-11 (AMENDEE le meme jour, voir `limite`)
+claim_verdict: NO_CLAIM_ALLOWED
+
+statement: >
+  Un champ de PREUVE recopie a la main derive en silence et finit par mentir. La preuve
+  affichee par un artefact doit etre DERIVEE de sa source a la generation, jamais recopiee
+  depuis une mesure passee. Corriger le nombre ne repare rien : il rederivera au prochain
+  changement. Ce qu'il faut reparer, c'est le fait que personne ne compare l'affirmation a
+  sa source.
+
+mesure:
+  verite_source: "tests/run_tests.gd : EXPECTED_ASSERTS := 462"
+  affirme_par_la_carte: "458 assertions vertes, sur 44 lignes de wiremap.json"
+  ecart: "4 assertions, non detecte, sur un artefact declare IMPLEMENTED et lu par les oracles"
+  detection: "aucun oracle ne rougissait — check_index verifie l'EXISTENCE des fichiers, pas la VERACITE du texte de preuve"
+
+cause_racine: >
+  Le texte de preuve etait un litteral fige dans le generateur. Il a ete exact au moment ou
+  il a ete ecrit, puis quatre assertions ont ete ajoutees au harnais et rien ne reliait les
+  deux. La boucle cassee n'est pas le nombre : c'est l'absence de lien entre l'affirmation
+  et ce qu'elle affirme.
+
+correction: >
+  Le generateur lit desormais `EXPECTED_ASSERTS` dans `tests/run_tests.gd` et compte les
+  entrees de `mutation_triage.json`. Il LEVE si la source est illisible — une preuve qu'on
+  ne sait pas lire ne doit pas devenir une preuve qu'on invente. Ce qui n'a pas de source
+  lisible dans le depot (score de mutation 105/113) reste ecrit, mais DATE comme campagne,
+  au lieu d'etre presente comme un etat permanent.
+
+falsification:
+  methode: "perturber la source et verifier que l'artefact suit — sinon la derivation n'est qu'un nouveau litteral"
+  execute: "EXPECTED_ASSERTS 462 -> 99999, regeneration : la carte affirme 99999 ; source restauree, la carte affirme 462"
+  residus: "aucun — sentinelle absente du harnais, aucun fichier .bak"
+
+portee: >
+  Generalisable a tout champ `preuve`, `evidence` ou `statut` d'artefact du studio. Le test
+  d'application est simple : si la valeur peut devenir fausse sans que rien ne rougisse,
+  elle est recopiee et non derivee.
+
+lien:
+  - forge.green_suite_untested_by_mutation
+  - "declare != execute (memoire studio)"
+
+non_regression:
+  oracles_standard: "line_states / index / placement / collisions / contract_completeness — 5 PASS"
+  suite_jeu: "462 passed / 0 failed"
+
+limite:
+  decouverte: >
+    Appliquee telle quelle au parc, cette lesson DETRUIT de l'information. Mesure du
+    2026-08-11 sur pacman : les valeurs 1012, 2123 et 2389 ne sont PAS des affirmations
+    d'etat courant, ce sont des RECUS HISTORIQUES. `harness.baseline_before` porte
+    « EXECUTION REELLE avant la premiere ecriture de code V2 : 1012 passed, 65 fichiers » ;
+    `harness.compare_after` porte le « apres » de cette meme comparaison et cite
+    `EXPECTED_ASSERTS = 2123` tel qu'il etait ALORS. Leur valeur tient precisement a ce
+    qu'ils ne bougent pas. Les « deriver » de la source actuelle aurait efface la baseline
+    qui donne son sens a la comparaison.
+  incident: >
+    J'ai reecrit 107 chaines de cette nature (85 + 1 pacman, 22 breakout_v2) avant de les
+    caracteriser. Restauration par substitution inverse exacte, jamais par `git checkout` :
+    107 + 1 restaurations, 0 residu, oracles identiques a la baseline pour les deux jeux.
+    Aucune perte. Mais rien ne garantissait la reversibilite : le fichier pacman n'est meme
+    pas suivi par git.
+  regle_corrigee: >
+    DERIVER ce qui affirme un ETAT COURANT. NE JAMAIS TOUCHER ce qui enregistre une MESURE
+    DATEE. Le signe distinctif est dans le texte lui-meme : un recu ancre sa mesure dans un
+    moment (« avant la V2 », « RECU : », un exit code, un compte de fichiers d'epoque) ;
+    une affirmation d'etat courant, non. En cas de doute : ne pas ecrire, caracteriser.
+  deuxieme_cause_dans_l_outil: >
+    Ma sonde cherchait la tournure « N assertions ». Pacman ecrit « === RESULT: N passed ».
+    J'ai donc rapporte 2 occurrences la ou il y en avait 86. Un detecteur de derive qui
+    reconnait une seule formulation mesure sa propre grammaire, pas le depot — et son
+    silence se lit comme une absence de defaut.
+  portee_reelle: >
+    La lesson reste vraie la ou un GENERATEUR produit l'artefact (bomberman_3d : derivation
+    prouvee par perturbation de la source). Elle ne s'applique PAS aux wiremaps ecrites a la
+    main, qui sont des archives de reçus. Deux natures d'artefact, deux regimes.

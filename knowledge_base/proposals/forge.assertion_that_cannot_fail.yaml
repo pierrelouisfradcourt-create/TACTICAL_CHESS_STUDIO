@@ -1,0 +1,41 @@
+schema: kb.proposal.v1
+status: PROPOSED
+proposal_id: forge.assertion_that_cannot_fail
+origine: run Bomberman 3D — lot identite visuelle, 2026-08-10
+claim_verdict: NO_CLAIM_ALLOWED
+
+statement: >
+  Une assertion dont la CONDITION D'ECHEC est inatteignable compte comme verte et ne mesure
+  rien. Elle est plus dangereuse qu'un test absent : elle occupe la place du test manquant
+  et fait monter le compteur d'assertions, donc la garde anti-faux-vert EXPECTED_ASSERTS
+  la valide elle aussi.
+
+cas_mesure: >
+  Assertion ecrite dans test_lisibilite.gd : « aucun element decoratif ne singe un power-up
+  jouable », implementee comme `forme == forme_powerup AND pose == "jouable"`. Or AUCUN kit
+  de decor ne porte la valeur "jouable" — les seules valeurs declarees sont "anneau" et
+  "nappe". La condition etait donc toujours fausse, l'assertion toujours verte, et la
+  propriete jamais verifiee. Detectee non par un outil mais en REGARDANT une capture : un
+  buisson vert du theme foret et le power-up SPEED_UP vert se ressemblaient a l'ecran.
+
+pourquoi_c_est_une_faiblesse_de_la_forge: >
+  Le studio verifie qu'un test EXISTE (EXPECTED_ASSERTS), qu'il est EXECUTE (harnais), et
+  que les tests attrapent des bugs (mutation). Aucun de ces trois filets n'attrape une
+  assertion vraie par construction : la mutation mute le CODE PRODUIT, pas les predicats de
+  test ; le harnais compte les assertions, il ne juge pas leur pouvoir discriminant.
+
+proposition:
+  - >-
+    Exiger, pour toute assertion portant sur une regle de non-collision ou d'unicite, un
+    CONTROLE POSITIF adjacent : une valeur dont on sait qu'elle DOIT declencher la
+    detection. Patron deja present dans le parc (`v2_shell_palette_only_colors.gd` de
+    Pacman : « le descripteur en porte — controle positif »).
+  - >-
+    Ne PAS en faire un oracle automatique : detecter mecaniquement une tautologie de
+    predicat demanderait de muter les tests eux-memes, ce que le studio n'outille pas.
+    Deposer la regle comme discipline d'ecriture, avec son cas reel.
+
+portee_honnete: >
+  Aucun consommateur automatique. Regle de redaction, deposee en PROPOSED. Le cas ci-dessus
+  a ete corrige dans le jeu (la regle testee est desormais « aucun decor ne porte la couleur
+  EXACTE d un power-up », assortie de son controle positif).

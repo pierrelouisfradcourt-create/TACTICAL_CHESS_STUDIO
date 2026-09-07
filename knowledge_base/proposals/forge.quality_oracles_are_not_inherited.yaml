@@ -1,0 +1,72 @@
+schema: kb.proposal.v1
+status: PROPOSED
+proposal_id: forge.quality_oracles_are_not_inherited
+origine: run Bomberman 3D — lot lisibilite, 2026-08-10
+claim_verdict: NO_CLAIM_ALLOWED
+
+statement: >
+  Un ORACLE DE QUALITE invente par un jeu ne se transmet pas au suivant. La Forge trace la
+  reutilisation des BRIQUES (budget.reuses) et celle du CODE (CODE_COPIE + sha256 dans la
+  wiremap), mais RIEN ne trace qu'un jeu a omis d'adopter un oracle qu'un jeu anterieur
+  avait deja construit. Le defaut se voit donc en jouant, jamais en mesurant.
+
+mesure:
+  fait: >
+    Snake avait ecrit `grid_view.gd::categories_couleur_partagee()` — « Nombre de PAIRES de
+    categories de gameplay partageant EXACTEMENT la meme couleur. L'oracle exige 0 : les 4
+    categories doivent etre visuellement discernables. » Pacman avait ecrit
+    `palette.gd` — « descripteur de palette UNIQUE, le comptage des litteraux de couleur
+    situes HORS de ce fichier vaut exactement 0 ».
+  consequence_mesuree: >
+    Bomberman 3D (noeud 5) n'a consomme ni l'un ni l'autre. Ses trois power-ups
+    (BOMB_UP, FIRE_UP, SPEED_UP) partageaient une seule constante de couleur et une seule
+    forme. Mesure par oracle pixel a l'etat d'avant : BOMB_UP_vs_FIRE_UP = 0 pixel,
+    BOMB_UP_vs_SPEED_UP = 0 pixel, FIRE_UP_vs_SPEED_UP = 0 pixel — trois objets de jeu
+    RIGOUREUSEMENT indiscernables a l'ecran.
+  ce_qui_n_a_pas_alerte: >
+    261 assertions vertes, mutation non concernee, solvabilite non concernee, oracle
+    core.render VERT (il prouve que le rendu change avec l'etat, pas que deux objets
+    DIFFERENTS se distinguent). Aucun capteur de la chaine n'avait de raison de parler.
+
+pourquoi_c_est_une_faiblesse_de_la_forge: >
+  La regle de cablage ratifiee dit « une preuve sans lecteur est inexistante ». Le cas
+  present est le symetrique et n'est couvert par aucune regle : un LECTEUR (l'oracle) existe
+  dans le parc, et le jeu suivant ne s'y branche pas. La loi d'empilement du standard
+  (nouveau jeu = competence acquise + 1 delta) parle de competences DEPOSEES en
+  bibliotheque ; elle est muette sur les oracles, qui restent donc locaux au jeu qui les a
+  inventes et meurent avec lui.
+
+proposition:
+  - >-
+    Etendre la notion de reutilisation a une quatrieme categorie, a cote de
+    `brique / CODE_COPIE / patron` : **ORACLE_HERITE** — un volet de qualite adopte d'un
+    jeu anterieur, avec son jeu d'origine et la regle qu'il fait respecter.
+  - >-
+    A la cloture d'un jeu, lister les oracles de qualite du parc NON adoptes, avec pour
+    chacun soit son adoption, soit un refus MOTIVE. Meme forme que `genre_refusals` dans la
+    wiremap : ni citation ni refus = BLOCKED.
+  - >-
+    Ne PAS en faire un oracle automatique tant que la liste des « oracles de qualite du
+    parc » n'a pas de producteur : ce serait un validateur sans producteur, defaut deja
+    nomme dans la memoire du studio.
+
+portee_honnete: >
+  Cette proposition decrit un mecanisme de gouvernance, pas un capteur pret a brancher. Elle
+  n'a AUCUN consommateur a ce jour. Elle est deposee en PROPOSED et ne doit pas etre comptee
+  comme une capacite de la Forge tant que Pierre ne l'a pas ratifiee et qu'un producteur de
+  la liste n'existe pas.
+
+preuve:
+  avant_apres:
+    oracle_mecanique_avant: "5 assertions rouges (3 paires de categories partageant une couleur)"
+    oracle_mecanique_apres: "0 rouge sur 261"
+    oracle_pixel_avant: "ok=false, 3 paires INDISCERNABLES, 0 pixel de difference"
+    oracle_pixel_apres: "ok=true, differences 279 / 192 / 276 pixels"
+  falsification: >
+    L'oracle a ete falsifie volontairement : palette remise a l'etat d'avant, les deux
+    volets sont passes au rouge, puis restaures. Un oracle qui n'a jamais echoue ne prouve
+    rien.
+  fichiers:
+    - games/bomberman_3d/06_RUNTIME/adapters/palette/palette.gd
+    - games/bomberman_3d/07_TESTS/unit/test_lisibilite.gd
+    - games/bomberman_3d/07_TESTS/oracle/lisibilite_powerups.gd

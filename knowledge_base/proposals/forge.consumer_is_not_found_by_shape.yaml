@@ -1,0 +1,134 @@
+schema: kb.proposal.v1
+status: PROPOSED
+proposal_id: forge.consumer_is_not_found_by_shape
+origine: run Bomberman 3D — lot provides/requires, 2026-08-11
+claim_verdict: NO_CLAIM_ALLOWED
+
+statement: >
+  Un consommateur ne se trouve pas par la FORME de son acces. Une recherche qui ne couvre
+  qu'une forme sous-declare, et son silence se lit comme une absence de dependance. Il faut
+  enumerer les formes d'acces reelles, puis ECARTER EXPLICITEMENT celles qui ne franchissent
+  pas une frontiere de systeme.
+
+mesure:
+  formes_observees_dans_un_seul_jeu:
+    - "parametre nomme : `audio.consommer(events, tick)` — visible dans une signature"
+    - "indexation de dictionnaire : `runtime_loop.gd:130 for e in r[\"events\"]` — invisible dans une signature"
+    - "preload de repertoire : la majorite des dependances, invisible aux deux precedentes"
+    - "appel intra-systeme : `loop.gd` a un parametre `events` — ce n'est PAS une arete inter-systemes"
+  effet_mesure: "la carte declarait 2 aretes ; le code en portait 19"
+
+discrimination_repertoire_vs_symbole: >
+  Une reference a un REPERTOIRE ne prouve la consommation d'une capacite QUE si le systeme
+  cible n'en fournit qu'UNE SEULE. Sinon elle ne dit pas LAQUELLE. Mesure : `params` fournit
+  `game.params` et `game.playable_speed`, et les DEUX affichaient les 7 memes consommateurs.
+  La preuve au SYMBOLE fait tomber `game.playable_speed` de 7 consommateurs presumes a UN
+  seul (`game_state`, via `MOVE_COOLDOWN_BASE`). Le repertoire sur-genere d'un facteur 7.
+
+le_defaut_le_plus_couteux_etait_dans_l_outil: >
+  L'ecriture des `requires` etait filtree par `id.startswith("adapter.")`. Toutes les aretes
+  portees par un SYSTEME (game_state, game_loop, map_validator, victory) etaient abandonnees
+  en silence : 12 aretes ecrites sur 19, sans aucune plainte. Ce n'est PAS la mesure qui l'a
+  vu — c'est la FALSIFICATION : retirer le producteur de `game.playable_speed` ne creait
+  aucun trou, donc plus personne ne le consommait dans la carte.
+
+regle: >
+  Apres avoir declare une arete, la falsifier INDIVIDUELLEMENT : retirer son producteur et
+  verifier que l'oracle rougit. Une falsification en bloc ne distingue pas « toutes les
+  aretes tiennent » de « une seule tient et masque les autres ». Passe exhaustive finale :
+  12 capacites consommees, 12 rougissements, zero silence.
+
+portee: >
+  Generalisable a toute recherche de consommateur — capacites, evenements, artefacts,
+  connecteurs dormants. C'est la variante « cote lecture » d'une regle deja ratifiee du
+  studio : une preuve sans lecteur est inexistante ; ici, un lecteur qu'on ne sait pas
+  chercher est declare inexistant a tort.
+
+lien:
+  - forge.proof_text_must_be_derived
+  - forge.append_only_queue_measures_nothing
+  - "artifact_consumer_check / regle de cablage (memoire studio)"
+
+non_regression:
+  oracles: "line_states / index / placement / collisions — 4 PASS"
+  suite_jeu: "462 passed / 0 failed"
+  etat_final: "provides=14, requires=19"
+
+# --- Deux regles nees de la production P9 (2026-08-12), deposees ici faute d'une fiche
+# --- dediee au vocabulaire d'asset. A promouvoir si elles resistent a un second kit.
+
+grammaire_R1_principal_dominant: >
+  Un objet du kit est UN volume principal qui porte la silhouette, plus 1 a 2 volumes
+  secondaires qui sont des BANDES ou des PLAQUES en saillie SUR cette masse — jamais une
+  seconde masse, jamais un essaim.
+  NEE D'UN ECHEC MESURE, pas d'une preference : en premiere passe la caisse portait DIX
+  volumes secondaires (4 montants d'angle pleine hauteur + 6 pieces de sangle) et se lisait
+  CAGE/PALETTE — le corps avait disparu. Le sac, deux ellipsoides empiles a 82 %, se lisait
+  CHAMPIGNON. Le bidon, lui, passait du premier coup : ses REBORDS etaient deja des bandes.
+  La correction a consiste a TRANSFERER le geste du bidon a la caisse (ferrures -> cerclages),
+  pas a inventer un vocabulaire par piece. C'est ce transfert qui fait un LOT plutot qu'une
+  collection : les pieces partagent un GESTE, pas seulement une palette.
+  C'est le RENDU qui a tranche, jamais le raisonnement — les deux echecs etaient invisibles
+  sur la spec et evidents a l'image.
+
+contrat_R2_size_est_l_encombrement_total: >
+  REGLE CANDIDATE DU CONTRAT D'ASSET (statut : proposee, arbitrage Pierre 2026-08-12) :
+      `size` = bounding-box TOTAL, saillies comprises.
+  Defaut mesure : en premiere passe la caisse DECLARAIT 0,74 et MESURAIT 0,92. La meme cle ne
+  voulait pas dire la meme chose d'un archetype a l'autre, donc AUCUNE comparaison d'echelle
+  entre assets n'etait possible — ni entre pieces d'un meme kit, ni contre le parc.
+  Ce n'est pas un defaut d'asset, c'est un defaut de CONTRAT DE PRODUCTION : un champ dont le
+  sens depend de l'implementation qui le remplit ne mesure rien.
+  Apres correction : declare == mesure a plus ou moins zero sur X et Y pour les trois pieces.
+
+observation_plancher_inerte: >
+  Le plancher de lisibilite implemente comme `max(0.09, 0.12 * min(w, d))` a son terme
+  PROPORTIONNEL inerte a cette echelle : il ne mordrait qu'au-dessus de min(w,d) = 0,75, or
+  les trois pieces sont en dessous. Seul le minimum absolu agit. A savoir avant d'appliquer
+  la meme formule a des pieces plus grandes, ou l'on croirait a tort que le proportionnel
+  protege quelque chose.
+
+signal_architectural_producteur_2026_08_12: >
+  MESURE, pas opinion : produire trois assets d'un type inedit a exige d'ecrire dans
+  `scripts/forge/asset_producer/build_asset.py` — 366 insertions, et surtout l'extension de
+  l'enumeration FERMEE `ARCHETYPES` (8 -> 11). Ce fichier cumule aujourd'hui QUATRE roles :
+  registre des archetypes, dispatcher, point d'extension, et producteur.
+  Consequence structurelle : « produire une nouvelle famille d'asset » implique TOUJOURS de
+  toucher une source protegee. Ce n'est pas une negligence de l'agent, c'est une propriete du
+  pipeline — et un goulot d'etranglement previsible quand la Forge produira beaucoup de
+  familles.
+  DECISION PIERRE 2026-08-12 : NE PAS REFACTORER MAINTENANT. La limite vient d'etre mesuree
+  UNE fois ; un refactor sur un seul point de mesure serait premature.
+  CONDITION DE DECLENCHEMENT, a verifier plus tard et pas avant :
+      ratifier P9 -> cabler les 3 assets -> playtest du kit -> DEUXIEME KIT
+      -> mesurer si R1/R2 se generalisent -> SEULEMENT ALORS decider si l'extension
+         d'archetypes doit devenir externe.
+  Le deuxieme kit est donc le capteur : s'il rencontre la meme frontiere et si R1/R2 tiennent
+  sur des pieces qu'elles n'ont pas servi a produire, la limite est confirmee. Sinon, elle
+  etait circonstancielle.
+  A NE PAS CONFONDRE avec la ratification de l'ecriture elle-meme, qui reste PENDING et
+  distincte : garder la frontiere architecturale telle quelle n'autorise pas retroactivement
+  a l'avoir franchie.
+
+grammaire_R3_candidate_fonction_spatiale_2026_08_12: >
+  HYPOTHESE SUPERIEURE, posee par Pierre apres le playtest du kit P9 — a TESTER par P10, pas a
+  adopter comme doctrine :
+      « Une unite decorative doit exprimer une FONCTION SPATIALE, pas seulement une identite
+        d'objet. »
+  Trois caisses et un bidon ne font pas une zone de stockage parce qu'ils coexistent. Il faut
+  que leur DISPOSITION produise la lecture « stockage ». R1 regit la fabrique d'un objet ;
+  R3 regit l'assemblage de plusieurs.
+      PROP -> GROUPE -> FONCTION -> CELLULE ARCHITECTURALE -> COMPOSITION DE L'ARENE
+  DIAGNOSTIC QUI LA MOTIVE : apres P9, les objets sont bons pris un par un et le plateau reste
+  un prototype. Le probleme n'est donc plus « produire de meilleurs props » mais « produire une
+  unite architecturale coherente ». Ajouter des primitives n'y repond pas.
+  TEST DISCRIMINANT, formule par Pierre — c'est lui qui rend R3 falsifiable :
+      « Si je cache temporairement la grille, cette portion ressemble-t-elle encore a un petit
+        morceau de base militaire ? »
+      OUI -> la cellule devient une unite de grammaire, on generalise.
+      NON -> corriger la COMPOSITION avant de produire davantage.
+  INVARIANT PRESERVE : la grille continue de gouverner collisions, gameplay, dimensions et
+  placement logique. La couche visuelle devient une composition PAR-DESSUS le squelette, jamais
+  a sa place.
+  STATUT : DOCUMENTED_ONLY. R1 et R2 restent des CONTRAINTES de P10, pas encore une doctrine
+  definitive — le second kit devait justement tester leur generalisation, et P10 est ce test.

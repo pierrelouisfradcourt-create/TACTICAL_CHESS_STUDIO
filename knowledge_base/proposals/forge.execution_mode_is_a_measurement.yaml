@@ -1,0 +1,39 @@
+schema: kb.proposal.v1
+status: PROPOSED
+proposal_id: forge.execution_mode_is_a_measurement
+origine: run Bomberman 3D — lot core.audio, 2026-08-10
+claim_verdict: NO_CLAIM_ALLOWED
+
+statement: >
+  Le MODE D'EXECUTION d'un volet d'oracle (headless / fenetre GPU) est une MESURE, jamais
+  une supposition sur la plateforme. Une directive de mode posee « parce qu'il est evident
+  que ca ne peut pas marcher autrement » coute un lancement a chaque run et peut etre
+  simplement fausse.
+
+cas_mesure: >
+  Le volet `core_audio` de Bomberman 3D a d'abord ete marque `forge:run_mode = gpu_window`,
+  au motif suppose qu'« un peripherique audio n'existe pas en headless ». Mesure, meme
+  volet, meme partie jouee :
+    fenetre GPU : 16 639 echantillons reellement synthetises, ok=true
+    --headless  : 16 383 echantillons reellement synthetises, ok=true
+  Le tampon d'AudioStreamGenerator accepte les trames sans peripherique. La directive etait
+  donc payante en temps et fausse en contenu ; elle a ete retiree apres mesure.
+
+nuance_importante: >
+  Le cas SYMETRIQUE est vrai et deja mesure dans ce depot : pour la CAPTURE VIDEO, headless
+  rend une texture NULLE et la directive gpu_window est indispensable (memoire
+  godot_capture_requires_gpu_window). Il ne faut donc pas conclure « le mode ne sert
+  jamais » mais « le mode se mesure par famille de preuve, une famille a la fois ».
+
+proposition:
+  - >-
+    Quand un volet porte `forge:run_mode = gpu_window`, exiger dans son en-tete la MESURE
+    qui le justifie (les deux modes, leurs sorties), au meme titre qu'un budget calibre
+    porte sa mesure.
+  - >-
+    Ne PAS automatiser : un capteur qui lancerait chaque volet dans les deux modes pour
+    verifier la justification doublerait le cout de tous les runs pour un gain rare.
+
+portee_honnete: >
+  Regle de redaction, aucun consommateur automatique, deposee en PROPOSED. Elle decrit une
+  discipline, pas une capacite de la Forge.

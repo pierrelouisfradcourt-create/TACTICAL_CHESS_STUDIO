@@ -1,0 +1,44 @@
+schema: kb.proposal.v1
+status: PROPOSED
+proposal_id: forge.pixel_oracle_signal_swamped
+origine: run Bomberman 3D — lane habillage, lisibilite de la grille, 2026-08-10
+claim_verdict: NO_CLAIM_ALLOWED
+
+statement: >
+  Une preuve PIXEL n'est valide que si le signal mesure domine le bruit de la scene. En 3D
+  eclairee, l'ombrage et les ombres portees peuvent depasser d'un ordre de grandeur la
+  difference d'albedo que l'oracle pretend mesurer. Un volet pixel qui reste VERT sur un
+  etat volontairement casse doit etre RETIRE, jamais reetalonne jusqu'a passer.
+
+cas_mesure:
+  propriete_visee: "deux cases de sol VOISINES se distinguent (damier), donc la grille se lit"
+  volet_ecrit: "07_TESTS/oracle/lisibilite_grille.gd"
+  falsification_1: >
+    Damier neutralise (sol_alt := sol). Attendu ROUGE. Obtenu VERT, ecart 0,745.
+    Cause : la rangee echantillonnee (y=6) contient des piliers indestructibles (x PAIR et
+    y PAIR) — l'oracle comparait SOL contre MUR. Faux positif franc, corrige en passant a
+    une rangee impaire.
+  falsification_2: >
+    Apres correction, meme protocole. Attendu ROUGE. Obtenu VERT, et SIGNAL INVERSE :
+    etat casse 0,196 · etat sain 0,084. Les ombres portees des piliers voisins dominent
+    l'albedo du damier.
+  decision: >
+    Volet RETIRE. La propriete reste prouvee par le test mecanique (ecart de luminance
+    declare dans la palette, verifie par theme, avec controle positif) — lequel, LUI, est
+    passe au ROUGE sur l'etat casse. La verification pixel est declaree NOT_MEASURED.
+
+pourquoi_ce_n_est_pas_un_affaiblissement: >
+  Retirer un capteur qui ne discrimine pas n'enleve aucune preuve : il n'en apportait
+  aucune. Le conserver en ajustant son seuil aurait fabrique un vert — c'est l'operation
+  exactement inverse.
+
+generalisation_prudente: >
+  Vaut pour toute preuve pixel d'une propriete de MATIERE (teinte, contraste, albedo) dans
+  une scene eclairee. Ne vaut PAS pour les preuves pixel de CHANGEMENT (deux etats qui
+  different, une region qui bouge) : celles-la comparent la meme scene sous le meme
+  eclairage, et le bruit d'ombrage s'annule. Les trois volets pixel conserves dans ce jeu
+  (core_render_frame, lisibilite_powerups) sont de la seconde famille — et ils ont ete
+  falsifies avec succes, eux.
+
+portee_honnete: >
+  Aucun consommateur automatique. Regle de conception d'oracle, deposee en PROPOSED.

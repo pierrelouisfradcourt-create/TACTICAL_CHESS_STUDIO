@@ -1,0 +1,62 @@
+schema: kb.proposal.v1
+status: PROPOSED
+proposal_id: forge.append_only_queue_measures_nothing
+origine: audit lecture seule de la file capability_gap, 2026-08-11 — REECRITE le meme jour apres falsification
+claim_verdict: NO_CLAIM_ALLOWED
+
+statement: >
+  Avant de declarer une boucle cassee parce qu'un champ d'artefact ne change jamais :
+  EXECUTER SON CONSOMMATEUR. Dans un journal append-only, le champ brut n'est pas l'etat du
+  systeme — l'etat peut etre CALCULE a la lecture, par jointure avec d'autres sources. Lire
+  le fichier et lire le systeme sont deux gestes differents, et seul le second dit la verite.
+
+erreur_commise: >
+  J'ai mesure `status` dans `lab/reports/forge_capability_gap_proposals.jsonl` : 235 / 235
+  valent `PROPOSED`, aucune transition. J'en ai conclu « file sans consommateur, boucle
+  cassee, statut terminal jamais pose ». C'etait FAUX.
+
+falsification: >
+  Execution de `node scripts/forge/pending_review.mjs` (read-only strict) sur les memes
+  donnees :
+    « forge_capability_gap_proposals — 235 item(s), 39 tranche(s), 196 en attente »
+  Le consommateur existe, tourne, et resout. Il DEDUPLIQUE aussi : `maze.description` y
+  apparait comme UNE ligne portant `occ: 9`, pas comme 9 sujets. Mes « 157 doublons » etaient
+  reels dans le fichier et deja neutralises dans l'outil.
+
+mecanisme_reel: >
+  La resolution n'est pas ecrite dans le journal, par conception. `pending_review.mjs`
+  calcule un `review_status` en joignant TROIS sources a la lecture : le journal de
+  propositions, `lab/reports/pending_review_decisions.jsonl`, et le registre
+  `scripts/forge/standard/capabilities.yaml`. Le journal reste immuable — c'est une archive
+  d'evenements, pas une table d'etat.
+
+deja_connu: >
+  Le defaut que je croyais decouvrir avait ete mesure et ferme le 2026-08-10, et il est
+  documente dans `scripts/forge/reconcile_registry.test.mjs` : 7 capacites Tetris etaient
+  presentes dans le registre alors que leurs 39 occurrences portaient encore PROPOSED, parce
+  que la ratification a DEUX points d'entree independants pour UN SEUL acte humain (ecrire au
+  registre / ecrire une decision). La cloture registre <-> proposition a ete ajoutee ce
+  jour-la. Les « 39 tranches » que je mesure aujourd'hui sont exactement ce correctif qui
+  fonctionne.
+
+ce_qui_reste_vrai: >
+  La mesure de population garde sa valeur : 234 entrees pour 77 identifiants distincts, dont
+  9 deja presents au registre. Citer « 232 propositions » comme mesure d'un MANQUE reste une
+  erreur de lecture — le manque est d'au plus 68 identifiants. Mais l'explication n'est pas
+  une boucle cassee : c'est qu'une archive d'evenements compte les OCCURRENCES, et que
+  l'outil qui la lit compte les SUJETS. Les deux chiffres sont justes, ils ne repondent pas a
+  la meme question.
+
+regle: >
+  Un artefact a deux lectures : brute et par son consommateur. Ne jamais tirer de conclusion
+  sur la sante d'une chaine depuis la lecture brute seule. Si un consommateur existe, il est
+  la mesure ; s'il n'en existe aucun, ALORS le defaut est reel — et c'est cette absence
+  qu'il faut prouver, pas l'immobilite d'un champ.
+
+lien:
+  - forge.proof_text_must_be_derived
+  - "validateur sans producteur (memoire studio)"
+
+perimetre_non_touche: >
+  Aucune ecriture : ni capabilities.yaml, ni les wiremaps, ni les statuts de la file, ni
+  scripts/forge/**. `pending_review.mjs` est read-only strict et n'a rien modifie.
