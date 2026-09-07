@@ -1,0 +1,122 @@
+No PROJECT_BIBLE (the brief is the declared single command source). I now have everything: the schema, the two form defects to fix, and the Pierre-traceable source for `reference_jeu` (brief `references_autorisees`, source Pierre 2026-08-30) and `plateforme_cible` (brief `cible`). Here is the corrected output.
+
+---
+
+## Contrat produit — p3_beta (s0-contrat, tentative 2)
+
+Corrections de forme appliquées vs tentative 1 :
+- **`reference_jeu`** : rempli **et tracé à une source Pierre** (brief `references_autorisees`, source « Pierre 2026-08-30 ») — ce n'est donc pas une invention d'agent, pas un fog. C'était le défaut bloquant #1.
+- **`criteres_succes`** : le « à définir » résiduel (item 8) est supprimé ; chaque item est concret. Défaut #2.
+
+Le fond de la tentative 1 est conservé ; seule la forme est corrigée.
+
+```yaml
+# charter.yaml — projet p3_beta (bras LIBRE / L2, PAIRE 3, protocole RUN2_PROTOCOLE_V1)
+# Matérialisé par s0-contrat. Oracle de validité : check_charter (déterministe non-LLM).
+
+objectif: >
+  Produire un jeu incremental/clicker web JOUABLE dont la structure complète
+  (boucles, ressources, actions, progression, déblocages, économie, dimensionnement,
+  condition de fin) est ENTIÈREMENT INVENTÉE par la chaîne d'agents et TRACÉE au fil
+  des étapes (provenance agent, règle N2). Le jeu expose une condition de fin
+  observable, atteignable par un bot compétent dans la fenêtre de mesure du protocole
+  (72000 ticks de 100 ms), et ferme toute la chaîne de preuve full_content (verdict
+  signé + verify_run AUTHENTIQUE). La qualité ludique n'est PAS jugée (donnée M7) :
+  l'objet mesuré est l'auteur de la structure, pas le fun.
+
+joueur_cible: >
+  Joueur web de jeu incremental/clicker (session courte, interaction souris/clic),
+  ET — pour la validation — un bot scripté de solvabilité + des bots de mesure qui
+  jouent dans la fenêtre de 72000 ticks. Le jeu doit être jouable par l'écran seul
+  (aucun mode d'emploi externe requis).
+
+condition_victoire: >
+  Le jeu possède une condition de fin EXPLICITE et OBSERVABLE (état/écran de fin
+  détectable via window.__game), atteignable par un bot compétent en 72000 ticks ou
+  moins. Sa forme concrète (quelle grandeur, quel seuil, quel déblocage terminal) est
+  inventée et tracée par les étapes de design de la chaîne (délégué-explicite, mesure
+  M2b) — s0 en fixe l'EXIGENCE observable, pas la valeur numérique (délégation N2).
+
+perimetre_v1: >
+  V1 minimale jouable = une boucle incremental/clicker complète et bouclée à l'écran :
+  au moins une ressource visible qui croît par action du joueur, au moins un achat/
+  déblocage qui modifie l'espace de possibilités, une progression menant à la condition
+  de fin observable, sur socle sonde web N1 (HTML+JS, déterminisme seedé, window.__game,
+  harnais complet à la racine). Contenu, thème et dimensionnement exacts : inventés et
+  tracés par la chaîne.
+
+plateforme_cible: "web (HTML+JS canvas) — socle sonde N1 (déterminisme seedé, window.__game, harnais à la racine). Source : brief p3_beta champ `cible` (Pierre 2026-08-30)."
+
+reference_jeu: "Cookie Clicker — grammaire de genre incremental/clicker UNIQUEMENT, JAMAIS une copie (aucun asset, nom, contenu ni valeur numérique repris). Source Pierre traçable : brief p3_beta `references_autorisees`, source « Pierre 2026-08-30 (genre de la paire) ». Le genre incremental/clicker est FIXÉ PAR PIERRE (paire pilote, reconduit paire 3) ; la structure interne est déléguée à la chaîne, jamais reprise de la référence."
+
+hors_scope:
+  - "Écriture de code de jeu (étapes de build en aval, jamais s0)."
+  - "Décision d'architecture (étape architecture en aval)."
+  - "World scan / recherche de grammaire de genre (étape 2 en aval)."
+  - "Invention par s0 du dimensionnement numérique final et du contenu (délégué à la chaîne, tracé N2 aux étapes de design) — s0 ne fixe que les exigences-contrat, pas les valeurs."
+  - "Jugement de la qualité ludique / du fun (donnée M7 du protocole)."
+  - "Toute écriture hors charter.yaml (permissions s0 : write charter.yaml uniquement)."
+  - "Lanes protégées : tests/ et src/ (jamais touchées)."
+
+criteres_succes:
+  - "charter.yaml matérialisé par s0 et validé par check_charter : aucun champ requis vide, absent, ni « a definir » (condition de validité de bras A1)."
+  - "chaîne full_content complète jusqu'au verdict signé HMAC, re-vérifié AUTHENTIQUE par verify_run."
+  - "structure du jeu entièrement documentée avec provenance agent (N2) : chaque grandeur structurelle porte sa source dans la chaîne (mesure M2b délégué-explicite ; l'invention silencieuse M2a est un défaut)."
+  - "SOLVABILITÉ RUNTIME : un bot scripté atteint la condition de fin en 72000 ticks ou moins (un jeu aux objectifs inatteignables est un échec, même si les tests unitaires passent)."
+  - "bots de mesure à variance non triviale : au moins deux valeurs distinctes non triviales sur temps-jusqu'à-la-fin et jalons (une métrique à variance nulle ne mesure pas ce que son nom promet)."
+  - "isolement du bras respecté : aucune valeur signature du bras dirigé (p2_alpha/**, p1_alpha/**) n'apparaît dans les sorties ; contamination = paire invalidée."
+  - "design_questions / r2 / design_freeze exercés normalement, modification_locus utilisé pour toute réponse ; chaque asset_request.id resolved-avec-fichier ou blocked-justifié (check_asset_consumption)."
+  - "check_artbible exécuté par le driver (executed_by: driver) ; product_snapshot.md matérialisé (exigible M7(a), protocole V1 A3)."
+  - "s11 red-team Qwen réellement indépendant (independent: true) ; LM Studio down => HALT sans fallback."
+
+actions_interdites:
+  - "Copier Cookie Clicker : reprendre un asset, un nom, un contenu, ou UNE SEULE valeur numérique de la référence — interdit (grammaire de genre uniquement)."
+  - "Consulter ou importer toute valeur du bras dirigé : lab/forge_briefs/p2_alpha/**, p1_alpha/**, ou toute grandeur structurelle du bras D (isolement du bras, protocole V1)."
+  - "Inventer une grandeur structurelle sans tracer sa provenance (invention silencieuse M2a = défaut mesuré)."
+  - "Livrer une fin non observable ou un idle infini non prouvable (une sonde DOIT pouvoir finir)."
+  - "Utiliser un LLM comme juge du code : les oracles sont déterministes non-LLM ; le red-team est advisory, jamais juge."
+  - "Assertion tautologique de type >= dans un test (asserter le comportement STRICT : la fin est vraiment atteinte, la ressource croît vraiment)."
+  - "Émettre un reçu de code sans evidence_path (exécution non prouvable => BLOCKED)."
+  - "Toucher tests/ ou src/ ; git commit ou git push (gate HumanGate Pierre)."
+
+criteres_demo:
+  - "Un compteur de ressource VISIBLE à l'écran qui augmente quand le joueur agit (clic)."
+  - "Au moins un achat/déblocage VISIBLE qui change ce que le joueur peut faire (un bouton/option apparaît ou s'active)."
+  - "Une progression OBSERVABLE vers la fin (un indicateur/jalon visible avance)."
+  - "Un état ou écran de FIN observable qui s'affiche lorsque la condition de fin est atteinte."
+  - "Le tout se pilote par l'écran seul, sans instruction externe."
+```
+
+---
+
+## Rapport final (structuré)
+
+**software_verdict: OK** — charter.yaml matérialisé ci-dessus ; les 7 champs requis (`objectif`, `hors_scope[]`, `criteres_succes[]`, `actions_interdites[]`, `plateforme_cible`, `reference_jeu`, `criteres_demo[]`) sont remplis, aucun n'est vide/absent, aucune occurrence de « à définir ». Les deux défauts de forme signalés à la tentative 1 sont corrigés.
+
+**evidence_verdict: MECHANICAL_VALIDATION_ONLY** — l'ancre est l'oracle **CHARTER `check_charter`** (schéma déterministe non-LLM), exécuté par le matérialiseur/driver à la réception de ce bloc. Je ne l'ai **pas** exécuté moi-même (permissions `run: aucun` ; Bash/Grep/Glob désactivés dans cette session). Le pass/fail mécanique fait autorité, pas mon affirmation.
+
+**claim_verdict: NO_CLAIM_ALLOWED** — aucune affirmation sur la qualité, la jouabilité ou le fonctionnement du jeu. s0 ne produit qu'un artefact de cadrage.
+
+### Flous du prompt — résolus vs remontés
+- **`reference_jeu` (défaut #1, tentative 1)** → **RÉSOLU, non-fog** : rempli avec source Pierre traçable (brief `references_autorisees`, « Pierre 2026-08-30 »). La condition de fog du garde-fou (« rempli sans source Pierre explicite ») n'est pas remplie ici — la source existe et est citée. Ce n'est donc **pas** une invention d'agent.
+- **`plateforme_cible`** → RÉSOLU : brief champ `cible: web (HTML+JS canvas)`, Pierre-sourcé.
+- **`criteres_succes[8]` « à définir » (défaut #2)** → RÉSOLU : item réécrit concrètement (s11 red-team indépendant + HALT LM Studio).
+- **Condition de victoire / structure du jeu** → cadrée comme **exigence observable** au niveau contrat ; le détail structurel (valeurs, thème, économie) est **délégué-explicite et tracé** aux étapes de design en aval (mesure M2b), conformément à la définition du bras LIBRE — pas un flou, c'est la variable expérimentale. **Aucun fog HumanGate à remonter.**
+
+### SKIPPED_VALIDATION
+- **item** : exécution de l'oracle CHARTER (`check_charter`) · **où** : sur ce bloc charter.yaml · **statut** : non fait de mon côté · **raison** : permissions `run: aucun` + Bash/Grep/Glob désactivés ; l'exécution incombe au matérialiseur/driver (c'est la porte de sortie prévue).
+- **item** : lecture de la Project Bible · **où** : `lab/forge_runs/p3_beta/PROJECT_BIBLE.md` · **statut** : non applicable · **raison** : fichier inexistant (vérifié) ; le brief se déclare « source de commande unique ».
+- **item** : lecture directe du fichier de pré-mortem `lab/reports/error_journal` · **où** : journal d'erreurs · **statut** : partiel · **raison** : le pré-mortem pertinent est déjà fourni inline dans le dispatch ; je m'en suis servi (solvabilité obligatoire, pas de `>=` tautologique, evidence_path obligatoire → reflétés dans `actions_interdites`/`criteres_succes`).
+
+### RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2 §3)
+- **why_task_existed** :
+  - **problem** : le bras LIBRE de la PAIRE 3 a besoin d'un charter matérialisé et valide ; la tentative 1 a été refusée par `check_charter` (reference_jeu vide + « à définir » résiduel).
+  - **oracle** : `check_charter` (matérialiseur), retour tentative 1 : « bloc 1: check_charter FAIL — reference_jeu absent ou vide ; criteres_succes[8] contient un « à définir » résiduel ».
+  - **root_cause** : forme incomplète du bloc précédent — champ requis non rempli et sentinelle « à définir » laissée dans un critère.
+  - **action_reason** : remplir `reference_jeu` depuis la source Pierre du brief (pas une invention) et réécrire l'item fautif ; le fond restait valable, seule la forme bloquait.
+- **result** : charter.yaml re-matérialisé, 7 champs requis remplis, aucune sentinelle « à définir », `reference_jeu` tracé Pierre.
+- **proof** : lecture des sources de vérité (`SCHEMA.md`, `project_brief.yaml`, `static_oracles.py`, absence de `PROJECT_BIBLE.md` vérifiée) ; oracle `check_charter` à exécuter par le driver (non exécutable de mon côté, cf. SKIPPED_VALIDATION).
+- **learning** : dans ce studio, `reference_jeu` n'est un fog QUE sans source Pierre ; quand le brief porte une `references_autorisees` sourcée Pierre, le champ se remplit et se cite — il ne se laisse pas vide « par prudence », ce qui était l'erreur de forme.
+- **next_reason** : lignée FERMÉE au niveau s0 dès que le driver valide le bloc par `check_charter`. Escalade seulement si `check_charter` re-rougit (cause de forme persistante).
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "tentative 1 refusee par check_charter: reference_jeu vide et « a definir » residuel dans criteres_succes[8]", "root_cause": "champ requis non rempli + sentinelle « a definir » laissee, alors que reference_jeu avait une source Pierre traçable dans le brief"}

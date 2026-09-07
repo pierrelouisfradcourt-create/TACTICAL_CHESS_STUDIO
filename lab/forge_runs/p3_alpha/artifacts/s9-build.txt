@@ -1,0 +1,35 @@
+Build complete and mechanically verified. Final report:
+
+## RAPPORT FINAL — s9-build p3_alpha
+
+**software_verdict: OK**
+**evidence_verdict: MECHANICAL_VALIDATION_ONLY**
+**claim_verdict: NO_CLAIM_ALLOWED**
+
+### Oracle exécuté
+`node run-oracle.mjs` (games/p3_alpha) → exit 0. Détail :
+- `node --test logic.test.mjs properties.test.mjs` (= la commande exacte `DEFAULT_TEST_ARGV` du gate mutation, `scripts/forge/driver.py`) → **19/19 pass**
+- `node e2e.mjs` (Playwright/Chromium réel via `server.mjs`) → **6/6 assertions PASS**
+- `node solvability.mjs` → bot atteint la victoire (1M R cumulés) au tick 41828/72000, déterminisme vérifié sur 1000 ticks → **PASS**
+- Gardes structurelles Forge (`static_oracles.check_e2e_harness`, `check_solvability_wired`) → **passed: True** les deux
+- `scripts/forge/reuse_ratio.mjs games/p3_alpha` → 7 fichiers de logique scannés, `reuse_ratio = 0.000` (mesure honnête, aucune brique knowledge_base réutilisée)
+
+### Ce que j'ai trouvé et corrigé (pas juste construit)
+Le build reçu (tentative précédente) passait déjà tous les oracles mais le jeu réel dans le navigateur était cassé — exactement le mode de panne que la doctrine du studio nomme *déclaré ≠ exécuté* :
+
+1. **Mécanique idle non-fonctionnelle en jeu réel** : `index.html` instanciait un `GameState`/`ProgressionState` séparés de ceux internes à `GameEngine`, câblés uniquement aux clics/à l'affichage — alors qu'`engine.tick()` (la production passive) mutait sa PROPRE copie interne, jamais observée. Acheter un générateur n'avait donc aucun effet visible. Corrigé : `index.html` utilise désormais `engine.state`/`engine.progression` directement.
+2. **`node run-oracle.mjs` no-opait silencieusement sous Windows** (exit 0, zéro sortie) — le check d'entrypoint `import.meta.url === file://${argv[1]}` ne matche jamais sur Windows. C'était le défaut le plus dangereux : un reçu d'oracle vert sans aucune vérification réelle.
+3. **`e2e.mjs` était une coquille** (nécessitait une injection manuelle dans une page, jamais câblée dans `run-oracle.mjs`, aucun navigateur réel lancé) — réécrit en Playwright/Chromium réel avec clics souris réels, câblé dans `run-oracle.mjs`.
+4. **Fuite de listener** : un listener `click {once:true}` était réenregistré à CHAQUE frame d'animation au lieu d'une fois — corrigé (test de régression e2e dédié).
+5. **Course au démarrage** : `hitRegions` restait vide jusqu'au premier `render()`, un joueur cliquant immédiatement au chargement voyait son premier clic avalé — corrigé par un rendu synchrone avant le lancement de la boucle.
+6. **`GameEngine.reset()` remplaçait `state`/`progression` par `new GameState()`** au lieu de muter en place, orphelinant les références tenues par `index.html` après tout "New Game" — corrigé.
+7. Renommage `.js`→`.mjs` des 7 fichiers de logique (convention studio requise par `reuse_ratio.mjs`/le gate mutation — `.js` n'était scanné par aucun des deux outils).
+8. `logic.test.mjs`/`properties.test.mjs` convertis vers l'API `node:test` (ils utilisaient un harnais maison jamais reconnu par `node --test`, la commande réelle du gate mutation).
+
+### SKIPPED_VALIDATION
+- **Gate mutation** (`forge.mutation.run_mutation_test`) : non exécuté — c'est l'étape aval s10a, pas s9-build. J'ai vérifié que l'invocation exacte du driver (`node --test logic.test.mjs properties.test.mjs`) passe proprement (19/19), condition nécessaire mais pas un résultat de mutation réel.
+- **Assets candy-pop** : 13/15 requêtes résolues vers des fichiers réels existants (`knowledge_base/assets/props/`), mais `render.mjs` reste procédural (cercles/rectangles) — les sprites résolus ne sont PAS dessinés. Le contrat exige "résolu (fichier réel) ou bloqué justifié", satisfait littéralement, mais c'est un écart déclaré↔rendu que je signale plutôt que de le laisser implicite.
+- Pas de test cross-browser (Chromium headless seul) ni de relecture visuelle humaine (aucun screenshot inspecté).
+- Victoire complète non rejouée en temps réel navigateur (≈70 min à TICK_MS=100) — prouvée via `solvability.mjs` (simulation directe), le pattern sanctionné pour ça.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le build reçu passait tous les oracles (logic/properties/solvability) alors que le mécanisme central du jeu — la production passive des générateurs achetés — était invisible en jeu réel, et l'oracle run-oracle.mjs lui-même n'exécutait rien sous Windows (exit 0 silencieux).", "root_cause": "GameEngine encapsulait ses propres instances GameState/ProgressionState au lieu de les exposer pour injection ; index.html en créait une seconde paire câblée aux clics/rendu, jamais observée par engine.tick(). Le check d'entrypoint run-oracle.mjs comparait des chemins file:// non normalisés, invalide sur Windows."}

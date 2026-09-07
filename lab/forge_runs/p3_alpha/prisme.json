@@ -1,0 +1,296 @@
+{
+ "game_id": "p3_alpha",
+ "exigences": [
+  {
+   "id": "ex_goal_seuil",
+   "source": "EXPECTED",
+   "source_role": "game-master",
+   "reference": "gm_worldscan:game_master.loops.quest_loop.qu_action",
+   "observation": "Le GM modelise quest_loop.qu_action : le joueur pousse le total cumule de R vers le prochain seuil de deblocage (S1-S4), les seuils etant les jalons de la partie.",
+   "claim": "Le joueur a donc besoin, a tout instant, d'un objectif explicite et unique affiche a l'ecran pour savoir vers quel palier il joue, sinon la progression est aveugle.",
+   "enonce": "Au demarrage et apres chaque deblocage, le HUD `objectif` affiche un texte non vide nommant le prochain palier de R a atteindre.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Au chargement, le HUD `objectif` contient un texte non vide ; capture d'ecran a t0 montre l'enonce du premier palier."
+   },
+   "destination": "s3-decompo",
+   "acteur": "PLAYER",
+   "loop_role": "PLAYER_GOAL",
+   "observe": {
+    "hud": "objectif",
+    "predicate": "nonempty"
+   }
+  },
+  {
+   "id": "ex_action_clic",
+   "source": "EXPECTED",
+   "source_role": "game-master",
+   "reference": "gm_worldscan:game_master.loops.core_loop.core_action",
+   "observation": "Le GM modelise core_loop.core_action : le joueur clique le noyau (affordance core_clicker) pour produire R immediatement, sans etat verrouille.",
+   "claim": "Le clic est donc la source de revenu manuel primaire et doit crediter un gain deterministe strictement non nul a chaque pression, jamais refuse.",
+   "enonce": "Le joueur peut cliquer la cible `noyau` ; a chaque clic le compteur `ressource` augmente d'exactement gain_clic (1 R au depart).",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot clique le noyau N fois ; le solde R croit d'exactement N x gain_clic (egalite stricte, pas >=)."
+   },
+   "destination": "s5-wiremap",
+   "acteur": "PLAYER",
+   "loop_role": "PLAYER_ACTION",
+   "affordance": "noyau",
+   "observe": {
+    "hud": "ressource",
+    "predicate": "increases"
+   }
+  },
+  {
+   "id": "ex_response_squish",
+   "source": "EXPECTED",
+   "source_role": "game-master",
+   "reference": "gm_worldscan:game_master.loops.core_loop.core_feedback",
+   "observation": "Le GM modelise core_loop.core_feedback : au clic, le noyau se deforme (squish) et un eclat jaillit, comme reaction systeme immediate.",
+   "claim": "Le feedback doit etre synchrone du clic dans la meme frame, sinon la gratification sensible qui porte la retention du genre disparait.",
+   "enonce": "Au clic sur `noyau`, le noyau se deforme et le compteur `ressource` change a l'ecran dans la meme frame que l'entree.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Deux captures consecutives (frame du clic / frame suivante) montrent la deformation du noyau ET un compteur `ressource` modifie."
+   },
+   "destination": "s5-wiremap",
+   "acteur": "SYSTEM",
+   "loop_role": "GAME_RESPONSE",
+   "observe": {
+    "hud": "ressource",
+    "predicate": "changes"
+   }
+  },
+  {
+   "id": "ex_reward_credit",
+   "source": "EXPECTED",
+   "source_role": "game-master",
+   "reference": "gm_worldscan:game_master.loops.core_loop.core_reward",
+   "observation": "Le GM modelise core_loop.core_reward : +gain_clic R sont credites et le compteur bouge des le clic.",
+   "claim": "La recompense doit etre un credit entier verifiable en comptabilite mR (1 R = 1000 mR), et non un simple effet visuel, pour que la production soit auditable.",
+   "enonce": "Apres un clic, le solde interne augmente d'exactement gain_clic R credites, refletes par le compteur `ressource` affiche (floor(mR/1000)).",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot lit le solde mR avant/apres un clic ; le delta vaut exactement gain_clic x 1000 mR."
+   },
+   "destination": "s9-build",
+   "acteur": "SYSTEM",
+   "loop_role": "REWARD",
+   "observe": {
+    "hud": "ressource",
+    "predicate": "increases"
+   }
+  },
+  {
+   "id": "ex_decision_arbitrage",
+   "source": "EXPECTED",
+   "source_role": "game-master",
+   "reference": "gm_worldscan:game_master.loops.economy_loop.ec_decision",
+   "observation": "Le GM modelise economy_loop.ec_decision (et core_decision) : le joueur arbitre entre cliquer encore (revenu manuel immediat) et depenser R en generateur (production durable).",
+   "claim": "Cet arbitrage n'a de valeur ludique que si les deux politiques mesurables produisent des trajectoires de R distinctes sur un horizon donne, sinon la decision est cosmetique.",
+   "enonce": "A un point de decision affiche, le joueur choisit entre cliquer le noyau et acheter un generateur ; deux politiques scriptees divergent sur la ressource R accumulee.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Sonde a deux trajectoires : politique 'idle' (aucun clic) vs 'clic_actif' (clic tous les 3 frames) sur 300 frames ; la ressource R accumulee differe entre les deux (variance non nulle)."
+   },
+   "destination": "s9-build",
+   "acteur": "PLAYER",
+   "loop_role": "DECISION",
+   "options": [
+    "ex_action_clic",
+    "ex_unlock_g2"
+   ],
+   "policies": [
+    {
+     "name": "idle",
+     "click": null,
+     "every_frames": 0
+    },
+    {
+     "name": "clic_actif",
+     "click": "noyau",
+     "every_frames": 3
+    }
+   ],
+   "metric": "ressource",
+   "horizon_frames": 300,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "changes"
+   }
+  },
+  {
+   "id": "ex_unlock_g2",
+   "source": "EXPECTED",
+   "source_role": "game-master",
+   "reference": "gm_worldscan:game_master.grey_blocks.gate_g2",
+   "observation": "Le GM modelise grey_blocks.gate_g2 : G2 est une silhouette verrouillee tant que le total cumule < 100 R, revelee en carte coloree au franchissement de S1, achetable via l'affordance d'achat.",
+   "claim": "Le franchissement d'un seuil doit rendre visible une NOUVELLE affordance d'achat (progression tangible), pas seulement modifier une valeur, pour que le deblocage se ressente.",
+   "enonce": "Le joueur peut acheter un generateur en cliquant la cible `acheter_generateur` ; au franchissement de 100 R cumules, la carte G2 apparait dans le groupe `generateurs`.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot accumule 100 R cumules ; avant, la carte G2 est absente/verrouillee, apres, une nouvelle carte achetable apparait dans le groupe `generateurs`."
+   },
+   "destination": "s5-wiremap",
+   "acteur": "PLAYER",
+   "loop_role": "UNLOCK",
+   "affordance": "acheter_generateur",
+   "observe": {
+    "hud": "generateurs",
+    "predicate": "changes",
+    "appears": "generateurs"
+   }
+  },
+  {
+   "id": "ex_nextgoal_s2",
+   "source": "EXPECTED",
+   "source_role": "game-master",
+   "reference": "gm_worldscan:game_master.grey_blocks.gate_g2",
+   "observation": "Le GM fixe grey_blocks.gate_g2.next_goal : apres avoir revele G2, l'objectif suivant devient 'Atteindre 1 000 R cumules (S2) pour reveler G3'.",
+   "claim": "Apres chaque deblocage, l'objectif affiche doit changer TEXTUELLEMENT pour un nouveau palier, sinon le joueur ne percoit pas de nouvelle direction.",
+   "enonce": "Une fois G2 revele, le HUD `objectif` affiche un texte distinct pointant vers 1 000 R (S2, revelation de G3).",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Capture avant/apres S1 : le texte du HUD `objectif` passe a un enonce nouveau et textuellement different (nouveau palier 1 000 R)."
+   },
+   "destination": "s3-decompo",
+   "acteur": "PLAYER",
+   "loop_role": "NEXT_GOAL",
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   }
+  },
+  {
+   "id": "ex_nextgoal_s3",
+   "source": "EXPECTED",
+   "source_role": "game-master",
+   "reference": "gm_worldscan:game_master.grey_blocks.gate_g3",
+   "observation": "Le GM fixe grey_blocks.gate_g3.next_goal : apres avoir revele G3, l'objectif suivant devient 'Atteindre 12 000 R cumules (S3) pour reveler G4'.",
+   "claim": "Le second objectif affiche doit lui aussi differer textuellement du precedent sur le meme HUD, prouvant une chaine d'objectifs et non un compteur unique qui change de nombre.",
+   "enonce": "Une fois G3 revele, le HUD `objectif` affiche un texte encore distinct pointant vers 12 000 R (S3, revelation de G4).",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Capture apres S2 : le texte du HUD `objectif` differe textuellement de l'objectif S2 comme de l'objectif S1 (troisieme enonce distinct)."
+   },
+   "destination": "s3-decompo",
+   "acteur": "PLAYER",
+   "loop_role": "NEXT_GOAL",
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   }
+  },
+  {
+   "id": "ex_repeat_newstate",
+   "source": "EXPECTED",
+   "source_role": "game-master",
+   "reference": "gm_worldscan:game_master.loops.progression_loop.pr_action",
+   "observation": "Le GM modelise progression_loop.pr_action : apres un deblocage, le joueur relance la meme sequence achat->production->franchissement dans un etat enrichi.",
+   "claim": "La boucle ne 'recommence' reellement que si les memes actions (clic, credit, deblocage) restent jouables et efficaces dans le nouvel etat, pas seulement par convention narrative.",
+   "enonce": "Apres la revelation de G2, le joueur rejoue la boucle : cliquer le noyau, encaisser le credit, franchir le seuil suivant produit un nouveau deblocage.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Dans l'etat post-S1, rejouer ex_action_clic, ex_reward_credit puis pousser jusqu'a S2 declenche a nouveau une revelation (G3) : la boucle B->F est reproductible."
+   },
+   "destination": "s9-build",
+   "acteur": "PLAYER",
+   "loop_role": "REPEAT",
+   "replay": [
+    "ex_action_clic",
+    "ex_reward_credit",
+    "ex_unlock_g2"
+   ],
+   "observe": {
+    "hud": "ressource",
+    "predicate": "increases"
+   }
+  },
+  {
+   "id": "ex_meta_replay",
+   "source": "EXPECTED",
+   "source_role": "game-master",
+   "reference": "gm_worldscan:game_master.loops.meta_loop.mt_action",
+   "observation": "Le GM modelise meta_loop : une partie complete se joue jusqu'a S5 puis 'unlocks core_loop' via relance d'une partie neuve (nouvelle graine, mt_decision).",
+   "claim": "Le meta-tour de ce jeu one-shot est une RELANCE-A-ZERO, sans report d'avantage : le seul marqueur observable est la remise a zero visible de la ressource, pas un bonus conserve.",
+   "enonce": "Le joueur peut relancer une partie via la cible `nouvelle_partie` ; le compteur `ressource` retombe alors visiblement a 0.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Apres victoire, un clic sur `nouvelle_partie` remet le solde R a 0 (compteur affiche 0) ; aucun gain_clic ni multiplicateur n'est superieur a la valeur initiale."
+   },
+   "destination": "s9-build",
+   "acteur": "PLAYER",
+   "loop_role": "META_LOOP",
+   "affordance": "nouvelle_partie",
+   "observe": {
+    "hud": "ressource",
+    "predicate": "resets"
+   }
+  },
+  {
+   "id": "ex_refus_observable",
+   "source": "EXPECTED",
+   "source_role": "game-master",
+   "reference": "gm_worldscan:game_master.grey_blocks.gate_g2",
+   "observation": "Le GM fixe dans builder_contract des grey_blocks (gate_g2 et suivants) : une carte est grisee si R insuffisant, le refus est observable et l'etat reste inchange.",
+   "claim": "Un achat impossible doit se LIRE (grisage) et ne rien depenser, sinon le joueur ne distingue pas 'pas encore' de 'cliquable' et l'economie devient illisible.",
+   "enonce": "Une carte dont le cout depasse le solde est affichee grisee ; un clic dessus laisse le solde et l'etat inchanges (aucune ressource depensee).",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Avec un solde inferieur au cout, la carte est grisee ; apres un clic, le solde R est identique au pixel-pres du compteur et l'etat de la carte est inchange."
+   },
+   "destination": "s5-wiremap",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE"
+  },
+  {
+   "id": "ex_no_fail_state",
+   "source": "EXPECTED",
+   "source_role": "story-bible",
+   "reference": "story_bible:coherence_rules",
+   "observation": "La story_bible (coherence_rules) ancre sur le charter : aucun etat d'echec ni game over, seule une fin de victoire S5 est observable.",
+   "claim": "L'absence de defaite doit etre une propriete verifiable du systeme (aucun chemin de code ne pose de defaite), pas une simple intention de design.",
+   "enonce": "Le jeu ne possede aucun etat de defaite : aucune condition, aucun compteur ne peut declencher un game over.",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "Un oracle statique verifie qu'aucun etat/flag de defaite ni ecran de game over n'est atteignable dans le code du build."
+   },
+   "destination": "s9-build",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE"
+  },
+  {
+   "id": "ex_victory_state",
+   "source": "EXPECTED",
+   "source_role": "game-master",
+   "reference": "gm_worldscan:game_master.grey_blocks.victory_state",
+   "observation": "Le GM modelise grey_blocks.victory_state : cache jusqu'a S5, un panneau de celebration terminal apparait au franchissement de 1 000 000 R cumules, sans reset.",
+   "claim": "La seule fin du jeu etant la victoire S5, elle doit etre atteignable par un joueur/bot (solvabilite) et se materialiser par un panneau distinct, sinon l'objectif est injouable.",
+   "enonce": "Quand le total cumule atteint 1 000 000 R, un panneau de victoire s'affiche a la place du seul compteur ; c'est l'unique fin observable.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot scripte atteint 1 000 000 R cumules en <= 72 000 ticks ; le panneau de victoire devient present a ce franchissement (solvabilite prouvee)."
+   },
+   "destination": "s9-build",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE"
+  },
+  {
+   "id": "ex_taux_display",
+   "source": "ADDITIONS",
+   "source_role": "prisme-produit",
+   "reference": null,
+   "observation": "Le GM impose une production automatique par tick (gameplay_g1_prod = 0,1 R/s) mais ne contractualise pas d'indicateur de taux dedie a l'ecran.",
+   "claim": "Sans un indicateur de taux R/s visible, le joueur percoit mal le passage revenu-manuel -> revenu-passif, qui est le premier palier de puissance ressenti du genre.",
+   "enonce": "Un indicateur de taux affiche les R/s courants ; il vaut 0 tant qu'aucun generateur n'est possede, puis devient non nul et augmente a chaque achat de generateur.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Avant tout achat, l'indicateur de taux affiche 0 ; apres l'achat de G1, il affiche une valeur non nulle qui croit a chaque generateur ajoute."
+   },
+   "destination": "s4-archi",
+   "acteur": "SYSTEM",
+   "loop_role": "NONE"
+  }
+ ]
+}

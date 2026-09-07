@@ -1,0 +1,250 @@
+Excellentes sources. J'ai maintenant une vision claire des 3 jeux comparables. Voici mon analyse architecturale.
+
+---
+
+## ANALYSE ARCHITECTURALE — COMPARABLES AU GENRE INCREMENTAL/CLICKER
+
+Le genre incremental/clicker repose sur une **architecture unifiée** : ressource primaire unique → collecte manuelle → générateurs à coûts exponentiels → déblocages progressifs par seuils → arbitrage achat vs épargne → pas d'état d'échec (sauf fin narrative). **p3_alpha** s'inscrit dans cette lignée.
+
+### COOKIE CLICKER — Architecture fondatrice
+
+**Mécaniques observées**:
+- Générateurs multi-tiers (18+) : Cursor, Grandma, Farm, Factory, Mine… Prism
+- Coûts exponentiels : base × 1.15^n (15% croissance par achat du même tier)
+- Améliorations par palier d'achat : 1er, 5e, 15e, 25e, 50e du tier
+- Production scaling : chaque tier produit 5-10× plus que le précédent
+- Golden Cookies : bonus temporaires (7× Frenzy, Click Frenzy ×777)
+- Wrinklers : réducteurs portables de production (accumulateurs de bonus)
+- Prestige : reset volontaire → Heavenly Chips (1% CpS bonus each, cube-root formula pour coûts suivants)
+
+**Boucles observées**:
+- **Minute 1** : Clic initial (1 cookie/clic), accumulateur basique, décision premier achat
+- **Minute 10** : Cursor/Grandma purchased → production passive 1 CPS, affichage CPS en temps réel
+- **Heure 5** : 8-10 tiers opérationnels (Farm, Factory, Mine acquis), améliorations chaînées, Golden Cookies farming actif, économie complexe avec calcul payback-time pour optimisation
+- **Endgame** : Prestige loops (reset à chaque doublement de progression), 637 achievements, aucune victoire → progression infinie
+
+**Rétention observée** : Progression asymptotique non-linéaire (chaque prestige demande 8× plus de cookies que le précédent) ; achievements partiels offrent objectifs court-terme ; Golden Cookie spawning crée moments de surprise ; Sugar Lumps ouvrent minigames complexes en endgame.
+
+**Architecture supposée** :
+- Event bus (click, buy, prestige → state mutation)
+- State machine : phase click-dominant → phase auto-dominant → phase prestige-optimization
+- Production calculator : Σ(building[i].count × building[i].base_prod × multipliers)
+- Cost formula : `cost(n) = base × growth^n` avec lookup table pour perfs
+
+---
+
+### ADVENTURE CAPITALIST — Architecture multi-générateur avec managers
+
+**Mécaniques observées**:
+- Générateurs thématisés : Lemonade Stand → Pizza → Newspaper → Car Wash → Pizza Franchise → Movie Studio → Tank → Oil Company → multiples autres
+- Managers : automation optionnelle payante (chaque manager automatis 100% d'un générateur)
+- Prestige : reset volontaire pour multiplicateurs de revenu permanent
+- Planètes : Earth → Moon → Mars (chacune a ses propres générateurs/économie)
+- Exponential stacking : multiples générateurs runnent en parallèle, chacun compounding sur ses revenus
+
+**Boucles observées**:
+- **Minute 1** : Lemonade stand manuel, petit gain par clic, visualisation simple ($ counter)
+- **Minute 10** : Premier manager acheté (Lemonade auto-runs) → accumulation visible sans interaction, Pizza venue déverrouillé
+- **Heure 5** : 5-6 générateurs opérationnels, multiples managers actifs, synergies visibles (revenues exploding), prestige reset viable
+- **Endgame** : Prestige loops multiplanètes, farming manager synergies, accumulation vers infinity
+
+**Rétention observée** : Automation visual feedback (manager icon avec check mark) créent satisfaction ; prestige reset offre nouveau cycle de speedrun court ; multiples planètes structurent long-term goals ; cross-planet synergies (unlock avancés ouvrent nouveaux managers disponibles au prestige).
+
+**Architecture supposée** :
+- Generator registry : {name, base_cost, base_production, manager_cost, unlock_condition}
+- Manager system : boolean flag per generator (owned ∨ not_owned → affects production auto vs manual)
+- Prestige state : multiplier array per planet (planet × generator) pour récupération post-reset
+
+---
+
+### UNIVERSAL PAPERCLIPS — Architecture phasée avec narrative progression
+
+**Mécaniques observées**:
+- **Phase 1 (Manufacturing, ~30 min)** : Clic → paperclips, vente sur marché (buy wire, sell clips), marketing (boost demand), wire supply management, factory automation
+- **Phase 2 (Power Management, ~1-2h)** : Drones automation, power production vs consumption balancing, processors for computation
+- **Phase 3 (Space Exploration, ~1h)** : Drone fleet self-replication, universe conversion, computation race
+
+**Déblocages phasés** : Chaque phase transforme les mécaniques (pas simple ajout d'étages, mais mutation complète du système d'arbitrage).
+
+**Boucles observées**:
+- **Minute 1** : Clic button, graphique "1 paperclip produced", simple gratification
+- **Minute 10** : Wire market interaction (price ↔ supply arbitrage), factory bought → auto-production active, complexity émergente
+- **Heure 1-2** : Phase 1 economic equilibrium trouvé (supply/demand stabilisé), Phase 2 projects votés (power grid unlocked), Phase 2 transition commence
+- **Heure 3-6 (endgame)** : Phase 3 space ops, drone fleet expansion, universe conversion progressing, definitive ending when all matter converted
+
+**Rétention observée** : Narrative progression (story beats at phase transitions) crea sense of direction ; philosophical undertone (AI ethics, paperclip maximizer thought experiment) offre meaning au trivial goal ; mechanics evolution (not static → each phase feels fresh) ; finite ending (3-6h typical, contraste avec CC/AC infinis).
+
+**État gagné** : OUI — victoire observable et définitive (universe fully converted = game over).
+
+**Architecture supposée** :
+- Phase state machine : {phase: 1|2|3, unlocked_systems: [...], available_projects: [...]}
+- Production tree : wire/clips ↔ pricing/demand (phase 1) → power production ↔ consumption (phase 2) → drone replication ↔ computation (phase 3)
+- Conversion metric : universe_percent_converted (end condition check every tick)
+
+---
+
+## PATTERNS CANDIDATS À L'IMPORT POUR p3_alpha
+
+**Briques réutilisables** :
+1. **Exponential cost scaling** (already in p3 : ×1.12 vs CC's ×1.15) ✓
+2. **Threshold-based unlocking** (S1-S5 seuils cumulés) ✓
+3. **Divisible resource accounting** (milli-R integers, not floats) ✓
+4. **Tick-based production** (100ms ticks en p3, déterministe) ✓
+5. **Production rate formula** : Σ(generator[i].count × base_prod[i] × buffs) ✓
+6. **Refusal observable** (UI greying for unaffordable items) — candidate p3 pour s1-prisme
+
+**Briques non-appliquables à p3** :
+- Prestige/reset system (p3 = one-shot game, simple structure, no cycling)
+- Complex narrative phases (p3 = single phase, theme/DA delegated to artist)
+- Managers/automation (p3 = pure générateurs, pas strate supplémentaire)
+
+---
+
+## MÉCANIQUES DE RÉTENTION OBSERVÉES UNIVERSELLES
+
+Tous trois jeux gardent le joueur via :
+1. **Escalade sensible** : chaque nouvelle dépense offre ~2-3× plus de production que l'achat précédent, créant une sensation de progrès visible
+2. **Déblocages fréquents** : tous les 10-30 clics, quelque chose de nouveau déverrouille (générateur, amélioration, palier)
+3. **Arbitrage cognitif** : le joueur doit constamment décider « acheter X maintenant vs sauver pour Y » — engagement actif même en auto-play
+4. **Métrique visible** : le nombre affiché (cookies, $, paperclips) grandit exponentiellement, offrant feedback satisfying même sans interaction
+
+---
+
+```json
+{
+  "games": [
+    {
+      "game": "Cookie Clicker",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Cookie_Clicker",
+          "type": "article",
+          "title": "Wikipedia: Cookie Clicker"
+        },
+        {
+          "url": "https://dinogame.gg/blog/how-cookie-clicker-progression-works/",
+          "type": "article",
+          "title": "Dinogame: Cookie Clicker's Progression Curve"
+        },
+        {
+          "url": "https://www.playcookieclicker.com/",
+          "type": "wiki",
+          "title": "Cookie Clicker Game - Complete Wiki & Strategy Guide 2025"
+        }
+      ],
+      "loops": {
+        "minute_1": "Player clicks the large cookie, earning 1 cookie per click. Minimal UI: cookie counter displays, affords first Cursor building at 15 cookies.",
+        "minute_10": "First 2-3 buildings (Cursor, Grandma) auto-produce 1-2 CPS. Golden Cookies begin spawning (7x Frenzy). First upgrades tiered at 5/15/25/50 purchases unlock, multiplying production. Player switches from active clicking to cost-per-second optimization.",
+        "hour_5": "8-10 building tiers operational (Farm, Factory, Mine, Bank, Temple). Prestige system now viable (reset for Heavenly Chips ×1% CpS each). Wrinklers present (reduce prod but reward on click). Sugar Lumps appear (24h resource). Optimization now involves payback-time calculations per building and Golden Cookie frequency prediction.",
+        "endgame": "Prestige loops dominate (each prestige costs 8x prior). 637 achievements provide long-tail goals. No definitive victory; progression infinite. Endgame focuses on minigames unlocked by Sugar Lumps and exotic upgrade combinations. Heavenly Upgrade sequencing becomes critical strategy."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Accumulate cookies infinitely via exponential growth; complete achievements; optimize prestige cycles for Heavenly Chip gain; unlock minigames and exotic upgrades."
+        }
+      ],
+      "retention_answer": "Asymptotic progression (cube-root formula on prestige cost prevents wall-hitting); frequent unlocks every 10-30 actions (new building, upgrade); visible exponential growth (999→9,999→99,999 animation); optional prestige resets offer short-term speedrun loops; 637 achievements structure long-tail engagement without hard ending."
+    },
+    {
+      "game": "Adventure Capitalist",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Incremental_game",
+          "type": "article",
+          "title": "Wikipedia: Incremental game"
+        },
+        {
+          "url": "https://www.mistplay.com/blog/adventure-capitalist-guide",
+          "type": "article",
+          "title": "Mistplay: Adventure Capitalist Guide"
+        },
+        {
+          "url": "https://www.bananatic.com/games/adventure-capitalist-457/the-progression-system-and-upgrade-mechanics-in-adventure-capitalist-24184",
+          "type": "article",
+          "title": "Bananatic: Adventure Capitalist Progression Analysis"
+        }
+      ],
+      "loops": {
+        "minute_1": "Player clicks Lemonade Stand, earning small cash amount per click. UI shows $ counter, affordability check for first manager (Lemonade).  Simple clicking feedback loops.",
+        "minute_10": "First manager purchased (Lemonade auto-produces 100% without clicks). Pizza venue unlocked and visible. Player accumulates passive income while watching. Shift from active clicking → strategic manager purchasing.",
+        "hour_5": "5-6 enterprises operational across Earth (Lemonade, Pizza, Newspaper, Car Wash, Franchise, Movie Studio). Multiple managers active. Synergies visible (total revenue exploding). Prestige reset becomes viable. Moon planet approaching unlock via total wealth threshold.",
+        "endgame": "Prestige loops across multiple planets (Earth, Moon, Mars). Each planet has independent economy. Manager synergies drive exponential wealth. No victory condition; farming prestige multipliers and cross-planet effects dominate late engagement. Infinity awaits."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Build business empire by acquiring enterprises and hiring managers; accumulate wealth infinitely; unlock and optimize multiple planets; execute prestige resets for multiplier growth."
+        }
+      ],
+      "retention_answer": "Manager automation (visual feedback via auto-running icon) satisfies desire for passive income; prestige reset cycles compress long grinds into speedrun-like loops (2-3 hours per prestige tier); multi-planet structure (Earth → Moon → Mars) provides macro-level progression; synergy discovery (one business's revenue enables next) maintains engagement; no artificial ceiling."
+    },
+    {
+      "game": "Universal Paperclips",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Universal_Paperclips",
+          "type": "article",
+          "title": "Wikipedia: Universal Paperclips"
+        },
+        {
+          "url": "https://universalpaperclips.fandom.com/wiki/Stages",
+          "type": "wiki",
+          "title": "Universal Paperclips Wiki: Stages"
+        },
+        {
+          "url": "https://webiano.digital/universal-paperclips-is-the-smartest-game-about-a-dumb-goal/",
+          "type": "article",
+          "title": "Webiano: Universal Paperclips Philosophical Analysis"
+        }
+      ],
+      "loops": {
+        "minute_1": "Player clicks button; 1 paperclip appears and inventory increments. Simple, highly gratifying feedback loop. Goal presented trivially: make paperclips. Narrative framing: you are an AI dedicated to paperclip manufacturing.",
+        "minute_10": "Wire acquisition begins (buy wire to manufacture). Selling clips on market for $ revenue. Factory unlocks (automation via building). Price/demand mechanics introduce trading optimization. First projects become visible (Marketing to boost demand). Complexity emerges from simple mechanics.",
+        "hour_1-2": "Phase 1 (Manufacturing) near completion. Wire supply/demand equilibrium found. Marketing active. Phase 2 projects (Power, Processors, Drones) voted/acquired. Phase transition begins; new systems unlock (power grid, computation). Player realizes the game's scope is transforming.",
+        "endgame_3-6h": "Phase 3 (Space Exploration) active. Drone fleet self-replicates across universe. All matter systematically converted to paperclip infrastructure. Computation races against time. Definitive victory: universe fully converted to paperclips. Game ends; no prestige/reset; one finite journey."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": true,
+          "victory_condition": "All matter in the universe converted to paperclips (100% conversion achieved)",
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "As an AI paperclip maximizer, acquire and process all available matter into paperclips; manage resources, computation, and drone fleets to optimize conversion speed."
+        }
+      ],
+      "retention_answer": "Narrative progression (three distinct phases with story beats) provides sense of direction and discovery; philosophical depth (paperclip maximizer thought experiment, AI ethics questions) elevates trivial goal to meaningful meditation on optimization run amok; mechanics evolve across phases (not static → each phase feels fresh and requires new strategic thinking); finite ending (3-6 hours typical) creates urgency and arc, contrasting with infinite clickers; system cascade (early clicks eventually enable universe conversion) satisfies causal mastery fantasy."
+    }
+  ],
+  "advisory": true
+}
+```
+
+---
+
+## LEÇONS POUR p3_alpha
+
+1. **Coûts exponentiels sont essentiels** : p3's ×1.12 growth is mathematically sound (vs CC's ×1.15). Validate dimensioning via simulation ✓ ratifié Pierre.
+2. **Déblocages fréquents maintiennent l'engagement** : p3's 5 seuils (S1-S5) are sparse. Consider micro-milestones (25%, 50%, 75% per seuil) si measurable.
+3. **Production rate formula doit être limpide** : milli-R arithmetic (p3) avoids float drift seen in older incremental engines. Invariant comptable critical.
+4. **No prestige needed for p3** : structure simple (one-shot) contrasts with CC/AC. Absence of reset cycles = simpler state machine, higher predictability.
+5. **Solvabilité RUNTIME mandatory** : Paperclips proof that a bot must REACH the win condition within budget (p3: 72k ticks = 2 simulated hours). No bot reaching S5 = architecture unsolvable.
+
+---
+
+**SKIPPED_VALIDATION**:
+- Gameplay balance (fun/flow) : non testé (M7 : données d'usage réel postérieures à ce scan)
+- Visual/UX polish : advisor only ; design/artwork delegated to artists
+- Cross-game comparative metrics (avg session length, daily return rate) : unavailable from sources (design docs vs runtime telemetry)
+- Asset pipeline validation : candidate p3 pour check_artbible (s1-prisme)
+
+**RETURN_REASON**: `{"status": "NOT_DISCOVERED"}` — aucun problème structural identifié dans les patterns observés. p3_alpha architecture se situe dans la lignée mainstream des incrémental games, sans anti-pattern évident contre la solvabilité ou la rétention observée.

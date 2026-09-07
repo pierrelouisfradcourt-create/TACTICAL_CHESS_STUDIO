@@ -1,0 +1,83 @@
+objectif: |
+  Micro-sonde jouable — un prototype web immédiatement accessible au navigateur.
+
+  Périmètre: 1 pièce contenant 3 endroits distincts et 3 personnages.
+
+  Jouabilité: interaction au navigateur par souris/clavier, par un HUMAIN (pas seulement par bot).
+  État intéressant atteignable en < 5 minutes sans tutoriel, sans économie, sans compteur affiché.
+
+  Juge final: Pierre en playtest court après s12 — les oracles ne prouvent que « ça tourne ».
+
+game_concept:
+  title: Three Rooms
+  setting: Une pièce avec trois endroits distincts
+  locations:
+    - name: Door
+      description: Une porte encastrée dans le mur
+      behavior: Clic active tous les personnages (décale état)
+    - name: Window
+      description: Une fenêtre sur le monde extérieur
+      behavior: Clic affecte Alice et Bob différemment
+    - name: Mirror
+      description: Un miroir posé dans la pièce
+      behavior: Clic affecte Bob et Charlie
+
+  characters:
+    - name: Alice
+      role: Première personnage interactive
+      state_mechanic: 3 états (neutral, happy, surprised) — visibles par couleur + mimique
+    - name: Bob
+      role: Deuxième personnage
+      state_mechanic: 3 états — affecté par Door, Window, Mirror différemment
+    - name: Charlie
+      role: Troisième personnage
+      state_mechanic: 3 états — affecté par Door et Mirror
+
+win_condition: |
+  Tous les 3 personnages atteignent le même état.
+  Perceptible VISUELLEMENT SANS COMPTEUR (couleur + mimique + overlay « ✓ ALL IN SYNC »).
+
+gameplay_loop:
+  1. Joueur voit pièce avec 3 personnages (états initiaux visibles)
+  2. Joueur clique personnage ou endroit
+  3. État du jeu change perceptiblement (couleur, mimique, disposition)
+  4. Nouvelles possibilités d'interaction apparaissent
+  5. Joueur converge vers état gagné (tous mêmes état) en < 5 min
+
+interaction_mechanics:
+  character_click: Cycle cet personnage dans ses 3 états (local)
+  door_click: Incrémente tous les personnages (global synchrone)
+  window_click: Incrémente Alice ×1, Bob ×2 (partiel)
+  mirror_click: Incrémente Bob ×1, Charlie ×1 (partiel)
+
+technical_constraints:
+  platform: HTML5 + JavaScript (web standard, pas Godot ni moteur)
+  determinism: Seedable random pour reproductibilité
+  api: window.__game exposé pour oracles/bots
+  tests_required:
+    - logic.test.mjs — mécanique correcte
+    - properties.test.mjs — invariants logiques
+    - solvability.mjs — un bot peut gagner (BFS proof)
+    - e2e.mjs — navigateur réel, clics fonctionnels, visuels apparents
+    - mutation_triage.json — tous mutants tués ou justifiés
+  oracle_chain: logic → properties → solvability → e2e → s11 red-team
+
+hors_scope:
+  - Toute économie (argent, ressources, inventaire)
+  - Tout compteur affiché (score, temps, énergie)
+  - Tutoriel ou texte d'apprentissage
+  - Référence externe (copie d'une œuvre existante)
+  - Pair L/D ou mesure expérimentale M1–M7
+  - Plateforme autre que web
+  - git commit ou push (gate Pierre)
+
+success_criteria:
+  rendering: "À l'ouverture : 1 pièce, 3 endroits, 3 personnages visibles et interactifs"
+  interaction: "Clic sur personnage → changement d'état visible; clic sur endroit → changement visible"
+  state_feedback: "État courant affiché sans compteur (texte « State: alice:0 bob:1 charlie:0 »)"
+  win_feedback: "Tous mêmes état → overlay « ✓ ALL IN SYNC » + perceptible visuellement"
+  solvability: "Un bot BFS trouve une victoire en < 20 actions pour tous les seeds testés"
+  e2e: "12 tests de navigateur réel, tous verts (rendering, interaction, state change, win)"
+  completeness: "run-oracle.mjs exécute logic + properties + solvability + e2e, exit 0 iff tous passent"
+  determinism: "Même seed → même séquence d'actions → même état final"
+  playability: "Un humain peut jouer et atteindre victoire en < 5 minutes sans tutoriel"

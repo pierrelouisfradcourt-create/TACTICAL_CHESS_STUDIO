@@ -1,0 +1,323 @@
+J'ai lu les ancres imposées (`repo_map.yaml`, `SCHEMA.md`, charter, blueprint, featuremap), les DEUX oracles (`check_wiremap_contract.mjs` avant build, `static_oracles.check_wiremap` après build, + `collectLeaves` d'`upstream_schema.mjs`), et le code réellement présent sous `games/p1_beta_E1`.
+
+---
+
+# RAPPORT FINAL — s5-wiremap / p1_beta_E1-20260831-run1
+
+## 1. Ce sur quoi la carte est construite (ancres réelles)
+
+| Ancre | Fait mesuré par lecture |
+|---|---|
+| `featuremap.json` | **20 feuilles** (`collectLeaves` = `systemes[].features[].capacites[]`), sur 5 systèmes / 10 features. Ce sont les ids que `couvre[]` doit citer. |
+| `blueprint.json` | 13 modules, `ownership` + `responsabilites` + `deps_interdites`. C'est LUI qui décide l'ownership, pas moi. |
+| `loop.json` | 11 steps R1→R10, 3 affordances (`hearth`, `buy_button`, `ascension_altar`). |
+| `games/p1_beta_E1/` | Code **déjà présent** (index.html, engine.mjs, render.mjs, input.mjs, main.mjs). `economy.mjs` et `objective.mjs` : **ABSENTS** (lecture directe : `File does not exist`). |
+| `check_wiremap` (`static_oracles.py:294`) | Accepte v1 `features[]`. Détecte les **méthodes de classe** (`_TS_METHOD`, l.57) — donc `stoke`, `ascend`, `_checkTerminal` sont des `fonction` valides. `_PREUVE_GD` (l.291) ne contraint que les `.gd` : aucun risque de « preuve cite un fichier absent » sur une cible web. |
+| `check_wiremap_contract.mjs` | `couvre[]` **non vide** obligatoire sur CHAQUE ligne, chaque id doit résoudre une feuille, chaque feuille doit être portée par ≥1 ligne. |
+
+## 2. La carte livrée — isomorphisme au blueprint
+
+**22 lignes**, chacune rattachée à UN module du blueprint (`section` = module = fichier, la cible web étant plate par décision s4) :
+
+| Section (module blueprint) | Lignes | Fonctions citées |
+|---|---|---|
+| `engine` (règles/état) | 5 | `stoke`, `step`, `applyEmitters`, `ascend`, `_checkTerminal` |
+| `render` (seul écrivain DOM) | 12 | `renderProgressGauge`, `renderStokeFlash`, `renderHearth`, `renderBuyButton`, `renderEmitters`, `renderEndScreen` (×2), `renderLockedGlyph`, `renderLightCounter`, `renderField`, `renderMilestoneFlash` |
+| `input` (entrées joueur) | 3 | `handleHearthClick`, `handleBuyClick`, `handleAscensionClick` |
+| `objective` (énoncés purs) | 3 | `currentObjective` (phases R1 / R7a / R7b) |
+
+**Couverture : 20 / 20 capacités**, zéro `couvre` fantôme (chaque id ci-dessous est copié verbatim de `featuremap.json`). Modules du blueprint **sans ligne propre** et pourquoi : `economy` (constantes, aucune fonction — citer un fichier de constantes avec un `fonction` vide serait rejeté par l'exécuteur), `main`/`server` (composition et service, aucune capacité de la featuremap), `e2e`/`solvability`/`logic.test`/`properties.test`/`run-oracle` (ils apparaissent comme **porteurs de preuve**, jamais comme réalisation — c'est leur rôle au blueprint).
+
+**Une seule fonction exacte par ligne** — jamais de champ composé type `createState + renderHTML` (pré-mortem `manifest-13fcd2170bc24836`, qui a fait échouer s10c indépendamment du gate mutation).
+
+## 3. Divergence blueprint ↔ code déjà présent — signalée, non arbitrée par moi
+
+Le code présent sous `games/p1_beta_E1` **n'est pas conforme au blueprint E1** sur deux points, et ma carte suit le **blueprint** (mon amont d'autorité), pas le code hérité :
+
+1. `currentObjective` est aujourd'hui une **méthode de `GameState` dans `engine.mjs`** (l.122). Le blueprint interdit `engine → objective` (`deps_interdites`) et impose à `engine` « zéro chaîne d'interface ». Ma carte l'adresse donc à **`objective.mjs`** : le build doit la DÉPLACER. Si le build ne crée pas `objective.mjs`, ces 3 lignes tomberont en `features_manquantes` à s10c — c'est le signal correct d'un build divergent du plan, pas un défaut de carte.
+2. Les grandeurs structurelles sont déclarées **en dur dans `engine.mjs`** (l.6-12) alors que le blueprint fait d'`economy.mjs` la source UNIQUE avec provenance N2. Hors de ma main d'écriture (je ne code rien) — remonté ici parce que le charter E1 exige la provenance tracée (M2).
+
+## 4. Défaut mesuré : la clause V4 GAME LOOP est **mécaniquement insatisfiable** sur cette featuremap
+
+Mon garde-fou V4 impose une ligne par affordance de `loop.json`, avec `provides: ["affordance:<nom>"]` et un `requires` menant (profondeur ≤ 3) à une ligne dont le `couvre` porte une feuille d'**EFFET** (`kind ∈ {file_write, visual}`) de la **MÊME `source_ref`** que la feuille d'ENTRÉE couverte (`check_wiremap_contract.mjs` l.174-225).
+
+Confrontation aux données réelles — répartition des feuilles par `source_ref` :
+
+| Affordance | `source_ref` de l'entrée | Feuilles portant ce `source_ref` | Feuille d'effet disponible |
+|---|---|---|---|
+| `hearth` | **R2** | `cap_stoke_input` (bot_action) | **aucune** |
+| `buy_button` | **R6** | `cap_buy_input` (bot_action) | **aucune** |
+| `ascension_altar` | **R9** | `cap_ascension_input` (bot_action) | **aucune** |
+
+Les trois exigences d'entrée n'ont **qu'une feuille chacune, de kind `bot_action`**. Les effets correspondants ont été délibérément portés par s3-decompo sur les exigences **adjacentes** (R3 pour R2, R7a pour R6, R10 pour R9), avec sa raison inscrite dans les capacités elles-mêmes : « *car R2 est réservée à la preuve d'entrée main.tscn* ». Conséquence arithmétique : **toute** ligne d'affordance émise ici serait déclarée `maillon_non_lie`, quelle que soit sa rédaction. J'ai donc **n'ai émis aucune ligne `provides`/`requires`** (`stats.affordances` attendu = 0, `affordances_liees` = 0) plutôt que de fabriquer une chaîne artificielle qui ferait échouer l'oracle de mon étape. C'est une décision assumée, déclarée, pas un oubli — et le conflit remonte au niveau supérieur (§8).
+
+## 5. Verdicts
+
+- `software_verdict: BLOCKED` — la conformité de la carte à `check_wiremap_contract` est établie **par lecture ligne-à-ligne de l'oracle**, pas par un reçu : `permissions.run: aucun`, je n'exécute rien et n'écris aucun fichier. Aucun reçu d'oracle ne peut être cité ; l'exécuteur matérialise `wiremap.json` puis lance l'oracle, et c'est SA sortie qui vaut preuve.
+- `evidence_verdict: MECHANICAL_VALIDATION_ONLY`
+- `claim_verdict: NO_CLAIM_ALLOWED`
+
+**Commande que l'exécuteur doit lancer (reçu attendu, non produit par moi) :**
+```
+node scripts/forge/check_wiremap_contract.mjs lab/forge_runs/p1_beta_E1/wiremap.json \
+  --featuremap lab/forge_runs/p1_beta_E1/featuremap.json --json
+```
+Attendu si la matérialisation préserve `couvre` : `verdict: OK`, `stats: {schema: "v1", lignes: 22, capacites: 20, capacites_couvertes: 20, lignes_sans_couvre: 0, affordances: 0, affordances_liees: 0}`.
+
+**Capacités non couvertes : aucune (0/20).**
+
+**fog → Pierre** (jugements hors de portée d'un oracle) : (a) le run E1 doit-il continuer alors que sa cible contient déjà le jeu du run précédent et que le blueprint E1 est une copie octet-pour-octet de celui de `p1_beta` (pré-mortem `manifest-8ea68f0ad8f5d882`) — le charter exige « créé de zéro » ; (b) faut-il faire évoluer la règle V4 (liaison par `source_ref` identique) ou la politique s3 (effets portés sur l'exigence adjacente), les deux étant incompatibles telles quelles.
+
+## 6. SKIPPED_VALIDATION
+
+| Item | Périmètre | Statut | Raison |
+|---|---|---|---|
+| Exécution de `check_wiremap_contract.mjs` | le bloc JSON livré | **non fait** | `permissions.run: aucun`. Conformité par inspection du code de l'oracle, jamais par reçu — l'exécuteur relance. |
+| Exécution de `forge.static_oracles.check_wiremap` (s10c) | `fichiers`/`fonction` | **non fait (impossible)** | Oracle d'APRÈS build ; `objective.mjs` n'existe pas encore, et rien n'est écrit en amont. |
+| Lignes d'affordance V4 (`provides`/`requires`, `category: system.adapter`) | `hearth`, `buy_button`, `ascension_altar` | **non fait, délibéré** | Insatisfiable sur cette featuremap : aucune feuille d'effet ne partage `source_ref` avec R2/R6/R9 (§4). Émettre ces lignes = `maillon_non_lie` garanti. |
+| Fidélité des `preuve` au harnais réel | 22 lignes | **non fait** | `e2e.mjs`, `logic.test.mjs`, `properties.test.mjs`, `solvability.mjs` sont écrits à s10a, APRÈS moi : mes preuves sont **attendues**, pas constatées. |
+| Préservation de `couvre`/`section`/`version`/`statut` par la matérialisation | `wiremap.json` | **non fait** | Mécanisme non observé. Fait constaté : le précédent `lab/forge_runs/p1_beta/wiremap.json` porte `couvre = [fonction]` uniformément (des noms de fonctions, pas des ids de capacités) — si l'exécuteur DÉRIVE ce champ, il écrasera mes ids et produira 22 `couverture_fantome`. À vérifier sur le fichier matérialisé. |
+| Confrontation à `repo_map.yaml` | adresses déclarées | **sans objet** | Je ne déclare **aucune** racine ni dossier : uniquement des noms de fichiers relatifs à la racine du code, tels que fixés par l'`ownership` du blueprint. Aucune racine inventée (défaut mesuré 2026-08-05, racine `04_CONTENT`). |
+
+## 7. Livrable
+
+```json
+{
+  "features": [
+    {
+      "feature": "R1 objectif terminal affiche des le tick 0",
+      "section": "objective",
+      "fonction": "currentObjective",
+      "fichiers": ["objective.mjs"],
+      "couvre": ["cap_goal_terminal_hud"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "logic.test.mjs : currentObjective() sur un etat a emitterCount=0 rend une chaine NON VIDE contenant le seuil terminal issu d'economy.mjs ; e2e.mjs : #objective lu au tick 0, AVANT tout clic, est non vide et contient 5000."
+    },
+    {
+      "feature": "R1 jauge de progression vers le seuil terminal",
+      "section": "render",
+      "fonction": "renderProgressGauge",
+      "fichiers": ["render.mjs"],
+      "couvre": ["gb_constellation"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "properties.test.mjs : sur des etats forges light=0/1250/2500/5000, la largeur de #progress-gauge-fill vaut exactement 0%/25%/50%/100% (egalite stricte, ratio borne a 1 au-dela du seuil) ; e2e.mjs constate le remplissage en navigateur reel jusqu'au declenchement de l'ecran de fin."
+    },
+    {
+      "feature": "R2 entree attisage du foyer (affordance hearth)",
+      "section": "input",
+      "fonction": "handleHearthClick",
+      "fichiers": ["input.mjs"],
+      "couvre": ["cap_stoke_input"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "e2e.mjs : depuis index.html servi par server.mjs, 10 clics souris REELS sur #hearth font passer window.__game.light de 0 a exactement 10 (delta EXACT +1 par clic, jamais un >=)."
+    },
+    {
+      "feature": "R3 flash chaud du foyer a chaque attisage",
+      "section": "render",
+      "fonction": "renderStokeFlash",
+      "fichiers": ["render.mjs"],
+      "couvre": ["cap_hearth_response"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "e2e.mjs : le boxShadow de #hearth est non-'none' sur la frame qui suit un clic reel, puis revenu a 'none' en moins de 200 ms — changement detectable image a image, deux valeurs distinctes mesurees."
+    },
+    {
+      "feature": "R3 foyer central emissif cliquable",
+      "section": "render",
+      "fonction": "renderHearth",
+      "fichiers": ["render.mjs"],
+      "couvre": ["gb_hearth"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "e2e.mjs : #hearth est present au centre, sa backgroundColor vaut la teinte chaude hors etat terminal et une teinte froide + cursor 'not-allowed' en etat terminal (deux valeurs distinctes constatees, jamais une seule)."
+    },
+    {
+      "feature": "R4 recompense stricte par attisage",
+      "section": "engine",
+      "fonction": "stoke",
+      "fichiers": ["engine.mjs"],
+      "couvre": ["cap_light_reward"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "logic.test.mjs : apres N appels stoke() sans achat, state.light === N exactement (egalite stricte, jamais un >=) ; regle ciblee par le gate mutation, tout mutant du gain doit etre TUE."
+    },
+    {
+      "feature": "R5 divergence de decision idle vs actif",
+      "section": "engine",
+      "fonction": "step",
+      "fichiers": ["engine.mjs"],
+      "couvre": ["cap_decision_divergence"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "properties.test.mjs : a horizon fixe de 300 frames, step(0) (idle) et step(3) (actif) rendent DEUX valeurs de light distinctes et non triviales ; contre-epreuve exigee : la politique idle sans emetteur ne franchit JAMAIS le seuil terminal (sinon le jeu est un minuteur)."
+    },
+    {
+      "feature": "R5 bouton d'achat abordable ou desature",
+      "section": "render",
+      "fonction": "renderBuyButton",
+      "fichiers": ["render.mjs"],
+      "couvre": ["gb_buy_button"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "properties.test.mjs : sous le cout, #buy-button est desature et disabled===true ; des que light >= cout, teinte or et disabled===false ; le libelle affiche le cout courant EXACT (state.emitterCost), jamais une valeur figee."
+    },
+    {
+      "feature": "R6 entree achat d'un emetteur (affordance buy_button)",
+      "section": "input",
+      "fonction": "handleBuyClick",
+      "fichiers": ["input.mjs"],
+      "couvre": ["cap_buy_input"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "e2e.mjs : clic souris REEL sur #buy-button au premier moment ou light >= cout — emitterCount passe de 0 a 1 (delta STRICT = 1), light est decrementee du cout EXACT, et la production passive devient > 0."
+    },
+    {
+      "feature": "R7a objectif change vers le second emetteur",
+      "section": "objective",
+      "fonction": "currentObjective",
+      "fichiers": ["objective.mjs"],
+      "couvre": ["cap_next_goal_second_emitter"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "logic.test.mjs : currentObjective() a emitterCount=1 DIFFERE textuellement de l'objectif du tick 0 et enonce l'acquisition d'un second emetteur ; e2e.mjs constate le changement du texte de #objective apres le 1er achat reel."
+    },
+    {
+      "feature": "R7a apparition d'un emetteur a l'ecran",
+      "section": "render",
+      "fonction": "renderEmitters",
+      "fichiers": ["render.mjs"],
+      "couvre": ["gb_emitter"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "e2e.mjs : le groupe #emitters passe de 0 a 1 element distinct apres l'achat (comptage DOM strict) ; properties.test.mjs verifie que n emetteurs possedes rendent n silhouettes, jusqu'au plafond de rendu declare."
+    },
+    {
+      "feature": "R7b objectif change vers l'embrasement",
+      "section": "objective",
+      "fonction": "currentObjective",
+      "fichiers": ["objective.mjs"],
+      "couvre": ["cap_next_goal_embrasement"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "logic.test.mjs : au stade production passive active (emitterCount>=2), currentObjective() differe textuellement des DEUX enonces precedents et nomme le seuil terminal issu d'economy.mjs — trois chaines deux a deux distinctes, verifiees sans DOM."
+    },
+    {
+      "feature": "R8 boucle repetee par production passive",
+      "section": "engine",
+      "fonction": "applyEmitters",
+      "fichiers": ["engine.mjs"],
+      "couvre": ["gb_emitter"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "logic.test.mjs : avec k emetteurs et sans aucun clic, applyEmitters() incremente light de exactement k*EMITTER_RATE par appel (egalite stricte) ; solvability.mjs rejoue la meme seed et retrouve le meme tick d'embrasement."
+    },
+    {
+      "feature": "R9 entree ascension (affordance ascension_altar)",
+      "section": "input",
+      "fonction": "handleAscensionClick",
+      "fichiers": ["input.mjs"],
+      "couvre": ["cap_ascension_input"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "e2e.mjs : apres embrasement, clic souris REEL sur #ascension-altar — light revient a exactement 0 et le compteur de glow d'ascension passe de 0 a 1 ; un clic sur #ascension-altar HORS etat terminal ne change STRICTEMENT rien (neutralisation prouvee, jamais supposee)."
+    },
+    {
+      "feature": "R10 avantage meta de l'ascension",
+      "section": "engine",
+      "fonction": "ascend",
+      "fichiers": ["engine.mjs"],
+      "couvre": ["gb_ascension_altar"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "logic.test.mjs : apres ascend(), lightPerStoke est STRICTEMENT superieur au gain d'avant ascension (comparaison >, jamais >=), light === 0 et le glow vaut +1 exactement ; le coefficient de bonus provient d'economy.mjs."
+    },
+    {
+      "feature": "R10 autel d'ascension visible apres embrasement",
+      "section": "render",
+      "fonction": "renderEndScreen",
+      "fichiers": ["render.mjs"],
+      "couvre": ["gb_ascension_altar"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "e2e.mjs : #ascension-altar n'est pas atteignable tant que #overlay porte la classe hidden, puis devient visible ET cliquable des le franchissement du seuil — transition masque->visible observee par la page, pas deduite de l'etat."
+    },
+    {
+      "feature": "R11 ecran d'embrasement et interaction neutralisee",
+      "section": "render",
+      "fonction": "renderEndScreen",
+      "fichiers": ["render.mjs"],
+      "couvre": ["gb_end_screen"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "e2e.mjs : au franchissement du seuil, #overlay perd la classe hidden et affiche le libelle texte 'Embrasement complet' ; ensuite, des clics reels sur #hearth et #buy-button ne modifient plus aucun champ de window.__game."
+    },
+    {
+      "feature": "R11 regle terminale deterministe seedee",
+      "section": "engine",
+      "fonction": "_checkTerminal",
+      "fichiers": ["engine.mjs"],
+      "couvre": ["gb_terminal_rule"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "solvability.mjs : une sonde seedee ATTEINT reellement light >= seuil dans le budget de ticks fixe et isTerminal() vaut true ; le rejeu de la MEME seed rend le MEME tick d'embrasement ; aucun drapeau de succes litteral (check_harness_no_hardcoded_flags vert). logic.test.mjs asserte la frontiere stricte : sous le seuil non terminal, au seuil terminal."
+    },
+    {
+      "feature": "R12 glyphe d'etat verrouille",
+      "section": "render",
+      "fonction": "renderLockedGlyph",
+      "fichiers": ["render.mjs"],
+      "couvre": ["gb_locked_glyph"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "properties.test.mjs : sous le cout, #locked-glyph est visible et porte le texte '<cout> lumiere requise' ; des que l'emetteur est abordable, hidden===true et texte vide ; la teinte employee n'est ni le chaud du foyer ni un halo (teintes de role disjointes)."
+    },
+    {
+      "feature": "R13 compteur de lumiere HUD",
+      "section": "render",
+      "fonction": "renderLightCounter",
+      "fichiers": ["render.mjs"],
+      "couvre": ["gb_light_counter"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "properties.test.mjs : #light-counter reflete exactement Math.floor(state.light) apres chaque rendu (egalite stricte) ; e2e.mjs : il reste entierement visible pendant un flash d'attisage et pendant un marqueur de jalon (jamais recouvert)."
+    },
+    {
+      "feature": "R14 rechauffement du champ avec la progression",
+      "section": "render",
+      "fonction": "renderField",
+      "fichiers": ["render.mjs"],
+      "couvre": ["cap_field_warmth"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "properties.test.mjs : a light = 0/25%/50%/75%/100% du seuil, le canal rouge du backgroundColor de #field croit de facon MONOTONE (jamais decroissant) et reste borne au-dela du seuil (ratio cape a 1)."
+    },
+    {
+      "feature": "R14 marqueur de jalon discret",
+      "section": "render",
+      "fonction": "renderMilestoneFlash",
+      "fichiers": ["render.mjs"],
+      "couvre": ["gb_quest_milestone"],
+      "version": "1",
+      "statut": "EXPECTED",
+      "preuve": "e2e.mjs : au franchissement d'un palier intermediaire, #milestone-marker passe d'opacite 0 a 1 puis retombe a 0 (apparition breve puis fondu, non modal) ; il ne recouvre a aucun instant #light-counter ni #hearth."
+    }
+  ]
+}
+```
+
+## 8. RETURN LINEAGE
+
+- **why_task_existed** :
+  - `problem:` le blueprint E1 (13 modules, ownership, deps interdites) et la featuremap E1 (20 capacites) existaient sans carte reliant l'un a l'autre — aucun delta plan/realisation n'etait calculable, et le build n'avait aucune cible nommee par capacite.
+  - `oracle:` `check_wiremap_contract.mjs` (avant build : couverture featuremap→wiremap) et, en aval, `forge.static_oracles.check_wiremap` (apres build : carte↔code). Activation = etape s5 de la chaine, pas une decision humaine ponctuelle.
+  - `root_cause:` non etablie pour l'activation elle-meme (etape normale de la chaine). Pour les defauts constates pendant le travail, voir §3 et §4.
+  - `action_reason:` seule une carte a fonctions EXACTES et a `couvre` en ids de capacites rend le delta calculable ; un champ compose ou un `couvre` derive du nom de fonction casse mecaniquement l'un des deux oracles.
+- **result** : 22 lignes produites, isomorphes aux 4 modules porteurs du blueprint, couvrant 20/20 capacites, zero id fantome, une fonction exacte par ligne. Aucun fichier ecrit (write : la WireMap uniquement, materialisee par l'executeur). Aucune ligne d'affordance V4 emise — decision declaree, motivee au §4.
+- **proof** : aucune commande executee (`permissions.run: aucun`). Ancrages non-LLM utilises : lecture de `static_oracles.py:263-359` (normalisation v1/v2, `_PREUVE_GD`, criteres de PASS), `static_oracles.py:57` (`_TS_METHOD` — les methodes de classe sont des definitions valides), `check_wiremap_contract.mjs:113-241` (regle `couvre` + liaison V4), `upstream_schema.mjs:471-489` (`collectLeaves` — les ids cibles sont bien `capacites[].id`), et lecture directe de `games/p1_beta_E1/{engine,render,input,main}.mjs` + `index.html` (noms de fonctions et ids DOM reels), `economy.mjs`/`objective.mjs` absents.
+- **learning** : (1) les trois affordances de `loop.json` n'ont, dans cette featuremap, AUCUNE feuille d'effet partageant leur `source_ref` — la clause V4 de liaison est insatisfiable par construction, quelle que soit la redaction de la carte ; (2) `couvre` est le seul champ qui rende le delta plan/carte calculable, et le precedent `p1_beta/wiremap.json` le porte rempli de NOMS DE FONCTIONS — si ce champ est derive a la materialisation plutot que repris de l'agent, l'oracle d'avant-build rend FAIL sur 22 `couverture_fantome` quoi que l'agent ecrive.
+- **next_reason** : ESCALADE. Deux causes non resolues persistent, aucune dans mon perimetre d'ecriture : (a) le conflit de regles V4 × politique s3 sur `source_ref` (§4) — arbitrage Pierre requis, sinon toute wiremap de tout run futur devra soit violer son garde-fou, soit echouer son oracle ; (b) `objective.mjs`/`economy.mjs` sont exiges par le blueprint et absents du code deja present dans la cible, donc s9-build doit DEPLACER `currentObjective` hors de `engine.mjs` et externaliser les constantes, faute de quoi 3 lignes de cette carte tomberont a s10c.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "La clause V4 GAME LOOP de check_wiremap_contract.mjs est insatisfiable sur la featuremap de ce run : les trois affordances de loop.json (hearth/R2, buy_button/R6, ascension_altar/R9) n'ont chacune qu'une seule feuille, de kind bot_action, et aucune feuille d'effet (visual|file_write) ne partage leur source_ref — toute ligne d'affordance emise serait declaree maillon_non_lie quelle que soit sa redaction", "root_cause": "s3-decompo a porte chaque feuille d'EFFET sur l'exigence ADJACENTE (R3 pour R2, R7a pour R6, R10 pour R9) en reservant R2/R6/R9 a la preuve d'entree, alors que check_wiremap_contract exige que la feuille d'effet partage la MEME source_ref que la feuille d'entree : deux regles amont incompatibles sur la meme donnee"}

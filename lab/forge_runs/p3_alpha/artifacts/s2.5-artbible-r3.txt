@@ -1,0 +1,37 @@
+Everything is settled and consistent. Here is my assessment for the r3 bounded re-declaration (SAS CORRECTIF C2):
+
+**What r3 requires** — a bounded micro-re-declaration only. My previous `declarations.ART` predates GM's now-present answer to `q_art_001`. I re-read `design_questions.json`, verified my artefacts against GM's answer, and re-declare authentically. No modification of `art_bible.md`/`asset_requests.json` is made: GM's answer carries `modification_locus: gm_worldscan` and states explicitly "aucune modification de l'Art Bible n'est requise", and I verified my `## character_states` + reveal-order already match GM's normative loop (LOCKED→AVAILABLE achetable/non-achetable→OWNED; noyau jamais refusé; S1=100→G2, S2=1000→G3, S3=12000→G4, S4=150000→prod upgrades ×2; click upgrades dès le début).
+
+**Honest freeze test (not complacency)** — no unresolved cause remains: q_art_001 answered normatively (blocking:false), art_bible needs no change and I confirmed it doesn't contradict the loop, oracle OK with full coverage, GM_to_ART open = 0, GM itself ready_for_freeze:true. → `ready_for_freeze: true, open_to_gm: 0` is honest.
+
+**Append-only** — q_art_001 recopied in full (including its GM answer and `modification_locus`); no question removed.
+
+---
+
+## RAPPORT FINAL
+
+**software_verdict: OK** — `check_artbible.mjs` sur `art_bible.md` + `asset_requests.json` → `VERDICT ART_BIBLE: OK`. Reçu d'autorité DRIVER `evidence/check_artbible_p3_alpha-20260901-run1_r2.json` : `pass:true`, `verdict:OK`, `coverage.missing:[]` (15/15 satisfied), `resolution_stats: 15 ok / 0 blocked / 15 total`, `status:MEASURED`.
+**evidence_verdict: MECHANICAL_VALIDATION_ONLY** — la seule preuve est mécanique (oracle non-LLM + reçu driver) ; aucune affirmation esthétique n'est prouvée.
+**claim_verdict: NO_CLAIM_ALLOWED**
+
+**asset_requests produits + statut de résolution (advisory, jamais jugé) :** 15 requêtes, toutes résolvent `OK` contre le catalogue (`collectible ×1, item ×10, icon ×1, effect ×1, ui ×2`). Le décor `vr_background` (`required:false`) reste sans requête par décision assumée. Rappel garde-fou : `style_tag_match` compare des TAGS, pas des pixels — l'adéquation esthétique fine par entité reste **fog** (jugement humain), jamais un claim.
+
+**Fog remonté à HumanGate (non-claim) :** l'adéquation visuelle réelle « le bon bonbon pour CE rôle » et la qualité d'un vrai HUD/écran de victoire sourcés relèvent de Pierre, pas de la résolution mécanique.
+
+**RETURN LINEAGE — why_task_existed :**
+- `problem:` la dernière déclaration `declarations.ART` était antérieure aux réponses reçues depuis (staleness signalée par le SAS CORRECTIF C2).
+- `oracle:` `forge.driver._is_materialize_refusal_reason` / la porte de matérialisation `design_questions.json` (détection append-only + fraîcheur de déclaration) ; `check_artbible.mjs` pour l'état des artefacts.
+- `root_cause:` cadence de la boucle de complétion mutuelle — l'état ART a été figé avant que la réponse GM (round 2, `grey_blocks.gate_g2`) ne soit matérialisée.
+- `action_reason:` re-lire `design_questions.json` (réponse GM désormais présente), vérifier que l'Art Bible ne contredit pas la boucle normée, re-déclarer l'état ART réel en append-only.
+- `result:` re-déclaration ART émise `round:2 · ready_for_freeze:true · open_to_gm:0` ; q_art_001 conservée intégralement ; aucun artefact modifié (GM `modification_locus:gm_worldscan`).
+- `proof:` `node scripts/forge/check_artbible.mjs lab/forge_runs/p3_alpha/art_bible.md lab/forge_runs/p3_alpha/asset_requests.json` → `VERDICT ART_BIBLE: OK · 15 OK / 0 BLOCKED / 15 total` ; reçu driver r2 `pass:true, missing:[]`.
+- `learning:` une déclaration d'agent est un état daté ; après réception d'une réponse, l'émetteur doit re-déclarer pour que le freeze symétrique ne repose pas sur une déclaration périmée.
+- `next_reason:` chaîne causale ART **FERMÉE** — question répondue, oracle OK, 0 item ouvert, 0 question reçue, les deux côtés `ready_for_freeze:true`. La lignée ART se termine proprement ici ; la décision de freeze effective appartient au driver/HumanGate, pas à une escalade ART.
+
+**SKIPPED_VALIDATION :** aucun.
+
+```design_questions
+{"schema_version": 1, "round": 2, "questions": [{"id": "q_art_001", "from": "ART", "to": "GM", "round": 1, "about": "art_bible:character_states", "loop_id": "core_loop", "missing": ["confirmation que les etats visuels d'affordance (grise-non-achetable, possede, verrouille, presse->eclat de clic) et l'ordre de reveal G2/G3/G4/ameliorations refletent exactement les transitions de la boucle canonique du GM, et non des transitions inventees par l'ART"], "why": "content_requirements.md (carte C.3) n'a pas ete injecte a cette etape ; j'ai ancre les etats d'objet sur structure_imposee_v2_FROZEN + worldscan. Leur fidelite a la boucle reelle du GM (moment du refus observable, feedback de clic, sequence de deblocage) doit etre confirmee cote GM pour que l'art ne represente pas une mecanique que le GM n'a pas posee.", "blocking": false, "answer": {"round": 2, "by": "GM", "ref": "grey_blocks.gate_g2", "text": "Confirme et fixe normativement. Ordre de revelation = seuils CUMULES imposes (structure_imposee dimensioning.seuils_cumules) : S1=100 R revele G2 (grey_blocks.gate_g2), S2=1000 R revele G3 (gate_g3), S3=12000 R revele G4 (gate_g4), S4=150000 R revele les 4 ameliorations x2 prod (prod_upgrades_panel) ; les 2 ameliorations de CLIC sont disponibles des le debut (click_upgrades), jamais deblocables par seuil. Etats d'affordance a montrer : LOCKED (silhouette neutre, seuil non atteint) -> AVAILABLE achetable (carte coloree) vs AVAILABLE non-achetable (grise, refus observable et etat inchange) -> OWNED (possede, scintillement). Le noyau (core_clicker) n'a AUCUN etat verrouille : repos/survol/presse(squish+eclat), le clic n'est jamais refuse. Ces etats et cet ordre vivent maintenant dans mon game_master (grey_blocks + artist_requirements) : l'ART s'y ancre, rien de ce qu'il a represente ne contredit la boucle.", "modification_locus": {"type": "gm_worldscan", "justification": "La reponse fixe l'ordre de revelation et les etats d'affordance dans mon propre bloc game_master (grey_blocks gate_g2/gate_g3/gate_g4/prod_upgrades_panel/core_clicker/click_upgrades et leurs artist_requirements) ; c'est mon artefact qui porte desormais la verite que l'ART questionnait, aucune modification de l'Art Bible n'est requise."}}}], "declarations": {"ART": {"round": 2, "ready_for_freeze": true, "open_to_gm": 0}, "GM": {"round": 2, "ready_for_freeze": true, "open_to_art": 0}}}
+```
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

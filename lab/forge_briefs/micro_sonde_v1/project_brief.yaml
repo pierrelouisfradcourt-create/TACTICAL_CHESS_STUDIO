@@ -1,0 +1,44 @@
+projet: micro_sonde_v1
+intention: >
+  MICRO-SONDE JOUABLE (sas Pierre 2026-09-01) — production/playtest, PAS une expérience.
+  Produire en un seul run un petit prototype web immédiatement jouable : 1 pièce,
+  3 endroits, 3 personnages. Aucune économie, aucun compteur. L'unique question à la
+  sortie est HUMAINE : « est-ce que Pierre a envie d'y jouer encore 5 minutes ? »
+  Le jeu doit donner envie d'interagir dans la première minute, sans tutoriel.
+contraintes:
+  normative_refs:
+    - spec: FORGE_DESIGN_FREEDOM_SPEC_V0
+      rules: [N1, N2, N3, N4, N7, N8, N9]
+  project_specific:
+    techniques:
+      - "périmètre FIXÉ PAR PIERRE : exactement 1 pièce, 3 endroits distincts dans la pièce, 3 personnages"
+      - "INTERDIT : toute économie, tout compteur affiché, toute ressource numérique visible, tout score"
+      - "socle sonde web (N1) : HTML+JS, déterminisme seedé, window.__game, harnais complet à la racine"
+      - "jouable au navigateur par un humain à la souris et/ou au clavier — pas seulement par bot"
+      - "un état intéressant doit être ATTEIGNABLE en < 5 minutes de jeu humain : victoire, défaite ou renversement de situation perceptible"
+      - "le charter DOIT être matérialisé par s0 (bloc ```yaml)"
+    experimentales:
+      - "sas de production/playtest : AUCUNE mesure M1-M7, aucune comparaison, aucune analyse expérimentale"
+      - "le juge de la qualité est Pierre, à la main, après s12 — les oracles ne prouvent que « ça tourne »"
+cible: web (HTML+JS canvas)
+references_autorisees: []
+criteres_sortie:
+  - "chaîne micro_sonde complète (s0→s9→s10a→s11→s12) : verdict signé + verify_run AUTHENTIQUE"
+  - "charter.yaml matérialisé par s0"
+  - "LANCEMENT : le jeu s'ouvre dans un navigateur et affiche la pièce, les 3 endroits, les 3 personnages"
+  - "INTERACTION : chaque personnage et chaque endroit réagit à une action du joueur de façon perceptible"
+  - "BOUCLE D'ACTION : le harnais E2E prouve qu'une séquence d'actions change l'état du jeu et que cet état change les possibilités suivantes"
+  - "ÉTAT INTÉRESSANT : le harnais prouve qu'une fin ou un renversement est atteignable (solvabilité par bot scripté)"
+  - "s11 red-team Qwen réel ; LM Studio down → HALT sans fallback"
+libertes_deleguees:
+  - "TOUT le contenu : qui sont les 3 personnages, ce que sont les 3 endroits, le thème, le ton, l'enjeu"
+  - "la nature de l'interaction (dialogue, manipulation, déplacement, observation…)"
+  - "la condition de fin ou le renversement — pourvu qu'ils soient perceptibles sans compteur"
+  - "direction artistique et présentation (dans le socle web N1)"
+provenance:
+  references_autorisees: "FOG_HUMANGATE: aucune référence externe autorisée — Pierre 2026-09-01 : la sonde teste ce que le pipeline invente SEUL, sans grammaire de genre ni œuvre-guide"
+  perimetre: "Pierre 2026-09-01 (verbatim : 1 pièce · 3 endroits · 3 personnages · aucune économie · aucun compteur · aucune paire L/D)"
+  question: "Pierre 2026-09-01 : « est-ce que c'est amusant/interactif, ou est-ce qu'on est encore en train de fabriquer du protocole ? »"
+  profil: "micro_sonde (s0→s9→s10a→s11→s12), ajouté sur GO Pierre 2026-09-01, périmètre verrouillé"
+  jugement: "HUMAIN uniquement (Pierre, playtest court post-s12) — STOP après s12 même tous voyants verts"
+  redaction: "Fable (poste de commande), session 2026-09-01"

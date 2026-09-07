@@ -1,0 +1,312 @@
+Je suis dispatché comme sous-agent Forge (s2.7-gm-worldscan, p3_alpha, tentative 2). Ma sortie précédente a été refusée pour une raison de **forme uniquement** : dans `sources_consumed.worldscan`, les adresses doivent porter le préfixe `worldscan:` (ex. `worldscan:games[0].loops.minute_1`, pas `games[0].loops.minute_1`). Le fond reste valable. Je corrige la forme et re-produis le bloc complet.
+
+---
+
+## RAPPORT FINAL — s2.7-gm-worldscan / p3_alpha-20260901-run1 (tentative 2)
+
+**Ancres amont citées :** `worldscan.json` (analyse de genre incremental/clicker, `advisory:true` — Cookie Clicker / Adventure Capitalist / Universal Paperclips) · `story_bible.json` (monde = économie d'accumulation abstraite, 6/8 sections NOT_GROUNDED, pas d'échec, victoire S5 unique) · `art_bible.md` (identité `candy-pop` « SUCROSE », affordances décidées) · valeurs structurelles p3 (G1-G4, 6 améliorations, ×1.12, seuils S1-S5, victoire 1 000 000 R) citées via l'Art Bible.
+
+**Reçu d'oracle :** je ne dispose d'AUCUN reçu exécuté (`permissions run: WebSearch/WebFetch` seulement ; `check_gm_worldscan`, `_validate_gm_worldscan`, `game_master_schema.mjs` sont lancés par l'exécuteur `run_real.py` sur l'artefact matérialisé). Je ne m'auto-certifie pas : pas de `software_verdict: OK` émis par moi. Le bloc ci-dessous est construit pour satisfaire la FORME et la traçabilité de ces oracles.
+
+**Dimensions MEASURED (5) :** progression · economy · rng · bonus · metagame — toutes chiffrées et sourcées sur ≥2 jeux réels.
+**Dimensions NOT_MEASURED (3), avec raison explicite :**
+- `combat` — le genre et les 3 comparables n'ont aucun système de combat ; aucune grandeur à mesurer.
+- `rarity` — aucun système de rareté / tiers de drop / gacha ; progression par seuils déterministes, pas par tirage.
+- `construction` — pas de construction spatiale / placement ; « construire » = acheter dans une liste (déjà couvert par progression/economy).
+
+**claim_verdict: NO_CLAIM_ALLOWED**
+**evidence_verdict: MECHANICAL_VALIDATION_ONLY** (portée : reçus d'oracle de l'exécuteur, non en ma possession)
+**fog → HumanGate/GM :** (1) la substance des 9 boucles / de la calibration n'est jugée par aucun oracle (par construction) → jugement humain/red-team ; (2) `world_loop` / `quest_loop` / `meta_loop` sont structurellement stretchés sur un clicker one-screen — leur perceptibilité distincte fait l'objet de mes questions bloquantes à l'Artiste (round 1).
+
+**SKIPPED_VALIDATION :**
+- item: exécution de `check_gm_worldscan` / `_validate_gm_worldscan` / `game_master_schema.mjs` · périmètre: `gm_worldscan.json` matérialisé · statut: non fait · raison: `run: aucun oracle` — l'exécuteur les lance, l'agent n'a aucun reçu.
+- item: fidélité de chaque `source` (URL/adresse) à son passage réel · périmètre: variables des 5 dimensions MEASURED + 10 `world_interpretation` · statut: partiel (attestation manuelle) · raison: les oracles de forme ne relisent pas les passages sources ; rattrapage red-team/HumanGate.
+- item: perceptibilité RÉELLE (non cosmétique) des `transformation_perceptible` et `builder_contract` · périmètre: 9 boucles + 7 grey_blocks · statut: non fait par machine · raison: `game_master_schema.mjs` ne vérifie que la présence non-vide (builder_contract/player_meaning) — le « change-t-il vraiment la scène » est red-team/HumanGate.
+- item: complétude d'ancrage sur worldscan intégral · périmètre: dimensions · statut: partiel · raison: worldscan injecté tronqué (`[tronqué]`) ; la queue est de même nature (patterns de rétention), sans incidence sur les chiffres retenus.
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}
+
+```json
+{
+  "genre": "incremental / clicker (one-shot, à fin unique)",
+  "games_observed": ["Cookie Clicker", "Adventure Capitalist", "Universal Paperclips"],
+  "dimensions": [
+    {
+      "id": "combat",
+      "status": "NOT_MEASURED",
+      "reason": "Le genre incremental/clicker et les trois comparables mesurés (Cookie Clicker, Adventure Capitalist, Universal Paperclips) ne comportent aucun système de combat : ni unités, ni dégâts, ni points de vie, ni affrontement. Aucune grandeur de combat n'existe à mesurer, et p3_alpha n'en hérite aucune.",
+      "variables": []
+    },
+    {
+      "id": "progression",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "générateurs multi-tiers", "value": "18+", "unit": "tiers distincts", "source": "Cookie Clicker — https://www.playcookieclicker.com/ (worldscan games[0])", "observed": true},
+        {"name": "cadence de déblocage", "value": "10-30", "unit": "actions par nouveau déblocage", "source": "Cookie Clicker — https://en.wikipedia.org/wiki/Cookie_Clicker (worldscan games[0].retention_answer)", "observed": true},
+        {"name": "scaling de production par tier", "value": "5-10", "unit": "× vs tier précédent", "source": "Cookie Clicker — https://dinogame.gg/blog/how-cookie-clicker-progression-works/ (worldscan games[0])", "observed": true},
+        {"name": "paliers d'amélioration par tier", "value": "1/5/15/25/50", "unit": "achats déclencheurs", "source": "Cookie Clicker — https://www.playcookieclicker.com/ (worldscan games[0])", "observed": true}
+      ]
+    },
+    {
+      "id": "economy",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "croissance du coût par achat d'un même générateur", "value": 1.15, "unit": "facteur multiplicatif (base × 1.15^n)", "source": "Cookie Clicker — https://en.wikipedia.org/wiki/Cookie_Clicker (worldscan games[0])", "observed": true},
+        {"name": "couverture d'automatisation par manager", "value": 100, "unit": "% d'un générateur automatisé", "source": "Adventure Capitalist — https://www.mistplay.com/blog/adventure-capitalist-guide (worldscan games[1])", "observed": true},
+        {"name": "loi de coût du prestige", "value": "racine cubique", "unit": "loi de croissance des coûts suivants", "source": "Cookie Clicker — https://en.wikipedia.org/wiki/Cookie_Clicker (Heavenly Chips cube-root, worldscan games[0])", "observed": true}
+      ]
+    },
+    {
+      "id": "rng",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "multiplicateur Frenzy (Golden Cookie)", "value": 7, "unit": "× production, temporaire", "source": "Cookie Clicker — https://en.wikipedia.org/wiki/Cookie_Clicker (worldscan games[0])", "observed": true},
+        {"name": "multiplicateur Click Frenzy (Golden Cookie)", "value": 777, "unit": "× valeur du clic, temporaire", "source": "Cookie Clicker — https://www.playcookieclicker.com/ (worldscan games[0])", "observed": true}
+      ]
+    },
+    {
+      "id": "rarity",
+      "status": "NOT_MEASURED",
+      "reason": "Le genre observé ne comporte pas de système de rareté / tiers de butin / distribution de drops (aucun gacha, aucune table de loot). La progression se fait par franchissement de seuils déterministes, pas par tirage de rareté. Les Sugar Lumps de Cookie Clicker sont une ressource temporisée, pas un tier de rareté. Aucune grandeur de rareté n'est mesurable dans les comparables.",
+      "variables": []
+    },
+    {
+      "id": "bonus",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "bonus permanent par Heavenly Chip (prestige)", "value": 1, "unit": "% CpS par chip", "source": "Cookie Clicker — https://en.wikipedia.org/wiki/Cookie_Clicker (worldscan games[0])", "observed": true},
+        {"name": "multiplicateur d'amélioration de production ciblée", "value": 2, "unit": "× (doublement par amélioration)", "source": "Cookie Clicker — https://en.wikipedia.org/wiki/Cookie_Clicker (upgrades « multiplying production », worldscan games[0].loops.minute_10) ; convention de genre reprise par p3", "observed": false}
+      ]
+    },
+    {
+      "id": "metagame",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "succès (achievements) totaux", "value": 637, "unit": "achievements", "source": "Cookie Clicker — https://en.wikipedia.org/wiki/Cookie_Clicker (worldscan games[0])", "observed": true},
+        {"name": "escalade du coût de prestige", "value": 8, "unit": "× de cookies par palier de prestige", "source": "Cookie Clicker — https://en.wikipedia.org/wiki/Cookie_Clicker (« each prestige costs 8x prior », worldscan games[0])", "observed": true},
+        {"name": "structure méta multi-planètes", "value": 3, "unit": "planètes (Earth/Moon/Mars)", "source": "Adventure Capitalist — https://www.mistplay.com/blog/adventure-capitalist-guide (worldscan games[1])", "observed": true}
+      ]
+    },
+    {
+      "id": "construction",
+      "status": "NOT_MEASURED",
+      "reason": "Le genre n'a pas de couche de construction spatiale / placement (aucune grille ni agencement d'espace comme un base-builder). « Construire » dans un incremental = acheter des générateurs dans une liste — déjà capturé par les dimensions progression et economy — sans dimension de construction spatiale distincte à mesurer.",
+      "variables": []
+    }
+  ],
+  "sources_consumed": {
+    "worldscan": [
+      "worldscan:games[0].loops.minute_1",
+      "worldscan:games[0].loops.minute_10",
+      "worldscan:games[0].retention_answer",
+      "worldscan:games[1].retention_answer",
+      "worldscan:games[2].objectives[0].victory_condition"
+    ],
+    "story_bible": [
+      "story_bible:context",
+      "story_bible:coherence_rules"
+    ],
+    "art_bible": [
+      "art_bible:heritage_worldscan",
+      "art_bible:visual_language",
+      "art_bible:affordance_rules"
+    ]
+  },
+  "game_master": {
+    "world_interpretation": [
+      {"fact": "Le « monde » de p3_alpha est une économie d'accumulation abstraite autour d'une ressource primaire unique (R), sans décor ni cadre fictionnel imposé : le jeu se joue à la lisibilité de la boucle, pas au récit.", "source": "story_bible:context"},
+      {"fact": "Le cœur sensoriel est la gratification du clic : un objet central gros et immédiatement réactif produit de la ressource à chaque pression, socle déterministe de la boucle.", "source": "worldscan:games[0].loops.minute_1"},
+      {"fact": "Le passage actif→passif est central : posséder un générateur produit de la ressource sans clic et les améliorations multiplient la production, ce qui déplace le joueur du clic vers l'optimisation.", "source": "worldscan:games[0].loops.minute_10"},
+      {"fact": "La rétention tient à une croissance exponentielle VISIBLE et à un déblocage fréquent (nouvelle possibilité toutes les 10-30 actions), imposant un compteur R très lisible et une montée de tier perceptible.", "source": "worldscan:games[0].retention_answer"},
+      {"fact": "L'automatisation doit se lire par un état d'objet distinct « possédé/actif » (icône auto-running), feedback visuel du revenu passif.", "source": "worldscan:games[1].retention_answer"},
+      {"fact": "Un précédent de fin FINIE et observable existe dans le genre (conversion complète de l'univers), ce qui conforte que la victoire S5 de p3 est une fin nette et unique, pas une boucle infinie.", "source": "worldscan:games[2].objectives[0].victory_condition"},
+      {"fact": "Le jeu n'a aucun état d'échec ; sa seule fin observable est la victoire terminale à 1 000 000 R cumulés (S5), qui doit être une célébration, pas un prestige/reset.", "source": "story_bible:coherence_rules"},
+      {"fact": "L'affordance décidée impose : le noyau (et lui seul) invite au clic (halo + squish), et tout achat non finançable est grisé — refus observable, état inchangé.", "source": "art_bible:affordance_rules"},
+      {"fact": "La hiérarchie de saturation décidée (R = pic, noyau ensuite, fond désaturé) et le gradient de tier menthe→caramel imposent que la couleur seule signale l'avancement d'un générateur.", "source": "art_bible:visual_language"},
+      {"fact": "L'Art Bible hérite du World Scan l'exigence d'un objet de clic gros/central et d'un éclat immédiat au clic, repris tels quels dans les états du noyau.", "source": "art_bible:heritage_worldscan"}
+    ],
+    "loops": {
+      "core_loop": {
+        "steps": [
+          {"id": "core_action", "kind": "action", "actor": "PLAYER", "why": "le joueur presse le noyau-gelée central, seul objet portant l'affordance de clic", "metric_ref": "core_click_yield", "proof_ref": "proof_core", "affordance": "noyau cliquable central"},
+          {"id": "core_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le noyau se déforme (squish) et un éclat de sucre rose jaillit à la pression", "metric_ref": "core_click_yield", "proof_ref": "proof_core"},
+          {"id": "core_reward", "kind": "reward", "actor": "SYSTEM", "why": "+1 R crédité, compteur incrémenté avec pop sonore", "metric_ref": "core_click_yield", "proof_ref": "proof_core", "resource": "R"},
+          {"id": "core_progression", "kind": "progression", "actor": "SYSTEM", "why": "les R s'accumulent vers le coût du premier générateur", "metric_ref": "core_click_yield", "proof_ref": "proof_core"},
+          {"id": "core_decision", "kind": "decision", "actor": "PLAYER", "why": "continuer à cliquer (rythme) ou basculer vers un premier achat", "metric_ref": "core_click_yield", "proof_ref": "proof_core"}
+        ],
+        "produces": "R (cristaux de sucre) par clic manuel + feedback tactile immédiat",
+        "consumes": ["meta_loop"],
+        "unlocks": ["gameplay_loop"],
+        "transformation_perceptible": {"text": "à chaque pression le noyau squish et le compteur de R monte visiblement", "proof_ref": "proof_core"},
+        "metric_propre": "core_click_yield"
+      },
+      "gameplay_loop": {
+        "steps": [
+          {"id": "gp_action", "kind": "action", "actor": "PLAYER", "why": "le joueur ouvre puis valide la carte d'achat du générateur G1", "metric_ref": "gameplay_time_to_first_purchase", "proof_ref": "proof_gameplay", "affordance": "carte d'achat G1"},
+          {"id": "gp_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "la carte G1 passe en état achetable (couleur pleine, prix en surbrillance) dès que R >= 15", "metric_ref": "gameplay_time_to_first_purchase", "proof_ref": "proof_gameplay", "hud": "carte G1 achetable"},
+          {"id": "gp_reward", "kind": "reward", "actor": "SYSTEM", "why": "l'achat instancie une machine menthe qui produit 0.1 R/s sans clic", "metric_ref": "gameplay_time_to_first_purchase", "proof_ref": "proof_gameplay", "resource": "R"},
+          {"id": "gp_progression", "kind": "progression", "actor": "SYSTEM", "why": "la production passive s'ajoute au flux et réduit le temps jusqu'au prochain palier", "metric_ref": "gameplay_time_to_first_purchase", "proof_ref": "proof_gameplay"},
+          {"id": "gp_decision", "kind": "decision", "actor": "PLAYER", "why": "acheter un G1 de plus ou épargner pour révéler G2", "metric_ref": "gameplay_time_to_first_purchase", "proof_ref": "proof_gameplay"}
+        ],
+        "produces": "premier générateur possédé + production passive de base",
+        "consumes": ["core_loop"],
+        "unlocks": ["progression_loop"],
+        "transformation_perceptible": {"text": "après le premier achat, R monte tout seul sans que le joueur clique", "proof_ref": "proof_gameplay"},
+        "metric_propre": "gameplay_time_to_first_purchase"
+      },
+      "progression_loop": {
+        "steps": [
+          {"id": "pr_action", "kind": "action", "actor": "PLAYER", "why": "le joueur ré-achète un générateur déjà possédé", "metric_ref": "progression_cost_growth", "proof_ref": "proof_progression", "affordance": "bouton d'achat répété"},
+          {"id": "pr_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le prochain prix affiché monte immédiatement de ×1.12", "metric_ref": "progression_cost_growth", "proof_ref": "proof_progression", "hud": "prix mis à jour"},
+          {"id": "pr_reward", "kind": "reward", "actor": "SYSTEM", "why": "la production du tier augmente d'un cran visible sur le taux R/s", "metric_ref": "progression_cost_growth", "proof_ref": "proof_progression"},
+          {"id": "pr_progression", "kind": "progression", "actor": "SYSTEM", "why": "l'accumulation franchit un seuil S et révèle un contenu jusque-là verrouillé", "metric_ref": "progression_cost_growth", "proof_ref": "proof_progression"},
+          {"id": "pr_decision", "kind": "decision", "actor": "PLAYER", "why": "densifier le même tier (coût qui grimpe) ou viser le seuil suivant", "metric_ref": "progression_cost_growth", "proof_ref": "proof_progression"}
+        ],
+        "produces": "franchissement de seuils S1-S5 + révélation de contenu verrouillé",
+        "consumes": ["gameplay_loop"],
+        "unlocks": ["content_loop"],
+        "transformation_perceptible": {"text": "au franchissement d'un seuil, un emplacement verrouillé s'éclaire et devient disponible", "proof_ref": "proof_progression"},
+        "metric_propre": "progression_cost_growth"
+      },
+      "content_loop": {
+        "steps": [
+          {"id": "ct_action", "kind": "action", "actor": "PLAYER", "why": "le joueur débloque puis achète un générateur de tier supérieur (G2→G3→G4)", "metric_ref": "content_generator_count", "proof_ref": "proof_content", "affordance": "carte du nouveau tier"},
+          {"id": "ct_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "l'icône du nouveau tier apparaît avec sa couleur propre (menthe→citron→myrtille→caramel)", "metric_ref": "content_generator_count", "proof_ref": "proof_content"},
+          {"id": "ct_reward", "kind": "reward", "actor": "SYSTEM", "why": "le nouveau générateur produit nettement plus que le précédent (0.1→1→8→47 R/s)", "metric_ref": "content_generator_count", "proof_ref": "proof_content", "resource": "R"},
+          {"id": "ct_progression", "kind": "progression", "actor": "SYSTEM", "why": "le catalogue de contenu disponible s'étend, ouvrant de nouvelles cibles d'achat", "metric_ref": "content_generator_count", "proof_ref": "proof_content"},
+          {"id": "ct_decision", "kind": "decision", "actor": "PLAYER", "why": "investir dans le nouveau tier coûteux ou consolider les tiers acquis", "metric_ref": "content_generator_count", "proof_ref": "proof_content"}
+        ],
+        "produces": "nouveaux générateurs G2-G4 + améliorations de production disponibles",
+        "consumes": ["progression_loop"],
+        "unlocks": ["economy_loop"],
+        "transformation_perceptible": {"text": "un générateur d'un tier jamais vu apparaît avec sa propre couleur et silhouette", "proof_ref": "proof_content"},
+        "metric_propre": "content_generator_count"
+      },
+      "economy_loop": {
+        "steps": [
+          {"id": "ec_action", "kind": "action", "actor": "PLAYER", "why": "le joueur arbitre la dépense de R entre générateurs bruts et améliorations ×2", "metric_ref": "economy_g4_prod", "proof_ref": "proof_economy", "affordance": "cartes d'amélioration de production"},
+          {"id": "ec_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le taux R/s global affiché se met à jour à chaque achat", "metric_ref": "economy_g4_prod", "proof_ref": "proof_economy", "hud": "compteur R/s"},
+          {"id": "ec_reward", "kind": "reward", "actor": "SYSTEM", "why": "les flux composés font bondir l'accumulation de façon exponentielle visible", "metric_ref": "economy_g4_prod", "proof_ref": "proof_economy"},
+          {"id": "ec_progression", "kind": "progression", "actor": "SYSTEM", "why": "le stock de R croît vers les paliers coûteux (jusqu'à 200000 R pour prod_g4_x2)", "metric_ref": "economy_g4_prod", "proof_ref": "proof_economy"},
+          {"id": "ec_decision", "kind": "decision", "actor": "PLAYER", "why": "acheter une amélioration de production ×2 (rendement) ou un générateur brut (capacité)", "metric_ref": "economy_g4_prod", "proof_ref": "proof_economy"}
+        ],
+        "produces": "flux R/s composé + optimisation coût/rendement",
+        "consumes": ["content_loop"],
+        "unlocks": ["skill_loop"],
+        "transformation_perceptible": {"text": "le compteur R/s bondit après un achat d'amélioration ×2 sur un tier", "proof_ref": "proof_economy"},
+        "metric_propre": "economy_g4_prod"
+      },
+      "skill_loop": {
+        "steps": [
+          {"id": "sk_action", "kind": "action", "actor": "PLAYER", "why": "le joueur achète les améliorations de clic (clic_x2 puis clic_x4)", "metric_ref": "skill_click_multiplier_max", "proof_ref": "proof_skill", "affordance": "cartes d'amélioration de clic"},
+          {"id": "sk_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "l'icône de clic passe à une variante plus intense et l'éclat au clic s'amplifie", "metric_ref": "skill_click_multiplier_max", "proof_ref": "proof_skill"},
+          {"id": "sk_reward", "kind": "reward", "actor": "SYSTEM", "why": "chaque clic manuel rapporte 2× puis 4× plus qu'au départ", "metric_ref": "skill_click_multiplier_max", "proof_ref": "proof_skill", "resource": "R"},
+          {"id": "sk_progression", "kind": "progression", "actor": "SYSTEM", "why": "le clic manuel reste pertinent plus longtemps face à la production passive", "metric_ref": "skill_click_multiplier_max", "proof_ref": "proof_skill"},
+          {"id": "sk_decision", "kind": "decision", "actor": "PLAYER", "why": "investir dans le clic (jeu actif) ou dans le passif (générateurs)", "metric_ref": "skill_click_multiplier_max", "proof_ref": "proof_skill"}
+        ],
+        "produces": "gain de clic amplifié (×2 → ×4) + arbitrage actif/passif",
+        "consumes": ["economy_loop"],
+        "unlocks": ["world_loop"],
+        "transformation_perceptible": {"text": "après clic_x4, un même clic fait monter le compteur de 4 crans au lieu d'1", "proof_ref": "proof_skill"},
+        "metric_propre": "skill_click_multiplier_max"
+      },
+      "world_loop": {
+        "steps": [
+          {"id": "wl_action", "kind": "action", "actor": "PLAYER", "why": "le joueur pousse l'accumulation pour franchir les seuils S1→S5", "metric_ref": "world_threshold_count", "proof_ref": "proof_world"},
+          {"id": "wl_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "chaque seuil franchi éclaire une portion de l'écran/catalogue jusque-là en silhouette", "metric_ref": "world_threshold_count", "proof_ref": "proof_world", "hud": "zone révélée"},
+          {"id": "wl_reward", "kind": "reward", "actor": "SYSTEM", "why": "un pan de « monde » (nouveau tier / amélioration) devient visible et jouable", "metric_ref": "world_threshold_count", "proof_ref": "proof_world"},
+          {"id": "wl_progression", "kind": "progression", "actor": "SYSTEM", "why": "l'espace de jeu révélé s'agrandit à mesure que S1→S5 tombent", "metric_ref": "world_threshold_count", "proof_ref": "proof_world"},
+          {"id": "wl_decision", "kind": "decision", "actor": "PLAYER", "why": "viser le prochain seuil de révélation ou consolider l'existant", "metric_ref": "world_threshold_count", "proof_ref": "proof_world"}
+        ],
+        "produces": "révélation progressive de l'espace de jeu (S1→S5)",
+        "consumes": ["skill_loop"],
+        "unlocks": ["quest_loop"],
+        "transformation_perceptible": {"text": "une zone en silhouette neutre prend sa couleur de tier au franchissement du seuil", "proof_ref": "proof_world"},
+        "metric_propre": "world_threshold_count"
+      },
+      "quest_loop": {
+        "steps": [
+          {"id": "qu_action", "kind": "action", "actor": "PLAYER", "why": "le joueur oriente toute sa production vers l'objectif unique : 1 000 000 R cumulés", "metric_ref": "quest_victory_target", "proof_ref": "proof_quest"},
+          {"id": "qu_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "une jauge de progression vers S5 se rapproche visiblement de la cible", "metric_ref": "quest_victory_target", "proof_ref": "proof_quest", "hud": "jauge S5"},
+          {"id": "qu_reward", "kind": "reward", "actor": "SYSTEM", "why": "l'écran de victoire S5 (célébration terminale) se déclenche à 1 000 000 R", "metric_ref": "quest_victory_target", "proof_ref": "proof_quest"},
+          {"id": "qu_progression", "kind": "progression", "actor": "SYSTEM", "why": "la distance restante vers la victoire diminue à chaque tick de production", "metric_ref": "quest_victory_target", "proof_ref": "proof_quest"},
+          {"id": "qu_decision", "kind": "decision", "actor": "PLAYER", "why": "optimiser pour finir plus vite ou explorer tout le catalogue avant la fin", "metric_ref": "quest_victory_target", "proof_ref": "proof_quest"}
+        ],
+        "produces": "progression vers l'objectif terminal + déclenchement de la victoire S5",
+        "consumes": ["world_loop"],
+        "unlocks": ["meta_loop"],
+        "transformation_perceptible": {"text": "à 1 000 000 R le panneau de victoire s'affiche, seule fin observable du jeu", "proof_ref": "proof_quest"},
+        "metric_propre": "quest_victory_target"
+      },
+      "meta_loop": {
+        "steps": [
+          {"id": "mt_action", "kind": "action", "actor": "PLAYER", "why": "le joueur enchaîne une run complète du premier clic à la victoire", "metric_ref": "meta_session_length", "proof_ref": "proof_meta"},
+          {"id": "mt_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "l'état global (R/s, tiers possédés, seuils franchis) résume l'avancement de la session", "metric_ref": "meta_session_length", "proof_ref": "proof_meta", "hud": "récapitulatif de session"},
+          {"id": "mt_reward", "kind": "reward", "actor": "SYSTEM", "why": "la session aboutit à une fin nette et unique, sans reset ni prestige (genre one-shot)", "metric_ref": "meta_session_length", "proof_ref": "proof_meta"},
+          {"id": "mt_progression", "kind": "progression", "actor": "SYSTEM", "why": "la durée de session se cale dans la fourchette calibrée du genre", "metric_ref": "meta_session_length", "proof_ref": "proof_meta"},
+          {"id": "mt_decision", "kind": "decision", "actor": "PLAYER", "why": "relancer une nouvelle session (repartir d'un noyau vierge) ou s'arrêter sur la victoire", "metric_ref": "meta_session_length", "proof_ref": "proof_meta"}
+        ],
+        "produces": "cadre de session complet (accroche → victoire) qui ré-alimente le premier clic",
+        "consumes": ["quest_loop"],
+        "unlocks": ["core_loop"],
+        "transformation_perceptible": {"text": "la session se referme sur la victoire S5 et une relance repart d'un noyau vierge", "proof_ref": "proof_meta"},
+        "metric_propre": "meta_session_length"
+      }
+    },
+    "economy_model": {
+      "resources": [
+        {"id": "R", "unit": "cristal de sucre", "sources": ["clic manuel du noyau", "générateurs G1-G4"], "sinks": ["achat de générateurs", "achat d'améliorations de clic", "achat d'améliorations de production"], "initial_stock": 0}
+      ],
+      "formulas": [
+        {"id": "cost_scaling", "text": "cost(n) = base_cost * 1.12^n pour le n-ième achat d'un même item", "params": {"growth": 1.12, "base_cost_g1": 15, "base_cost_g2": 100, "base_cost_g3": 1100, "base_cost_g4": 12000}},
+        {"id": "click_gain", "text": "gain_clic = 1 * click_multiplier (1 -> 2 apres clic_x2 -> 4 apres clic_x4)", "params": {"base": 1, "click_multiplier_max": 4}},
+        {"id": "passive_production", "text": "R_par_s = somme sur i de (gen[i].count * base_prod[i] * prod_mult[i])", "params": {"base_prod_g1": 0.1, "base_prod_g2": 1, "base_prod_g3": 8, "base_prod_g4": 47, "prod_mult_max": 2}}
+      ]
+    },
+    "progression_metrics": [
+      {"id": "core_click_yield", "kind": "invariant", "value": 1, "unit": "R par clic", "why": "chaque clic manuel produit exactement 1 R de base : socle déterministe et contraignant de la boucle centrale"},
+      {"id": "gameplay_time_to_first_purchase", "kind": "target", "range": {"min": 15, "max": 30}, "unit": "s de jeu actif", "why": "le premier achat (G1 à 15 R, ~1 R/clic) doit tomber entre 15 et 30 s pour tenir la cadence d'accroche du genre (déblocage toutes les 10-30 actions)"},
+      {"id": "progression_cost_growth", "kind": "invariant", "value": 1.12, "unit": "facteur multiplicatif par achat", "why": "chaque ré-achat d'un même item renchérit le suivant de ×1.12 (calibré sous les ×1.15 de Cookie Clicker) : invariant d'économie"},
+      {"id": "content_generator_count", "kind": "invariant", "value": 4, "unit": "générateurs distincts", "why": "le catalogue compte exactement 4 générateurs G1-G4 (structure imposée) : borne le contenu de production"},
+      {"id": "economy_g4_prod", "kind": "invariant", "value": 47, "unit": "R par seconde", "why": "production unitaire de G4, plus haut tier : ancre la borne haute du flux passif brut"},
+      {"id": "skill_click_multiplier_max", "kind": "invariant", "value": 4, "unit": "multiplicateur de gain de clic", "why": "clic_x2 (×2) puis clic_x4 (×2 de plus) = ×4 maximum sur le gain de clic : plafond contraignant de la voie active"},
+      {"id": "world_threshold_count", "kind": "invariant", "value": 5, "unit": "seuils", "why": "5 seuils S1-S5 structurent la révélation de l'espace de jeu et les conditions de déblocage"},
+      {"id": "quest_victory_target", "kind": "invariant", "value": 1000000, "unit": "R cumulés", "why": "objectif terminal unique (victoire S5) : seule condition de fin observable, invariant de bout de partie"},
+      {"id": "meta_session_length", "kind": "target", "range": {"min": 900, "max": 3600}, "unit": "s par session complète", "why": "durée cible d'une run vers S5, calibrée sur la fourchette du genre (fin en 3-6h chez le précédent fini, fortement raccourcie ici : 15-60 min visés)"}
+    ],
+    "proof_model": [
+      {"id": "proof_core", "measures": "core_click_yield", "how": "player_loop", "expected": "un clic simulé sur le noyau crédite exactement +1 R et déclenche squish + éclat"},
+      {"id": "proof_gameplay", "measures": "gameplay_time_to_first_purchase", "how": "player_loop", "expected": "en clics simulés à ~1 R/clic, l'achat de G1 (15 R) devient possible entre 15 et 30 s"},
+      {"id": "proof_progression", "measures": "progression_cost_growth", "how": "registry", "expected": "sur la table des coûts, cost(n+1)/cost(n) == 1.12 pour un même item"},
+      {"id": "proof_content", "measures": "content_generator_count", "how": "registry", "expected": "exactement 4 générateurs G1-G4 déclarés, chacun avec base_prod strictement croissant"},
+      {"id": "proof_economy", "measures": "economy_g4_prod", "how": "player_loop", "expected": "un G4 possédé crédite 47 R/s au tick déterministe ; une amélioration ×2 double ce flux"},
+      {"id": "proof_skill", "measures": "skill_click_multiplier_max", "how": "decision", "expected": "après achat de clic_x2 puis clic_x4, le gain d'un clic == 4 × le gain de base"},
+      {"id": "proof_world", "measures": "world_threshold_count", "how": "registry", "expected": "5 seuils S1-S5 déclarés, chacun révélant au moins un contenu jusque-là verrouillé"},
+      {"id": "proof_quest", "measures": "quest_victory_target", "how": "player_loop", "expected": "l'état de victoire S5 se déclenche exactement à l'atteinte de 1 000 000 R cumulés"},
+      {"id": "proof_meta", "measures": "meta_session_length", "how": "player_loop", "expected": "un run bot complet du premier clic à la victoire se termine dans [900, 3600] s simulées, sans reset ni prestige"}
+    ],
+    "grey_blocks": [
+      {"id": "gb_core", "type": "ACTOR", "role": "AFFORDANCE", "state": "AVAILABLE", "requires": [], "player_meaning": "Je vois immédiatement quel objet presser pour produire de la ressource.", "builder_contract": "Noyau central interactif avec états repos (halo lent) / survol (léger grossissement) / pressé (squish) ; à chaque clic, éclat de sucre rose et crédit de +gain_clic R au compteur.", "proof_ref": "proof_core"},
+      {"id": "gb_generator_g1", "type": "ITEM", "role": "AFFORDANCE", "state": "AVAILABLE", "requires": [], "player_meaning": "Je peux acheter G1 dès le départ pour que la ressource monte sans que je clique.", "builder_contract": "Carte d'achat G1 avec états achetable / grisé-non-achetable / possédé ; l'achat instancie une machine menthe produisant 0.1 R/s ajoutée au flux passif visible.", "proof_ref": "proof_gameplay"},
+      {"id": "gb_generator_gated", "type": "ITEM", "role": "PROGRESSION_GATE", "state": "LOCKED", "requires": ["world_threshold_count"], "player_meaning": "Je comprends qu'un générateur plus puissant existe et ce qu'il faut atteindre pour le débloquer.", "builder_contract": "Emplacements G2/G3/G4 en silhouette neutre tant que le seuil (S1/S2/S3) n'est pas franchi ; au franchissement, l'emplacement prend sa couleur de tier et devient une carte achetable — nouvelle interaction, pas un simple grisage.", "proof_ref": "proof_world", "next_goal": "un générateur de tier supérieur (production nettement accrue) devient achetable"},
+      {"id": "gb_upgrade", "type": "ITEM", "role": "AFFORDANCE", "state": "AVAILABLE", "requires": [], "player_meaning": "Je peux investir pour rendre mes clics ou un générateur plus efficaces.", "builder_contract": "Cartes d'amélioration : clic_x2/clic_x4 (liées au geste de clic) et prod_gX_x2 (liées à leur générateur, révélées à S4) ; l'achat modifie durablement une formule (gain de clic ou production d'un tier) et change l'icône en variante plus intense.", "proof_ref": "proof_skill", "next_goal": "un même clic (ou un même générateur) rapporte visiblement davantage"},
+      {"id": "gb_resource_hud", "type": "UI", "role": "FEEDBACK", "state": "AVAILABLE", "requires": [], "player_meaning": "Je lis en permanence combien de ressource j'ai et à quelle vitesse elle monte.", "builder_contract": "Bandeau compteur R + pictogramme cristal rose-magenta + taux R/s ; l'incrément est animé à chaque gain (clic ou tick passif), pic de saturation de l'écran.", "proof_ref": "proof_core"},
+      {"id": "gb_buy_card", "type": "UI", "role": "AFFORDANCE", "state": "AVAILABLE", "requires": [], "player_meaning": "Je vois sans lire le texte ce que je peux acheter maintenant, ce que je ne peux pas encore, et ce que je possède déjà.", "builder_contract": "Chrome de carte d'achat à trois lectures : pleine couleur + prix surligné (achetable), grisée + prix éteint (R insuffisant, refus observable, état inchangé), pastille (possédé) ; état porté par couleur + opacité + pictogramme, jamais par la couleur seule.", "proof_ref": "proof_gameplay"},
+      {"id": "gb_victory", "type": "UI", "role": "REWARD", "state": "LOCKED", "requires": ["quest_victory_target"], "player_meaning": "Je sais quel objectif clôt la partie et je reçois une célébration nette quand je l'atteins.", "builder_contract": "Panneau de victoire S5 masqué jusqu'à 1 000 000 R cumulés ; au déclenchement, rupture visuelle rayonnante de célébration (aucun écran d'échec, aucune boucle de prestige) — unique fin observable.", "proof_ref": "proof_quest", "next_goal": "célébration terminale à 1 000 000 R, fin de partie"}
+    ],
+    "artist_requirements": [
+      {"id": "ar_core", "grey_block": "gb_core", "states_to_show": ["AVAILABLE"], "visible_reason": false, "visible_requirement": "aucun — disponible d'emblée", "preview": false, "affordance_visual": "halo d'invitation au repos, squish au survol/presse, éclat rose au clic", "readability": "plus gros objet de l'écran, saturation juste sous celle de la ressource R"},
+      {"id": "ar_g1", "grey_block": "gb_generator_g1", "states_to_show": ["AVAILABLE", "OWNED"], "visible_reason": false, "visible_requirement": "15 R", "preview": false, "affordance_visual": "carte menthe pleine couleur + prix surligné ; pastille possédé et scintillement d'activité une fois acheté", "readability": "icône distincte 48-64 px, teinte menthe (tier bas), jamais plus grosse que le noyau"},
+      {"id": "ar_gated", "grey_block": "gb_generator_gated", "states_to_show": ["LOCKED", "AVAILABLE", "OWNED"], "visible_reason": true, "visible_requirement": "seuil S1/S2/S3 atteint", "preview": true, "affordance_visual": "silhouette neutre verrouillée puis couleur de tier révélée au franchissement du seuil", "readability": "gradient de tier citron→myrtille→caramel lisible au premier coup d'œil, montée en gamme évidente"},
+      {"id": "ar_upgrade", "grey_block": "gb_upgrade", "states_to_show": ["LOCKED", "AVAILABLE", "OWNED"], "visible_reason": true, "visible_requirement": "R suffisant (et clic_x2 possédé pour clic_x4 ; seuil S4 pour prod_gX_x2)", "preview": false, "affordance_visual": "icône rattachée à sa cible (geste de clic ou générateur), variante plus intense pour le palier supérieur, verrouillée en « acquis » une fois achetée", "readability": "distincte des générateurs, rattachement visuel à sa cible immédiat"},
+      {"id": "ar_hud", "grey_block": "gb_resource_hud", "states_to_show": ["AVAILABLE"], "visible_reason": false, "visible_requirement": "n/a — affichage permanent", "preview": false, "affordance_visual": "compteur R + pictogramme cristal rose-magenta + taux R/s, incrément animé", "readability": "pic de saturation de l'écran, toujours lisible sur le fond désaturé crème→lilas"},
+      {"id": "ar_card", "grey_block": "gb_buy_card", "states_to_show": ["AVAILABLE", "LOCKED", "OWNED"], "visible_reason": true, "visible_requirement": "grisé + prix éteint si R insuffisant (refus observable, état inchangé)", "preview": false, "affordance_visual": "carte pleine = achetable / grisée = non-achetable / pastille = possédé", "readability": "état lisible sans lire le texte (couleur + opacité + pictogramme conjoints, jamais couleur seule)"},
+      {"id": "ar_victory", "grey_block": "gb_victory", "states_to_show": ["LOCKED", "AVAILABLE"], "visible_reason": true, "visible_requirement": "1 000 000 R cumulés", "preview": true, "affordance_visual": "panneau de célébration rayonnant, unique fin observable, aucun visuel d'échec", "readability": "rupture visuelle nette signalant sans ambiguïté la fin de partie"}
+    ]
+  }
+}
+```
+
+```design_questions
+{"schema_version": 1, "round": 1, "questions": [{"id": "q_gm_001", "from": "GM", "to": "ART", "round": 1, "about": "gm_worldscan:game_master.loops.world_loop", "loop_id": "world_loop", "missing": ["representation distincte de la revelation d'espace de jeu (S1-S5) par rapport a un simple deblocage de progression"], "why": "sur un canvas unique de clicker one-screen, world_loop et progression_loop partagent le meme ecran : quelle affordance visuelle rend la revelation du monde perceptiblement differente d'un achat debloque, sans introduire un second lieu ?", "blocking": true, "answer": null}, {"id": "q_gm_002", "from": "GM", "to": "ART", "round": 1, "about": "gm_worldscan:game_master.loops.meta_loop", "loop_id": "meta_loop", "missing": ["signal visuel de cloture et de relance de session sans mecanique de prestige"], "why": "le genre one-shot n'a ni reset ni prestige : quelle representation rend la fin de session et une relance eventuelle lisibles comme un cadre, sans faire croire au joueur a un systeme de prestige interdit ?", "blocking": true, "answer": null}], "declarations": {"ART": {"round": 1, "ready_for_freeze": false, "open_to_gm": 0}, "GM": {"round": 1, "ready_for_freeze": false, "open_to_art": 2}}}
+```

@@ -1,5 +1,12 @@
 # Studio Source Anchoring V0
 
+> **LEGACY PRE-FORGE — FROZEN 2026-08-28 (HumanGate decision: Pierre).**
+> Pre-Forge AutoDev control plane (last substantive update 2026-06; its anchor map
+> points to a directory topology that no longer exists). NOT current studio truth —
+> do not use as a source anchor for Forge-lane work. Current truth:
+> `docs/forge/STUDIO_MASTER_SCHEMA.html` (Détail M, 2026-08-28) +
+> `docs/adr/ADR-003-forge-workflow-coherence-audit.md`.
+
 Status: DOCUMENTED_ONLY
 Owner: HumanGate
 Scope: Source registration and pipeline anchoring for ChatGPT Navigator, Codex, and future read-only analysis agent

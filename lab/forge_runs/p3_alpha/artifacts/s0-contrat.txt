@@ -1,0 +1,77 @@
+Compris. Mon refus précédent était purement une erreur de **forme** : (1) un critère de succès contenait littéralement la phrase interdite « à définir » (le validateur la détecte comme texte, peu importe le contexte), et (2) j'avais laissé traîner un second bloc ```yaml partiel qui n'était pas le charter. Je corrige : **un seul** bloc charter valide, tous champs remplis, zéro occurrence de la phrase interdite.
+
+```yaml
+objectif: >
+  Produire sous games/p3_alpha un jeu incremental/clicker web JOUABLE (bras DIRIGÉ D2 de la PAIRE 3,
+  protocole RUN2_PROTOCOLE_V1.md ratifié Pierre 2026-08-30) dont la structure de progression est
+  intégralement imposée par le fichier normatif ratifié structure_imposee_v2_FROZEN.yaml, en fermant
+  la chaîne de preuve full_content (verdict signé + verify_run AUTHENTIQUE) et en démontrant la
+  SOLVABILITÉ RUNTIME (un bot scripté atteint la victoire S5 = 1 000 000 R cumulés en 72000 ticks au plus).
+plateforme_cible: "web (HTML+JS, canvas ; déterminisme seedé, window.__game, harnais complet à la racine du jeu)"
+reference_jeu: "Cookie Clicker — grammaire de genre incremental/clicker UNIQUEMENT (aucun asset, nom ni contenu copié). Source Pierre : genre fixé Pierre 2026-08-30 (paire pilote, reconduit paire 3), référence tracée dans project_brief.yaml references_autorisees."
+hors_scope:
+  - "Qualité ludique / fun : NON jugée dans ce run (donnée M7 du protocole V1)."
+  - "État d'échec / game over : absent, fidèle au genre incremental — seule une fin de victoire S5 observable est requise."
+  - "Toute copie d'assets, de noms, de textes ou de contenu de Cookie Clicker : seule la grammaire de genre est empruntée."
+  - "Modification du moteur d'échecs Rust, de la lane STUDIO (autopilot.py, scripts/studioV2/) ou de tout jeu hors games/p3_alpha."
+  - "Décision d'architecture (étape 4), world scan (étape 2) et écriture de code de jeu : hors du rôle de rédaction du charter."
+  - "Choix libres délégués au producteur (thème, univers, personnages, direction artistique, HUD, micro-interactions) : non contraints par ce charter."
+criteres_succes:
+  - "charter.yaml matérialisé par s0 en un unique bloc yaml (A1 — condition de validité de bras) ; validateur check_charter au vert."
+  - "Structure du jeu identique à structure_imposee_v2_FROZEN.yaml (croissance 1.12, coûts de base, productions, mapping des 6 améliorations id/effet/coût/dispo/dépendance, seuils cumulés, tick_ms 100, comptabilité milli-R entiers, fin S5 = 1 000 000 R cumulés) ; tout écart déclaré en champ structuré, jamais silencieux (M3)."
+  - "Chaîne full_content complète : verdict signé HMAC + verify_run rendu AUTHENTIQUE."
+  - "SOLVABILITÉ RUNTIME prouvée : un bot scripté atteint la victoire S5 en 72000 ticks au plus (le desk-check ne compte pas) ; bots de mesure à variance non triviale (temps-jusqu'à-S5, jalons)."
+  - "design_questions / r2 / design_freeze exercés normalement — modification_locus utilisé pour toute réponse, aucune_requise justifié quand l'objet est normatif."
+  - "Chaque asset_request.id est resolved-avec-fichier ou blocked-justifié (check_asset_consumption) ; check_artbible exécuté par le driver."
+  - "product_snapshot.md matérialisé (exigible pour M7(a), protocole V1 A3)."
+  - "s11 red-team Qwen réel avec independent: true ; si LM Studio est indisponible, HALT sans fallback."
+actions_interdites:
+  - "Dévier de structure_imposee_v2_FROZEN.yaml sans déclarer l'écart en champ structuré (M3)."
+  - "Rendre un software_verdict OK sans reçu d'oracle vérifié et sans evidence_path (reçu sans evidence_path => BLOCKED)."
+  - "Utiliser un >= tautologique dans un test d'oracle : asserter le comportement STRICT (victoire réellement atteinte, comptes exacts)."
+  - "Déclarer la solvabilité prouvée sur la seule base du desk-check : la preuve runtime d'un bot atteignant S5 est obligatoire."
+  - "Copier un asset, un nom ou du contenu de Cookie Clicker ; git commit ou git push (gate Pierre exclusif) ; utiliser une API LLM externe."
+  - "Faire juger le code par un LLM (LLM-as-judge) : le software_verdict vient uniquement des reçus d'oracle non-LLM."
+  - "Écrire hors de games/p3_alpha ou toucher aux lanes protégées (tests/, src/)."
+plateforme_cible_note: "cible technique confirmée par project_brief.yaml (cible: web HTML+JS canvas) et par la contrainte socle sonde web N1."
+criteres_demo:
+  - "Un compteur de ressource R visible à l'écran qui augmente au fil du temps."
+  - "Un clic du joueur produit une ressource immédiatement visible (le compteur bouge à l'écran au clic)."
+  - "Les 6 améliorations sont affichées avec leur coût ; l'achat d'une amélioration est visible (elle se marque possédée/indisponible et la production affichée accélère)."
+  - "Un écran ou un état de victoire S5 observable apparaît lorsque 1 000 000 R cumulés sont atteints."
+reference_jeu_provenance: "Pierre 2026-08-30 — genre incremental/clicker fixé par Pierre (paire pilote reconduit paire 3) ; Cookie Clicker cité comme grammaire de genre dans references_autorisees du project_brief. Source Pierre traçable, non inventée par l'agent."
+```
+
+---
+
+## RAPPORT FINAL — s0-contrat / p3_alpha-20260901-run1
+
+**Oracle cité** : check_charter (validateur de schéma déterministe non-LLM). La cause du refus précédent était mécaniquement détectée par cet oracle — la correction porte exactement sur ses deux points de contrôle : (a) un unique bloc charter, (b) aucun champ vide/absent et aucune occurrence de la phrase interdite.
+
+**Correction de forme appliquée (le fond était validé)** :
+1. Suppression de la phrase littérale « à définir » qui figurait dans `criteres_succes[0]` — reformulé en « validateur check_charter au vert ». Le validateur détecte la chaîne comme texte, indépendamment du sens.
+2. Suppression du second bloc ```yaml parasite. Une seule structure charter est émise.
+
+**Flous du prompt — résolus vs remontés** :
+- Résolus avec source Pierre tracée : `plateforme_cible` (web HTML+JS canvas, brief), `reference_jeu` (Cookie Clicker comme grammaire de genre, genre fixé Pierre 2026-08-30), `objectif`, `hors_scope`, `criteres_succes`, `actions_interdites`, `criteres_demo`.
+- Remontés en fog : **aucun**. `reference_jeu` et `plateforme_cible` portent une source Pierre explicite dans le project_brief (references_autorisees + cible + provenance), donc pas d'invention d'agent, pas de fog requis.
+
+software_verdict: OK
+evidence_verdict: MECHANICAL_VALIDATION_ONLY
+claim_verdict: NO_CLAIM_ALLOWED
+
+**why_task_existed:**
+- problem: tentative 1 refusée par le matérialiseur — 2 défauts de forme sur les blocs yaml (phrase interdite résiduelle + bloc parasite sans champs)
+- oracle: check_charter (validateur de schéma non-LLM) — message de refus cité dans le dispatch
+- root_cause: la phrase « à définir » avait été employée dans le TEXTE d'un critère (pour dire qu'aucun champ ne la contient), et un exemple yaml secondaire avait été laissé dans la sortie — le validateur inspecte tous les blocs et matche la chaîne littéralement
+- action_reason: réémission d'un unique bloc charter, expurgé de la chaîne interdite, tous champs remplis
+- result: charter à 7 champs requis remplis (+ 3 champs de provenance/note), aucun champ vide, aucune occurrence de la phrase interdite, un seul bloc
+- proof: non exécuté par moi — la vérification mécanique appartient au matérialiseur/driver qui relance check_charter sur ce bloc ; je ne dispose pas de la commande d'oracle dans mon périmètre (run: aucun)
+- learning: ne jamais employer la chaîne « à définir » même en négation dans le corps d'un critère, et n'émettre qu'un seul bloc yaml — un exemple illustratif dans la même sortie est inspecté comme un candidat charter et fait échouer la matérialisation
+- next_reason: la chaîne causale se ferme ici si check_charter passe sur ce bloc ; si le validateur signale encore un champ, le matérialiseur doit renvoyer le message précis pour une nouvelle passe de forme
+
+SKIPPED_VALIDATION:
+- item: exécution de l'oracle check_charter sur le bloc final ; périmètre: charter.yaml p3_alpha ; statut: non fait ; raison: permissions du rôle = run: aucun — la validation mécanique est portée par le matérialiseur/driver, pas par cet agent.
+- item: vérification de la provenance Pierre de reference_jeu ; périmètre: gate ; statut: non mécanisable ; raison: fait de gate, non vérifiable par schéma — la source est tracée au project_brief (references_autorisees), à confirmer par HumanGate au final_report.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "un critere de succes contenant la chaine « a definir » en negation, et un second bloc yaml illustratif, font echouer check_charter car le validateur inspecte tous les blocs et matche la chaine litteralement", "root_cause": "phrase interdite employee dans le texte d'un critere + sortie multi-blocs au lieu d'un bloc charter unique"}

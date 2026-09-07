@@ -1,0 +1,189 @@
+{
+  "methodology": "Chaque item du tableau 'findings' de chaque generation est classe individuellement contre la base de faits verifies F1-F15 (fournie par la mission, jamais montree a Qwen). Categories : ACCORD-Fn (recoupe Fn, cite), FAUX-Fn (contredit Fn), FAUX-corpus (contredit une annotation explicite du corpus lui-meme, sans lien a un Fn precis), NOUVEAU-VERIFIE (absent de F1-F15, verifie dans le depot par l'experimentateur cette session, preuve citee), NOUVEAU-INVERIFIABLE, HALLUCINATION (reference/fait invente). Les tableaux root_causes/broken_loops sont des reformulations des findings dans TOUS les cas observes (verifie manuellement) -- ils ne sont pas notes comme des claims independants, seulement annotes 'restatement_of'. proposed_experiments sont notes separement sur la falsifiabilite (oui/partiel/non) au lieu du barème F1-F15, car ce sont des propositions et non des constats.",
+  "note_schema": "Le schema JSON impose a Qwen ne portait que 3 champs par experience (hypothesis/mutation/measure) -- le champ 'critere' explicitement demande par la mission ('hypothese/mutation/mesure/critere') a ete omis par erreur de conception du schema envoye a Qwen. Limite du protocole, imputable a l'experimentateur, pas a Qwen -- documentee aussi dans RAPPORT.md.",
+
+  "A1_g1": {
+    "findings": [
+      {
+        "claim": "Le modele utilise pour l'audit red-team n'est pas conforme a la declaration de role.",
+        "evidence_ref_given": "section 7, roles.yaml et section 4, verdict_v2.json",
+        "category": "ACCORD-F5 (imprecis)",
+        "justification": "F5 = modele declare opus-4-8 vs execute opus-5 (fait reellement dans le corpus, section 6, citation Observer). Qwen a bien capte qu'il existe un ecart modele declare/reel, MAIS attribue l'ecart au red-team specifiquement, alors que le red-team V2 a bien tourne avec le modele declare (qwen2.5-14b-instruct, redteam_ran:true, coherent) -- l'ecart reel concerne le run_orchestrator (opus). Attribution erronee du sujet de l'ecart, fait sous-jacent correct. evidence_ref cite section 7 (roles.yaml) qui ne mentionne meme pas opus-5 -- le fait vient en realite de section 6."
+      },
+      {
+        "claim": "L'Oracle archi ne valide pas correctement les imports.",
+        "evidence_ref_given": "section 1, verdict.json et verdict_v2.json",
+        "category": "FAUX-corpus",
+        "justification": "Le corpus annonce EXPLICITEMENT que controle_positif.passed=false est ATTENDU et PROBANT (\"prouve que l'oracle VOIT les imports\", section 1, verbatim dans les deux verdicts). Qwen lit ce champ passed=false comme un defaut de l'oracle -- c'est l'inverse de l'annotation du corpus. Erreur de lecture, pas d'invention de fait."
+      },
+      {
+        "claim": "Le rapport Observer n'est pas en mesure d'observer certains aspects cles du run (mutation/solvabilite/tests).",
+        "evidence_ref_given": "section 6, rapport Observer d'origine",
+        "category": "ACCORD-F7",
+        "justification": "Correspond exactement a F7 (Observer declarait mutation/solvabilite/tests NOT_OBSERVABLE alors que les champs existaient). Citation correcte de la section source."
+      }
+    ],
+    "root_causes_broken_loops": "3 root_causes et 3 broken_loops, tous des reformulations directes des 3 findings ci-dessus (verifie) -- aucun fait nouveau.",
+    "proposed_experiments": [
+      {"summary": "MAJ dynamique de roles.yaml a chaque run", "falsifiable": "partiel", "note": "mesure = comparaison modeles declares/reels apres chaque run ; pas de seuil de succes explicite (pas de champ 'critere')"},
+      {"summary": "Renforcer verification des imports par l'oracle archi", "falsifiable": "partiel", "note": "fonde sur une lecture erronee du besoin (l'oracle marche deja, cf FAUX-corpus ci-dessus) ; mesure vague ('signaler les violations')"},
+      {"summary": "Nouveaux adaptateurs Observer pour mutation/solvabilite/tests", "falsifiable": "oui", "note": "mesure = comparaison avant/apres, action concrete et grounded sur F7"}
+    ]
+  },
+
+  "A1_g2": {
+    "findings": [
+      {
+        "claim": "Le modele utilise pour l'audit red-team n'est pas conforme a la declaration de role.",
+        "evidence_ref_given": "section 7, roles.yaml et section 4, manifest pacman-v4",
+        "category": "ACCORD-F5 (imprecis)",
+        "justification": "Meme claim que A1g1 finding1, meme erreur d'attribution au red-team. evidence_ref cite en plus 'section 4, manifest pacman-v4' qui ne parle JAMAIS de modele -- reference peu pertinente mais pas fabriquee (section 4 existe et concerne bien pacman-v4)."
+      },
+      {
+        "claim": "L'Oracle archi ne fournit pas une validation mecanique complete des imports.",
+        "evidence_ref_given": "section 1, verdict.json et verdict_v2.json",
+        "category": "FAUX-corpus",
+        "justification": "Identique a A1g1 finding2 -- meme misreading du controle_positif attendu."
+      },
+      {
+        "claim": "Le rapport Observer n'a pas observe correctement les aspects mutation/solvabilite/tests.",
+        "evidence_ref_given": "section 6, Table de couverture du rapport Observer + types de drift",
+        "category": "ACCORD-F7",
+        "justification": "Identique a A1g1 finding3."
+      }
+    ],
+    "root_causes_broken_loops": "3 + 3, reformulations directes, comme g1. broken_loops#1 introduit une formulation legerement plus systemique ('chaine de controle des modeles... est rompue') mais reste au meme niveau de causalite que g1, pas une cause plus profonde.",
+    "proposed_experiments": [
+      {"summary": "Ajouter explicitement claude-opus-5 dans roles.yaml", "falsifiable": "oui", "note": "plus concret que l'equivalent g1 ; mesure = verifier logs/verdicts suivants ; toujours pas de seuil de succes chiffre"},
+      {"summary": "Contrat oracle archi plus strict", "falsifiable": "partiel", "note": "meme fondement errone que g1"},
+      {"summary": "Adaptateurs Observer pour mutation_receipt.json/solvabilite", "falsifiable": "oui", "note": "identique a g1, cite les noms de champs exacts du corpus"}
+    ]
+  },
+
+  "A2_g1": {
+    "findings": [
+      {
+        "claim": "L'Observer a correctement detecte que le modele utilise dans les transcripts n'est pas celui declare dans roles.yaml.",
+        "evidence_ref_given": "section 6, Concorde avec le reel",
+        "category": "ACCORD-F5",
+        "justification": "Bien meilleure attribution qu'en A1 : ici Qwen situe correctement le fait comme quelque chose que l'Observer A DEJA DETECTE (drift model_audit_differs_from_transcript, marque REEL dans le corpus), pas comme un probleme nouveau ni un defaut du red-team. Citation exacte de la sous-section."
+      },
+      {
+        "claim": "L'Observer reconstruit une fenetre de temps incorrecte (1970-2026) a cause des valeurs ts:0.0.",
+        "evidence_ref_given": "section 6, Discorde",
+        "category": "ACCORD-F6",
+        "justification": "Correspond exactement a F6. Citation correcte."
+      },
+      {
+        "claim": "L'Observer ne peut pas observer la mutation et la solvabilite malgre leur existence dans le manifest.",
+        "evidence_ref_given": "section 6, Discorde",
+        "category": "ACCORD-F7",
+        "justification": "Correspond a F7. Note : dit 'le manifest' au lieu de 'mutation_receipt.json et le verdict' (le corpus les nomme precisement) -- imprecision mineure de source mais fait correct."
+      }
+    ],
+    "root_causes_broken_loops": "3 root_causes, 3 broken_loops, tous des reformulations. Aucun fait nouveau au-dela des 3 findings.",
+    "proposed_experiments": [
+      {"summary": "Forcer conformite modele reel/declare", "falsifiable": "partiel", "note": "mutation peu actionnable ('modifier les transcripts pour utiliser le modele declare' -- confond cause et effet, on ne peut pas forcer retroactivement un transcript passe)"},
+      {"summary": "Ameliorer adaptateur Observer pour mutation/solvabilite", "falsifiable": "oui", "note": "identique en substance a A1"}
+    ]
+  },
+
+  "A2_g2": {
+    "findings": [
+      {
+        "claim": "L'Observer a correctement detecte que le modele utilise dans les transcripts n'est pas celui declare dans roles.yaml.",
+        "evidence_ref_given": "section 6, Concorde avec le reel",
+        "category": "ACCORD-F5",
+        "justification": "Identique a A2g1 finding1."
+      },
+      {
+        "claim": "L'Observer a mal interprete la valeur de ts:0.0 comme une fenetre temporelle de 56 ans sans garde-fou.",
+        "evidence_ref_given": "section 6, Discorde",
+        "category": "ACCORD-F6",
+        "justification": "Correspond a F6, formulation legerement differente ('a mal interprete' au lieu de 'reconstruit') mais meme fait. Severity montee a 'bloquant' ici vs 'majeur' en g1 pour le MEME fait -- signe d'instabilite du jugement de severite entre generations identiques."
+      },
+      {
+        "claim": "L'Observer n'a pas observe les champs mutation/solvabilite/tests alors qu'ils existent dans le verdict et la mutation_receipt.",
+        "evidence_ref_given": "section 6, Discorde",
+        "category": "ACCORD-F7",
+        "justification": "Plus precis que A2g1 (nomme explicitement mutation_receipt, comme le corpus). Correspond a F7."
+      }
+    ],
+    "root_causes_broken_loops": "3 root_causes (reformulations), mais seulement 2 broken_loops ici contre 3 en g1 -- un des 3 loops (celui sur 'systeme n'a pas detecte le modele different') est absent en g2. Variation de completude entre generations identiques en theorie.",
+    "proposed_experiments": [
+      {"summary": "MAJ adaptateur pour extraire mutation/solvabilite/tests", "falsifiable": "oui", "note": "mesure precise : verifier que le statut passe a OBSERVED -- la plus falsifiable des 10 experiences produites toutes generations confondues"},
+      {"summary": "Garde-fou temporel pour ts:0.0", "falsifiable": "oui", "note": "mesure = absence d'avertissement de fenetre temporelle incorrecte ; correcte et actionnable"}
+    ]
+  },
+
+  "A3_g1": {
+    "findings": [
+      {
+        "claim": "Le modele qwen2.5-14b-instruct n'a pas rendu de findings falsifiables lors du run pacman-v2.",
+        "evidence_ref_given": "verdict_v2.json (run_id: pacman-v2-20260805)",
+        "category": "ACCORD-F9",
+        "justification": "Correspond exactement a F9 (red-team qwen independant 0/5 falsifiable). Citation precise et directe (nom de fichier + run_id), la plus precise des 14 findings toutes generations confondues."
+      }
+    ],
+    "root_causes_broken_loops": "1 root_cause, 1 broken_loop -- les plus courts de toutes les generations (contraste avec A1/A2 qui produisent systematiquement 3 items par section).",
+    "proposed_experiments": [
+      {"summary": "Contrat redteam exigeant description explicite du traitement de chaque cas", "falsifiable": "partiel", "note": "mesure = comptage de findings falsifiables, pas de seuil"},
+      {"summary": "Fournir des exemples d'erreurs precedentes au redteam", "falsifiable": "partiel", "note": "idem"},
+      {"summary": "Limiter le temps de generation par finding", "falsifiable": "partiel", "note": "mesure inclut 'qualite (falsifiabilite)' -- terme flou, non operationnalise"},
+      {"summary": "Exiger analyse technique plutot qu'evaluation globale", "falsifiable": "partiel", "note": "meme mesure floue que #3"},
+      {"summary": "DUPLIQUE EXACT de l'item #4 (texte identique caractere pour caractere)", "falsifiable": "n/a", "note": "defaut de qualite : la generation a produit un doublon au lieu d'une 5e idee distincte -- reduit la diversite reelle a 4 idees sur 5 demandees"}
+    ],
+    "note_hors_sujet": "Aucune des 5 experiences ne porte sur MCTS (candidate_selector/mcts_selector/agent_factory) -- le corpus fourni a Qwen ne mentionne JAMAIS le terme MCTS ni la chaine de decision V2 (limite de corpus, cf RAPPORT.md). Qwen a substitue un theme voisin mais different (qualite du red-team) qu'il pouvait justifier avec le materiel recu, plutot que d'halluciner des details sur un systeme qui ne lui a pas ete montre -- comportement globalement prudent malgre le hors-sujet."
+  },
+
+  "A3_g2": {
+    "findings": [
+      {
+        "claim": "Le modele qwen2.5-14b-instruct n'a pas rendu de findings falsifiables lors du run pacman-v2.",
+        "evidence_ref_given": "verdict_v2.json (run_id: pacman-v2-20260805)",
+        "category": "ACCORD-F9",
+        "justification": "Identique mot pour mot a A3g1 -- seul finding parfaitement stable (100%) entre les deux generations de tout l'experiment."
+      }
+    ],
+    "root_causes_broken_loops": "5 root_causes et 4 broken_loops ici contre 1 et 1 en g1 -- plus verbeux mais memes idees (aucun fait nouveau), simple elaboration en plusieurs phrases separees du meme constat unique.",
+    "proposed_experiments": [
+      {"summary": "Etape de validation des findings avant rendu", "falsifiable": "oui", "note": "mesure = comptage falsifiables apres ajout"},
+      {"summary": "Etape d'evaluation independante supplementaire", "falsifiable": "partiel", "note": "incoherent : ajouter une etape d'independance a un modele deja qualifie d'independant dans le corpus (redteam_ran:true, LM Studio UP) -- confusion conceptuelle"},
+      {"summary": "Etape de revision humaine avant rendu", "falsifiable": "partiel", "note": "contourne le test (revision humaine = ce n'est plus qwen qui est mesure) -- ne teste plus l'hypothese de depart"},
+      {"summary": "Etape de validation automatique avant rendu", "falsifiable": "partiel", "note": "quasi-doublon conceptuel de l'item #1"},
+      {"summary": "Etape de revision humaine ET automatique avant rendu", "falsifiable": "partiel", "note": "fusion quasi-doublon des items #3 et #4 -- sur 5 experiences, seulement ~2-3 idees reellement distinctes"}
+    ],
+    "note_hors_sujet": "Meme absence totale de contenu MCTS que g1. Les 5 items partagent tous la meme mutation de fond ('ajouter une etape avant le rendu du finding') avec des variantes superficielles -- diversite interne tres faible."
+  },
+
+  "aggrege": {
+    "recall_F1_F15": {
+      "hits_solides": ["F6", "F7", "F9"],
+      "hits_imprecis": ["F5 (attribution erronee en A1, correcte en A2)"],
+      "non_couverts_par_corpus": ["F8", "F10", "F11", "F13", "F15", "F14 (partiellement -- corpus donne les manifests mais pas la phrase 'oracle: AUCUN, godot VERT' du postmortem §5, jamais incluse)"],
+      "manques_malgre_presence_explicite_dans_le_corpus": ["F1 (section 5, en gras)", "F2 (sections 1+3+5)", "F3 (section 8, en gras)", "F4 (section 2, en gras, '0' explicite)"],
+      "lecture": "Sur 15 faits verifies, 6 n'etaient pas recuperables depuis LE CORPUS TEL QUE CONSTRUIT cette session (F8,F10,F11,F13,F15, et partiellement F14) -- limite du protocole/corpus, pas de Qwen. Sur les 9 restants recuperables, Qwen en a retrouve solidement 3 (F6,F7,F9) et partiellement 1 (F5), soit environ 4/9 (44%) des faits recuperables et 4/15 (27%) de la base totale. Le point le plus frappant : F1-F4 etaient ecrits EN GRAS, en prose explicite, dans le corpus -- et n'apparaissent dans AUCUNE des 6 generations, alors que les faits structures en JSON (champs status/model) sont systematiquement repris. Motif mesure : Qwen recopie ce qui est en JSON/YAML structure, ignore les negations en prose (absence de fichier, compteur a 0) meme mises en evidence typographique."
+    },
+    "precision": "Sur 14 findings au total (2 par generation x 6 generations, sauf A3 a 1 chacune), 11 sont des ACCORD-Fn corrects (certains imprecis en attribution), 3 sont FAUX-corpus (les 2 x 'Oracle archi ne valide pas les imports' de A1g1/A1g2 -- meme erreur repetee -- comptees separement car generations independantes) -- soit precision brute ~11/14 = 79% si on compte les ACCORD imprecis comme corrects, ou 9/14 = 64% si on exige une attribution exacte du sujet affecte (F5 mal attribue en A1).",
+    "hallucinations": "0 fait invente / reference inexistante detectee sur les 14 findings + 10 root_causes/broken_loops distincts + 10 proposed_experiments examines. Le seul mode d'erreur observe est la MESINTERPRETATION d'un champ explicitement annote dans le corpus (controle_positif attendu lu comme un defaut), pas la fabrication.",
+    "stabilite_inter_generations": {
+      "A1": "3/3 findings identiques en THEME (100% de recoupement conceptuel) mais 0/3 identiques mot pour mot -- reformulations systematiques.",
+      "A2": "3/3 findings identiques en theme, formulations tres proches (parfois quasi mot pour mot, ex finding1 des 2 generations). broken_loops varie en NOMBRE (3 puis 2) -- meme prompt, meme temperature 0, sortie non identique.",
+      "A3": "1/1 finding identique caractere pour caractere entre g1 et g2 (seul cas de determinisme parfait observe). root_causes/broken_loops varient fortement en NOMBRE (1->5, 1->4) et en longueur pour le meme constat.",
+      "lecture": "temperature=0 sur ce serveur LM Studio local ne garantit PAS une sortie deterministe au niveau texte -- seule la these/le sujet des findings est stable, jamais le wording exact ni le nombre d'elements dans les listes secondaires (root_causes/broken_loops/proposed_experiments)."
+    },
+    "profondeur_causale": "Aucune des 10 listes de root_causes (toutes generations) ne depasse le niveau 'symptome reformule' -- ex: pour F7, la cause donnee est 'les adaptateurs n'extraient pas les champs', ce qui est un CONSTAT (equivalent au finding), pas une cause (pourquoi les adaptateurs ne les extraient pas -- bug de mapping ? champ renomme ? jamais branche ? -- jamais explore). Comparable au F1 reel (cause reelle : driver.py bout-en-bout jamais invoque, dispatch manuel etape par etape) -- ce niveau de profondeur causale, remontant a un mecanisme systemique plutot qu'a la description du symptome, n'apparait dans AUCUNE des 6 generations.",
+    "qualite_experiences_A3": "10 experiences proposees (5+5). falsifiable='oui' strict (mesure ET action de mutation clairement executable) : 4/10. 'partiel' (mesure vague type 'qualite' non operationnalisee, ou mutation qui ne teste plus l'hypothese de depart) : 5/10. 1 duplique exact (A3g1 #4=#5). Aucune ne porte sur MCTS au sens du systeme reel (candidate_selector/mcts_selector/agent_factory, jamais mentionnes dans le corpus fourni) -- toutes portent sur l'amelioration du contrat red-team, sujet voisin mais hors perimetre de la question posee.",
+    "cout_tokens": {
+      "preflight_ping": 44,
+      "A1_g1": 6568,
+      "A1_g2": 6646,
+      "A2_g1": 6558,
+      "A2_g2": 6538,
+      "A3_g1": 6693,
+      "A3_g2": 6934,
+      "total": 39981,
+      "note": "prompt quasi constant (~6080-6092 tokens, le corpus fixe) ; completion variable (456-855 tokens) selon la verbosite de la generation, elle-meme non correlee a la qualite (A3g2, la plus verbeuse a 855 tokens de completion, contient le plus de doublons/reformulations sans contenu nouveau)."
+    }
+  }
+}

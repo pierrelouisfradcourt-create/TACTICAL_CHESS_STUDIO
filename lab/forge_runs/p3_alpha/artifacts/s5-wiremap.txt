@@ -1,0 +1,73 @@
+All five candidate build files fail to exist, and `games/p3_alpha/index.html` is absent while the directory itself exists (EISDIR). This confirms the expected pipeline state: **s5-wiremap runs before s9-build** — no game code is materialized yet. Per my contract, the code-correspondence oracle (`forge.static_oracles.check_wiremap`) runs at **s10c after build**, not now: *« En amont aucun fichier n'est écrit : ce n'est pas ton oracle »*. My job is to produce the wiremap that is **isomorphic to the blueprint** (étape 4) and **covers every featuremap capability** (étape 3), declaring per rule the target file + function + expected proof that the build must satisfy and that s10c will verify.
+
+I map each rule to its blueprint-owning module (respecting the module ownership and forbidden-deps in `blueprint.json`), materializing the abstract modules into flat web files at the game root (charter: *« window.__game / harnais complet à la racine du jeu »*).
+
+---
+
+## RAPPORT FINAL — s5-wiremap / p3_alpha-20260901-run1
+
+**Rôle** : cartographe isomorphe. La WireMap ci-dessous épouse l'arbre du blueprint (`index.html · engine · state · economy · progression · render · input · harness`) et matérialise chaque module abstrait en un fichier concret à la racine du jeu (`.js` + `index.html`), conforme au charter (`plateforme_cible: web HTML+JS canvas`, `window.__game` à la racine).
+
+**Isomorphisme WireMap ↔ blueprint** (chaque règle placée dans le module qui la `couvre`) :
+- `economy.js` → R1 gain clic · R2 production/tick · R3 coût ×1.12 · R4 mult. clic · R5 mult. prod · R6 validité d'achat · R7 taux R/s (blueprint : `economy.couvre = feat_click_input, feat_click_upgrades, feat_prod_upgrades, feat_refusal, feat_rate`).
+- `progression.js` → R8 seuils S1–S4 · R9 texte objectif · R10 victoire S5 · R11 invariant no-fail (blueprint : `progression.couvre = feat_goal…feat_repeat`).
+- `state.js` → R13 comptabilité milli-R entiers · R14 nouvelle partie (blueprint : `state.couvre = feat_meta`, feuille pure sans dépendance).
+- `engine.js` → R15 tick déterministe seedé (tick_ms 100).
+- `render.js` → R17 rendu compteur + squish (blueprint : `render.couvre = feat_click_feedback`, lecture seule).
+- `input.js` → R18 pointeur→action (blueprint : `input.couvre = feat_click_input, feat_buy_generator, feat_meta`).
+- `harness.js` → R12 rejeu · R16 solvabilité runtime · R19 sonde de décision (blueprint : `harness.couvre = feat_decision, feat_victory`).
+- `index.html` → R20 composition + `window.__game`.
+
+**Couverture featuremap** (les 6 systèmes de `s3-decompo`) : `sys_core_click`→R1/R13/R17 ; `sys_progression`→R9 ; `sys_generators`→R8/R6/R18 ; `sys_upgrades`→R4/R5 ; `sys_economy`→R19/R6/R7 ; `sys_end_states`→R10/R16/R11/R12/R14. Aucune capacité non couverte.
+
+**Garde-fou pré-mortem respecté** : chaque `preuve` asserte le comportement **STRICT** (égalité exacte du gain, victoire réellement atteinte, refus laissant l'état inchangé) — **aucun `>=` tautologique** ; la solvabilité est prouvée par un **bot runtime** (harness), jamais par desk-check.
+
+**Verdict (règle de restitution)** : je ne dispose d'AUCUN reçu d'oracle exécuté — `permissions run: aucun`, et le code cible n'existe pas encore (s5 précède s9-build). Je **ne m'auto-certifie pas** : pas de `software_verdict: OK` émis par moi. La WireMap est le **contrat de build** que s10c (`check_wiremap`) confrontera au code réel.
+`evidence_verdict: MECHANICAL_VALIDATION_ONLY` (applicable seulement au futur reçu s10c, pas en ma possession)
+`claim_verdict: NO_CLAIM_ALLOWED`
+`fog → HumanGate` : (1) le choix de matérialiser les modules du blueprint en fichiers plats `.js` à la racine (vs sous-dossier `06_RUNTIME/`) est une décision de cartographie, non tranchée par le blueprint ni le `repo_map.yaml` (qui n'a pas de gabarit web-flat) — à ratifier si le builder doit s'y conformer ; (2) les noms de fonctions ci-dessous **contraignent le build** : le builder DOIT définir exactement ces fonctions dans ces fichiers, sinon s10c échouera.
+
+**SKIPPED_VALIDATION :**
+- item: exécution de `forge.static_oracles.check_wiremap` (fichiers existent / fonctions définies) · périmètre: `games/p3_alpha/*.js` · statut: non fait — reporté à s10c · raison: le code cible n'est pas encore construit (s5 précède s9-build) ; par contrat c'est l'oracle APRÈS build, pas le mien.
+- item: exécution de `check_wiremap_contract.mjs` (couverture plan / maillon_non_lie) · périmètre: `wiremap.json` matérialisé · statut: non fait · raison: `permissions run: aucun` ; l'exécuteur matérialise `wiremap.json` depuis mon bloc puis lance l'oracle. La tâche concrète impose le format `static_oracles` (4 clés feature/fonction/fichiers/preuve, sans champ `couvre`) — je m'y conforme littéralement (« EXACTEMENT un objet de la forme… »).
+- item: vérification de l'existence de `games/p3_alpha/` par listage · périmètre: dossier du jeu · statut: partiel · raison: Bash/listage indisponible dans cette session ; existence confirmée par EISDIR et absence des fichiers de build sondés (index.html, engine.js, economy.js, game.js, main.js — 5/5 inexistants).
+
+**why_task_existed:**
+- `problem:` le pipeline Forge exige, entre le blueprint (s4) et le build (s9), une carte isomorphe reliant chaque règle du jeu à son fichier/fonction cible et à sa preuve attendue ; sans elle, s10c n'a aucun plan à confronter au code.
+- `oracle:` aucun — activation par la marche normale du pipeline (dispatch `FORGE_DISPATCH:s5-wiremap:p3_alpha-20260901-run1:1`), décision de séquence, pas détection d'un défaut.
+- `root_cause:` non établie (pas de défaut : étape normale).
+- `action_reason:` produire la WireMap isomorphe au blueprint couvrant l'intégralité de la featuremap répond exactement à ce besoin de plan vérifiable.
+
+**result:** WireMap de 20 règles produite, isomorphe aux 8 modules du blueprint, couvrant les 6 systèmes de la featuremap, chaque ligne portant fonction + fichier + preuve stricte.
+**proof:** aucune commande exécutée (`run: aucun`) ; la vérification mécanique appartient à l'exécuteur (matérialisation `wiremap.json`) puis à s10c (`check_wiremap` sur le build).
+**learning:** au niveau s5, la WireMap est un **contrat de build prospectif**, pas un audit de code existant ; ses noms de fonctions deviennent la spec que le builder doit honorer et que s10c vérifiera — le choix d'adressage (flat root vs `06_RUNTIME/`) manque dans `repo_map.yaml` pour le web et doit être tranché en amont pour éviter une divergence s10c.
+**next_reason:** chaîne causale FERMÉE ici — le livrable attendu (le bloc `wiremap`) est produit dans le format imposé ; l'étape suivante (matérialisation + build) dispose de tout ce qu'il lui faut. Seul point ouvert non bloquant : le fog d'adressage (1) remonté à HumanGate.
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}
+
+```json
+{
+  "features": [
+    {"feature": "R1 Gain au clic (economie)", "fonction": "clickGain", "fichiers": ["economy.js"], "preuve": "harness.js: un bot clique le noyau N fois ; solde_mR augmente d'EXACTEMENT N x gain_clic x 1000 (egalite STRICTE, jamais >=)."},
+    {"feature": "R2 Production par tick des generateurs", "fonction": "tickProduction", "fichiers": ["economy.js"], "preuve": "engine.tick sans aucun clic fait croitre le cumul mR de la somme des productions x dt ; deux runs meme seed => trajectoire identique tick par tick."},
+    {"feature": "R3 Courbe de cout x1.12", "fonction": "generatorCost", "fichiers": ["economy.js"], "preuve": "sur une sequence d'achats du meme generateur, cout(n) == floor(base_mR x 1.12^n) (comptabilite entiere) ; verifie a n=0..k, egalite exacte."},
+    {"feature": "R4 Multiplicateur amelioration de clic (x2/x4)", "fonction": "clickMultiplier", "fichiers": ["economy.js"], "preuve": "apres achat de clic_x2 le gain par clic double EXACTEMENT (x2) ; apres clic_x4 (requiert clic_x2) le gain vaut base x4 (cumul sequentiel), egalite stricte."},
+    {"feature": "R5 Multiplicateur amelioration de production (x2)", "fonction": "productionMultiplier", "fichiers": ["economy.js"], "preuve": "apres achat de prod_gN_x2, la production R/s de GN double EXACTEMENT (x2) ; les autres generateurs inchanges."},
+    {"feature": "R6 Validite d'achat / refus sous-finance", "fonction": "tryPurchase", "fichiers": ["economy.js"], "preuve": "un achat avec solde < cout laisse solde ET etat de possession STRICTEMENT inchanges (aucune ressource depensee) ; un achat finance debite exactement le cout et marque possede."},
+    {"feature": "R7 Taux R/s courant", "fonction": "currentRate", "fichiers": ["economy.js"], "preuve": "avant tout achat, currentRate() == 0 (aucun generateur) ; apres chaque achat de generateur, la valeur est non nulle et STRICTEMENT croissante."},
+    {"feature": "R8 Deblocage par seuils cumules S1-S4", "fonction": "updateUnlocks", "fichiers": ["progression.js"], "preuve": "au franchissement STRICT de 100 / 1000 / 12000 / 150000 R cumules, la porte correspondante (G2/G3/G4/panneau prod) passe de verrouille a revele ; verrouille tant que cumul < seuil."},
+    {"feature": "R9 Texte d'objectif evolutif", "fonction": "goalText", "fichiers": ["progression.js"], "preuve": "au chargement goalText() est non vide ; apres chaque palier franchi il renvoie un enonce textuellement DISTINCT du precedent (nouveau palier)."},
+    {"feature": "R10 Detection de victoire S5", "fonction": "checkVictory", "fichiers": ["progression.js"], "preuve": "checkVictory() est faux tant que cumul < 1 000 000 R ; devient vrai AU franchissement de 1 000 000 R cumules (unique fin observable, aucun reset)."},
+    {"feature": "R11 Invariant absence de defaite", "fonction": "isDefeatReachable", "fichiers": ["progression.js"], "preuve": "oracle statique : isDefeatReachable() renvoie toujours false ; aucun flag ni ecran de game over n'est atteignable dans le build."},
+    {"feature": "R12 Boucle rejouable (nouveau deblocage)", "fonction": "replayProbe", "fichiers": ["harness.js"], "preuve": "dans l'etat post-S1, rejouer clic -> credit -> franchissement declenche a nouveau une revelation (G3) : la boucle B->F est reproductible (nouvel etat produit, pas seulement re-observe)."},
+    {"feature": "R13 Comptabilite milli-R entiers", "fonction": "creditMilliR", "fichiers": ["state.js"], "preuve": "solde et cumul restent des ENTIERS milli-R apres tout credit/debit ; le compteur affiche floor(solde_mR/1000) (invariant verifie sur trajectoire de bot)."},
+    {"feature": "R14 Nouvelle partie / relance a zero", "fonction": "newGame", "fichiers": ["state.js"], "preuve": "apres victoire, newGame() remet solde ET cumul a 0 et tous les multiplicateurs a leur valeur initiale ; aucun gain_clic ni multiplicateur superieur a l'initial (aucun report d'avantage)."},
+    {"feature": "R15 Boucle de simulation deterministe seedee", "fonction": "tick", "fichiers": ["engine.js"], "preuve": "deux executions a seed identique produisent la MEME trajectoire de cumul mR tick par tick (tick_ms = 100) ; le tick fait progresser la production sans clic."},
+    {"feature": "R16 Solvabilite runtime (bot atteint S5)", "fonction": "runSolvabilityBot", "fichiers": ["harness.js"], "preuve": "un bot scripte atteint 1 000 000 R cumules en <= 72000 ticks et observe le panneau de victoire PRESENT au franchissement (preuve runtime, pas desk-check)."},
+    {"feature": "R17 Rendu compteur + feedback de clic (squish)", "fonction": "render", "fichiers": ["render.js"], "preuve": "deux captures consecutives autour d'un clic montrent la deformation (squish) du noyau ET un compteur R modifie dans la meme frame ; une carte sous-financee est rendue grisee."},
+    {"feature": "R18 Traduction entree -> action logique", "fonction": "dispatchPointer", "fichiers": ["input.js"], "preuve": "un clic sur l'affordance noyau declenche exactement clickGain ; un clic sur acheter_generateur (solde suffisant) debite le cout et marque possede ; un clic sur nouvelle_partie declenche newGame."},
+    {"feature": "R19 Sonde de decision (variance non triviale)", "fonction": "decisionProbe", "fichiers": ["harness.js"], "preuve": "deux politiques scriptees (idle sans clic vs clic_actif tous les 3 frames) sur 300 frames produisent un cumul R DIFFERENT (variance non nulle, deux valeurs distinctes)."},
+    {"feature": "R20 Composition et exposition window.__game", "fonction": "bootGame", "fichiers": ["index.html"], "preuve": "au chargement, window.__game est defini et expose l'API publique (solde mR, cumul, tick, actions) ; un bot pilote la partie sans DOM interne."}
+  ]
+}
+```

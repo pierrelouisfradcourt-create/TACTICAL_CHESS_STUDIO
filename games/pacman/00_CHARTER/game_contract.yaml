@@ -1,0 +1,72 @@
+# PACMAN — contrat de jeu. Format : scripts/forge/standard/SCHEMA.md §1 (schema FERME).
+#
+# POURQUOI CE FICHIER EXISTE, ET POURQUOI SI TARD. Pacman est VALIDATED (verdicts signes
+# pacman-20260805-r1 et pacman-v2-20260805) mais n'a jamais ete bati sur le squelette
+# standard : ses artefacts de gouvernance vivaient UNIQUEMENT dans lab/forge_runs/pacman/,
+# c'est-a-dire dans une sortie de runtime. Consequence mesuree le 2026-08-10 : l'etape
+# s10s n'a jamais tourne sur lui, donc ses identifiants de capacite n'ont JAMAIS ete
+# proposes au registre — 0 proposition la ou Tetris en a produit 42. Ce fichier existe
+# pour rendre le jeu MESURABLE, pas pour le modifier : aucun octet de games/pacman/**
+# autre que 09_WIREMAP/ et 00_CHARTER/ n'a ete touche.
+#
+# =====================================================================================
+# `node` EST DELIBEREMENT ABSENT — ce n'est pas un oubli.
+# =====================================================================================
+# Le curriculum est Pong=1, Snake=2, Breakout_v2=3, Tetris=4. Pacman est HORS de cette
+# sequence : il n'a pas ete produit comme un noeud du curriculum. Lui attribuer un numero
+# est une DECISION DE GOUVERNANCE, pas un fait derivable du runtime — aucune donnee de
+# games/pacman/** ni de ses verdicts signes ne dit quel noeud il occupe.
+#
+# Consequence VOULUE et assumee : `check_contract_completeness` echoue en nommant
+# lui-meme « champ obligatoire manquant 'node' ». L'oracle enonce la decision manquante
+# a la place d'un agent qui aurait invente un chiffre. Le pas s10s est FAIL, jamais
+# BLOCKED : le fichier existe et se lit, donc la mesure des cinq autres oracles ET le
+# depot des propositions de capacite s'executent normalement.
+#
+# =====================================================================================
+# `proof` EST ABSENT AUSSI — champ OPTIONNEL (_GAME_CONTRACT_SPEC, standard_oracles.py
+# l.118), regime historique du parc (Pong compris, contrat V1 §6).
+# =====================================================================================
+# Mesure du 2026-08-10 : un descripteur `proof` PARTIEL est rejete par
+# `evaluate_proof_descriptor` -> status BLOCKED, « seals.test_scripts vide -- chaine de
+# preuve rompue par construction (contrat §2 regle 9) ». En ecrire un incomplet ici
+# installerait donc, dans la reference validee, un descripteur qui bloquerait toute
+# mutation future. Et en ecrire un COMPLET exige des marges (max_mutants,
+# timeout_per_mutant_s, total_timeout_s) qui sont des choix ratifies, pas des mesures
+# — celles de Snake le sont explicitement (« valeurs ratifiees Pierre 2026-07-28 »).
+#
+# CE QUI EST DEJA MESURE, pour la calibration future (ne rien recopier a l'aveugle) :
+#   - lab/forge_runs/pacman/mutation_receipt.json : 263 mutants reels, 2 survivants
+#     (game_state.gd 1/69, input_intents.gd 1/3)
+#   - le meme recu ne porte QUE des chemins 05_SYSTEMS/**.gd : `categories_mutables:
+#     [system]` est donc un fait mesure, pas une hypothese
+#   - categories REELLES de la wiremap (mesure sur 09_WIREMAP/wiremap.json, 85 lignes) :
+#     system, system.adapter, test.unit, test.oracle, level, world.rules
+#     -- `level` et `world.rules` n'existent ni chez Snake ni chez Tetris : recopier leur
+#     liste d'exclusion produirait un BLOCKED (contrat V1, regle de forme 4)
+#   - solvability.gd et tests/run_tests.gd existent a la racine du projet Godot
+
+schema_version: 1
+game_id: pacman
+
+# Derive du disque : project.godot present (cible Godot) et 05_SYSTEMS/**.gd sont des
+# RefCounted purs sans dependance moteur (regle de jeu separee du runtime).
+runtimes: [rules, godot]
+
+budget:
+  # reuses: VIDE. La loi d'empilement exige qu'un `reuses` existe en bibliotheque au tier
+  #   `validated`. Pacman n'a consomme aucune brique du catalogue par ce mecanisme, et un
+  #   differentiel RETROACTIF est incalculable : l'instantane de catalogue est pris au
+  #   DEMARRAGE d'un run, or les runs pacman n'ont jamais persiste de state.json.
+  reuses: []
+  # adds: VIDE. Ce contrat ne PROMET aucun depot en bibliotheque. Une promesse non tenue
+  #   est une violation (`promis_non_depose`) ; pour un contrat pose APRES coup sur un jeu
+  #   deja produit, ne rien promettre est la seule position honnete.
+  adds: []
+
+assets:
+  # Derive du disque : aucun dossier 04_ASSETS, aucun fichier .wav/.ogg/.mp3 sous
+  # games/pacman/**. Le rendu et le son passent par les primitives du moteur (sound_bank
+  # synthetise). Meme position que Snake, Breakout_v2 et Tetris. `none` n'est pas une
+  # valeur legale du standard : les seules sont cc0 (plan A) et generated (plan B).
+  plan: cc0

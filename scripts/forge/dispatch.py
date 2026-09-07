@@ -174,6 +174,14 @@ PROFILES = {
     # de red-team ni de design — build -> oracle code -> verdict. Évite la cérémonie
     # 13 étapes sur 78 lignes (finding red-team chesscolor). archi/wiremap = SKIPPED.
     "micro": ("s9-build", "s10a-oracle-code", "s12-verdict"),
+    # micro_sonde (GO Pierre 2026-09-01) : sas de production/playtest — la chaîne
+    # CONÇOIT (s0 depuis le Project Brief, gate fail-closed car s0 présent) puis
+    # construit et prouve, SANS étage de design (pas de worldscan/artbible/GM/
+    # prisme/wiremap-freeze). Le juge du fun est HUMAIN (Pierre, post-s12) —
+    # jamais une métrique. Périmètre verrouillé : aucune étape ajoutée, un seul
+    # run, pas de M1-M7. Ce n'est PAS une paire expérimentale.
+    "micro_sonde": ("s0-contrat", "s9-build", "s10a-oracle-code",
+                    "s11-redteam-code", "s12-verdict"),
     # proof_only : REMESURER SANS RECONSTRUIRE (GO Pierre 2026-08-17). Rafraichir un reçu
     # de preuve produit exigeait jusqu'ici `standard`/`standard_godot`/`full_godot`, tous
     # porteurs d'un BUILDER et d'une RED-TEAM : on reconstruisait le jeu — et on reecrivait

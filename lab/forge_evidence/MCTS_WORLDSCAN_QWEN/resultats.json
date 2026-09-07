@@ -1,0 +1,149 @@
+{
+  "experiment": "MCTS_WORLDSCAN_QWEN",
+  "date": "2026-08-07",
+  "hypothesis": "Sous contrat JSON strict (temp 0), qwen2.5-14b-instruct peut produire l'etape s2-worldscan au niveau de la reference Claude, jugee par le MEME oracle.",
+  "preflight": {
+    "status": "PASS",
+    "method": "mcp__lmstudio__list_lm_studio_models",
+    "server": "LM Studio localhost:1234 (pont MCP)",
+    "models_listed": [
+      "qwen/qwen2.5-coder-14b",
+      "qwen2.5-14b-instruct",
+      "qwen/qwen3.6-27b",
+      "text-embedding-nomic-embed-text-v1.5",
+      "devstral-small-2507",
+      "mistral-7b-instruct-v0.3"
+    ],
+    "target_model_present": true,
+    "note": "list_lm_studio_models liste les modeles disponibles au serveur ; la premiere generation reussie (gen1, HTTP 200 + reponse coherente) confirme que qwen2.5-14b-instruct etait effectivement charge/servable, pas seulement present dans la liste."
+  },
+  "reference": {
+    "path": "lab/forge_runs/pacman/worldscan.json",
+    "oracle_command": "node scripts/forge/check_worldscan.mjs lab/forge_runs/pacman/worldscan.json",
+    "oracle_verdict": "OK",
+    "oracle_stats": { "games": 2, "sources_total": 16, "objectives_total": 2, "media_files_found": 0 },
+    "note": "Regle 'un oracle qui recale le producteur connu-bon se mesure lui-meme' respectee : la reference Claude est ACCEPTEE par l'oracle (verifie explicitement avant le test Qwen).",
+    "cost_tokens_claude_v1": {
+      "value": 74713,
+      "provenance": "Chiffre FOURNI par la commande de fabrication (Lot B), non recalcule independamment dans cette session. Perimetre exact non reconfirme ici (probablement le run agentique complet de l'etape, pas un seul appel de completion) — voir limite dans comparaison_couts."
+    },
+    "note_schema_yaml": "lab/forge_runs/pacman/worldscan.yaml (co-localise avec worldscan.json) suit un schema DIFFERENT et beaucoup plus riche (player_objectives, victory_conditions, systems, ghost_states, ghost_targeting, maze, comparable_games, incertitudes...) qui ne correspond PAS a l'output_contract du contrat s2-worldscan.yaml. Seul worldscan.json (games[]/advisory) est le format que check_worldscan.mjs valide et que ce test reproduit. Fait constate, non explique par ce run."
+  },
+  "contract": {
+    "path": "scripts/forge/contracts/s2-worldscan.yaml",
+    "oracle_dedie": "scripts/forge/check_worldscan.mjs (mode fichier, v0.3)",
+    "note": "Etape AVEC juge dedie (pas un 'etape sans juge')."
+  },
+  "prompt": {
+    "path": "lab/forge_evidence/MCTS_WORLDSCAN_QWEN/prompt_exact.txt",
+    "construction": "output_contract copie verbatim du contrat (aucun format concurrent invente, leçon incident s1/s3 run V1). Contexte = reference_jeu + objectif verbatim du charter.yaml pacman-20260805-r1.",
+    "model": "qwen2.5-14b-instruct",
+    "temperature": 0,
+    "max_tokens": 6000
+  },
+  "generations": [
+    {
+      "id": "gen1",
+      "raw_output": "lab/forge_evidence/MCTS_WORLDSCAN_QWEN/qwen_gen1_raw.md",
+      "extracted_json": "lab/forge_evidence/MCTS_WORLDSCAN_QWEN/qwen_gen1_worldscan.json",
+      "extraction_method": "meme regle que run_real.py::extract_json_payload (dernier bloc fenced ```json``` valide en objet)",
+      "oracle_verdict": "OK",
+      "oracle_stats": { "games": 2, "sources_total": 6, "objectives_total": 2, "media_files_found": 0 },
+      "tokens": { "prompt": 1086, "completion": 1810, "total": 2896 },
+      "factual_flag": "has_win_state=false pour Pac-Man (INCORRECT — Pac-Man a un etat de victoire connu : vider le labyrinthe). L'oracle ne detecte pas cette erreur car il valide uniquement la FORME (has_win_state=false + victory_condition=null est une combinaison structurellement valide), jamais le contenu."
+    },
+    {
+      "id": "gen2",
+      "raw_output": "lab/forge_evidence/MCTS_WORLDSCAN_QWEN/qwen_gen2_raw.md",
+      "extracted_json": "lab/forge_evidence/MCTS_WORLDSCAN_QWEN/qwen_gen2_worldscan.json",
+      "extraction_method": "meme regle que run_real.py::extract_json_payload",
+      "oracle_verdict": "OK",
+      "oracle_stats": { "games": 2, "sources_total": 6, "objectives_total": 2, "media_files_found": 0 },
+      "tokens": { "prompt": 1087, "completion": 1742, "total": 2829 },
+      "factual_flag": "has_win_state=true, victory_condition renseigne (correct au sens generique, quoique moins precis que la reference Claude qui compte 244 collectibles precis)."
+    },
+    {
+      "id": "gen3",
+      "raw_output": "lab/forge_evidence/MCTS_WORLDSCAN_QWEN/qwen_gen3_raw.md",
+      "extracted_json": "lab/forge_evidence/MCTS_WORLDSCAN_QWEN/qwen_gen3_worldscan.json",
+      "extraction_method": "meme regle que run_real.py::extract_json_payload",
+      "oracle_verdict": "OK",
+      "oracle_stats": { "games": 2, "sources_total": 6, "objectives_total": 2, "media_files_found": 0 },
+      "tokens": { "prompt": 1087, "completion": 1874, "total": 2961 },
+      "factual_flag": "has_win_state=true, coherent avec gen2."
+    }
+  ],
+  "mesures": {
+    "conformite_schema": {
+      "verdict": "3/3 PASS a l'oracle check_worldscan.mjs (meme oracle que la reference, verifie OK sur la reference aussi)",
+      "champs_manquants": 0,
+      "champs_excedentaires": 0,
+      "note": "L'oracle ne verifie que la forme (schema, comptes minimums, URLs bien formees). Il n'evalue ni l'exactitude factuelle ni l'authenticite des citations — voir factual_flag de gen1 et section citations ci-dessous."
+    },
+    "stabilite_inter_generations": {
+      "identite_structurelle": "3/3 identique (2 jeux, 3 sources/jeu, 1 objectif/jeu, 4 cles loops, advisory:true) — le SCHEMA est stable.",
+      "identite_de_contenu": "0/3 paires bit-a-bit identiques. Divergences concretes constatees :",
+      "divergences": [
+        "has_win_state (Pac-Man) : gen1=false (incorrect) vs gen2=true vs gen3=true — le meme prompt a temperature 0 produit une reponse factuellement CONTRADICTOIRE d'une generation a l'autre sur un champ gate de l'oracle amont (victoire/defaite).",
+        "URL video Pac-Man (meme source revendiquee 'Pac-Man Gameplay') : gen1=04sJGfVZKdA, gen2=04sJGfVZKdA (identique a gen1), gen3=04aW5nXrjgk (differente).",
+        "URL video Ms. Pac-Man : gen1=5cQZvzr6n8A, gen2=5cQZJzr6v8M, gen3=5cQZJzr6v8M (gen2==gen3, gen1 different).",
+        "3e source Ms. Pac-Man : gen1 et gen2 citent GameFAQs (2 URLs differentes entre elles), gen3 cite IGN au lieu de GameFAQs — meme le TYPE DE SITE cite change.",
+        "texte des loops (minute_1/10, hour_5, endgame) : formulations differentes sur les 3 generations, sauf gen1==gen2 mot-pour-mot sur les 4 cles Pac-Man alors que leur has_win_state diverge (incoherence interne : narration identique, conclusion structuree opposee)."
+      ],
+      "verdict_calibration_anterieure": "La calibration Qwen anterieure (memoire studio, 'qwen_worker_calibration') mesurait stabilite 1,00 sur un JSON simple. CE test (schema worldscan, plus long/plus riche) NE reproduit PAS cette stabilite au niveau du CONTENU — seul le SCHEMA est stable a 100%. La stabilite 1,00 anterieure ne se generalise donc pas telle quelle a un contrat de sortie plus complexe."
+    },
+    "citations": {
+      "methode": "Echantillon de 5 citations, plausibilite jugee par recoupement INTERNE (coherence entre les 3 generations pretendant citer la meme source), PAS de verification web (hors perimetre impose).",
+      "echantillon": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Pac-Man",
+          "stabilite_inter_gen": "identique dans les 3 generations",
+          "verdict_plausibilite": "PLAUSIBLE / vraisemblablement genuine (URL Wikipedia canonique, stable sous 3 tirages independants)"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Ms._Pac-Man",
+          "stabilite_inter_gen": "identique dans les 3 generations",
+          "verdict_plausibilite": "PLAUSIBLE / vraisemblablement genuine"
+        },
+        {
+          "url": "video YouTube 'Pac-Man Gameplay' (id derive)",
+          "stabilite_inter_gen": "04sJGfVZKdA (gen1,gen2) puis 04aW5nXrjgk (gen3) pour la MEME source revendiquee",
+          "verdict_plausibilite": "SUSPECT — une citation genuine d'une source memorisee ne devrait pas deriver d'ID sous 3 tirages a temperature 0 ; signature de confabulation (coherent avec la lecon studio 'qwen_recall_vs_transform')"
+        },
+        {
+          "url": "video YouTube 'Ms. Pac-Man Gameplay' (id derive)",
+          "stabilite_inter_gen": "5cQZvzr6n8A (gen1) puis 5cQZJzr6v8M (gen2,gen3)",
+          "verdict_plausibilite": "SUSPECT — meme signature de derive"
+        },
+        {
+          "url": "article Pac-Man (IGN ou GameFAQs selon generation)",
+          "stabilite_inter_gen": "3 URLs differentes, parfois meme site different (IGN vs GameFAQs), pour une source cense documenter le meme jeu",
+          "verdict_plausibilite": "SUSPECT — aucune des 3 versions n'est confirmable en interne, la derive de site ET d'URL est un signal fort d'invention"
+        }
+      ],
+      "synthese": "2/5 echantillonnees jugees plausibles/genuine (Wikipedia, stables), 3/5 jugees suspectes/probablement inventees (video+article, instables sous repetition a temp 0). 0/5 verifiees positivement (aucun acces web utilise, hors perimetre)."
+    },
+    "cout_tokens": {
+      "qwen_par_generation": [2896, 2829, 2961],
+      "qwen_moyenne": 2895.3,
+      "qwen_total_3_generations": 8686,
+      "claude_v1_reference": 74713,
+      "ratio_brut": "~25.8x moins de tokens par generation Qwen vs le chiffre de reference Claude V1",
+      "limite_comparaison": "Comparaison de PERIMETRE DIFFERENT, pas un ratio de cout equivalent : ce test Qwen est UN appel de completion direct, sans outillage (pas de WebSearch/WebFetch, pas de boucle agentique, pas de relecture de mandatory_read). Le chiffre 74713 tokens Claude V1 est fourni par la commande de fabrication et n'a pas ete redecompose ici — perimetre non reconfirme (probablement le run agentique complet incluant outils, pas comparable terme a terme a un seul appel de completion)."
+    },
+    "verdicts_par_generation": {
+      "gen1": "PASS (oracle structurel) / FAIL (fidelite factuelle — has_win_state errone)",
+      "gen2": "PASS (oracle structurel) / PASS (fidelite factuelle generique)",
+      "gen3": "PASS (oracle structurel) / PASS (fidelite factuelle generique)"
+    }
+  },
+  "critere_de_promotion_evalue": {
+    "enonce": "Qwen PASS au meme oracle sur 3/3 generations avec 0 citation inventee",
+    "volet_oracle": "REMPLI — 3/3 PASS structurel au meme oracle que la reference.",
+    "volet_citations": "NON REMPLI — sur l'echantillon de 5, 3 montrent une signature de derive/invention sous repetition a temperature 0 identique (memes sources revendiquees, URLs differentes a chaque tirage).",
+    "verdict_global": "CRITERE NON ATTEINT — desescalade NON autorisee en l'etat sur la base de cette mesure."
+  },
+  "software_verdict": "OK",
+  "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
+  "claim_verdict": "NO_CLAIM_ALLOWED"
+}

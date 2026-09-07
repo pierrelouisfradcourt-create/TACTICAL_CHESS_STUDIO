@@ -1,0 +1,151 @@
+{
+ "claim_verdict": "NO_CLAIM_ALLOWED",
+ "decision": "BLOCKED",
+ "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
+ "execution_proof_attestation": "self",
+ "execution_proof_note": "auto-attesté (chemin B headless) : les événements spawn_authorized/spawn_executed de ce run ont été écrits par le driver qui exécute les spawns, aucun observateur tiers ne les a constatés",
+ "git_head": "feeb29cbd921f6aa663e96be902757e52cd32e84",
+ "hmac": "086edeb555fc41a854dbcc48330a9ca0b7092affc90d7781c663399df369da18",
+ "humangate_flags": [
+  "archi non vérifiée (oracle sauté dans ce profil)",
+  "wiremap non vérifiée (oracle sauté dans ce profil)",
+  "standard non vérifiée (oracle sauté dans ce profil)",
+  "red-team dégradé: reviewer indépendant n'a pas tourné (fallback)"
+ ],
+ "is_game": true,
+ "nonce": "e4255b8e4ed05b3aefbaa0b0fce36cb4",
+ "oracles": {
+  "archi": {
+   "detail": {
+    "reason": "non applicable au profil micro_sonde"
+   },
+   "evidence_path": "",
+   "evidence_sha256": "",
+   "oracle_id": "archi",
+   "run_id": "micro_sonde_v1-20260901-run1",
+   "status": "SKIPPED",
+   "ts": 1788274804.7569191
+  },
+  "code": {
+   "detail": {
+    "asset_consumption": {
+     "checked": false,
+     "reason": "aucun asset_requests.json produit par la chaîne amont",
+     "status": "SKIPPED"
+    },
+    "e2e": {
+     "passed": false,
+     "raisons": [
+      "run-oracle.mjs n'invoque pas e2e.mjs (volet e2e absent du gate)",
+      "e2e.mjs ne lance aucun navigateur réel (chromium/playwright)"
+     ]
+    },
+    "evidence_seal": {
+     "evidence_path": "lab/forge_runs/micro_sonde_v1/evidence/oracle_micro_sonde_v1.log",
+     "reason": "FLUX_D_EXPLOITATION_IGNORE_PAR_GIT",
+     "sealed": false
+    },
+    "harness_no_hardcoded_flags": {
+     "passed": false,
+     "raisons": [
+      "solvability.mjs:108 — flag littéral suspect « won: true » (statut écrit en dur, pas calculé)"
+     ]
+    },
+    "measure_tick": {
+     "checked": false,
+     "reason": "Brief sans 'mesure.tick_ms' valide — aucune contribution au gate (non-régression des profils/briefs existants)",
+     "status": "SKIPPED"
+    },
+    "product_oracle_godot_activation": {
+     "active": false,
+     "godot_capacity_present": false,
+     "proof_descriptor_present": false,
+     "reason": "aucun descripteur `proof:` bien formé dans game_contract.yaml ; aucun oracle FORGE_ORACLE trouvé sous C:\\TACTICAL_CHESS_STUDIO\\games\\micro_sonde_v1/07_TESTS/oracle/",
+     "runtime_block": {
+      "active": false,
+      "reason": "pas de run/main_scene"
+     }
+    },
+    "reason": "fichiers logiques inconnus (ni logic_files ni wiremap.json) — preuve mutation impossible ; hypothèse inconnue = BLOCKED",
+    "regime_preuve": "historique",
+    "returncode": 0,
+    "reuse_ratio_wired": {
+     "passed": false,
+     "raisons": [
+      "run-oracle.mjs n'invoque pas reuse_ratio.mjs (mesure de réutilisation jamais exécutée mécaniquement — citation du builder non vérifiable)"
+     ]
+    },
+    "runtime_alive": {
+     "checked": false,
+     "passed": false,
+     "reason": "pas de run/main_scene (module bibliothèque)",
+     "status": "SKIPPED"
+    },
+    "search_consulted": {
+     "count": 0,
+     "passed": false,
+     "raisons": [
+      "aucune recherche journalisée depuis 2026-09-01T14:42:19.227Z (contrat s9-build §2bis non respecté, ou aucune brique ne pouvait matcher)"
+     ]
+    },
+    "solvability": {
+     "checked": true,
+     "passed": false,
+     "raisons": [
+      "run-oracle.mjs n'invoque pas solvability.mjs (volet solvabilité absent du gate)"
+     ]
+    },
+    "solvability_mesure": {
+     "mesure": "cablage_du_harnais",
+     "ne_mesure_pas": "la solvabilite du jeu (won/trials) — un `passed: true` ne prouve AUCUNE partie gagnee",
+     "resultat_reel": "non remonte au recu : voir evidence/oracle_<jeu>.log, NON versionne (.gitignore:81)"
+    }
+   },
+   "evidence_path": "lab/forge_runs/micro_sonde_v1/evidence/oracle_micro_sonde_v1.log",
+   "evidence_sha256": "",
+   "oracle_id": "code",
+   "run_id": "micro_sonde_v1-20260901-run1",
+   "status": "BLOCKED",
+   "ts": 1788274382.4359996
+  },
+  "standard": {
+   "detail": {
+    "reason": "non applicable au profil micro_sonde"
+   },
+   "evidence_path": "",
+   "evidence_sha256": "",
+   "oracle_id": "standard",
+   "run_id": "micro_sonde_v1-20260901-run1",
+   "status": "SKIPPED",
+   "ts": 1788274804.7569191
+  },
+  "wiremap": {
+   "detail": {
+    "reason": "non applicable au profil micro_sonde"
+   },
+   "evidence_path": "",
+   "evidence_sha256": "",
+   "oracle_id": "wiremap",
+   "run_id": "micro_sonde_v1-20260901-run1",
+   "status": "SKIPPED",
+   "ts": 1788274804.7569191
+  }
+ },
+ "project": "micro_sonde_v1",
+ "provenance_ok": true,
+ "redteam_advisory": [
+  "[HIGH] preuve qui ne traverse pas la frontiere (couplage oracle-artefact) — logic.test.mjs, properties.test.mjs et solvability.mjs redefinissent chacun une copie locale de class GameState (lignes 17) et n'importent jamais game.mjs ; 3 des 4 volets de run-oracle.mjs certifient des copies inlinees, pas l'artefact charge par index.html:175. Seul l'e2e touche game.mjs. (repro: grep -n 'game.mjs' games/micro_sonde_v1/logic.test.mjs games/micro_sonde_v1/properties.test.mjs games/micro_sonde_v1/solvability.mjs => 0 correspondance. Mutation: remplacer game.mjs:95 par 'this.winState=(state0===state1)&&false;' puis node run-oracle.mjs => logic/properties/solvability restent PASS, seul e2e tombe.)",
+  "[HIGH] preuve factice / regle de variance des metriques — Aucune mecanique ne lit le RNG ; door/window/mirror et cycleCharacter (game.mjs:56-85) sont deterministes independamment du seed. solvability.mjs:169 conclut PASS 5/5 seeds alors que les 5 parties sont identiques (un test unique deguise en cinq). Tests de determinisme (logic.test.mjs:147, properties.test.mjs:203) tautologiques. (repro: Script node reprenant findWinningPath/GameState de solvability.mjs: assert.notDeepStrictEqual(findWinningPath(42).path.map(x=>x.type+x.target), findWinningPath(999).path.map(x=>x.type+x.target)) => ECHOUE (chemins gagnants identiques pour deux seeds distincts).)",
+  "[MEDIUM] mecanisme declare non execute + primitive fausse — game.mjs:7-14 SeededRandom.next() renvoie (seed/0x100000000)>>>0 avec seed dans [0,2^32) => quotient dans [0,1) tronque a 0 : next() renvoie toujours 0, rand() renvoie 0. La classe 'Seeded PRNG' n'est jamais appelee par une mecanique ET est constante. (repro: assert.strictEqual(new SeededRandom(42).rand(), 0) (vrai) ; assert.notStrictEqual(new SeededRandom(1).next(), new SeededRandom(2).next()) => ECHOUE (0===0). Statiquement decidable par l'arithmetique.)",
+  "[MEDIUM] zone morte / trompe-l'oeil de couverture + ecart outillage — e2e.mjs:2 annonce etre lance par run-oracle.mjs, mais run-oracle.mjs n'importe jamais e2e.mjs et redefinit son propre runE2ETests inline (run-oracle.mjs:199). e2e.mjs est orphelin et casse: e2e.mjs:13 utilise waitUntil:'networkidle2' (option Puppeteer invalide en Playwright) et page.waitForTimeout. (repro: grep -n 'e2e.mjs' games/micro_sonde_v1/run-oracle.mjs => 0. grep -n 'networkidle2' games/micro_sonde_v1/*.mjs => uniquement e2e.mjs:13 (la suite reelle run-oracle.mjs:207 utilise 'networkidle').)",
+  "[MEDIUM] incoherence logique / cache de victoire non evalue a l'init — Le constructeur game.mjs:22-41 pose winState=false sans appeler checkWinCondition() ; l'etat initial [0,0,0] satisfait pourtant la regle s0===s1===s2 (game.mjs:90-97). isWon() renvoie le cache perime. Corpus contradictoire vert: properties.test.mjs:104-116 exige isWon()===true (apres checkWinCondition), properties.test.mjs:192-201 et logic.test.mjs:99 exigent isWon()===false. (repro: const g=new GameState(); const s=g.getAllCharacterStates(); assert.strictEqual(g.isWon(), s[0]===s[1]&&s[1]===s[2]) => ECHOUE (false !== true).)",
+  "[LOW] preuve factice dans le transcript — run-oracle.mjs:115/125 impriment 'node --test ...' alors que runCommand (run-oracle.mjs:65) spawn process.execPath [file] sans --test. Le log ment sur la commande reellement executee. (repro: Comparer run-oracle.mjs:115 (texte 'node --test ...') a run-oracle.mjs:65 (spawn(process.execPath,[file]) sans --test).)",
+  "[LOW] securite (serveur HTTP de test e2e) — run-oracle.mjs:24-29 autorise tout realPath.startsWith(__dirname) sans separateur final : un dossier frere partageant le prefixe (games/micro_sonde_v1_x) passe la garde 'prevent directory traversal'. Portee faible (serveur ephemere localhost:8888 non expedie). (repro: GET /../micro_sonde_v1_x/secret => path.join(__dirname,...) = games/micro_sonde_v1_x/secret, realPath.startsWith(__dirname) true => servi hors dossier. Ancre run-oracle.mjs:25 (startsWith(__dirname) vs startsWith(__dirname+path.sep)).)"
+ ],
+ "redteam_ran": false,
+ "redteam_reviewer": "claude-opus-4-8",
+ "run_id": "micro_sonde_v1-20260901-run1",
+ "scope": "FULL",
+ "software_verdict": "BLOCKED",
+ "ts": 1788274804.7739284
+}

@@ -1,0 +1,312 @@
+{
+ "features": [
+  {
+   "feature": "R1 objectif terminal affiche des le tick 0",
+   "section": "objective",
+   "fonction": "currentObjective",
+   "fichiers": [
+    "objective.mjs"
+   ],
+   "couvre": [
+    "cap_goal_terminal_hud"
+   ],
+   "version": "2",
+   "statut": "VERT — volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 : currentObjective() (objective.mjs, fonction PURE extraite de l'engine par ce build) sur un etat emitterCount=0 rend une chaine non vide nommant le seuil issu d'economy.mjs. volet E2E de run-oracle.mjs (e2e.mjs, Chromium reel via Playwright) : RESULT: PASS, exit 0 : #objective lu AVANT tout clic = \"Attiser le foyer pour amasser 5000 lumiere et provoquer l'Embrasement.\", #light-counter non vide au meme instant. gate mutation (forge.mutation_proof, perimetre wiremap engine/input/objective/render) : baseline_ok=true, 40 mutants, 39 tues, 1 survivant trie equivalent avec justification re-verifiee sur ce code, gate.passed=true. evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "logic.test.mjs : currentObjective() sur un etat a emitterCount=0 rend une chaine NON VIDE contenant le seuil terminal issu d'economy.mjs ; e2e.mjs : #objective lu au tick 0, AVANT tout clic, est non vide et contient 5000."
+  },
+  {
+   "feature": "R1 jauge de progression vers le seuil terminal",
+   "section": "render",
+   "fonction": "renderProgressGauge",
+   "fichiers": [
+    "render.mjs"
+   ],
+   "couvre": [
+    "gb_constellation"
+   ],
+   "version": "2",
+   "statut": "VERT — volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 : renderProgressGauge() rend une largeur EXACTE 0%/25%/50%/100% a light=0/quart/moitie/seuil et reste capee a 100% au-dela (egalite stricte, 5 cas). volet E2E de run-oracle.mjs (e2e.mjs, Chromium reel via Playwright) : RESULT: PASS, exit 0 : la jauge observee en navigateur passe de 0.06% a 20.08% au franchissement d'un palier. evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "properties.test.mjs : sur des etats forges light=0/1250/2500/5000, la largeur de #progress-gauge-fill vaut exactement 0%/25%/50%/100% (egalite stricte, ratio borne a 1 au-dela du seuil) ; e2e.mjs constate le remplissage en navigateur reel jusqu'au declenchement de l'ecran de fin."
+  },
+  {
+   "feature": "R2 entree attisage du foyer (affordance hearth)",
+   "section": "input",
+   "fonction": "handleHearthClick",
+   "fichiers": [
+    "input.mjs"
+   ],
+   "couvre": [
+    "cap_stoke_input"
+   ],
+   "version": "1",
+   "statut": "VERT — volet E2E de run-oracle.mjs (e2e.mjs, Chromium reel via Playwright) : RESULT: PASS, exit 0 : 10 clics souris REELS sur #hearth font passer window.__game.light de 0 a exactement 10 (delta STRICT, +1 par clic). volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 : handleHearthClick() credite exactement lightPerStoke et arme le feedback. gate mutation (forge.mutation_proof, perimetre wiremap engine/input/objective/render) : baseline_ok=true, 40 mutants, 39 tues, 1 survivant trie equivalent avec justification re-verifiee sur ce code, gate.passed=true. evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "e2e.mjs : depuis index.html servi par server.mjs, 10 clics souris REELS sur #hearth font passer window.__game.light de 0 a exactement 10 (delta EXACT +1 par clic, jamais un >=)."
+  },
+  {
+   "feature": "R3 flash chaud du foyer a chaque attisage",
+   "section": "render",
+   "fonction": "renderStokeFlash",
+   "fichiers": [
+    "render.mjs"
+   ],
+   "couvre": [
+    "cap_hearth_response"
+   ],
+   "version": "2",
+   "statut": "VERT — volet E2E de run-oracle.mjs (e2e.mjs, Chromium reel via Playwright) : RESULT: PASS, exit 0 : boxShadow de #hearth mesure \"none\" avant le clic et \"rgba(255, 200, 120, 0.9) 0px 0...\" sur la frame qui suit — deux valeurs distinctes observees image a image. evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "e2e.mjs : le boxShadow de #hearth est non-'none' sur la frame qui suit un clic reel, puis revenu a 'none' en moins de 200 ms — changement detectable image a image, deux valeurs distinctes mesurees."
+  },
+  {
+   "feature": "R3 foyer central emissif cliquable",
+   "section": "render",
+   "fonction": "renderHearth",
+   "fichiers": [
+    "render.mjs"
+   ],
+   "couvre": [
+    "gb_hearth"
+   ],
+   "version": "2",
+   "statut": "VERT — volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 : renderHearth() rend cursor 'pointer' + teinte chaude hors etat terminal, cursor 'not-allowed' + teinte DIFFERENTE en etat terminal (deux valeurs constatees). volet E2E de run-oracle.mjs (e2e.mjs, Chromium reel via Playwright) : RESULT: PASS, exit 0 : #hearth present et cliquable au centre. evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "e2e.mjs : #hearth est present au centre, sa backgroundColor vaut la teinte chaude hors etat terminal et une teinte froide + cursor 'not-allowed' en etat terminal (deux valeurs distinctes constatees, jamais une seule)."
+  },
+  {
+   "feature": "R4 recompense stricte par attisage",
+   "section": "engine",
+   "fonction": "stoke",
+   "fichiers": [
+    "engine.mjs"
+   ],
+   "couvre": [
+    "cap_light_reward"
+   ],
+   "version": "2",
+   "statut": "VERT — volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 : apres N appels stoke() sans achat, state.light === N exactement (egalite stricte sur 20 iterations, jamais un >=). gate mutation (forge.mutation_proof, perimetre wiremap engine/input/objective/render) : baseline_ok=true, 40 mutants, 39 tues, 1 survivant trie equivalent avec justification re-verifiee sur ce code, gate.passed=true : aucun mutant du gain ne survit. evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "logic.test.mjs : apres N appels stoke() sans achat, state.light === N exactement (egalite stricte, jamais un >=) ; regle ciblee par le gate mutation, tout mutant du gain doit etre TUE."
+  },
+  {
+   "feature": "R5 divergence de decision idle vs actif",
+   "section": "engine",
+   "fonction": "step",
+   "fichiers": [
+    "engine.mjs"
+   ],
+   "couvre": [
+    "cap_decision_divergence"
+   ],
+   "version": "2",
+   "statut": "VERT — volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 : a horizon fixe de 300 frames, step(0) rend light=0 et step(3) rend light>0 — deux valeurs distinctes, ET la structure acquise diverge aussi (emitterCount). CONTRE-EPREUVE exigee par le pre-mortem : sur 30000 frames, la politique idle ne franchit JAMAIS le seuil terminal (isTerminal()===false, light===0) — le jeu ne se gagne pas en attendant. volet Solvabilite de run-oracle.mjs (solvability.mjs) : SOLVABLE, embrasement au tick 2454 / budget 8000, rejeu meme seed = meme tick, contre-epreuve idle terminal=false light=0, exit 0 mesure la meme contre-epreuve sur le budget d'oracle. evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "properties.test.mjs : a horizon fixe de 300 frames, step(0) (idle) et step(3) (actif) rendent DEUX valeurs de light distinctes et non triviales ; contre-epreuve exigee : la politique idle sans emetteur ne franchit JAMAIS le seuil terminal (sinon le jeu est un minuteur)."
+  },
+  {
+   "feature": "R5 bouton d'achat abordable ou desature",
+   "section": "render",
+   "fonction": "renderBuyButton",
+   "fichiers": [
+    "render.mjs"
+   ],
+   "couvre": [
+    "gb_buy_button"
+   ],
+   "version": "2",
+   "statut": "VERT — volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 : sous le cout, #buy-button est desature et disabled===true ; des que light >= cout, teinte distincte et disabled===false ; le libelle suit state.emitterCost et CHANGE quand le cout change (un libelle fige echouerait). evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "properties.test.mjs : sous le cout, #buy-button est desature et disabled===true ; des que light >= cout, teinte or et disabled===false ; le libelle affiche le cout courant EXACT (state.emitterCost), jamais une valeur figee."
+  },
+  {
+   "feature": "R6 entree achat d'un emetteur (affordance buy_button)",
+   "section": "input",
+   "fonction": "handleBuyClick",
+   "fichiers": [
+    "input.mjs"
+   ],
+   "couvre": [
+    "cap_buy_input"
+   ],
+   "version": "1",
+   "statut": "VERT — volet E2E de run-oracle.mjs (e2e.mjs, Chromium reel via Playwright) : RESULT: PASS, exit 0 : clic souris REEL sur #buy-button au premier moment ou light >= cout — emitterCount 0 -> 1 (delta STRICT=1), cout 15 debite depuis light=15, puis production passive observee > 0. volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 : buyEmitter() decremente du cout EXACT. gate mutation (forge.mutation_proof, perimetre wiremap engine/input/objective/render) : baseline_ok=true, 40 mutants, 39 tues, 1 survivant trie equivalent avec justification re-verifiee sur ce code, gate.passed=true. evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "e2e.mjs : clic souris REEL sur #buy-button au premier moment ou light >= cout — emitterCount passe de 0 a 1 (delta STRICT = 1), light est decrementee du cout EXACT, et la production passive devient > 0."
+  },
+  {
+   "feature": "R7a objectif change vers le second emetteur",
+   "section": "objective",
+   "fonction": "currentObjective",
+   "fichiers": [
+    "objective.mjs"
+   ],
+   "couvre": [
+    "cap_next_goal_second_emitter"
+   ],
+   "version": "2",
+   "statut": "VERT — volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 : currentObjective() a emitterCount=1 differe textuellement de l'objectif du tick 0 et ne nomme PAS le seuil (il vise le second emetteur). volet E2E de run-oracle.mjs (e2e.mjs, Chromium reel via Playwright) : RESULT: PASS, exit 0 : #objective observe apres le 1er achat reel = \"Acheter un second emetteur pour densifier la production passive.\", distinct du texte du tick 0. evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "logic.test.mjs : currentObjective() a emitterCount=1 DIFFERE textuellement de l'objectif du tick 0 et enonce l'acquisition d'un second emetteur ; e2e.mjs constate le changement du texte de #objective apres le 1er achat reel."
+  },
+  {
+   "feature": "R7a apparition d'un emetteur a l'ecran",
+   "section": "render",
+   "fonction": "renderEmitters",
+   "fichiers": [
+    "render.mjs"
+   ],
+   "couvre": [
+    "gb_emitter"
+   ],
+   "version": "2",
+   "statut": "VERT — volet E2E de run-oracle.mjs (e2e.mjs, Chromium reel via Playwright) : RESULT: PASS, exit 0 : le groupe #emitters passe de 0 a 1 element distinct apres l'achat reel (comptage DOM strict). volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 : n emetteurs possedes rendent exactement n silhouettes (n = 0/1/3/7). evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "e2e.mjs : le groupe #emitters passe de 0 a 1 element distinct apres l'achat (comptage DOM strict) ; properties.test.mjs verifie que n emetteurs possedes rendent n silhouettes, jusqu'au plafond de rendu declare."
+  },
+  {
+   "feature": "R7b objectif change vers l'embrasement",
+   "section": "objective",
+   "fonction": "currentObjective",
+   "fichiers": [
+    "objective.mjs"
+   ],
+   "couvre": [
+    "cap_next_goal_embrasement"
+   ],
+   "version": "2",
+   "statut": "VERT — volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 : les trois enonces (0 emetteur / 1 emetteur / production active) sont DEUX A DEUX differents, produits sans DOM sur des etats forges ; le premier et le troisieme nomment le seuil issu d'economy.mjs, le deuxieme non. gate mutation (forge.mutation_proof, perimetre wiremap engine/input/objective/render) : baseline_ok=true, 40 mutants, 39 tues, 1 survivant trie equivalent avec justification re-verifiee sur ce code, gate.passed=true : les 2 mutants d'objective.mjs sont tues. evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "logic.test.mjs : au stade production passive active (emitterCount>=2), currentObjective() differe textuellement des DEUX enonces precedents et nomme le seuil terminal issu d'economy.mjs — trois chaines deux a deux distinctes, verifiees sans DOM."
+  },
+  {
+   "feature": "R8 boucle repetee par production passive",
+   "section": "engine",
+   "fonction": "applyEmitters",
+   "fichiers": [
+    "engine.mjs"
+   ],
+   "couvre": [
+    "gb_emitter"
+   ],
+   "version": "2",
+   "statut": "VERT — volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 : avec k emetteurs et sans aucun clic, applyEmitters() incremente light de exactement k*EMITTER_RATE par appel (egalite stricte). volet Solvabilite de run-oracle.mjs (solvability.mjs) : SOLVABLE, embrasement au tick 2454 / budget 8000, rejeu meme seed = meme tick, contre-epreuve idle terminal=false light=0, exit 0 : le rejeu de la meme seed retrouve le MEME tick d'embrasement (2454). evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "logic.test.mjs : avec k emetteurs et sans aucun clic, applyEmitters() incremente light de exactement k*EMITTER_RATE par appel (egalite stricte) ; solvability.mjs rejoue la meme seed et retrouve le meme tick d'embrasement."
+  },
+  {
+   "feature": "R9 entree ascension (affordance ascension_altar)",
+   "section": "input",
+   "fonction": "handleAscensionClick",
+   "fichiers": [
+    "input.mjs"
+   ],
+   "couvre": [
+    "cap_ascension_input"
+   ],
+   "version": "1",
+   "statut": "VERT — volet E2E de run-oracle.mjs (e2e.mjs, Chromium reel via Playwright) : RESULT: PASS, exit 0 : apres embrasement, clic souris REEL sur #ascension-altar — light 5000 -> exactement 0, glow 0 -> 1. Neutralisation PROUVEE et non supposee : volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 handleAscensionClick() hors etat terminal laisse l'etat ENTIER bit-identique (comparaison de snapshot complet, pas d'un seul champ), et l'e2e constate qu'un clic reel sur l'autel est REFUSE par la page tant que l'overlay est cache. evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "e2e.mjs : apres embrasement, clic souris REEL sur #ascension-altar — light revient a exactement 0 et le compteur de glow d'ascension passe de 0 a 1 ; un clic sur #ascension-altar HORS etat terminal ne change STRICTEMENT rien (neutralisation prouvee, jamais supposee)."
+  },
+  {
+   "feature": "R10 avantage meta de l'ascension",
+   "section": "engine",
+   "fonction": "ascend",
+   "fichiers": [
+    "engine.mjs"
+   ],
+   "couvre": [
+    "gb_ascension_altar"
+   ],
+   "version": "2",
+   "statut": "VERT — volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 : apres ascend(), lightPerStoke est STRICTEMENT superieur au gain d'avant ascension (comparaison >), light === 0 et le glow vaut +1 exactement ; le coefficient provient d'economy.mjs. volet E2E de run-oracle.mjs (e2e.mjs, Chromium reel via Playwright) : RESULT: PASS, exit 0 : lightPerStoke observe 1 -> 1.05 en navigateur reel. gate mutation (forge.mutation_proof, perimetre wiremap engine/input/objective/render) : baseline_ok=true, 40 mutants, 39 tues, 1 survivant trie equivalent avec justification re-verifiee sur ce code, gate.passed=true. evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "logic.test.mjs : apres ascend(), lightPerStoke est STRICTEMENT superieur au gain d'avant ascension (comparaison >, jamais >=), light === 0 et le glow vaut +1 exactement ; le coefficient de bonus provient d'economy.mjs."
+  },
+  {
+   "feature": "R10 autel d'ascension visible apres embrasement",
+   "section": "render",
+   "fonction": "renderEndScreen",
+   "fichiers": [
+    "render.mjs"
+   ],
+   "couvre": [
+    "gb_ascension_altar"
+   ],
+   "version": "2",
+   "statut": "VERT — volet E2E de run-oracle.mjs (e2e.mjs, Chromium reel via Playwright) : RESULT: PASS, exit 0 : transition masque -> visible OBSERVEE par la page, pas deduite de l'etat — le clic reel sur #ascension-altar est refuse tant que #overlay porte la classe hidden, puis reussit des le franchissement du seuil, puis l'overlay est re-cache apres ascension. evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "e2e.mjs : #ascension-altar n'est pas atteignable tant que #overlay porte la classe hidden, puis devient visible ET cliquable des le franchissement du seuil — transition masque->visible observee par la page, pas deduite de l'etat."
+  },
+  {
+   "feature": "R11 ecran d'embrasement et interaction neutralisee",
+   "section": "render",
+   "fonction": "renderEndScreen",
+   "fichiers": [
+    "render.mjs"
+   ],
+   "couvre": [
+    "gb_end_screen"
+   ],
+   "version": "2",
+   "statut": "VERT — volet E2E de run-oracle.mjs (e2e.mjs, Chromium reel via Playwright) : RESULT: PASS, exit 0 : au franchissement du seuil, #overlay perd la classe hidden et affiche le libelle 'Embrasement complet' ; ensuite, des evenements click reels dispatches sur #hearth et #buy-button ne modifient AUCUN de light / emitterCount / ascensionGlow / terminal. LIMITE DECLAREE : l'overlay etant modal, un clic souris materiel n'atteindrait jamais le foyer et ne prouverait que l'occultation — l'evenement dispatche emprunte le vrai chemin document.body -> input.mjs -> engine et teste donc la neutralisation par les REGLES. volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 : stoke/buyEmitter/applyEmitters rendent false et ne changent rien en etat terminal. evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "e2e.mjs : au franchissement du seuil, #overlay perd la classe hidden et affiche le libelle texte 'Embrasement complet' ; ensuite, des clics reels sur #hearth et #buy-button ne modifient plus aucun champ de window.__game."
+  },
+  {
+   "feature": "R11 regle terminale deterministe seedee",
+   "section": "engine",
+   "fonction": "_checkTerminal",
+   "fichiers": [
+    "engine.mjs"
+   ],
+   "couvre": [
+    "gb_terminal_rule"
+   ],
+   "version": "2",
+   "statut": "VERT — volet Solvabilite de run-oracle.mjs (solvability.mjs) : SOLVABLE, embrasement au tick 2454 / budget 8000, rejeu meme seed = meme tick, contre-epreuve idle terminal=false light=0, exit 0 : une sonde seedee ATTEINT reellement light >= seuil au tick 2454 (budget 8000, marge 0.307) et isTerminal() vaut true ; le rejeu de la MEME seed rend le MEME tick ; aucun drapeau de succes litteral (check_harness_no_hardcoded_flags vert). volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 : frontiere stricte assertee (seuil-1 non terminal, seuil terminal). gate mutation (forge.mutation_proof, perimetre wiremap engine/input/objective/render) : baseline_ok=true, 40 mutants, 39 tues, 1 survivant trie equivalent avec justification re-verifiee sur ce code, gate.passed=true. evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "solvability.mjs : une sonde seedee ATTEINT reellement light >= seuil dans le budget de ticks fixe et isTerminal() vaut true ; le rejeu de la MEME seed rend le MEME tick d'embrasement ; aucun drapeau de succes litteral (check_harness_no_hardcoded_flags vert). logic.test.mjs asserte la frontiere stricte : sous le seuil non terminal, au seuil terminal."
+  },
+  {
+   "feature": "R12 glyphe d'etat verrouille",
+   "section": "render",
+   "fonction": "renderLockedGlyph",
+   "fichiers": [
+    "render.mjs"
+   ],
+   "couvre": [
+    "gb_locked_glyph"
+   ],
+   "version": "2",
+   "statut": "VERT — volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 : sous le cout, #locked-glyph est visible et porte exactement \"<cout> lumiere requise\" ; des que l'emetteur est abordable, hidden===true et texte vide ; les six teintes de role sont strictement disjointes (checkColorDisjointness). volet E2E de run-oracle.mjs (e2e.mjs, Chromium reel via Playwright) : RESULT: PASS, exit 0 : coherence glyphe/abordabilite constatee en navigateur reel. evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "properties.test.mjs : sous le cout, #locked-glyph est visible et porte le texte '<cout> lumiere requise' ; des que l'emetteur est abordable, hidden===true et texte vide ; la teinte employee n'est ni le chaud du foyer ni un halo (teintes de role disjointes)."
+  },
+  {
+   "feature": "R13 compteur de lumiere HUD",
+   "section": "render",
+   "fonction": "renderLightCounter",
+   "fichiers": [
+    "render.mjs"
+   ],
+   "couvre": [
+    "gb_light_counter"
+   ],
+   "version": "2",
+   "statut": "VERT — volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 : #light-counter reflete exactement Math.floor(state.light) apres chaque rendu (egalite stricte). volet E2E de run-oracle.mjs (e2e.mjs, Chromium reel via Playwright) : RESULT: PASS, exit 0 : non vide des le tick 0, et reste visible (isVisible) pendant un marqueur de jalon allume — jamais recouvert. evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "properties.test.mjs : #light-counter reflete exactement Math.floor(state.light) apres chaque rendu (egalite stricte) ; e2e.mjs : il reste entierement visible pendant un flash d'attisage et pendant un marqueur de jalon (jamais recouvert)."
+  },
+  {
+   "feature": "R14 rechauffement du champ avec la progression",
+   "section": "render",
+   "fonction": "renderField",
+   "fichiers": [
+    "render.mjs"
+   ],
+   "couvre": [
+    "cap_field_warmth"
+   ],
+   "version": "2",
+   "statut": "VERT — volet Mecanique de run-oracle.mjs (node --test logic.test.mjs properties.test.mjs) : 70/70 PASS, exit 0 : a light = 0/25%/50%/75%/100% du seuil, le canal rouge du backgroundColor de #field croit de facon MONOTONE (jamais decroissant), la teinte a 0 differe de celle a 100%, et la teinte reste identique au seuil et au-dela (ratio cape a 1). evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "properties.test.mjs : a light = 0/25%/50%/75%/100% du seuil, le canal rouge du backgroundColor de #field croit de facon MONOTONE (jamais decroissant) et reste borne au-dela du seuil (ratio cape a 1)."
+  },
+  {
+   "feature": "R14 marqueur de jalon discret",
+   "section": "render",
+   "fonction": "renderMilestoneFlash",
+   "fichiers": [
+    "render.mjs"
+   ],
+   "couvre": [
+    "gb_quest_milestone"
+   ],
+   "version": "2",
+   "statut": "VERT — volet E2E de run-oracle.mjs (e2e.mjs, Chromium reel via Playwright) : RESULT: PASS, exit 0 : au franchissement d'un palier, l'opacite calculee de #milestone-marker passe a > 0 ; pendant qu'il est allume, #light-counter ET #hearth restent visibles — non modal, ne recouvre ni le compteur ni le foyer. evidence_path : lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log (GLOBAL: PASS)",
+   "preuve": "e2e.mjs : au franchissement d'un palier intermediaire, #milestone-marker passe d'opacite 0 a 1 puis retombe a 0 (apparition breve puis fondu, non modal) ; il ne recouvre a aucun instant #light-counter ni #hearth."
+  }
+ ]
+}

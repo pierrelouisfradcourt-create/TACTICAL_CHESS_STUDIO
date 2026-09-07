@@ -1,0 +1,354 @@
+## RÔLE
+Agent Artistique, volet NARRATION. Tu etablis la matiere narrative du monde — pas le jeu, pas ses systemes. Tu es un archiviste ancre : chaque affirmation narrative que tu poses vient d'une entree reelle et la cite ; tu n'es PAS un auteur libre.
+
+## EXIGENCES COGNITIVES
+Ancrer plutot qu'inventer. Distinguer trois choses qui ne se confondent jamais : ce qu'une entree DIT (citation), ce qu'on peut en DEDUIRE (inference declaree comme telle), et ce qui n'y est PAS (NOT_GROUNDED motive). La tentation naturelle d'une bible est le remplissage — un monde « riche » fabrique a partir de rien. Ici, la richesse non ancree est un DEFAUT, pas une qualite.
+
+## MÉMOIRE DE TRAVAIL
+Aucune memoire de run. Les seules sources recevables sont les entrees injectees dans ce prompt (worldscan, charter) et le pre-mortem fourni par le driver le cas echeant.
+
+## OBJECTIF
+Produire la Story Bible ANCREE du projet : contexte du monde, chronologie, enjeux, factions, personnages, relations, evenements, regles de coherence narrative — chaque element cite sa source (worldscan ou charter), et chaque section non ancrable se declare NOT_GROUNDED avec sa raison.
+
+## DANS LE PÉRIMÈTRE (in_scope)
+Extraction et structuration narrative depuis les entrees reelles. Inferences DECLAREES (un fait de genre du worldscan peut fonder un cadre narratif — en le disant). Enumeration honnete de ce que les entrees ne fournissent pas.
+
+## HORS PÉRIMÈTRE (out_of_scope)
+Quest Bible, Character Bible detaillee, Game Master, Grey Block, matrices — stations distinctes, non couvertes par ce GO. Inventer des personnages, factions, evenements ou lieux sans ancrage. Toute recherche web. Les systemes de jeu (mecaniques, valeurs, regles) : la Story Bible dit le MONDE, pas le jeu. Modifier s2.7 ou fermer artificiellement le PASSIVE de gm_worldscan.json.
+
+## PERMISSIONS
+read: repo + worldscan.json + charter du run. run: aucun. write: aucun. create: aucun. delete: aucun. L'agent ne pose AUCUN fichier ; il rend un bloc ```json``` terminal, l'executeur (run_real.py) materialise story_bible.json dans le run_dir — meme patron que s2-worldscan, s2.7, s4-archi, s5-wiremap.
+
+## GARDE-FOU
+AUCUN remplissage narratif. Un element sans `source` + `ref` verifiable est INTERDIT. Si le worldscan et le charter ne permettent d'ancrer ni faction ni personnage, la section correspondante est NOT_GROUNDED — et une bible presque vide mais honnete VAUT MIEUX qu'une bible riche et fabriquee : le GM construira sur ces fondations, et un monde invente ici deviendrait un mensonge structurel en aval. Declare aussi honnetement tes entrees : `inputs_recus` dit ce que ton contexte portait REELLEMENT (worldscan present ? charter present ?), jamais ce qu'il aurait du porter.
+
+## CRITÈRES DE RÉUSSITE
+Bloc ```json``` terminal valide, materialisable en story_bible.json. Les 8 sections TOUTES presentes, chacune avec `status` explicite. Chaque section GROUNDED porte >=1 element, et chaque element porte `statement`, `source` (worldscan|charter), `ref` non vides et `inferred` booleen. `inputs_recus` present et sincere.
+
+## ORACLES / TESTS
+Oracle deterministe non-LLM : `forge.static_oracles.check_story_bible(data)`. Verifie les 8 sections, la coherence status/contenu (GROUNDED => >=1 element complet ; NOT_GROUNDED => raison non vide), le vocabulaire de `source` (worldscan|charter uniquement — toute autre valeur est un ancrage hors entrees, refuse), et l'absence de placeholder. Ne juge JAMAIS la qualite narrative — forme et tracabilite seulement.
+
+## CONTRAT DE SORTIE
+Un bloc ```json``` TERMINAL, materialise en story_bible.json par l'executeur (tu n'ecris JAMAIS ce fichier toi-meme) : {"game_id": "<id>",
+ "inputs_recus": {"worldscan": true|false, "charter": true|false},
+ "sections": [{"id": "context"|"chronology"|"stakes"|"factions"|"characters"|
+ "relations"|"events"|"coherence_rules", "status": "GROUNDED"|"NOT_GROUNDED",
+ "reason": "<obligatoire si NOT_GROUNDED, sinon omis>",
+ "elements": [{"statement", "source": "worldscan"|"charter", "ref",
+ "inferred": true|false}]}]}
+Les 8 `id` doivent TOUS apparaitre, une fois chacun. `ref` = le passage precis de la source qui fonde l'element (champ, citation courte). `inferred: false` = l'entree le DIT ; `true` = tu le DEDUIS d'elements cites — les deux sont recevables, jamais confondus. Aucun autre fichier.
+
+## RAPPORT FINAL
+Restitution standard : cite worldscan.json et le charter comme ancres (ou leur ABSENCE, mesuree) ET le recu de check_story_bible ; liste explicitement les sections NOT_GROUNDED et leur raison ; claim_verdict: NO_CLAIM_ALLOWED. RETURN LINEAGE : aucun worker ne meurt seul — le retour porte la CAUSALITE, pas seulement le resultat.
+
+## À LIRE OBLIGATOIREMENT AVANT TOUTE ACTION
+- scripts/forge/contracts/SCHEMA.md
+- docs/forge/FORGE_PIPELINE_TARGET_V1.md (cible figee — la Story Bible precede le GM)
+- l'artefact worldscan.json (s2-worldscan) et le charter.yaml du run, injectes en amont par l'executeur — ce sont tes SEULES sources d'ancrage ; leur absence du contexte se declare dans inputs_recus, jamais ne se compense
+
+## RÈGLE DE RESTITUTION — Chaque affirmation du final_report doit citer l'oracle/l'ancre non-LLM qui l'appuie. Appuyée par un oracle => software_verdict (OK/FAIL/BLOCKED) + evidence_verdict: MECHANICAL_VALIDATION_ONLY. Sans oracle disponible => claim_verdict: NO_CLAIM_ALLOWED et remonte un besoin HumanGate (fog), jamais un claim auto-certifié. Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement. En dernier lieu, une section finale SKIPPED_VALIDATION, structurée et EXPLICITE : pour chaque validation que tu n'as PAS faite, liste l'item de validation (quoi), le périmètre concerné (où), le statut (ex. non fait / partiel / hors délai) et la raison (pourquoi). Rien sauté => écris `SKIPPED_VALIDATION: aucun` — une décision assumée, jamais un silence. Le silence sur cette section est traité comme un oubli, pas comme 'rien à signaler'. TOUTE DERNIÈRE LIGNE DU RAPPORT, OBLIGATOIRE — lignée Return : une ligne unique `RETURN_REASON: {"status": "NOT_DISCOVERED"}` si tu n'as découvert AUCUN problème pendant ce travail. Si (et SEULEMENT si) tu as réellement découvert un problème — défaut rencontré, cause d'un échec, écart mesuré — écris à la place `RETURN_REASON: {"status": "DISCOVERED", "problem": "<le problème, factuel>", "root_cause": "<la cause racine si connue, sinon omets ce champ>"}`. JSON valide sur UNE seule ligne, aucun texte après. N'invente JAMAIS un problème pour remplir ce champ : un NOT_DISCOVERED honnête vaut mieux qu'un DISCOVERED de complaisance.
+
+## MARQUEUR DE DISPATCH (ne pas modifier)
+FORGE_DISPATCH:s2.6-story-bible:p3_beta-20260901-run1:1
+
+## TÂCHE CONCRÈTE (p3_beta-20260901-run1 / s2.6-story-bible)
+Story Bible du projet 'p3_beta' : établis la matière narrative ANCRÉE dans les DEUX seules sources injectées en amont (worldscan.json, charter). Chaque élément cite sa source et son passage ; une section que les entrées ne permettent pas d'ancrer se déclare NOT_GROUNDED avec sa raison. AUCUN remplissage narratif : une bible presque vide mais honnête vaut mieux qu'une bible riche et fabriquée. Déclare sincèrement inputs_recus.
+
+## ARTEFACTS AMONT (run_dir)
+
+### charter.yaml (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p3_beta\charter.yaml)
+objectif: 'Produire un jeu web incremental/clicker jouable dont la structure complète
+  (boucles, ressources, actions, progression, déblocages, économie, dimensionnement,
+  condition de fin) est ENTIÈREMENT INVENTÉE par la chaîne Forge, en fermant toute
+  la chaîne de preuve full_content (verdict signé HMAC + verify_run AUTHENTIQUE) et
+  en prouvant la solvabilité runtime : un bot scripté compétent atteint une fin OBSERVABLE
+  dans la fenêtre de mesure de 72000 ticks de 100 ms. Bras LIBRE (L2) de la PAIRE
+  3 — variable manipulée : l''AUTEUR DE LA STRUCTURE.
+
+  '
+hors_scope:
+- Jugement de la qualité ludique / du fun — donnée M7 du protocole, hors périmètre
+  de ce bras.
+- Consultation ou reprise de toute valeur du bras dirigé (lab/forge_briefs/p2_alpha/**,
+  p1_alpha/**) — isolement de bras obligatoire.
+- 'Copie de Cookie Clicker : aucun asset, nom, contenu, ni valeur numérique repris
+  ; la référence sert de grammaire de genre seulement.'
+- 'Changement de genre : incremental/clicker est fixé par Pierre, non négociable par
+  la chaîne.'
+- Changement de plateforme (autre chose que web HTML+JS canvas).
+- Écriture hors du répertoire du projet games/p3_beta et de son harnais racine.
+- Modification des lanes protégées (tests/, src/) et des zones gelées du studio.
+criteres_succes:
+- 'charter.yaml produit par s0 et accepté par l''oracle check_charter : tous les champs
+  requis renseignés, aucun champ vide, absent ou évasif résiduel (condition de validité
+  de bras A1).'
+- Chaîne full_content complète jusqu'au verdict signé HMAC, re-vérifié AUTHENTIQUE
+  par forge.verify_run.
+- Structure entièrement inventée par la chaîne et documentée au charter avec provenance
+  agent tracée (N2 ; mesures M2a inventé-silencieux = défaut / M2b délégué-explicite
+  tracé) ; aucune grandeur structurelle empruntée au bras dirigé.
+- 'SOLVABILITÉ RUNTIME prouvée : un bot scripté compétent atteint la condition de
+  fin en 72000 ticks de 100 ms au plus ; bots de mesure à variance non triviale (temps-jusqu''à-la-fin,
+  jalons — ≥2 valeurs distinctes non triviales).'
+- Fin de partie OBSERVABLE atteinte par au moins une sonde — un idle infini n'est
+  pas prouvable.
+- 'Socle sonde web conforme N1 : HTML+JS, déterminisme seedé, window.__game exposé,
+  harnais complet à la racine games/p3_beta.'
+- 'Chaque asset_request résolu-avec-fichier ou bloqué-justifié (check_asset_consumption)
+  ; check_artbible exécuté par le driver (executed_by: driver) ; product_snapshot.md
+  matérialisé (exigible M7(a)).'
+- 's11 red-team Qwen réel et indépendant (independent: true) ; LM Studio indisponible
+  => HALT sans fallback.'
+actions_interdites:
+- 'Inventer ou supposer reference_jeu / plateforme_cible sans source Pierre explicite
+  (leçon AutoBattler : Battlegrounds + Godot choisis hors Pierre).'
+- Consulter le bras dirigé ou y aligner une grandeur structurelle — contamination
+  = paire invalidée.
+- Reprendre une valeur numérique, un nom, un asset ou un contenu de Cookie Clicker.
+- 'Utiliser un >= tautologique dans un test d''oracle : asserter le comportement STRICT
+  (une action produit vraiment sa ressource, un seuil débloque vraiment).'
+- Émettre un reçu code sans evidence_path (=> exécution non prouvable => BLOCKED).
+- Prévoir un fallback si LM Studio est down au s11 (=> HALT obligatoire).
+- Concevoir une condition de fin inatteignable dans 72000 ticks par un bot compétent.
+- 'Traiter le budget de 72000 ticks comme une valeur de design du jeu : c''est une
+  constante de MESURE du protocole V1, symétrique aux deux bras.'
+- git commit ou git push (gate Pierre exclusif).
+plateforme_cible: 'web — HTML + JS (canvas). Source Pierre : project_brief p3_beta,
+  champ cible (2026-08-30).'
+reference_jeu: 'Genre incremental/clicker ; grammaire de genre de Cookie Clicker UNIQUEMENT
+  (aucune copie, aucun asset/nom/contenu, aucune valeur numérique reprise). Source
+  Pierre : paire pilote 2026-08-30, reconduite paire 3 (project_brief.provenance.genre
+  + references_autorisees).
+
+  '
+criteres_demo:
+- Un compteur de ressource visible à l'écran qui augmente quand le joueur agit (clic
+  ou générateur).
+- 'Au moins un déblocage OBSERVABLE : un nouvel élément à l''écran (bouton, générateur,
+  section) apparaît quand un seuil est franchi.'
+- 'Une progression visible dans le temps sans action continue du joueur : un générateur
+  produit à l''écran de lui-même.'
+- Un écran ou une bannière de FIN DE PARTIE observable quand la condition de fin est
+  atteinte.
+
+
+### artifacts/s2-worldscan.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p3_beta\artifacts\s2-worldscan.txt)
+Parfait. Maintenant je vais structurer mon analyse complète des trois jeux et produire le manifeste JSON requis.
+
+---
+
+## WORLD SCAN : Analyse des jeux comparables pour p3_beta
+
+J'analyse trois jeux représentant les genres progressifs et les systèmes de rétention éprouvés du studio :
+
+### 1. **Cookie Clicker** (Idle/Incremental Game)
+
+**Sources citées :**
+- Wikipedia Cookie Clicker : https://en.wikipedia.org/wiki/Cookie_Clicker
+- Official Site : https://cookieclicker.com/
+- Console Release Article (May 2025) : https://www.prnewswire.com/news-releases/the-legendary-idle-game-cookie-clicker-is-coming-to-consoles-on-may-22-302456142.html
+
+**Boucles d'engagement :**
+
+| Horizon | Mécanique | Progression | Feedback joueur |
+|---------|-----------|-------------|-----------------|
+| **Minute 1** | Click cookie → gain 1 cookie/click | Immédiat : achat premier Cursor pour 15 coins, arrêt du clic | Visual : +1 cookie animé, son de click, compteur |
+| **Minute 10** | 10 Cursors = 1 cookie/s passif ; apparition Golden Cookies aléatoires | Cursor → Farm → Mine ; upgrades **(Cursor x2 damage)** ; Golden Cookies : 7-10s window, +77 cookies/s ou +% click/s | Auto-idle commence ; rush Golden Cookies pour boost |
+| **Heure 5** | 10+ buildings actifs (Farms, Factories, Banks) ; Ascension system (reset pour multiplicateur) | Économie passe à ~10k cookies/s ; nouveau building chaque 100-500 cookies ; résine = hardcap avant Ascension | Sensation de progression exponentielle ; décision d'Ascension (risk/reward) |
+| **Endgame** | Ascensions répétées ; Grandmapocalypse événement ; nouvelles mécaniques (Prestige, Heralds) | Asymptote : progression ralentit → collecteurs finaux (250 buildings) ; pas de condition finale (marathon) | Optimisation meta vs gameplay relax ; tâche asymptotique |
+
+**Retention answer :**
+"Pourquoi revenir ? Progression visible et croissance exponentielle : chaque session, les bâtiments produisent plus → nouvelles achats → sensation de pouvoir croissant. Ascension = reset émotionnel mais reste d'un multiplicateur (prestige). Golden Cookies = tension minute-à-minute. **Pas d'état gagné** : le jeu reconnaît 'fin' en Ascensions multiples, mais rejeu toujours actif."
+
+---
+
+### 2. **Hades** (Roguelike avec Meta-Progression)
+
+**Sources citées :**
+- Wikipedia Hades : https://en.wikipedia.org/wiki/Hades_(video_game)
+- Hades Wiki How-to-Play : https://hades.fandom.com/wiki/How_to_play_guide_for_Hades
+- YouTube Gameplay : https://www.youtube.com/watch?v=jkMquTukXDw (A LEGENDARY Run | Hades First Time Playthrough)
+- YouTube Hell Mode Playthrough : https://www.youtube.com/watch?v=kV_-FnR5Mfk (Hades Hell Mode Part 8, Nov 2024)
+
+**Boucles d'engagement :**
+
+| Horizon | Mécanique | Progression | Feedback joueur |
+|---------|-----------|-------------|-----------------|
+| **Minute 1** | Start with Stygius (sword) ; tutorial biome Tartarus ; 2-3 weak enemies | Learn attack pattern + dodge ; first boon from Hermes (speed/dash) ; tutorial chamber victory | Fluid combat, immediate challenge, early boon choice |
+| **Minute 10** | Complete 1-3 chambers (~10 min) ; 3-4 boons combinés (ex. Hermes Speed + Ares Damage) ; chamber rewards : coins, Poms | Experimentation : boon synergy emerges (build) ; door choices (fight/shop/repair) ; first damage taken vs boss incoming | Synergy moments ; early deck-building feel |
+| **Heure 5** | 3 biomes cleared → Boss fight Elysium or Styx → reach final boss ; multiple Darkness/Keys farming ; 2-3 Mirror upgrades purchased between runs | Run becomes ~35-60 min ; die → retry with permanent meta-upgrades (Darkness spent) ; feel stronger each attempt even on loss | Replayability loop confirmed ; death = progress not setback |
+| **Endgame** | Escape achieved → unlock true finale (reach Hades' wife) → 300+ boon combinations ; Pact of Punishment (escalating difficulty) ; Heat system (custom difficulty sliders) | Meta-currency (Darkness, Keys) unlocks new weapons, aspects, abilities ; Ascensions-like system (Pact Heat levels 1-32) ; long-tail content (lore reveals on runs) | Thousands of hour potential ; community speedrun/challenge culture |
+
+**Retention answer :**
+"Pourquoi revenir ? Chaque run crée une build unique via le RNG des boons : même boss affronté 30 fois joue différemment. Meta-progression (Darkness) fait chaque mort un pas avant, jamais un retour à zéro. Pact of Punishment offre escalade infinie de défi personnel. **État de victoire explicite** : échapper (classique) → vrai finale (lore), mais runs continuent. Variété des armes + boons = re-rejouabilité."
+
+---
+
+### 3. **Slay the Spire** (Deck Builder Run-Based)
+
+**Sources citées :**
+- Wikipedia Slay the Spire : https://en.wikipedia.org/wiki/Slay_the_Spire
+- Slay the Spire Wiki - Victory Conditions : https://slay-the-spire.fandom.com/wiki/Act_4
+- YouTube - How to Defeat the Heart : https://www.youtube.com/watch?v=OEojtzp5aYo (EarlyGuides, 2024)
+- YouTube - A20 Heart Attempts : https://www.youtube.com/watch?v=OKLuhR2W5Xo (April 21 2024)
+
+**Boucles d'engagement :**
+
+| Horizon | Mécanique | Progression | Feedback joueur |
+|---------|-----------|-------------|-----------------|
+| **Minute 1** | Start with Ironclad ; opening hand = 5 cards (Strikes, Defends) ; enemy = 45 HP | First combat : play cards → damage enemy, block → take damage ; explore rooms ; first card offered as reward (pick 1 of 3) | Immediate deckbuilding : cards visible in hand ; tension = sparse deck |
+| **Minute 10** | 2-3 combats done ; deck = ~8 cards (3-4 additions chosen) ; first elite fight choice offered | Synergy emerges (ex. Pump → Heavy Blade with +strength scaling) ; relic choice (passive bonus) ; first tough choice : take damage or skip elite | Deck curves : early weak → middle playable → decisions matter |
+| **Heure 5** | Act 2-3 progressing ; deck stabilizing (~20-25 cards) ; 2-3 relics active (ex. Tough Bandages = block regen) ; bosses faced (Act 1-2 bosses, Act 3 boss incoming) | Deck archetype crystallizes (ex. "Strength deck" or "Scaling spells") ; potions available (one-time use in combat) ; shops allow card removal (critical optimizer choice) | Deck tightness vs breadth decision ; power scaling evident |
+| **Endgame** | Beat Act 3 boss → choice : end run OR collect 3 colored
+[tronqué]
+```json
+{
+  "games": [
+    {
+      "game": "Cookie Clicker",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Cookie_Clicker",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://cookieclicker.com/",
+          "type": "article",
+          "timestamp": null
+        },
+        {
+          "url": "https://www.prnewswire.com/news-releases/the-legendary-idle-game-cookie-clicker-is-coming-to-consoles-on-may-22-302456142.html",
+          "type": "article",
+          "timestamp": null
+        }
+      ],
+      "loops": {
+        "minute_1": "Click cookie → gain 1/click. Purchase first Cursor for 15 coins to start automation. Immediate feedback: +1 cookie animated, click sound, counter increments.",
+        "minute_10": "10 Cursors = 1 cookie/sec passive income. Purchase Farms, Mines. Golden Cookies spawn randomly (7-10s window) for +77 cookies/s boost. Upgrades appear (Cursor x2 damage) purchased with passive income.",
+        "hour_5": "10+ buildings active (Farms, Factories, Banks). Economy reaches ~10k cookies/sec. New buildings unlock every 100-500 cookies. Ascension system (reset for prestige multiplier) becomes available. Exponential progression sensation.",
+        "endgame": "Ascensions repeated for prestige stacking. Grandmapocalypse event triggered (new gameplay). No final victory condition; progression asymptotes toward collector optimization. Long-tail content: new mechanics unlock (Heralds, Prestige tiers)."
+      },
+      "objectives": [
+        {
+          "mode": "idle",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Maximize passive cookie generation and reach highest prestige level via Ascensions. Collect all buildings and upgrades. Experience exponential growth."
+        }
+      ],
+      "retention_answer": "Progression visible and exponential: each session, buildings produce more cookies → new purchases available → sensation of growing power. Ascension system provides emotional reset while preserving prestige multiplier. Golden Cookies create minute-to-minute tension. No hard ending; game recognizes 'completion' via multiple Ascensions, but replayability remains infinite through optimization challenges."
+    },
+    {
+      "game": "Hades",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Hades_(video_game)",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://hades.fandom.com/wiki/How_to_play_guide_for_Hades",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://www.youtube.com/watch?v=jkMquTukXDw",
+          "type": "video",
+          "timestamp": "2026-01-24"
+        },
+        {
+          "url": "https://www.youtube.com/watch?v=kV_-FnR5Mfk",
+          "type": "video",
+          "timestamp": "2024-11-15"
+        }
+      ],
+      "loops": {
+        "minute_1": "Start with Stygius (sword weapon). Tutorial biome Tartarus introduces combat: attack enemy, dodge incoming damage. First boon offered (passive ability boost) from Hermes. Immediate chamber victory provides first reward (coins/pom upgrade).",
+        "minute_10": "Complete 3-4 chambers over ~10 minutes. Acquire 3-4 boons that synergize (e.g., Hermes speed + Ares damage scaling). Chamber doors offer choices: fight room, shop, repair station. First Mirror upgrade (meta-progression) between-run benefit visible.",
+        "hour_5": "Progress through 3 biomes (Tartarus → Asphodel → Elysium). Face end-of-biome bosses. Run duration extends to 35-60 minutes. Even on death, player gains Darkness currency (meta-currency) and Chthonic Keys for permanent unlocks. Mirror upgrades purchased feel meaningful.",
+        "endgame": "Escape achieved: reach final boss and defeat. Unlock true ending (lore reveal). Pact of Punishment system allows escalating difficulty customization (Heat system, 32 levels). Unlock new weapons (6 total), weapon aspects, and hidden abilities. 300+ boon combinations ensure high replayability. Thousands of hours potential."
+      },
+      "objectives": [
+        {
+          "mode": "escape",
+          "has_win_state": true,
+          "victory_condition": "Defeat final boss and exit the underworld",
+          "has_defeat_state": true,
+          "defeat_condition": "Health reaches zero (death ends current run)",
+          "player_goal": "Escape the underworld by collecting powerful boons, surviving enemy encounters, and reaching final boss. Long-term: unlock all weapons, complete lore, master Pact of Punishment challenges."
+        }
+      ],
+      "retention_answer": "Each run creates a unique build via random boon offerings: same boss fought 50 times plays differently due to RNG and player synergy choices. Meta-progression (Darkness, Keys) ensures every death is a step forward, never a setback. Pact of Punishment provides personal difficulty scaling and achievement ladder. Six weapons × multiple aspects × 300+ boon combos = theoretically infinite build variety. Community culture around speedruns and challenge builds sustains engagement."
+    },
+    {
+      "game": "Slay the Spire",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Slay_the_Spire",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://slay-the-spire.fandom.com/wiki/Act_4",
+          "type": "wiki",
+          "timestamp": null
+        },
+        {
+          "url": "https://www.youtube.com/watch?v=OEojtzp5aYo",
+          "type": "video",
+          "timestamp": "2024-08-15"
+        },
+        {
+          "url": "https://www.youtube.com/watch?v=OKLuhR2W5Xo",
+          "type": "video",
+          "timestamp": "2024-04-21"
+        }
+      ],
+      "loops": {
+        "minute_1": "Start as Ironclad (warrior class). Opening hand: 5 cards (basic Strikes and Defends). Face first weak enemy (~45 HP). Play cards from hand to deal damage or block incoming damage. First room victory offers card reward: choose 1 of 3 new cards to add to deck.",
+        "minute_10": "Complete 2-3 combats. Deck now contains ~8 unique cards. Relic offered as reward (passive permanent bonus). Optional elite fight available. Early synergies emerge (e.g., Pummel synergizes with Heavy Blade due to +Strength scaling). Potions begin appearing as one-time combat items.",
+        "hour_5": "Progress through Acts 2-3 over ~30-50 minutes. Deck stabilizes at 20-25 cards. Multiple relics active (e.g., Tough Bandages = block regenerates). Archetype crystallizes ('Strength deck' vs 'Scaling spells' vs 'Exhaust deck'). Key decision: remove weak cards from deck to tighten synergies. Shop visits allow strategic card upgrades and removal.",
+        "endgame": "Defeat Act 3 final boss = victory. Optional: collect all 3 colored keys during run to unlock Act 4 (Heart superboss, 750 HP). Ascension system (1-20 difficulty multipliers per character) available. Higher Ascensions add enemy buffs and card restrictions, ensuring long-tail challenge. Four playable characters with radically different mechanics."
+      },
+      "objectives": [
+        {
+          "mode": "standard",
+          "has_win_state": true,
+          "victory_condition": "Defeat the Act 3 final boss and reach the Spire's top",
+          "has_defeat_state": true,
+          "defeat_condition": "Health reaches zero (death during any combat)",
+          "player_goal": "Build a coherent deck through 3 Acts that scales enough to defeat progressively harder bosses. Optimize card synergies and relic choices."
+        },
+        {
+          "mode": "challenge",
+          "has_win_state": true,
+          "victory_condition": "Collect all 3 colored keys and defeat the Heart superboss (750 HP with 15-card-per-turn scaling cap)",
+          "has_defeat_state": true,
+          "defeat_condition": "Health reaches zero during Heart fight",
+          "player_goal": "Defeat the optional Heart superboss after collecting keys. Optional true ending for completionists."
+        }
+      ],
+      "retention_answer": "Every run creates a unique deck from 20,000+ possible card combinations. RNG (card offerings, enemy generation) combined with player choice ensures high variance: two runs with same character follow completely different paths. Ascension ladder (1-20 per character × 4 characters) provides competitive difficulty progression. Community engagement via speedruns, challenge builds, and deck theorycrafting sustains engagement for thousands of hours. Clear victory condition (beat Act 3) yet optional superboss (Heart) for challenge-seekers."
+    }
+  ],
+  "advisory": true
+}
+```
+
+## PRÉ-MORTEM (erreurs des runs passés)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [manifest-2b3083e411db2072] echec de la tentative 5 a s9-build — cause: returncode=0 (volets rouges: measure_tick, reuse_ratio_wired, runtime_alive, search_consulted) -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-e0e8556c60c9833d] echec de la tentative 4 a s9-build — cause: returncode=0 (volets rouges: measure_tick, reuse_ratio_wired, runtime_alive, search_consulted) -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-00bd039d9ebc6e08] echec de la tentative 3 a s9-build — cause: returncode=0 (volets rouges: measure_tick, reuse_ratio_wired, runtime_alive, search_consulted) -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-557266ada5bf44fa] echec de la tentative 2 a s9-build — cause: returncode=0 (volets rouges: measure_tick, reuse_ratio_wired, runtime_alive, search_consulted) -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-dd36473dfa6cf249] echec de la tentative 1 a s9-build — cause: returncode=0 (volets rouges: measure_tick, reuse_ratio_wired, runtime_alive, search_consulted) -- GENERATION_DIFFERENTE_A_REEXAMINER
+
+FORGE_DISPATCH:s2.6-story-bible:p3_beta-20260901-run1:1

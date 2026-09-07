@@ -1,0 +1,74 @@
+{
+  "project": "p1_beta",
+  "requests": [
+    {
+      "id": "req_core_hearth",
+      "status": "resolved",
+      "path": "render.mjs",
+      "note": "Foyer emissif genere en DOM/CSS inline (#hearth, index.html) : cercle chaud (#ff8a3d), halo box-shadow, teinte/curseur pilotes par renderHearth() ; flash d'attisage par renderStokeFlash()."
+    },
+    {
+      "id": "req_emitter_unit",
+      "status": "resolved",
+      "path": "render.mjs",
+      "note": "Silhouette froide par emetteur possede, generee en DOM/CSS inline par renderEmitters() : cercle #8fd9ff (teinte disjointe du foyer chaud), dispose en cercle autour du foyer (#emitters, index.html)."
+    },
+    {
+      "id": "req_spark_burst",
+      "status": "resolved",
+      "path": "render.mjs",
+      "note": "Gerbe d'eclats/flash chaud a l'attisage, generee en DOM/CSS inline par renderStokeFlash() : box-shadow + scale sur #hearth, retire apres 150ms (< 200ms, R3)."
+    },
+    {
+      "id": "req_light_counter",
+      "status": "resolved",
+      "path": "render.mjs",
+      "note": "Compteur HUD genere en DOM/CSS inline (#light-counter, index.html) : police monospace a chasse tabulaire (font-variant-numeric), plus gros element textuel de l'ecran, mis a jour par renderLightCounter()."
+    },
+    {
+      "id": "req_buy_button",
+      "status": "resolved",
+      "path": "render.mjs",
+      "note": "Bouton d'achat genere en DOM/CSS inline (#buy-button, index.html) : or (#ffc93c) si abordable, desature (#5a5a66) sinon, pilote par renderBuyButton()."
+    },
+    {
+      "id": "req_progress_constellation",
+      "status": "resolved",
+      "path": "render.mjs",
+      "note": "Jauge de progression genere en DOM/CSS inline (#progress-gauge/#progress-gauge-fill, index.html) : remplissage proportionnel a light/threshold, pilote par renderProgressGauge()."
+    },
+    {
+      "id": "req_end_screen",
+      "status": "resolved",
+      "path": "render.mjs",
+      "note": "Ecran d'embrasement genere en DOM/CSS inline (#overlay, index.html) : panneau plein ecran, libelle 'Embrasement complet', affiche/masque par renderEndScreen()."
+    },
+    {
+      "id": "req_locked_glyph",
+      "status": "resolved",
+      "path": "render.mjs",
+      "note": "Glyphe d'etat verrouille genere en DOM/CSS inline (#locked-glyph, index.html) : texte desature 'X lumiere requise', jamais le chaud ni un halo, pilote par renderLockedGlyph()."
+    },
+    {
+      "id": "req_ascension_altar",
+      "status": "resolved",
+      "path": "index.html",
+      "note": "Autel d'ascension genere en DOM/CSS inline (#ascension-altar, dans #overlay) : bouton distinct (#e6d9ff), visibilite pilotee par renderEndScreen() (render.mjs), n'apparait qu'apres l'embrasement."
+    },
+    {
+      "id": "req_quest_milestone",
+      "status": "resolved",
+      "path": "render.mjs",
+      "note": "Marqueur de jalon genere en DOM/CSS inline (#milestone-marker, index.html) : apparition breve puis fondu (opacity, 900ms), non modal, pilote par renderMilestoneFlash()."
+    },
+    {
+      "id": "req_field_background",
+      "status": "resolved",
+      "path": "render.mjs",
+      "note": "Fond du champ genere en DOM/CSS inline (#field, index.html) : interpolation indigo->violet chaud proportionnelle a light/threshold, pilote par renderField()."
+    }
+  ],
+  "no_assets_needed": false,
+  "reason": null,
+  "note": "Sonde incrementale (genre incremental/clicker/idle, web/HTML) : aucun asset binaire (sprite/tileset/PNG/SVG) produit — chaque requete est honnetement resolue vers le fichier de rendu DOM/CSS inline qui l'implemente reellement, meme convention que games/chain_probe_v1 (RUN 1, AUTHENTIQUE)."
+}

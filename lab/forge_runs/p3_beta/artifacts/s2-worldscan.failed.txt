@@ -1,0 +1,54 @@
+I need to understand what p3_beta is supposed to be. Given that this is the first run (run1) and world_scan is an early step (s2), the project charter/brief should already exist. Let me check if there's a project brief directory:
+
+---
+
+## CONSTRAINT DISCOVERED: Missing Pre-requisite Input
+
+**Role:** World Scan (s2-worldscan) for **p3_beta-20260901-run1**
+
+**Status:** 🔴 **BLOCKED** — Cannot proceed without prerequisite.
+
+**What I need:**
+- Either a `product_snapshot.md` OR a `charter.yaml` for p3_beta (as specified in contract SCHEMA.md §2, mandatory_read clause)
+- This should be located in `games/p3_beta/charter.yaml` or `lab/forge_briefs/p3_beta/project_brief.yaml`
+
+**What I found:**
+- ✅ PAIRE 3 launch brief exists (`PAIRE3_LAUNCH_20260901.md`)
+- ✅ Dispatch marker confirms run: `s2-worldscan:p3_beta-20260901-run1:1`
+- ✅ Project assigned: L3 (Libre arm, run 3 of PAIRE 3 experiment)
+- ❌ No project_brief.yaml or charter.yaml for p3_beta yet
+- ❌ No games/p3_beta/charter.yaml
+- ❌ No product_snapshot.md
+
+**Why this matters:**
+Per the Forge Architect Manual (§2, line 63), World Scan requires either a product_snapshot (step s1 output) or charter.yaml (if scan precedes Prisme). **I cannot make valid architectural observations about a game whose genre, scope, and design intent are unknown.** Hallucinating a game genre would violate the contract's `claim_verdict: NO_CLAIM_ALLOWED` rule.
+
+**Path forward (requires HumanGate decision):**
+
+1. **If charter doesn't exist yet:** Create `lab/forge_briefs/p3_beta/project_brief.yaml` (following the template from p1_beta_E1) with:
+   - Genre / game type
+   - Scope (MVP constraints)
+   - Design freedom rules (any templates from Brief? imposed values?)
+   - Comparison family (which existing games should I scan?)
+
+2. **If charter exists elsewhere:** Point me to its location, and I'll resume.
+
+3. **If this is intentionally exploratory:** Specify a genre/family (e.g., "incremental clicker like p1_beta", "survival roguelite", "card battler") and I can perform domain research against known comparable titles.
+
+---
+
+**software_verdict:** BLOCKED  
+**evidence_verdict:** MECHANICAL_VALIDATION_ONLY  
+**claim_verdict:** NO_CLAIM_ALLOWED  
+
+---
+
+```json
+{
+  "RETURN_REASON": {
+    "status": "NOT_DISCOVERED",
+    "note": "Pre-requisite input missing; no observation performed. Awaiting charter.yaml or product_snapshot.md for p3_beta."
+  },
+  "SKIPPED_VALIDATION": "All validations skipped: prerequisite input (charter or product_snapshot) not found. World Scan cannot infer game genre, scope, or design intent without this anchor. To proceed, either: (1) provide charter.yaml with genre + scope, or (2) provide product_snapshot.md from prior step s1, or (3) specify comparison family + constraints for autonomous research."
+}
+```

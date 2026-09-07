@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Three Rooms - Micro Sonde</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Arial', sans-serif;
+      background: #1a1a1a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    #gameContainer {
+      width: 100%;
+      max-width: 800px;
+      aspect-ratio: 4/3;
+      background: linear-gradient(135deg, #2a2a3a 0%, #1a1a2e 100%);
+      border: 3px solid #0f3460;
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    }
+    .character {
+      position: absolute;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.2s, filter 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .character:hover {
+      transform: scale(1.1);
+      filter: brightness(1.2);
+    }
+    .character-body {
+      width: 60px;
+      height: 80px;
+      background: #e74c3c;
+      border-radius: 20px;
+      position: relative;
+      border: 3px solid #c0392b;
+    }
+    .character-head {
+      width: 40px;
+      height: 40px;
+      background: #f5a962;
+      border-radius: 50%;
+      position: absolute;
+      top: -25px;
+      left: 10px;
+      border: 2px solid #d68910;
+    }
+    .character-eyes {
+      position: absolute;
+      top: 12px;
+      left: 8px;
+      display: flex;
+      gap: 12px;
+    }
+    .eye {
+      width: 6px;
+      height: 6px;
+      background: #000;
+      border-radius: 50%;
+    }
+    .character-mouth {
+      position: absolute;
+      bottom: 8px;
+      left: 15px;
+      width: 10px;
+      height: 4px;
+      background: #000;
+      border-radius: 2px;
+    }
+    .character-name {
+      font-weight: bold;
+      font-size: 14px;
+      color: #ecf0f1;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    }
+    .location {
+      position: absolute;
+      cursor: pointer;
+      user-select: none;
+      border: 2px solid #16a085;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #ecf0f1;
+      transition: all 0.2s;
+      font-size: 18px;
+    }
+    .location:hover {
+      background: rgba(22, 160, 133, 0.2);
+      border-color: #1abc9c;
+      transform: scale(1.05);
+    }
+    .location.door {
+      width: 80px;
+      height: 120px;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(139, 69, 19, 0.3);
+      border-color: #a0522d;
+    }
+    .location.window {
+      width: 100px;
+      height: 80px;
+      top: 20px;
+      right: 20px;
+      background: rgba(100, 150, 200, 0.2);
+      border-color: #6495ed;
+    }
+    .location.mirror {
+      width: 80px;
+      height: 100px;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(200, 200, 200, 0.2);
+      border-color: #c0c0c0;
+    }
+    .state-indicator {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: #ecf0f1;
+      font-size: 14px;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 10px 15px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    .win-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      color: #2ecc71;
+      font-weight: bold;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s;
+    }
+    .win-overlay.active {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <div class="state-indicator" id="stateInfo"></div>
+    <div class="win-overlay" id="winOverlay">✓ ALL IN SYNC!</div>
+  </div>
+  <script type="module" src="game.mjs"></script>
+</body>
+</html>

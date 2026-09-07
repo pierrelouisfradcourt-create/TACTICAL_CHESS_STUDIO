@@ -1,0 +1,461 @@
+{
+ "modules": [
+  "index.html",
+  "main",
+  "engine",
+  "economy",
+  "objective",
+  "render",
+  "input",
+  "server",
+  "e2e",
+  "solvability",
+  "logic.test",
+  "properties.test",
+  "run-oracle"
+ ],
+ "deps_interdites": [
+  [
+   "engine",
+   "render"
+  ],
+  [
+   "engine",
+   "input"
+  ],
+  [
+   "engine",
+   "main"
+  ],
+  [
+   "engine",
+   "objective"
+  ],
+  [
+   "engine",
+   "server"
+  ],
+  [
+   "engine",
+   "e2e"
+  ],
+  [
+   "engine",
+   "solvability"
+  ],
+  [
+   "engine",
+   "run-oracle"
+  ],
+  [
+   "economy",
+   "engine"
+  ],
+  [
+   "economy",
+   "render"
+  ],
+  [
+   "economy",
+   "input"
+  ],
+  [
+   "economy",
+   "main"
+  ],
+  [
+   "economy",
+   "objective"
+  ],
+  [
+   "objective",
+   "engine"
+  ],
+  [
+   "objective",
+   "render"
+  ],
+  [
+   "objective",
+   "input"
+  ],
+  [
+   "objective",
+   "main"
+  ],
+  [
+   "render",
+   "engine"
+  ],
+  [
+   "render",
+   "input"
+  ],
+  [
+   "render",
+   "main"
+  ],
+  [
+   "render",
+   "server"
+  ],
+  [
+   "input",
+   "render"
+  ],
+  [
+   "input",
+   "objective"
+  ],
+  [
+   "input",
+   "main"
+  ],
+  [
+   "server",
+   "engine"
+  ],
+  [
+   "server",
+   "render"
+  ],
+  [
+   "server",
+   "main"
+  ],
+  [
+   "main",
+   "server"
+  ],
+  [
+   "main",
+   "e2e"
+  ],
+  [
+   "main",
+   "solvability"
+  ],
+  [
+   "main",
+   "run-oracle"
+  ],
+  [
+   "e2e",
+   "engine"
+  ],
+  [
+   "e2e",
+   "render"
+  ],
+  [
+   "e2e",
+   "objective"
+  ],
+  [
+   "solvability",
+   "render"
+  ],
+  [
+   "solvability",
+   "input"
+  ],
+  [
+   "solvability",
+   "main"
+  ],
+  [
+   "solvability",
+   "e2e"
+  ],
+  [
+   "run-oracle",
+   "engine"
+  ],
+  [
+   "run-oracle",
+   "render"
+  ],
+  [
+   "run-oracle",
+   "input"
+  ],
+  [
+   "run-oracle",
+   "main"
+  ],
+  [
+   "logic.test",
+   "render"
+  ],
+  [
+   "logic.test",
+   "input"
+  ],
+  [
+   "logic.test",
+   "main"
+  ],
+  [
+   "properties.test",
+   "render"
+  ],
+  [
+   "properties.test",
+   "input"
+  ],
+  [
+   "properties.test",
+   "main"
+  ]
+ ],
+ "ownership": {
+  "index.html": "s9-build (builder) — games/p1_beta/index.html · couche SCENE (declare les cibles DOM stables, ne porte aucune logique)",
+  "main": "s9-build (builder) — games/p1_beta/main.mjs · couche COMPOSITION (cable input->engine->render, expose window.__game)",
+  "engine": "s9-build (builder) — games/p1_beta/engine.mjs · couche REGLES (etat + transitions, zero DOM, zero chaine d'interface, zero litteral structurel)",
+  "economy": "s4-archi (invariants) + s9-build (materialisation) — games/p1_beta/economy.mjs · couche DONNEES : source UNIQUE des grandeurs structurelles avec provenance N2 citee par constante",
+  "objective": "s9-build (builder) — games/p1_beta/objective.mjs · couche ENONCES : fonction pure etat -> texte d'objectif, sans DOM",
+  "render": "s9-build (builder) — games/p1_beta/render.mjs · couche VUE : seul ecrivain du DOM, lecture seule de l'etat recu en parametre",
+  "input": "s9-build (builder) — games/p1_beta/input.mjs · couche ENTREE : traduit les clics en intentions sur l'etat, ne peint jamais",
+  "server": "s9-build (builder) — games/p1_beta/server.mjs · couche SERVICE : sert index.html et les .mjs a la sonde, ignore tout du jeu",
+  "e2e": "s10a-oracle-code — games/p1_beta/e2e.mjs · couche PREUVE ECRAN : navigateur reel, observation par la page uniquement",
+  "solvability": "s10a-oracle-code — games/p1_beta/solvability.mjs · couche PREUVE JOUABILITE : un bot doit REELLEMENT atteindre la fin",
+  "logic.test": "s10a-oracle-code — games/p1_beta/logic.test.mjs · couche PREUVE MECANIQUE : deltas stricts, cible du gate mutation",
+  "properties.test": "s10a-oracle-code — games/p1_beta/properties.test.mjs · couche PREUVE PROPRIETES : divergence de politiques a horizon fixe",
+  "run-oracle": "s10a-oracle-code — games/p1_beta/run-oracle.mjs · couche EXECUTEUR DE PREUVE : lance les 4 volets, ne calcule rien du jeu"
+ },
+ "responsabilites": [
+  {
+   "module": "index.html",
+   "responsabilite": "Scene racine et entrypoint unique du jeu : declare les cibles DOM stables que toute preuve adresse (#hearth, #buy-button, #ascension-altar, #restart, #overlay, #light-counter, #objective, #progress-gauge-fill, #milestone-marker, #locked-glyph, #emitters, #field) et charge main. Aucune logique de jeu, aucune valeur structurelle faisant autorite.",
+   "couvre": [
+    "FEAT_HUD",
+    "FEAT_STOKE",
+    "FEAT_BUY",
+    "FEAT_ASCENSION",
+    "FEAT_TERMINAL",
+    "FEAT_GOAL"
+   ],
+   "dependances": [
+    "main"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "e2e.mjs charge http://localhost:<PROBE_PORT>/ et retrouve les 12 ids declares ; un seul id manquant fait echouer la sonde AVANT tout clic (aucune preuve aval ne peut alors etre verte)"
+   }
+  },
+  {
+   "module": "main",
+   "responsabilite": "Composition root : instancie l'etat, cable input->engine et engine->render, pilote le tick (production passive + consommation des signaux transitoires de flash), expose window.__game et window.__game_debug. Ne contient aucune regle de jeu ni aucun acces DOM direct.",
+   "couvre": [
+    "FEAT_STOKE",
+    "FEAT_AMBIENCE",
+    "FEAT_EMITTER_PROGRESS"
+   ],
+   "dependances": [
+    "engine",
+    "render",
+    "input"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "apres DOMContentLoaded, la sonde lit window.__game non nul ET un compteur et un objectif deja non vides au tick 0 (un rendu a eu lieu AVANT le premier paint : ecran jamais vide)"
+   }
+  },
+  {
+   "module": "engine",
+   "responsabilite": "Regles et etat du jeu, source de verite unique : attisage (+light_per_stoke exact), achat d'emetteur (debit exact du cout, +1 emetteur), production passive par tick, franchissement des jalons, regle terminale seedee, ascension. Zero DOM, zero chaine d'interface, zero litteral structurel (toutes les grandeurs viennent d'economy).",
+   "couvre": [
+    "FEAT_STOKE",
+    "FEAT_DECISION",
+    "FEAT_BUY",
+    "FEAT_TERMINAL",
+    "FEAT_ASCENSION",
+    "FEAT_AMBIENCE"
+   ],
+   "dependances": [
+    "economy"
+   ],
+   "preuve_attendue": {
+    "kind": "mutation",
+    "statement": "logic.test.mjs asserte des deltas STRICTS (N attisages sans achat => light === N exactement ; achat => light -= cout exact et emitterCount +1 ; ascension => +1 glow, light === 0) et le gate mutation ne laisse aucun mutant de ces regles survivant sans triage justifie"
+   }
+  },
+  {
+   "module": "economy",
+   "responsabilite": "Source UNIQUE des grandeurs structurelles du jeu (lumiere par attisage, cout de base d'un emetteur, croissance geometrique du cout, taux d'un emetteur, bonus d'ascension, pas de jalon, seuil terminal), chacune nommee et accompagnee de sa provenance N2 exigee par le charter. Module feuille : n'importe rien, ne decide rien, ne rend rien.",
+   "couvre": [
+    "FEAT_TERMINAL",
+    "FEAT_BUY",
+    "FEAT_AMBIENCE",
+    "FEAT_GOAL",
+    "FEAT_ASCENSION"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "chaque grandeur structurelle est declaree exactement une fois dans economy.mjs ; une recherche des litteraux correspondants dans les autres fichiers .mjs du jeu (engine, render, objective, input, main, solvability, e2e, tests) n'en trouve AUCUNE autre occurrence — la duplication mesuree entre engine.mjs et render.mjs est fermee, et sa reapparition est detectable"
+   }
+  },
+  {
+   "module": "objective",
+   "responsabilite": "Derive l'enonce d'objectif affiche a partir du seul etat recu en parametre : trois phases, trois textes deux a deux distincts (avant tout emetteur / apres le premier emetteur / production passive active), plus l'enonce d'apres-embrasement. Fonction pure, sans DOM et sans etat propre.",
+   "couvre": [
+    "FEAT_GOAL",
+    "FEAT_EMITTER_PROGRESS",
+    "FEAT_NEXT_GOAL_END"
+   ],
+   "dependances": [
+    "economy"
+   ],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "properties.test.mjs appelle la fonction sur trois etats forges (0 emetteur / 1 emetteur / production active) sans DOM : les trois chaines sont deux a deux DIFFERENTES, et la premiere comme la troisieme nomment le seuil terminal issu d'economy"
+   }
+  },
+  {
+   "module": "render",
+   "responsabilite": "Unique ecrivain du DOM : compteur, objectif, jauge de progression, foyer et son flash, emetteurs places autour du foyer, bouton d'achat et son glyphe verrouille, marqueur de jalon, rechauffement du champ, ecran de fin et autel. Lecture seule d'un etat recu en parametre — ne mute rien, ne lit aucune entree, ne fabrique aucun enonce.",
+   "couvre": [
+    "FEAT_HUD",
+    "FEAT_GOAL",
+    "FEAT_STOKE",
+    "FEAT_BUY",
+    "FEAT_AMBIENCE",
+    "FEAT_TERMINAL",
+    "FEAT_ASCENSION",
+    "FEAT_EMITTER_PROGRESS",
+    "FEAT_NEXT_GOAL_END"
+   ],
+   "dependances": [
+    "economy",
+    "objective"
+   ],
+   "preuve_attendue": {
+    "kind": "visual",
+    "statement": "captures via e2e : le foyer change de luminance entre la frame du clic et la suivante ; la teinte du champ a light=0/2500/5000 se rechauffe de facon monotone ; l'ecran de fin passe de masque a visible au franchissement du seuil ; le compteur reste entierement visible pendant un flash"
+   }
+  },
+  {
+   "module": "input",
+   "responsabilite": "Capture les entrees joueur sur les affordances nommees (hearth, buy_button, ascension_altar, restart) et les traduit en appels d'intention sur l'etat, un gestionnaire nomme par affordance. Ne peint jamais, ne fabrique aucun enonce, n'appelle jamais la composition root autrement que par le signal de rejeu declare.",
+   "couvre": [
+    "FEAT_STOKE",
+    "FEAT_BUY",
+    "FEAT_ASCENSION"
+   ],
+   "dependances": [
+    "engine"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "clics souris REELS via e2e : un clic hearth credite exactement le gain d'attisage courant ; un clic buy_button des que light >= cout fait passer le groupe emetteurs de 0 a 1 element distinct ; un clic ascension_altar HORS etat terminal ne change strictement RIEN (neutralisation prouvee, jamais supposee)"
+   }
+  },
+  {
+   "module": "server",
+   "responsabilite": "Serveur statique local minimal servant index.html et les modules .mjs du dossier a la sonde e2e, sur un port pris dans l'environnement. Zero dependance externe, aucune connaissance du jeu, aucun etat de partie : il sert des octets, il n'en prepare aucun.",
+   "couvre": [
+    "FEAT_STOKE",
+    "FEAT_BUY",
+    "FEAT_ASCENSION"
+   ],
+   "dependances": [],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "au demarrage il annonce l'interface jouable en moins de 8 s (sinon e2e.mjs echoue) ; GET / rend 200 et le HTML, GET /engine.mjs rend 200 en text/javascript, une route hors liste rend 404 — les trois preuves d'entree joueur n'existent que si ce module repond"
+   }
+  },
+  {
+   "module": "e2e",
+   "responsabilite": "Preuve par l'ecran : demarre le serveur, ouvre un navigateur reel, envoie de vrais clics souris sur les affordances, observe l'etat exclusivement au travers de la page (window.__game, overlay, textes du HUD) et sort non nul des qu'un volet manque. N'importe jamais l'engine, le rendu ni les enonces : il ne doit pouvoir affirmer que ce que la page a reellement peint.",
+   "couvre": [
+    "FEAT_STOKE",
+    "FEAT_BUY",
+    "FEAT_ASCENSION",
+    "FEAT_TERMINAL",
+    "FEAT_EMITTER_PROGRESS",
+    "FEAT_NEXT_GOAL_END",
+    "FEAT_HUD"
+   ],
+   "dependances": [
+    "server",
+    "economy"
+   ],
+   "preuve_attendue": {
+    "kind": "bot_action",
+    "statement": "check_e2e_harness (static_oracles) constate statiquement un navigateur reel, de vraies entrees et au moins 3 observations d'etat ; a l'execution, la sonde enchaine attisage -> achat -> changement d'objectif -> ecran de fin -> ascension et sort non nul si un seul maillon manque"
+   }
+  },
+  {
+   "module": "solvability",
+   "responsabilite": "Preuve de jouabilite headless : mesure l'enveloppe d'action reelle, cherche un plan qui ATTEINT reellement l'etat terminal dans un budget de ticks fixe, rejoue la meme seed pour verifier le determinisme, et emet un resume machine dont chaque champ est LU sur la partie jouee. Ne touche jamais au DOM ni a la sonde navigateur.",
+   "couvre": [
+    "FEAT_TERMINAL",
+    "FEAT_DECISION"
+   ],
+   "dependances": [
+    "engine",
+    "economy"
+   ],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "un bot atteint reellement le seuil terminal dans le budget de ticks et le rejeu de la meme seed rend le MEME tick d'embrasement ; sortie non nulle si aucun plan ne gagne ; aucun flag de succes litteral (check_harness_no_hardcoded_flags vert)"
+   }
+  },
+  {
+   "module": "logic.test",
+   "responsabilite": "Preuve mecanique des regles : asserte a l'egalite stricte chaque invariant nomme d'economy tel que l'engine l'applique (gain d'attisage, debit exact du cout, croissance du cout, production passive, jalons, bonus d'ascension, regle terminale). Jamais de comparaison relachee sur un delta d'action. Cible du gate mutation.",
+   "couvre": [
+    "FEAT_STOKE",
+    "FEAT_BUY",
+    "FEAT_TERMINAL",
+    "FEAT_ASCENSION",
+    "FEAT_AMBIENCE"
+   ],
+   "dependances": [
+    "engine",
+    "economy"
+   ],
+   "preuve_attendue": {
+    "kind": "mutation",
+    "statement": "node --test logic.test.mjs passe, et tout mutant introduit dans une regle de l'engine est TUE (ou trie comme equivalent avec justification non vide) — un >= sur un delta d'action rendrait le mutant survivant, donc visible"
+   }
+  },
+  {
+   "module": "properties.test",
+   "responsabilite": "Preuve de proprietes a horizon fixe : divergence entre politiques (idle sans aucun clic contre active a cadence fixe) sur la lumiere accumulee, contre-epreuve qu'une partie passive seule ne franchit pas le seuil, et distinction textuelle des enonces d'objectif. Sans DOM.",
+   "couvre": [
+    "FEAT_DECISION",
+    "FEAT_NEXT_GOAL_END",
+    "FEAT_GOAL"
+   ],
+   "dependances": [
+    "engine",
+    "economy",
+    "objective"
+   ],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "a l'horizon declare, les politiques idle et active rendent DEUX valeurs de lumiere distinctes et non triviales, ET la politique idle sans emetteur ne franchit jamais le seuil terminal — contre-epreuve exigee par le pre-mortem (un jeu qui se gagne en attendant est un minuteur, pas un jeu)"
+   }
+  },
+  {
+   "module": "run-oracle",
+   "responsabilite": "Executeur du gate : lance les quatre volets de preuve (mecanique, proprietes, ecran, solvabilite) et ne sort zero que si tous sortent zero ; la mesure de reutilisation reste hors gate, advisory. Ne calcule aucun etat de jeu et n'interprete aucun resultat : il execute et lit des codes de sortie.",
+   "couvre": [
+    "FEAT_TERMINAL",
+    "FEAT_DECISION"
+   ],
+   "dependances": [
+    "e2e",
+    "solvability",
+    "logic.test",
+    "properties.test"
+   ],
+   "preuve_attendue": {
+    "kind": "oracle",
+    "statement": "l'execution rend un code de sortie non nul des qu'un seul volet echoue, et le recu de l'etape porte un evidence_path vers la sortie complete — un recu code sans evidence_path est BLOCKED (lecon s12 pre-mortem)"
+   }
+  }
+ ]
+}

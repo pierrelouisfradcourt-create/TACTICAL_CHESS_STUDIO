@@ -1,0 +1,289 @@
+J'ai lu les deux oracles (contrat exact), la table figée d'adresses, la featuremap, le prisme, le charter, le blueprint en place **et le code réellement présent** dans `games/p1_beta/` (index.html, main/engine/render/input/server/e2e/solvability/run-oracle/logic.test). Voici le blueprint, produit comme un **diff d'archi** sur l'existant, pas une réinvention.
+
+## RAPPORT FINAL — s4-archi / p1_beta_E1-20260831-run1
+
+### Verdicts
+- **software_verdict: BLOCKED** — je n'ai exécuté **aucun** oracle (`permissions.run: aucun`). La conformité au contrat de `check_blueprint_contract.mjs` est établie par **inspection ligne-à-ligne** du code de l'oracle (`check_blueprint_contract.mjs:105-251` + `upstream_schema.mjs:310-322,497-505`), pas par un reçu. « Le blueprint passe » est un jugement à la charge de l'exécuteur.
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY**
+- **claim_verdict: NO_CLAIM_ALLOWED**
+
+**Reçu à produire par l'exécuteur (commande exacte, à citer dans son rapport)** :
+`node scripts/forge/check_blueprint_contract.mjs lab/forge_runs/p1_beta_E1/blueprint.json --featuremap lab/forge_runs/p1_beta_E1/featuremap.json --json`
+
+### Ancrages non-LLM de chaque décision
+| Décision | Ancre lue (non-LLM) |
+|---|---|
+| `modules` = liste de **chaînes** | `check_blueprint_contract.mjs:118-124` + `static_oracles.py:205` (`set(blueprint["modules"])`) |
+| identité d'un module = **stem du fichier** à plat | `static_oracles.py:75-78` (`_module_of`) |
+| `deps_interdites` non vide obligatoire | `check_blueprint_contract.mjs:127-130` |
+| `couvre` = `id` de **feature** (pas de capacité) | `upstream_schema.mjs:497-505` (`featureIds`) |
+| `preuve_attendue.kind` ∈ {bot_action, oracle, mutation, visual, file_write} | `upstream_schema.mjs:35,310-322` |
+| harnais **à la racine** (topologie LEGACY) | `static_oracles.py:522-528` (e2e) et `:625-632` (solvabilité) + charter `plateforme_cible` |
+| structure physique réelle | lecture directe de `games/p1_beta/*.mjs` et `index.html` |
+
+### Le diff d'archi (8 modules → 13), et pourquoi
+Le blueprint en place (`lab/forge_runs/p1_beta_E1/blueprint.json`, **identique octet pour octet** à `lab/forge_runs/p1_beta/blueprint.json`) porte 8 modules, **aucune** `responsabilites` — il échouerait l'oracle d'avant-build tel qu'il est écrit aujourd'hui. Trois corrections mesurées, pas cosmétiques :
+
+1. **`economy` (nouveau, feuille)** — défaut mesuré : `engine.mjs:11` déclare `TERMINAL_THRESHOLD = 5000` et `render.mjs:6` **le redéclare**, parce que `render → engine` est interdit. Trois features lisent ce même nombre (`FEAT_GOAL`, `FEAT_AMBIENCE`, `FEAT_TERMINAL`) : une vérité dupliquée est une jauge qui ment au prochain changement. `economy` donne à `render` une source légale sans lever la règle de pureté. Bonus non accessoire : c'est l'endroit unique où la **provenance N2** exigée par le charter (`criteres_succes`, mesure M2) est vérifiable d'un coup d'œil. Note : `engine.mjs:5` cite « economy.json » — **ce fichier n'existe pas** dans `games/p1_beta/`.
+2. **`objective` (nouveau, pur)** — `engine.mjs:122-133` (`currentObjective`) fabrique des **chaînes d'interface françaises** dans un module dont l'en-tête revendique « état pur, zéro DOM ». Les trois features d'objectif (`FEAT_GOAL`, `FEAT_EMITTER_PROGRESS`, `FEAT_NEXT_GOAL_END`) n'avaient aucun propriétaire honnête. Sorti de l'état, testable sans DOM.
+3. **`server`, `logic.test`, `properties.test` (existants, jusqu'ici sans propriétaire)** — trois fichiers réels que l'ancien blueprint ne nommait pas. `server.mjs` conditionne à lui seul les trois preuves « depuis l'entrypoint racine » ; les deux fichiers de test portent les assertions strictes exigées par le pré-mortem.
+
+Les god-objects sont bornés par décomposition **par nature de vérité**, pas par confort : `economy` = les nombres · `engine` = les règles et l'état · `objective` = les énoncés · `render` = les pixels. Aucun de ces quatre ne peut importer les trois autres en amont (voir `deps_interdites`).
+
+### Invariants d'architecture (ce que les interdictions protègent)
+- **L'état ignore l'écran, l'entrée, la composition et ses propres juges** : `engine ↛ {render, input, main, objective, server, e2e, solvability, run-oracle}`. Un engine qui importe son oracle peut fabriquer sa propre preuve.
+- **La feuille reste feuille** : `economy ↛ *`. Sinon la table des grandeurs devient un cycle.
+- **La preuve traverse la frontière qu'elle valide** : `e2e ↛ {engine, render, objective}` — l'e2e observe par le **navigateur** (`window.__game`), jamais en process ; un e2e qui importe l'engine peut affirmer un état que la page n'a jamais peint. `solvability ↛ {render, input, main, e2e}` — le bot doit gagner **headless**, sur les règles. `run-oracle ↛ {engine, render, input, main}` — le runner exécute et lit des codes de sortie, il ne recalcule jamais le jeu.
+- **Le jeu n'embarque pas son juge** : `main ↛ {solvability, e2e, run-oracle, server}`.
+- **Latéral et remontée interdits** : `render ↔ input`, `render/input/objective ↛ main`.
+
+### Couverture
+- **Features non couvertes : aucune.** Les 10 ids de `featuremap.json` (`FEAT_GOAL, FEAT_STOKE, FEAT_DECISION, FEAT_BUY, FEAT_EMITTER_PROGRESS, FEAT_NEXT_GOAL_END, FEAT_TERMINAL, FEAT_AMBIENCE, FEAT_ASCENSION, FEAT_HUD`) sont couverts par ≥1 module. **Vérification manuelle, non prouvée mécaniquement** (oracle non exécuté).
+- **Couvertures fantômes : aucune.** Chaque `couvre` est un id recopié verbatim de la featuremap ; aucun id de *capacité* (`cap_*`, `gb_*`) n'est utilisé — ce sont des feuilles, pas des features, et `featureIds` ne les connaît pas.
+
+### Écarts remontés (fog → HumanGate, aucun n'est réparable à mon étape)
+1. **`games/p1_beta/` n'est pas vide** : il contient déjà le jeu complet et cohérent du run `p1_beta-20260830-run1` (fichiers suivis par git — `git status` montre `M games/p1_beta/solvability.mjs`), alors que le charter E1 exige un jeu « **créé de zéro** sous games/p1_beta ». Un s9-build lancé là-dessus mesurerait une construction dont la majeure partie préexiste : c'est la variable expérimentale de la paire (l'auteur de la structure) qui est en jeu, pas un détail d'hygiène.
+2. **`R8` (REPEAT, coût ×1.18) n'est couvert par aucune capacité de la featuremap** — les `source_ref` présents sont R1..R7b, R9..R14 ; R8 manque. Je ne peux pas le rattraper : `couvre` ne cite que des ids de features existantes. Le coût géométrique reste porté par `economy` (constante `EMITTER_GROWTH`), mais **sa preuve n'a pas de feature à laquelle s'accrocher**.
+3. **`repo_map.yaml` ne couvre pas la topologie web LEGACY** : aucune catégorie du `mapping` n'héberge les artefacts racine d'un jeu web (`index.html`, `*.mjs`, `run-oracle.mjs`, `e2e.mjs`, `solvability.mjs`), alors que `static_oracles.py:522-528/625-632` les **exige à la racine**. Mes adresses sont donc ancrées sur l'oracle qui les gate réellement, pas sur la table figée — je le déclare plutôt que de faire silence (le défaut mesuré du 2026-08-05, « racine 04_CONTENT inventée », vient exactement de l'inverse).
+4. **Angle mort d'oracle à connaître** : `static_oracles.py:187-189,241` **ignore les fichiers de test** comme sources. Les paires interdites dont la source est `logic.test`/`properties.test` ne seront donc **jamais** vérifiées mécaniquement par `check_architecture` après build — elles valent revue humaine, pas preuve. Déclaré, pas masqué.
+
+```json
+{
+  "modules": [
+    "index.html",
+    "main",
+    "engine",
+    "economy",
+    "objective",
+    "render",
+    "input",
+    "server",
+    "e2e",
+    "solvability",
+    "logic.test",
+    "properties.test",
+    "run-oracle"
+  ],
+  "deps_interdites": [
+    ["engine", "render"],
+    ["engine", "input"],
+    ["engine", "main"],
+    ["engine", "objective"],
+    ["engine", "server"],
+    ["engine", "e2e"],
+    ["engine", "solvability"],
+    ["engine", "run-oracle"],
+    ["economy", "engine"],
+    ["economy", "render"],
+    ["economy", "input"],
+    ["economy", "main"],
+    ["economy", "objective"],
+    ["objective", "engine"],
+    ["objective", "render"],
+    ["objective", "input"],
+    ["objective", "main"],
+    ["render", "engine"],
+    ["render", "input"],
+    ["render", "main"],
+    ["render", "server"],
+    ["input", "render"],
+    ["input", "objective"],
+    ["input", "main"],
+    ["server", "engine"],
+    ["server", "render"],
+    ["server", "main"],
+    ["main", "server"],
+    ["main", "e2e"],
+    ["main", "solvability"],
+    ["main", "run-oracle"],
+    ["e2e", "engine"],
+    ["e2e", "render"],
+    ["e2e", "objective"],
+    ["solvability", "render"],
+    ["solvability", "input"],
+    ["solvability", "main"],
+    ["solvability", "e2e"],
+    ["run-oracle", "engine"],
+    ["run-oracle", "render"],
+    ["run-oracle", "input"],
+    ["run-oracle", "main"],
+    ["logic.test", "render"],
+    ["logic.test", "input"],
+    ["logic.test", "main"],
+    ["properties.test", "render"],
+    ["properties.test", "input"],
+    ["properties.test", "main"]
+  ],
+  "ownership": {
+    "index.html": "s9-build (builder) — games/p1_beta/index.html · couche SCENE (declare les cibles DOM stables, ne porte aucune logique)",
+    "main": "s9-build (builder) — games/p1_beta/main.mjs · couche COMPOSITION (cable input->engine->render, expose window.__game)",
+    "engine": "s9-build (builder) — games/p1_beta/engine.mjs · couche REGLES (etat + transitions, zero DOM, zero chaine d'interface, zero litteral structurel)",
+    "economy": "s4-archi (invariants) + s9-build (materialisation) — games/p1_beta/economy.mjs · couche DONNEES : source UNIQUE des grandeurs structurelles avec provenance N2 citee par constante",
+    "objective": "s9-build (builder) — games/p1_beta/objective.mjs · couche ENONCES : fonction pure etat -> texte d'objectif, sans DOM",
+    "render": "s9-build (builder) — games/p1_beta/render.mjs · couche VUE : seul ecrivain du DOM, lecture seule de l'etat recu en parametre",
+    "input": "s9-build (builder) — games/p1_beta/input.mjs · couche ENTREE : traduit les clics en intentions sur l'etat, ne peint jamais",
+    "server": "s9-build (builder) — games/p1_beta/server.mjs · couche SERVICE : sert index.html et les .mjs a la sonde, ignore tout du jeu",
+    "e2e": "s10a-oracle-code — games/p1_beta/e2e.mjs · couche PREUVE ECRAN : navigateur reel, observation par la page uniquement",
+    "solvability": "s10a-oracle-code — games/p1_beta/solvability.mjs · couche PREUVE JOUABILITE : un bot doit REELLEMENT atteindre la fin",
+    "logic.test": "s10a-oracle-code — games/p1_beta/logic.test.mjs · couche PREUVE MECANIQUE : deltas stricts, cible du gate mutation",
+    "properties.test": "s10a-oracle-code — games/p1_beta/properties.test.mjs · couche PREUVE PROPRIETES : divergence de politiques a horizon fixe",
+    "run-oracle": "s10a-oracle-code — games/p1_beta/run-oracle.mjs · couche EXECUTEUR DE PREUVE : lance les 4 volets, ne calcule rien du jeu"
+  },
+  "responsabilites": [
+    {
+      "module": "index.html",
+      "responsabilite": "Scene racine et entrypoint unique du jeu : declare les cibles DOM stables que toute preuve adresse (#hearth, #buy-button, #ascension-altar, #restart, #overlay, #light-counter, #objective, #progress-gauge-fill, #milestone-marker, #locked-glyph, #emitters, #field) et charge main. Aucune logique de jeu, aucune valeur structurelle faisant autorite.",
+      "couvre": ["FEAT_HUD", "FEAT_STOKE", "FEAT_BUY", "FEAT_ASCENSION", "FEAT_TERMINAL", "FEAT_GOAL"],
+      "dependances": ["main"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "e2e.mjs charge http://localhost:<PROBE_PORT>/ et retrouve les 12 ids declares ; un seul id manquant fait echouer la sonde AVANT tout clic (aucune preuve aval ne peut alors etre verte)"
+      }
+    },
+    {
+      "module": "main",
+      "responsabilite": "Composition root : instancie l'etat, cable input->engine et engine->render, pilote le tick (production passive + consommation des signaux transitoires de flash), expose window.__game et window.__game_debug. Ne contient aucune regle de jeu ni aucun acces DOM direct.",
+      "couvre": ["FEAT_STOKE", "FEAT_AMBIENCE", "FEAT_EMITTER_PROGRESS"],
+      "dependances": ["engine", "render", "input"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "apres DOMContentLoaded, la sonde lit window.__game non nul ET un compteur et un objectif deja non vides au tick 0 (un rendu a eu lieu AVANT le premier paint : ecran jamais vide)"
+      }
+    },
+    {
+      "module": "engine",
+      "responsabilite": "Regles et etat du jeu, source de verite unique : attisage (+light_per_stoke exact), achat d'emetteur (debit exact du cout, +1 emetteur), production passive par tick, franchissement des jalons, regle terminale seedee, ascension. Zero DOM, zero chaine d'interface, zero litteral structurel (toutes les grandeurs viennent d'economy).",
+      "couvre": ["FEAT_STOKE", "FEAT_DECISION", "FEAT_BUY", "FEAT_TERMINAL", "FEAT_ASCENSION", "FEAT_AMBIENCE"],
+      "dependances": ["economy"],
+      "preuve_attendue": {
+        "kind": "mutation",
+        "statement": "logic.test.mjs asserte des deltas STRICTS (N attisages sans achat => light === N exactement ; achat => light -= cout exact et emitterCount +1 ; ascension => +1 glow, light === 0) et le gate mutation ne laisse aucun mutant de ces regles survivant sans triage justifie"
+      }
+    },
+    {
+      "module": "economy",
+      "responsabilite": "Source UNIQUE des grandeurs structurelles du jeu (lumiere par attisage, cout de base d'un emetteur, croissance geometrique du cout, taux d'un emetteur, bonus d'ascension, pas de jalon, seuil terminal), chacune nommee et accompagnee de sa provenance N2 exigee par le charter. Module feuille : n'importe rien, ne decide rien, ne rend rien.",
+      "couvre": ["FEAT_TERMINAL", "FEAT_BUY", "FEAT_AMBIENCE", "FEAT_GOAL", "FEAT_ASCENSION"],
+      "dependances": [],
+      "preuve_attendue": {
+        "kind": "oracle",
+        "statement": "chaque grandeur structurelle est declaree exactement une fois dans economy.mjs ; une recherche des litteraux correspondants dans les autres fichiers .mjs du jeu (engine, render, objective, input, main, solvability, e2e, tests) n'en trouve AUCUNE autre occurrence — la duplication mesuree entre engine.mjs et render.mjs est fermee, et sa reapparition est detectable"
+      }
+    },
+    {
+      "module": "objective",
+      "responsabilite": "Derive l'enonce d'objectif affiche a partir du seul etat recu en parametre : trois phases, trois textes deux a deux distincts (avant tout emetteur / apres le premier emetteur / production passive active), plus l'enonce d'apres-embrasement. Fonction pure, sans DOM et sans etat propre.",
+      "couvre": ["FEAT_GOAL", "FEAT_EMITTER_PROGRESS", "FEAT_NEXT_GOAL_END"],
+      "dependances": ["economy"],
+      "preuve_attendue": {
+        "kind": "oracle",
+        "statement": "properties.test.mjs appelle la fonction sur trois etats forges (0 emetteur / 1 emetteur / production active) sans DOM : les trois chaines sont deux a deux DIFFERENTES, et la premiere comme la troisieme nomment le seuil terminal issu d'economy"
+      }
+    },
+    {
+      "module": "render",
+      "responsabilite": "Unique ecrivain du DOM : compteur, objectif, jauge de progression, foyer et son flash, emetteurs places autour du foyer, bouton d'achat et son glyphe verrouille, marqueur de jalon, rechauffement du champ, ecran de fin et autel. Lecture seule d'un etat recu en parametre — ne mute rien, ne lit aucune entree, ne fabrique aucun enonce.",
+      "couvre": ["FEAT_HUD", "FEAT_GOAL", "FEAT_STOKE", "FEAT_BUY", "FEAT_AMBIENCE", "FEAT_TERMINAL", "FEAT_ASCENSION", "FEAT_EMITTER_PROGRESS", "FEAT_NEXT_GOAL_END"],
+      "dependances": ["economy", "objective"],
+      "preuve_attendue": {
+        "kind": "visual",
+        "statement": "captures via e2e : le foyer change de luminance entre la frame du clic et la suivante ; la teinte du champ a light=0/2500/5000 se rechauffe de facon monotone ; l'ecran de fin passe de masque a visible au franchissement du seuil ; le compteur reste entierement visible pendant un flash"
+      }
+    },
+    {
+      "module": "input",
+      "responsabilite": "Capture les entrees joueur sur les affordances nommees (hearth, buy_button, ascension_altar, restart) et les traduit en appels d'intention sur l'etat, un gestionnaire nomme par affordance. Ne peint jamais, ne fabrique aucun enonce, n'appelle jamais la composition root autrement que par le signal de rejeu declare.",
+      "couvre": ["FEAT_STOKE", "FEAT_BUY", "FEAT_ASCENSION"],
+      "dependances": ["engine"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "clics souris REELS via e2e : un clic hearth credite exactement le gain d'attisage courant ; un clic buy_button des que light >= cout fait passer le groupe emetteurs de 0 a 1 element distinct ; un clic ascension_altar HORS etat terminal ne change strictement RIEN (neutralisation prouvee, jamais supposee)"
+      }
+    },
+    {
+      "module": "server",
+      "responsabilite": "Serveur statique local minimal servant index.html et les modules .mjs du dossier a la sonde e2e, sur un port pris dans l'environnement. Zero dependance externe, aucune connaissance du jeu, aucun etat de partie : il sert des octets, il n'en prepare aucun.",
+      "couvre": ["FEAT_STOKE", "FEAT_BUY", "FEAT_ASCENSION"],
+      "dependances": [],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "au demarrage il annonce l'interface jouable en moins de 8 s (sinon e2e.mjs echoue) ; GET / rend 200 et le HTML, GET /engine.mjs rend 200 en text/javascript, une route hors liste rend 404 — les trois preuves d'entree joueur n'existent que si ce module repond"
+      }
+    },
+    {
+      "module": "e2e",
+      "responsabilite": "Preuve par l'ecran : demarre le serveur, ouvre un navigateur reel, envoie de vrais clics souris sur les affordances, observe l'etat exclusivement au travers de la page (window.__game, overlay, textes du HUD) et sort non nul des qu'un volet manque. N'importe jamais l'engine, le rendu ni les enonces : il ne doit pouvoir affirmer que ce que la page a reellement peint.",
+      "couvre": ["FEAT_STOKE", "FEAT_BUY", "FEAT_ASCENSION", "FEAT_TERMINAL", "FEAT_EMITTER_PROGRESS", "FEAT_NEXT_GOAL_END", "FEAT_HUD"],
+      "dependances": ["server", "economy"],
+      "preuve_attendue": {
+        "kind": "bot_action",
+        "statement": "check_e2e_harness (static_oracles) constate statiquement un navigateur reel, de vraies entrees et au moins 3 observations d'etat ; a l'execution, la sonde enchaine attisage -> achat -> changement d'objectif -> ecran de fin -> ascension et sort non nul si un seul maillon manque"
+      }
+    },
+    {
+      "module": "solvability",
+      "responsabilite": "Preuve de jouabilite headless : mesure l'enveloppe d'action reelle, cherche un plan qui ATTEINT reellement l'etat terminal dans un budget de ticks fixe, rejoue la meme seed pour verifier le determinisme, et emet un resume machine dont chaque champ est LU sur la partie jouee. Ne touche jamais au DOM ni a la sonde navigateur.",
+      "couvre": ["FEAT_TERMINAL", "FEAT_DECISION"],
+      "dependances": ["engine", "economy"],
+      "preuve_attendue": {
+        "kind": "oracle",
+        "statement": "un bot atteint reellement le seuil terminal dans le budget de ticks et le rejeu de la meme seed rend le MEME tick d'embrasement ; sortie non nulle si aucun plan ne gagne ; aucun flag de succes litteral (check_harness_no_hardcoded_flags vert)"
+      }
+    },
+    {
+      "module": "logic.test",
+      "responsabilite": "Preuve mecanique des regles : asserte a l'egalite stricte chaque invariant nomme d'economy tel que l'engine l'applique (gain d'attisage, debit exact du cout, croissance du cout, production passive, jalons, bonus d'ascension, regle terminale). Jamais de comparaison relachee sur un delta d'action. Cible du gate mutation.",
+      "couvre": ["FEAT_STOKE", "FEAT_BUY", "FEAT_TERMINAL", "FEAT_ASCENSION", "FEAT_AMBIENCE"],
+      "dependances": ["engine", "economy"],
+      "preuve_attendue": {
+        "kind": "mutation",
+        "statement": "node --test logic.test.mjs passe, et tout mutant introduit dans une regle de l'engine est TUE (ou trie comme equivalent avec justification non vide) — un >= sur un delta d'action rendrait le mutant survivant, donc visible"
+      }
+    },
+    {
+      "module": "properties.test",
+      "responsabilite": "Preuve de proprietes a horizon fixe : divergence entre politiques (idle sans aucun clic contre active a cadence fixe) sur la lumiere accumulee, contre-epreuve qu'une partie passive seule ne franchit pas le seuil, et distinction textuelle des enonces d'objectif. Sans DOM.",
+      "couvre": ["FEAT_DECISION", "FEAT_NEXT_GOAL_END", "FEAT_GOAL"],
+      "dependances": ["engine", "economy", "objective"],
+      "preuve_attendue": {
+        "kind": "oracle",
+        "statement": "a l'horizon declare, les politiques idle et active rendent DEUX valeurs de lumiere distinctes et non triviales, ET la politique idle sans emetteur ne franchit jamais le seuil terminal — contre-epreuve exigee par le pre-mortem (un jeu qui se gagne en attendant est un minuteur, pas un jeu)"
+      }
+    },
+    {
+      "module": "run-oracle",
+      "responsabilite": "Executeur du gate : lance les quatre volets de preuve (mecanique, proprietes, ecran, solvabilite) et ne sort zero que si tous sortent zero ; la mesure de reutilisation reste hors gate, advisory. Ne calcule aucun etat de jeu et n'interprete aucun resultat : il execute et lit des codes de sortie.",
+      "couvre": ["FEAT_TERMINAL", "FEAT_DECISION"],
+      "dependances": ["e2e", "solvability", "logic.test", "properties.test"],
+      "preuve_attendue": {
+        "kind": "oracle",
+        "statement": "l'execution rend un code de sortie non nul des qu'un seul volet echoue, et le recu de l'etape porte un evidence_path vers la sortie complete — un recu code sans evidence_path est BLOCKED (lecon s12 pre-mortem)"
+      }
+    }
+  ]
+}
+```
+
+### RETURN LINEAGE
+- **why_task_existed:**
+  - **problem:** la chaine full_content du bras LIBRE (L) de RUN 2 doit produire une architecture qui reponde a la featuremap de s3 ; l'artefact en place (`lab/forge_runs/p1_beta_E1/blueprint.json`, copie conforme de celui de `p1_beta`) ne porte aucune `responsabilites` et ne couvre donc aucune feature au sens de l'oracle d'avant-build.
+  - **oracle:** `check_blueprint_contract.mjs` (`:144-152`, `:206-219`) — c'est lui qui rend visible qu'un blueprint de 2 champs « ne se distingue pas d'une architecture reelle ». Activation de l'etape : sequence du run (dispatch `s4-archi`), pas une mesure.
+  - **root_cause:** non etablie pour la copie du blueprint (je constate l'identite octet pour octet avec `lab/forge_runs/p1_beta/blueprint.json`, je n'en deduis pas le mecanisme). Etablie en revanche pour la duplication du seuil : l'interdiction `render -> engine` sans module de donnees partage FORCE la redeclaration de la constante.
+  - **action_reason:** un blueprint qui nomme des modules sans dire ce que chacun couvre ni ce qu'il doit prouver laisse le decoupage au builder — c'est-a-dire au confort, au moment ou il code.
+- **result:** blueprint a 13 modules livre, 10/10 features de la featuremap couvertes, 48 paires interdites, 0 cycle, 0 dependance declaree qui soit elle-meme interdite (verification manuelle contre le code de l'oracle). Trois ecarts amont remontes sans etre repares.
+- **proof:** aucune commande executee — `permissions.run: aucun`. La commande a executer par l'executeur est citee plus haut ; la conformite au schema est etablie par lecture de `check_blueprint_contract.mjs:105-251` et `upstream_schema.mjs:310-322,497-505`, et les faits sur le code du jeu par lecture de `games/p1_beta/{index.html,main.mjs,engine.mjs,render.mjs,input.mjs,server.mjs,e2e.mjs,solvability.mjs,run-oracle.mjs,logic.test.mjs}`.
+- **learning:** une regle de purete (`render ↛ engine`) sans module de donnees feuille ne supprime pas le couplage, elle le convertit en **duplication de constante** — un couplage qui ne se voit plus dans le graphe d'imports et qu'aucun oracle d'architecture ne peut attraper. Le prix d'une interdiction se paie ailleurs ; il faut le regarder.
+- **next_reason:** escalade — deux causes non resolues persistent et depassent mon perimetre (ecriture limitee a blueprint.json) : le dossier cible n'est pas vide alors que le charter exige un jeu cree de zero (validite de la paire pilote en jeu), et `R8` n'a aucune feature porteuse. Toutes deux relevent d'une decision HumanGate avant s5-wiremap et s9-build.
+
+### SKIPPED_VALIDATION
+| Item de validation | Perimetre | Statut | Raison |
+|---|---|---|---|
+| Execution de `check_blueprint_contract.mjs` | `lab/forge_runs/p1_beta_E1/blueprint.json` | non fait | `permissions.run: aucun` — a la charge de l'executeur, qui doit citer le recu |
+| Execution de `forge.static_oracles.check_architecture` | `games/p1_beta/` | non fait, et volontairement | c'est l'oracle d'APRES build ; appele maintenant sur un code qui ne connait pas encore `economy`/`objective`, il rendrait un vert vacant (contrat s4, §oracles) |
+| Verification que les 48 paires interdites sont respectees par le code ACTUEL | `games/p1_beta/*.mjs` | non fait | le code actuel precede ce blueprint ; c'est s10b qui tranche, apres materialisation de `economy` et `objective` |
+| Verification que les paires dont la source est `logic.test`/`properties.test` sont mecaniquement verifiables | 6 paires | partiel (fait, negatif) | `static_oracles.py:187-189,241` ignore les fichiers de test : ces 6 paires ne seront JAMAIS controlees par `check_architecture` — revue humaine, pas preuve |
+| Verification que `games/p1_beta` correspond bien a la cible d'ecriture d'E1 (vs un `games/p1_beta_E1`) | charter E1 | non fait | le charter nomme `games/p1_beta` explicitement ; l'ecart avec un dossier deja peuple est remonte en fog, il n'est pas tranche par moi |
+| Lecture de `knowledge_packet.json` (mandatory_read) | `lab/forge_runs/p1_beta_E1/` | non fait | **le fichier n'existe pas** dans le run dir ; aucun patron externe advisory n'a donc ete consulte |
+| Verification de la couverture des exigences du Prisme par la featuremap | `prisme.json` R1..R14 | partiel | constat porte sur les `source_ref` presents : `R8` n'est cite par aucune capacite. Le verdict de couverture appartient a `check_decompo` (s3), non execute ici |
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le dossier cible games/p1_beta contient deja le jeu complet du run precedent (p1_beta-20260830-run1) — fichiers suivis par git, identiques aux entites de la featuremap E1 — alors que le charter E1 exige un jeu 'cree de zero sous games/p1_beta' ; de plus lab/forge_runs/p1_beta_E1/blueprint.json est une copie octet pour octet de lab/forge_runs/p1_beta/blueprint.json", "root_cause": "non etablie — le mecanisme de seeding du run dir E1 depuis le run dir p1_beta n'a pas ete observe, seulement son resultat"}

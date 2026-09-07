@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>p3_alpha — Incremental Game</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      background: #f5f5dc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    canvas {
+      border: 2px solid #333;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+  <script type="module">
+    import { CONSTANTS } from './state.mjs';
+    import { GameEngine } from './engine.mjs';
+    import { GameRenderer } from './render.mjs';
+    import { InputHandler } from './input.mjs';
+
+    const canvas = document.getElementById('gameCanvas');
+    const engine = new GameEngine(12345);
+    // state/progression are ALWAYS engine's own instances — engine.tick()
+    // (passive production) and clicks/purchases MUST mutate the same objects,
+    // otherwise generators bought by the player never produce anything on screen.
+    const state = engine.state;
+    const progression = engine.progression;
+    const renderer = new GameRenderer(canvas);
+    const inputHandler = new InputHandler(state, progression, engine);
+
+    let lastTime = Date.now();
+    let frameTime = 0;
+    let running = true;
+
+    // R20: Compose and expose window.__game API
+    window.__game = {
+      // Read API
+      get solde_mR() {
+        return state.solde_mR;
+      },
+      get cumul_mR() {
+        return state.cumul_mR;
+      },
+      get displayBalance() {
+        return Math.floor(state.solde_mR / 1000);
+      },
+      get rate_R_per_s() {
+        return renderer.getCurrentRate(state);
+      },
+      get victory() {
+        return progression.checkVictory();
+      },
+      get tick_count() {
+        return engine.tick_count;
+      },
+
+      // Action API
+      clickCore: () => inputHandler.onClickCore(),
+      buyGenerator: (i) => inputHandler.onBuyGenerator(i),
+      buyUpgrade: (key) => inputHandler.onBuyUpgrade(key),
+      newGame: () => inputHandler.onNewGame(),
+
+      // Simulation API
+      tick: () => engine.tick(),
+      runTicks: (n) => engine.runTicks(n),
+      reset: (seed) => engine.reset(seed),
+
+      // Snapshot for determinism proofs
+      snapshot: () => ({
+        state: state.snapshot(),
+        progression: progression.snapshot(),
+        engine: engine.snapshot(),
+      }),
+      restore: (snap) => {
+        state.restore(snap.state);
+        progression.restore(snap.progression);
+        engine.restore(snap.engine);
+      },
+    };
+
+    function gameLoop() {
+      const now = Date.now();
+      const deltaTime = Math.min(now - lastTime, 50); // cap at 50ms
+      lastTime = now;
+      frameTime += deltaTime;
+
+      // Tick game at fixed 100ms intervals
+      while (frameTime >= CONSTANTS.TICK_MS) {
+        const tickResult = engine.tick();
+        frameTime -= CONSTANTS.TICK_MS;
+
+        // Check victory (optional stop)
+        if (tickResult.victory) {
+          console.log('Victory reached!');
+        }
+      }
+
+      // Update animations
+      renderer.updateSquish(deltaTime);
+
+      // Render frame
+      renderer.render(state, progression, engine);
+
+      if (running) requestAnimationFrame(gameLoop);
+    }
+
+    // Input handling: registered ONCE (not per-frame — a per-frame `{once:true}`
+    // listener stacks hundreds of handlers by the time the player actually
+    // clicks, firing the click action that many times over).
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const result = inputHandler.dispatchPointer(x, y, renderer.hitRegions);
+      if (result.action === 'click_core') renderer.applyClickFeedback();
+    });
+
+    // Render once synchronously BEFORE starting the animation loop: hitRegions
+    // starts as [] until the first render() call populates it, and
+    // requestAnimationFrame's first callback can lag the page becoming
+    // interactive by a frame or more — a player (or a click-through test)
+    // that clicks immediately on load would otherwise have that first click
+    // silently swallowed (dispatchPointer finds no hit regions yet).
+    renderer.render(state, progression, engine);
+
+    // Start game
+    requestAnimationFrame(gameLoop);
+
+    console.log('Game loaded. window.__game API ready.');
+  </script>
+</body>
+</html>

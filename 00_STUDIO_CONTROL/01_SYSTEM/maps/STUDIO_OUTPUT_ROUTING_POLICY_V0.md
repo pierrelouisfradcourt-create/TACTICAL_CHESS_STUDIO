@@ -1,5 +1,12 @@
 # Studio Output Routing Policy V0
 
+> **LEGACY PRE-FORGE — FROZEN 2026-08-28 (HumanGate decision: Pierre).**
+> Pre-Forge AutoDev control plane (last substantive update 2026-06; §4 routing
+> table points to a directory topology that no longer exists). NOT current studio
+> truth — do not use as a source anchor for Forge-lane work. Current truth:
+> `docs/forge/STUDIO_MASTER_SCHEMA.html` (Détail M, 2026-08-28) +
+> `docs/adr/ADR-003-forge-workflow-coherence-audit.md`.
+
 Status: DOCUMENTED_ONLY  
 Owner: HumanGate  
 Scope: Output placement and routing rules for Studio Control and TacticalChessPureLab tasks  

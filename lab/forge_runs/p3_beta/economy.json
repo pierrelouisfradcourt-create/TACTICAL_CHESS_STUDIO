@@ -1,0 +1,101 @@
+{
+ "schema_version": 1,
+ "resources": [
+  {
+   "id": "meta_resonance",
+   "unit": "x multiplicateur",
+   "sources": [
+    "prestige a la saturation du treillis"
+   ],
+   "sinks": [
+    "applique au gain de motes du run suivant"
+   ],
+   "initial_stock": 1
+  },
+  {
+   "id": "motes",
+   "unit": "mote",
+   "sources": [
+    "clic sur le noyau emetteur",
+    "resonateurs actifs (production passive)"
+   ],
+   "sinks": [
+    "achat de resonateurs",
+    "achat d'ameliorations"
+   ],
+   "initial_stock": 0
+  }
+ ],
+ "formulas": [
+  {
+   "id": "cout_resonateur",
+   "text": "cout(n) = base * growth^n (cout du (n+1)e resonateur d'un type)",
+   "params": {
+    "base": 8,
+    "growth": 1.12
+   }
+  },
+  {
+   "id": "prestige_multiplicateur",
+   "text": "mult = base_mult * (1 + floor(sqrt(motes_totales / echelle)))",
+   "params": {
+    "base_mult": 2,
+    "echelle": 500000
+   }
+  },
+  {
+   "id": "revenu_passif",
+   "text": "revenu = somme(nombre_resonateurs_i * rendement_i) sur les paliers actifs",
+   "params": {
+    "rendement_t1": 0.5,
+    "rendement_t2": 3,
+    "rendement_t3": 18
+   }
+  },
+  {
+   "id": "saturation",
+   "text": "saturation_pct = 100 * lumiere_accumulee / seuil_saturation, bornee a 100",
+   "params": {
+    "seuil_saturation": 1000000
+   }
+  }
+ ],
+ "invariants": [
+  {
+   "id": "m_content",
+   "value": 3,
+   "unit": "types de resonateur distincts",
+   "why": "3 types distincts requetes par l'Art Bible (resonator_t1/t2/t3, requetes d'asset propres) — chaque type a teinte et rendement propres, jamais une variante generique"
+  },
+  {
+   "id": "m_core",
+   "value": 1,
+   "unit": "mote/clic",
+   "why": "chaque clic sur le noyau emet exactement 1 mote — feedback +1 immediat exige par le genre (worldscan:games[0].loops.minute_1) ; valeur d'entree basse (decision de design) pour un feedback lisible des le premier clic"
+  },
+  {
+   "id": "m_gameplay",
+   "value": 8,
+   "unit": "motes (cout de base du 1er resonateur)",
+   "why": "premier resonateur atteignable en moins d'une minute de clics (decision de design ; valeur inventee, aucune reprise de valeur Cookie Clicker per story_bible:coherence_rules) pour amener vite la 1re automatisation (worldscan:games[0].loops.minute_1)"
+  },
+  {
+   "id": "m_meta",
+   "value": 2,
+   "unit": "x multiplicateur de resonance au prestige",
+   "why": "le prestige rend chaque clic plus fort au run suivant (retention par puissance croissante, worldscan:games[0].retention_answer) ; multiplicateur de base x2 (valeur de design, aucune reprise de valeur du jeu de reference)"
+  },
+  {
+   "id": "m_progression",
+   "value": 3,
+   "unit": "paliers de resonateur avant saturation",
+   "why": "3 paliers (ambre/magenta/violet-plasma) fixes par l'escalade chromatique decidee (art_bible:visual_language) ; borne le nombre de deblocages perceptibles jusqu'a la fin"
+  },
+  {
+   "id": "m_quest",
+   "value": 100,
+   "unit": "% de saturation = condition de fin observable",
+   "why": "la fin de partie observable exigee par le charter (divergence tracee vs genre idle sans win-state, worldscan:games[0].objectives) se declenche a 100 % de saturation"
+  }
+ ]
+}

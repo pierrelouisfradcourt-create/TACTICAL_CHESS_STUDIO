@@ -1,0 +1,57 @@
+I've read all four mandatory inputs (repo_map, SCHEMA, featuremap, oracle source). `knowledge_packet.json` is **absent** — advisory only, noted. I read the oracle's source (`check_blueprint_contract.mjs` + `upstream_schema.mjs`) rather than guessing its rules, because one rule is a trap: **`featureIds()` extracts `features[].id` (the `feat_*` ids), not the capability-level ids** (`core_clicker`, etc.). Citing capability ids in `couvre` would register as `couverture_fantome` and FAIL. My design cites `feat_*` ids exclusively.
+
+## Blueprint — architecture p3_alpha
+
+**Découpage par responsabilité** (incremental/clicker web canvas, harnais `window.__game` à la racine) :
+
+| Module | Couche | Responsabilité (résumé) | Dépend de |
+|---|---|---|---|
+| `config` | data | SSOT des constantes GELÉES (structure_imposee_v2_FROZEN) | — (feuille) |
+| `state` | logic | modèle déterministe seedé, comptabilité milli-R, achats, seuils, victoire S5, sans-défaite, reset | `config` |
+| `layout` | ui-geometry | autorité unique de géométrie (rectangles noyau/cartes/panneaux) | `state` |
+| `render` | ui-view | dessin canvas lecture-seule (compteurs, cartes, panneaux, victoire) | `state`, `layout` |
+| `input` | ui-input | gestes DOM → commandes vers state, via hit-test de layout | `state`, `layout` |
+| `main` | composition-root | câblage + boucle tick_ms=100 + window.__game/harnais | tous |
+
+**Décision d'architecture clé — le module `layout`.** Sur canvas, il n'y a pas d'éléments DOM à hit-tester : soit `input` importe `render` (couplage interdit logique↛UI croisée), soit la géométrie est dupliquée dans les deux et diverge (l'anti-pattern exact que le garde-fou vise). J'extrais la géométrie comme concern partagé → `render` et `input` ne se connaissent jamais, ils passent par `layout` + `state`. C'est ce qui tue le god-object « render qui dessine ET hit-teste ».
+
+**Teeth de l'invariant** (pour l'oracle d'APRÈS-build) : `check_architecture` compare `deps_interdites` aux imports RÉELS. Un build mono-fichier n'a aucun import inter-module → vert vacant. Donc l'architecture **impose** que chaque module soit une unité source distincte dont le nom EST son identifiant d'import ; un build mono-fichier est non conforme. (Le placement physique dans les racines de `repo_map.yaml` — 05_SYSTEMS/06_RUNTIME — est une décision **s5-WireMap**, hors de mon périmètre ; je ne fige aucune adresse, conformément au pré-mortem « racine inventée ».)
+
+## Graphe de dépendances — vérification manuelle
+
+Ordre topologique `config < state < layout < {render, input} < main` — toutes les arêtes pointent vers `config`. **Aucun cycle.** Les 18 paires de `deps_interdites` ont été confrontées une à une aux dépendances déclarées : **aucune collision** (jamais une dépendance déclarée n'est aussi interdite). Séparations dures posées : `logique→rendu`, `logique→input` (requises), + `logique→layout`, `render↔input` mutuelle, `config` feuille pure (dépend de rien, personne ne lit les nombres hors de state), et `main` non-importé (rien ne dépend de la racine de composition).
+
+## Couverture featuremap — 15/15
+
+Chaque `feat_*` couvert par ≥1 module (`state` porte le modèle → couvre les 15 ; les autres co-couvrent leur part visible/entrée/donnée). **Couvertures fantômes : 0.** Features non couvertes : **aucune**.
+
+---
+
+**software_verdict: BLOCKED** — architecture conçue et desk-checkée ligne à ligne contre la source de `check_blueprint_contract.mjs`, mais l'oracle **n'a pas été exécuté** : mon contrat porte `run: aucun` et l'outil Bash est désactivé dans cette session. Un desk-check n'est pas un reçu d'oracle (doctrine : preuve d'exécution ≠ preuve d'existence).
+
+**evidence_verdict:** aucune validation mécanique n'a eu lieu de mon fait → je ne revendique pas `MECHANICAL_VALIDATION_ONLY`.
+
+**claim_verdict: NO_CLAIM_ALLOWED**
+
+**fog → HumanGate / exécuteur :** l'exécuteur qui matérialise `blueprint.json` DOIT exécuter `node scripts/forge/check_blueprint_contract.mjs lab/forge_runs/p3_alpha/blueprint.json --featuremap lab/forge_runs/p3_alpha/featuremap.json` et joindre le reçu (`evidence_path`) ; c'est ce reçu, non mon desk-check, qui autorise un `software_verdict: OK`.
+
+**SKIPPED_VALIDATION :**
+- item: exécution de `check_blueprint_contract.mjs` · où: `blueprint.json` (à matérialiser) vs `featuremap.json` · statut: non fait · raison: `run: aucun` + Bash désactivé — délégué à l'exécuteur (fog ci-dessus).
+- item: lecture de `knowledge_packet.json` (patterns externes, advisory) · où: `lab/forge_runs/p3_alpha/` · statut: non fait · raison: fichier absent du run_dir ; advisory, jamais prescriptif → non bloquant.
+- item: diff avec un `blueprint.yaml` existant · où: `games/p3_alpha/` · statut: sans objet · raison: greenfield (le run_dir ne contient que charter/featuremap ; aucun blueprint antérieur).
+
+---
+
+**RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2 §3)**
+
+- `why_task_existed:`
+  - `problem:` p3_alpha (bras DIRIGÉ D2, PAIRE 3) exige une architecture gelée couvrant la featuremap avant build, sans quoi le code freestyle déplace le point de dérive.
+  - `oracle:` `check_blueprint_contract.mjs` (oracle d'AVANT-build : couverture, responsabilités, cycles, deps interdites).
+  - `root_cause:` non transmis (activation par la chaîne de dispatch s3→s4, décision de pipeline).
+  - `action_reason:` produire le blueprint gelé qui répond « cette architecture couvre-t-elle le besoin ? » — 6 modules par responsabilité, 15/15 features couvertes, graphe acyclique.
+- `result:` blueprint conçu (6 modules, 18 paires interdites, 6 responsabilités, 15/15 couvertes, 0 fantôme, 0 cycle, 0 collision dépendance↔interdit) ; NON validé par exécution (BLOCKED).
+- `proof:` desk-check contre la source de l'oracle (lue : `check_blueprint_contract.mjs` + `upstream_schema.mjs::featureIds`). Aucune commande exécutée (permissions/outillage). Reçu d'oracle = à produire par l'exécuteur.
+- `learning:` la cible de `couvre[]` est le `feature.id` (`feat_*`), PAS la capacité (`core_clicker`…) — `featureIds()` n'aplatit qu'au niveau feature ; citer une capacité = couverture fantôme garantie. Sur canvas, extraire `layout` est nécessaire pour ne pas coupler input↔render ni dupliquer la géométrie.
+- `next_reason:` la lignée reste OUVERTE : une preuve manque (reçu de `check_blueprint_contract`). Le niveau supérieur/exécuteur doit matérialiser `blueprint.json` puis exécuter l'oracle et joindre `evidence_path` avant tout OK.
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

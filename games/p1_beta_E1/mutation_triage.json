@@ -1,0 +1,10 @@
+[
+  {
+    "file": "engine.mjs",
+    "name": "and->or",
+    "line": 135,
+    "expression": "if (!this.terminal && this.light >= this.emitterCost) {",
+    "justification": "Muter `&&` en `||` sur la garde d'achat automatique de step() (`!this.terminal && this.light >= this.emitterCost`) est PROUVÉ inobservable sur CE code. Les deux seuls chemins où la valeur de vérité du mutant diverge de l'original exigent `this.terminal === true` : (1) terminal déjà vrai à l'entrée de step() — inatteignable, step() sort avant par son propre `if (this.terminal) return;` (engine.mjs l.128) ; (2) terminal devenu vrai PENDANT le step, quand applyEmitters() franchit le seuil — seul chemin réellement atteignable. Dans ce cas le mutant entre dans le bloc et appelle buyEmitter(), qui s'ouvre sur sa PROPRE garde terminale indépendante (`if (this.terminal) return false;`, engine.mjs l.68) comme toute première instruction, avant toute mutation d'état : zéro changement observable sur light, emitterCount ou quoi que ce soit. Redondance structurelle (défense en profondeur : l'appelant ET l'appelé gardent l'invariant terminal), pas un trou de couverture. VÉRIFIÉ EMPIRIQUEMENT SUR CE CODE, pas hérité du run précédent : ligne mutée en `||`, puis (a) état terminal=true/light=5000/emitterCount=3 -> step(1) laisse l'état bit-identique hors frameCount ; (b) état emitterCount=100, light=seuil-1 -> step(0) franchit le seuil et emitterCount RESTE 100 (buyEmitter neutralisé) ; (c) trajectoire complète du plan gagnant : embrasement au tick 2454, identique à l'original ; (d) solvability.mjs sous le mutant rend SOLVABLE au même tick ; (e) suite complète logic.test.mjs + properties.test.mjs 70/70 PASS sous le mutant (c'est précisément pourquoi il survit). Reverté immédiatement après vérification.",
+    "_verification": "mutation manuelle + 2 sondes ciblées sur les cas divergents + trajectoire complète + solvability + suite 70 tests, 2026-08-31 (run p1_beta_E1-20260831-run1), reverté après vérification"
+  }
+]

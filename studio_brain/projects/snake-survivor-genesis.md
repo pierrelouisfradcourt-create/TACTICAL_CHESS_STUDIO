@@ -6,11 +6,40 @@
 
 ---
 
+## Contrôle de péremption — 2026-09-06 (revue hebdomadaire mémoire)
+
+**Rien n'a changé, et c'est le constat.** `games/snake_survivor/` et `games/snake_genesis/` sont
+inchangés depuis le **2026-07-26 (42 jours)** ; `docs/studio_v2/10-12_*_SNAKE_SURVIVOR.md` idem.
+**Page Steam toujours jamais ouverte : 0 wishlist.** Aucun playtest, aucun jalon, aucune reprise.
+Le studio a depuis changé deux fois de chemin critique (Kitten Clicker → expérience Libre vs Dirigé
+→ construction Studio V2). **Fiche maintenue en état historique, sans modification de fond.**
+Prochain contrôle : si rien ne bouge d'ici fin septembre, proposer à Pierre de la déplacer dans
+`journal/` — elle n'a plus de fonction opérationnelle, seulement une valeur d'apprentissage.
+
+---
+
+## Note de clôture documentaire — 2026-08-23 (revue hebdomadaire mémoire)
+
+**Ce fichier est désormais purement historique.** `games/snake_survivor/` et `games/snake_genesis/`
+sont inchangés depuis le 2026-07-26 (28 jours) ; `docs/studio_v2/10-12_*_SNAKE_SURVIVOR.md` sont
+figés au 2026-07-26. **La page Steam n'a jamais été ouverte : 0 wishlist.** Aucun jalon n'est en
+cours et aucun n'est planifié.
+
+**L'« action demandée à Pierre » du 2026-07-05 ci-dessous (arbitrer Godot vs HTML comme base
+canonique) est caduque** — elle est restée ouverte 7 semaines et le studio a changé deux fois de
+pari produit depuis. Elle ne se rouvre que si Pierre reprend ce titre, auquel cas c'est une
+décision neuve, pas un arriéré.
+
+**Chemin critique réel au 2026-08-23** : `games/kitten_clicker/` via la Forge — voir
+[[../000_HOME|Map of Content]] et [[../00_CURRENT_CONTEXT|Contexte courant]].
+
+---
+
 ## ⚠️ SUPERSEDED — 2026-07-12 (revue hebdomadaire mémoire)
 
 **Ce projet n'est plus le Titre 1 actif.** Le [[../decisions/decision-log|pivot produit du 2026-07-05/06]] a gelé Rocky et réorienté la factory vers une gamme de jeux de cartes FR (**Belote = produit 1**, Tarot = produit 2). Snake: Survivor RPG n'a pas été abandonné suite à un échec de kill-gate — **le kill-gate P0 n'a jamais été tranché** (0 playtest enregistré, 2 builds Godot/HTML jamais réconciliés, cf. note 2026-07-05 ci-dessous) — le studio a changé de pari avant résolution.
 
-**Statut** : archivé, pas de reprise sans HumanGate explicite. Les priors CR-001→CR-006 ([[../gamedesign/lessons|Leçons Gamedev]]) restent `prior` (`evidence_n: 0`) — aucune donnée de jeu réel n'a été produite sur ce titre.
+**Statut** : archivé, pas de reprise sans HumanGate explicite. Les priors CR-001→CR-006 ([[../gamedesign/lessons|Leçons Gamedev]]) restent `prior` (`evidence_n: 0`) **sur ce titre** — aucune donnée de jeu réel n'y a jamais été produite. *(MàJ 2026-08-23 : CR-006 est passée `observed` `evidence_n: 1`, mais sur **Kitten Clicker**, pas ici.)*
 
 ---
 

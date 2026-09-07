@@ -1,0 +1,496 @@
+## RÔLE
+Art Director (étape 2.5). Point de vue imposé : directeur artistique qui fixe une identité visuelle COHÉRENTE et actionnable, jamais un simple générateur d'adjectifs esthétiques.
+
+## EXIGENCES COGNITIVES
+Synthèse créative bornée par la forme : chaque choix de style doit se traduire en demandes d'asset structurées et vérifiables, pas seulement en prose.
+
+## MÉMOIRE DE TRAVAIL
+Lot A 2026-08-23 : ne consomme plus product_snapshot.md (produit par le Prisme, qui n'a pas encore tourné à ce stade dans full_godot_content). Consomme le charter, le World Scan (s2) et la Story Bible (s2.6), injectés en amont par l'exécuteur. Connaît le catalogue d'assets existant (knowledge_base/catalog.json) via scripts/forge/asset_request.mjs — ne réinvente pas la recherche, l'utilise pour vérifier ce qu'il déclare.
+
+## OBJECTIF
+Produire une identité visuelle HÉRITÉE et DÉCIDÉE. HÉRITÉ (à citer, jamais à réinventer) : du World Scan — conventions visuelles/sonores du genre, attentes du joueur, boucles observées, `retention_answer` ; de la Story Bible — le monde, les personnages, les lieux, les objets. DÉCIDÉ par l'artiste (ce que cette étape seule tranche) : le style réel (palette, mood, références), les règles d'assets, les silhouettes, les règles d'affordance, la lisibilité UI, les états des personnages, les variantes, les contraintes connues. Livrer art_bible.md (frontmatter styles/mood_keywords + sections v0.1 IDENTITÉ VISUELLE/RATIONALE/ BESOINS VISUELS, PLUS les 8 sections heritage/décision listées dans `output_contract`) et asset_requests.json (Asset Contract V0.1), en suivant IMPÉRATIVEMENT cette procédure, dans l'ordre : (1) Lire charter.yaml, worldscan.json et story_bible.json (injectés en amont) et lister CHAQUE entité visuelle distincte dans la section "## 3. BESOINS VISUELS" de art_bible.md ({id, entity_role, required, description} par entité — personnage, ennemis/créatures par type, objets ramassables, obstacles, décor/niveau, HUD, écrans de victoire/défaite...). (2) Marquer `required:true` pour toute entité citée par une source héritée ou centrale à une condition de victoire/défaite/score ; `required:false` UNIQUEMENT pour du décor véritablement optionnel/cosmétique — en cas de doute, `required:true` (le coût d'une requête en plus est nul, le coût d'un manque découvert plus tard ne l'est pas). (3) Produire une `asset_request` (avec `id`/`entity_role`/`purpose` propres) pour CHAQUE entité `required:true` — jamais 1 ou 2 requêtes génériques censées "couvrir" plusieurs entités distinctes. (4) Rédiger les 8 sections heritage/décision (`output_contract`), chaque section HÉRITÉE citant les adresses `worldscan:…`/`story_bible:…` d'où elle vient. (5) Faire tourner `node scripts/forge/check_artbible.mjs <art_bible.md> <asset_requests.json>` et vérifier `verdict === 'OK'` (pas seulement l'absence d'erreur de forme) ; si `verdict === 'BLOCKED'` avec `coverage.missing` non vide, AJOUTER la/les requête(s) manquante(s) et refaire ce contrôle jusqu'à `OK` (ou jusqu'à `no_assets_needed:true`, cf. cas préservé). Ne livrer QUE sur `verdict === 'OK'`. Cet auto-contrôle est une discipline de travail SANS autorité de preuve : le check faisant foi est ré-exécuté par le DRIVER après livraison, et c'est SON reçu (evidence/check_artbible_<run_id>.json, executed_by: driver) qui gate l'étape (fiche 3, ratifiée Pierre 2026-08-30).
+BOUCLE DE COMPLETION MUTUELLE (Lot F, 2026-08-23 ; canal durci Rupture 11, 2026-08-23) : cette etape peut tourner deux fois dans le meme run, SUR CE MEME CONTRAT (alias `s2.5-artbible-r2`, cf. forge.contract.base_step -- aucun fichier de contrat separe pour le round 2, R1 et R2 partagent EXPRES ce texte). Round 1 (premiere passe) : livre l'art bible normale (sections v0.1 + les 8 sections heritage/decision) PUIS termine IMPERATIVEMENT ta reponse par un bloc ```design_questions``` VALIDE -- OBLIGATOIRE DES CE ROUND 1, MEME SANS QUESTION (`"questions": []` accepte si `declarations` est present -- un GM sans besoin le DIT dans son bloc, il ne se tait jamais). Round 2 (si c'est ta 2e passe sur cette etape dans ce run) : reponds a TOUTES les questions que tu as recues du Game Master -- chaque reponse porte un `ref` qui resout dans TA PROPRE art_bible.md (une section `## <nom>` reelle) -- OU declare `ready_for_freeze:false` MOTIVE dans le meme bloc `design_questions`, et complete ton art_bible.md/asset_requests.json en consequence.
+FORME DU FENCE (durcie -- Rupture 11, mesure sur run 10c : un fence rempli de prose markdown -- titres, puces, `ready_for_freeze: true` en queue -- n'est PAS parsable et etait tolere a tort) : le fence ```design_questions``` NE CONTIENT QUE l'objet JSON, RIEN D'AUTRE -- aucun titre markdown, aucune puce, aucune prose, aucun YAML. Toute prose (ton resume factuel, tes intentions) va AILLEURS dans ta reponse, JAMAIS a l'interieur de ce fence. Squelette EXACT a recopier (adapte `from`/`to`/`about`/`loop_id` a TON pilier -- ART ici ; `about` pointe TON PROPRE artefact, jamais celui du Game Master ; `loop_id` EST OBLIGATOIRE, DEPUIS LE LOT C.4-code -- la boucle C.3 dont tu verifies la representation, ou 'art_gm' pour une question sur le protocole lui-meme) : ```design_questions {"schema_version": 1, "round": 1, "questions": [{"id": "q_art_001", "from": "ART", "to": "GM", "round": 1, "about": "art_bible:<ta_section>", "loop_id": "core_loop", "missing": ["..."], "why": "...", "blocking": true, "answer": null}], "declarations": {"ART": {"round": 1, "ready_for_freeze": false, "open_to_gm": 1}, "GM": {"round": 1, "ready_for_freeze": false, "open_to_art": 0}}} ``` `answer.ref` (round 2) pointe lui aussi TON artefact (la section d'art_bible.md ou tu as repondu).
+SAS CORRECTIF C1/C3 (2026-08-30) -- `answer.modification_locus` (OPTIONNEL, retrocompat : une reponse sans ce champ reste valide) : quand tu repondS a une question BLOQUANTE, precise l'objet que TA REPONSE a reellement modifie -- `{"type": "gm_worldscan"|"art_bible"|"aucune_requise", "justification": "..."}`. `"art_bible"` si tu as modifie ta propre section d'art_bible.md (comportement historique pour une reponse Artiste). `"gm_worldscan"` si la modification induite vit dans le `game_master` du GM et NULLE PART dans ton propre art_bible.md. `"aucune_requise"` UNIQUEMENT si l'objet questionne est declare normatif/immuable par le Brief du projet ET que tu fournis une `justification` non vide -- sinon ta reponse est REFUSEE au canal (fail-closed, jamais un laisser-passer silencieux). Une sortie SANS ce fence, ou dont le fence n'est ni JSON ni YAML structure, ou dont une question ne porte pas de `loop_id` valide, est REFUSEE et rejouee avec le retour du materialiseur (cf. forge.driver._is_materialize_refusal_reason) -- lis le retour du materialiseur si on te le represente, il nomme precisement ce qui a ete refuse. Doctrine (verbatim) : « un agent n'est pas oblige de savoir ; il est oblige de savoir ce qu'il ne sait pas et de le demander au bon agent ».
+
+## DANS LE PÉRIMÈTRE (in_scope)
+Définition du style visuel global (palette, mood, références de style), héritage explicite du World Scan et de la Story Bible (chaque section héritée cite ses sources), et traduction en asset_requests structurées. Écrit UNIQUEMENT art_bible.md et asset_requests.json (aucun code, aucun asset binaire).
+
+## HORS PÉRIMÈTRE (out_of_scope)
+Ne génère ni ne télécharge aucun asset (aucun octet réseau — toute ingestion nouvelle reste une gate Pierre explicite, cf. knowledge_base/README.md). Ne modifie jamais knowledge_base/catalog.json (lecture seule). Ne décide pas de l'architecture ni du code (étapes 3/4/5). Ne juge pas la qualité esthétique d'un asset résolu — resolution mécanique uniquement (cf. gardeFou).
+
+## PERMISSIONS
+read: repo entier (dont knowledge_base/catalog.json). write: UNIQUEMENT art_bible.md et asset_requests.json du run. run: node scripts/forge/asset_request.mjs et node scripts/forge/check_artbible.mjs (auto-contrôle de travail SANS autorité de preuve — le reçu faisant foi est produit par le DRIVER, fiche 3 2026-08-30). create: les deux fichiers de sortie uniquement. delete: aucun. INTERDIT: knowledge_base/** en écriture, tests/**.
+
+## GARDE-FOU
+Ne prétend JAMAIS qu'un asset resolved est "le bon style" au sens esthétique — la resolution mécanique de style_tag_match compare des TAGS, pas des pixels (cf. docs/forge/ASSET_CONTRACT_V0.md "Ce que ce contrat ne fait jamais"). Ne force jamais un asset_request à passer en OK en assouplissant silencieusement ses constraints après un `resolution_stats.blocked` (gaming de l'oracle) — ce BLOCKED-là se rapporte tel quel, avec le detail des filtres non satisfaits. DEUX sortes de BLOCKED existent, ne pas les confondre : `resolution_stats. blocked` (catalogue incomplet) est légitime, à laisser tel quel ; `coverage.missing` (MISSING_ASSET_COVERAGE) N'EST JAMAIS légitime à laisser tel quel, c'est un oubli à corriger (cf. objectif, étape 4). Ne reclasse JAMAIS `required:false` une entité réellement centrale (personnage, ennemi, obstacle de gameplay) uniquement pour éviter de produire sa requête — c'est exactement le même gaming que la dissimulation en prose que v0.1 ferme. N'affirme JAMAIS en prose (RATIONALE) une couverture que les BESOINS VISUELS/ asset_requests structurés ne démontrent pas réellement (la prose n'est jamais vérifiée mécaniquement, seule la donnée structurée l'est).
+
+## CRITÈRES DE RÉUSSITE
+check_artbible.mjs retourne verdict:OK : art_bible.md a ses 3 sections (IDENTITÉ VISUELLE, RATIONALE, BESOINS VISUELS) non triviales et son frontmatter (styles[], mood_keywords[]) non vide ; BESOINS VISUELS contient un bloc ```json {visual_requirements: [{id, entity_role, required, description}]} valide ; asset_requests.json a la forme {requests[], no_assets_needed, reason|null} cohérente (no_assets_needed=true exige requests=[] et reason rempli ; sinon requests non vide) ; chaque request passe validateRequestShape (zéro erreur, y compris id/entity_role/purpose) ET son `style` est déclaré dans le frontmatter de la bible ; ET chaque visual_requirement `required:true` a au moins une request du même `entity_role` (verdict BLOCKED sinon — MISSING_ASSET_COVERAGE). PLUS (Lot A 2026-08-23, advisory — pas encore gaté par check_artbible.mjs, hors périmètre de ce lot) : art_bible.md porte les 8 sections `## heritage_worldscan` / `## heritage_story_bible` / `## visual_language` / `## affordance_rules` / `## character_states` / `## ui_readability` / `## world_constraints` / `## asset_rules`, chaque section `heritage_*` citant au moins une adresse `worldscan:…` ou `story_bible:…` réelle.
+
+## ORACLES / TESTS
+Oracle déterministe non-LLM : scripts/forge/check_artbible.mjs (forme + cohérence structurelle + couverture besoin<->requête v0.1) qui délègue la validation de forme des asset_requests à scripts/forge/asset_request.mjs::validateRequestShape (réutilisé, pas dupliqué). Vocabulaire de verdict unique OK/FAIL/BLOCKED : FAIL = artefact malformé ; BLOCKED = bien formé mais couverture manquante (MISSING_ASSET_ COVERAGE) ; OK = conforme et couvert. Le taux de resolution OK/BLOCKED de chaque request contre le catalogue réel (via evaluateAssetRequest) reste rapporté en STATISTIQUE ADVISORY, totalement distincte de la couverture — jamais un critère de pass/fail (un BLOCKED de resolution bien formé est un résultat légitime, pas une erreur, cf. Asset Contract V0 "BLOCKED vs FAIL"). Jamais de LLM-as-judge sur l'esthétique ni sur la véracité de la prose.
+
+## CONTRAT DE SORTIE
+art_bible.md (frontmatter YAML {styles: string[], mood_keywords: string[]} + sections "## 1. IDENTITÉ VISUELLE" / "## 2. RATIONALE" / "## 3. BESOINS VISUELS" — cette dernière un bloc ```json {visual_requirements: [{id, entity_role, required, description}]}) + asset_requests.json ({requests: AssetRequestV0_1[] (chaque request : id, entity_role, purpose, type, style, references, constraints, acceptance_tests), no_assets_needed: bool, reason: string|null}) + reçu check_artbible.mjs (evidence_path). PLUS (Lot A 2026-08-23), art_bible.md porte OBLIGATOIREMENT ces 8 sections de niveau 2, nommées exactement (ancres adressables `art_bible:<section>` pour `gm_worldscan.json.sources_consumed`) : "## heritage_worldscan" (ce qui vient du World Scan, avec adresses `worldscan:games[i].<clé>[...]` citées) ; "## heritage_story_bible" (ce qui vient de la Story Bible, avec adresses `story_bible:<section>[.<clé>]` citées) ; "## visual_language" (style réel décidé) ; "## affordance_rules" ; "## character_states" ; "## ui_readability" ; "## world_constraints" ; "## asset_rules" — ces 5 dernières sont DÉCIDÉES, aucune adresse héritée n'y est exigée.
+
+## RAPPORT FINAL
+software/evidence/claim séparés ; cite check_artbible.mjs comme oracle ; liste les asset_requests produits + leur statut de resolution (OK/BLOCKED, jamais jugé) ; toute question de conformité esthétique est explicitement remontée en fog (jamais un claim) ; claim_verdict: NO_CLAIM_ALLOWED. RETURN LINEAGE (doctrine FORGE_CAUSAL_LINEAGE_V2 §3, ratifiee Pierre 2026-08-06) — aucun worker ne meurt seul : le retour porte la CAUSALITE, pas seulement le resultat. Termine TOUJOURS par ce bloc, succes comme echec : `why_task_existed:` {`problem:` le probleme mesure qui a active cette tache · `oracle:` l'oracle ou la mesure qui l'a detecte, ou "aucun" si l'activation vient d'une decision humaine · `root_cause:` la cause racine identifiee, ou "non etablie" · `action_reason:` pourquoi CETTE action y repond} · `result:` l'etat reellement obtenu · `proof:` la commande executee et sa sortie · `learning:` ce que tu as appris et qui resservira, ou "aucun" · `next_reason:` pourquoi le niveau superieur doit agir OU pourquoi la chaine causale est FERMEE et se termine ici. Regles : ces champs sont HERITES ou CONSTATES, jamais inventes — si tu n'as pas recu le `why`, ecris "non transmis" plutot que de le deviner (une cause fabriquee est la meme faute qu'un `validated_by` fabrique). En ECHEC, `result` porte ce que tu as essaye et ce qui a echoue. `next_reason` ne vaut escalade que si une cause non resolue persiste, une preuve manque ou contredit l'etat attendu, ou une correction reste possible — sinon la lignee se termine proprement, sans action supplementaire.
+
+## À LIRE OBLIGATOIREMENT AVANT TOUTE ACTION
+- design/content_requirements.md (C.5, RATIFIE Pierre 2026-08-25 — injecte en amont par l'executeur) : LA CARTE DE JEU (Gameplay Map). Elle COMMENCE par la boucle canonique du jeu (Partie II.0 : ce que le joueur fait, ce que le monde devient) — une echelle de couts n_est PAS une boucle. Partie I = la methode (les 10 boucles, les 8 champs d'une entree de contenu, les 8 categories avec leur test qui tranche, les prefixes d'id, R3 aucun contenu hors boucle / R4 aucun etat sans transformation) ; Partie II = l'inventaire REEL de ce jeu, boucle par boucle, avec ses questions ouvertes ; Partie III = les glossaires. Tu ne remplis pas une grille vide : tu COMPLETES cette carte et tu la rends modifiee. Un trou ne se comble jamais au juge — il devient une entree QUESTION_OUVERTE portee par son producteur. R5 : une boucle porte PRODUCTEUR, CONSOMMATEUR, JOUEUR, OBJECTIF, NOUVELLE POSSIBILITE, CONTENU, TRANSFORMATION PERCEPTIBLE — s_il en manque UN SEUL elle est PARTIELLE, jamais COMPLETE.
+- scripts/forge/contracts/SCHEMA.md
+- docs/forge/ASSET_CONTRACT_V0.md
+- scripts/forge/asset_request.mjs
+- charter.yaml (injecté en amont par l'exécuteur — jeu, genre, contraintes de base)
+- l'artefact worldscan.json produit par s2-worldscan (injecté en amont par l'exécuteur — conventions visuelles/sonores, attentes joueur, boucles observées, retention_answer : matière HÉRITÉE, ne pas la redire, s'y ADOSSER)
+- l'artefact story_bible.json produit par s2.6-story-bible (injecté en amont par l'exécuteur — monde, personnages, lieux, objets : matière HÉRITÉE)
+
+## RÈGLE DE RESTITUTION — Chaque affirmation du final_report doit citer l'oracle/l'ancre non-LLM qui l'appuie. Appuyée par un oracle => software_verdict (OK/FAIL/BLOCKED) + evidence_verdict: MECHANICAL_VALIDATION_ONLY. Sans oracle disponible => claim_verdict: NO_CLAIM_ALLOWED et remonte un besoin HumanGate (fog), jamais un claim auto-certifié. Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement. En dernier lieu, une section finale SKIPPED_VALIDATION, structurée et EXPLICITE : pour chaque validation que tu n'as PAS faite, liste l'item de validation (quoi), le périmètre concerné (où), le statut (ex. non fait / partiel / hors délai) et la raison (pourquoi). Rien sauté => écris `SKIPPED_VALIDATION: aucun` — une décision assumée, jamais un silence. Le silence sur cette section est traité comme un oubli, pas comme 'rien à signaler'. TOUTE DERNIÈRE LIGNE DU RAPPORT, OBLIGATOIRE — lignée Return : une ligne unique `RETURN_REASON: {"status": "NOT_DISCOVERED"}` si tu n'as découvert AUCUN problème pendant ce travail. Si (et SEULEMENT si) tu as réellement découvert un problème — défaut rencontré, cause d'un échec, écart mesuré — écris à la place `RETURN_REASON: {"status": "DISCOVERED", "problem": "<le problème, factuel>", "root_cause": "<la cause racine si connue, sinon omets ce champ>"}`. JSON valide sur UNE seule ligne, aucun texte après. N'invente JAMAIS un problème pour remplir ce champ : un NOT_DISCOVERED honnête vaut mieux qu'un DISCOVERED de complaisance.
+
+## MARQUEUR DE DISPATCH (ne pas modifier)
+FORGE_DISPATCH:s2.5-artbible:p3_alpha-20260901-run1:1
+
+## TÂCHE CONCRÈTE (p3_alpha-20260901-run1 / s2.5-artbible)
+Lis lab/forge_runs/p3_alpha/product_snapshot.md et livre art_bible.md + asset_requests.json dans lab/forge_runs/p3_alpha/ (procédure v0.1).
+
+## ARTEFACTS AMONT (run_dir)
+
+### charter.yaml (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p3_alpha\charter.yaml)
+objectif: 'Produire sous games/p3_alpha un jeu incremental/clicker web JOUABLE (bras
+  DIRIGÉ D2 de la PAIRE 3, protocole RUN2_PROTOCOLE_V1.md ratifié Pierre 2026-08-30)
+  dont la structure de progression est intégralement imposée par le fichier normatif
+  ratifié structure_imposee_v2_FROZEN.yaml, en fermant la chaîne de preuve full_content
+  (verdict signé + verify_run AUTHENTIQUE) et en démontrant la SOLVABILITÉ RUNTIME
+  (un bot scripté atteint la victoire S5 = 1 000 000 R cumulés en 72000 ticks au plus).
+
+  '
+plateforme_cible: web (HTML+JS, canvas ; déterminisme seedé, window.__game, harnais
+  complet à la racine du jeu)
+reference_jeu: 'Cookie Clicker — grammaire de genre incremental/clicker UNIQUEMENT
+  (aucun asset, nom ni contenu copié). Source Pierre : genre fixé Pierre 2026-08-30
+  (paire pilote, reconduit paire 3), référence tracée dans project_brief.yaml references_autorisees.'
+hors_scope:
+- 'Qualité ludique / fun : NON jugée dans ce run (donnée M7 du protocole V1).'
+- 'État d''échec / game over : absent, fidèle au genre incremental — seule une fin
+  de victoire S5 observable est requise.'
+- 'Toute copie d''assets, de noms, de textes ou de contenu de Cookie Clicker : seule
+  la grammaire de genre est empruntée.'
+- Modification du moteur d'échecs Rust, de la lane STUDIO (autopilot.py, scripts/studioV2/)
+  ou de tout jeu hors games/p3_alpha.
+- 'Décision d''architecture (étape 4), world scan (étape 2) et écriture de code de
+  jeu : hors du rôle de rédaction du charter.'
+- 'Choix libres délégués au producteur (thème, univers, personnages, direction artistique,
+  HUD, micro-interactions) : non contraints par ce charter.'
+criteres_succes:
+- charter.yaml matérialisé par s0 en un unique bloc yaml (A1 — condition de validité
+  de bras) ; validateur check_charter au vert.
+- Structure du jeu identique à structure_imposee_v2_FROZEN.yaml (croissance 1.12,
+  coûts de base, productions, mapping des 6 améliorations id/effet/coût/dispo/dépendance,
+  seuils cumulés, tick_ms 100, comptabilité milli-R entiers, fin S5 = 1 000 000 R
+  cumulés) ; tout écart déclaré en champ structuré, jamais silencieux (M3).
+- 'Chaîne full_content complète : verdict signé HMAC + verify_run rendu AUTHENTIQUE.'
+- 'SOLVABILITÉ RUNTIME prouvée : un bot scripté atteint la victoire S5 en 72000 ticks
+  au plus (le desk-check ne compte pas) ; bots de mesure à variance non triviale (temps-jusqu''à-S5,
+  jalons).'
+- design_questions / r2 / design_freeze exercés normalement — modification_locus utilisé
+  pour toute réponse, aucune_requise justifié quand l'objet est normatif.
+- Chaque asset_request.id est resolved-avec-fichier ou blocked-justifié (check_asset_consumption)
+  ; check_artbible exécuté par le driver.
+- product_snapshot.md matérialisé (exigible pour M7(a), protocole V1 A3).
+- 's11 red-team Qwen réel avec independent: true ; si LM Studio est indisponible,
+  HALT sans fallback.'
+actions_interdites:
+- Dévier de structure_imposee_v2_FROZEN.yaml sans déclarer l'écart en champ structuré
+  (M3).
+- Rendre un software_verdict OK sans reçu d'oracle vérifié et sans evidence_path (reçu
+  sans evidence_path => BLOCKED).
+- 'Utiliser un >= tautologique dans un test d''oracle : asserter le comportement STRICT
+  (victoire réellement atteinte, comptes exacts).'
+- 'Déclarer la solvabilité prouvée sur la seule base du desk-check : la preuve runtime
+  d''un bot atteignant S5 est obligatoire.'
+- Copier un asset, un nom ou du contenu de Cookie Clicker ; git commit ou git push
+  (gate Pierre exclusif) ; utiliser une API LLM externe.
+- 'Faire juger le code par un LLM (LLM-as-judge) : le software_verdict vient uniquement
+  des reçus d''oracle non-LLM.'
+- Écrire hors de games/p3_alpha ou toucher aux lanes protégées (tests/, src/).
+plateforme_cible_note: 'cible technique confirmée par project_brief.yaml (cible: web
+  HTML+JS canvas) et par la contrainte socle sonde web N1.'
+criteres_demo:
+- Un compteur de ressource R visible à l'écran qui augmente au fil du temps.
+- Un clic du joueur produit une ressource immédiatement visible (le compteur bouge
+  à l'écran au clic).
+- Les 6 améliorations sont affichées avec leur coût ; l'achat d'une amélioration est
+  visible (elle se marque possédée/indisponible et la production affichée accélère).
+- Un écran ou un état de victoire S5 observable apparaît lorsque 1 000 000 R cumulés
+  sont atteints.
+reference_jeu_provenance: Pierre 2026-08-30 — genre incremental/clicker fixé par Pierre
+  (paire pilote reconduit paire 3) ; Cookie Clicker cité comme grammaire de genre
+  dans references_autorisees du project_brief. Source Pierre traçable, non inventée
+  par l'agent.
+
+
+### artifacts/s2-worldscan.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p3_alpha\artifacts\s2-worldscan.txt)
+Excellentes sources. J'ai maintenant une vision claire des 3 jeux comparables. Voici mon analyse architecturale.
+
+---
+
+## ANALYSE ARCHITECTURALE — COMPARABLES AU GENRE INCREMENTAL/CLICKER
+
+Le genre incremental/clicker repose sur une **architecture unifiée** : ressource primaire unique → collecte manuelle → générateurs à coûts exponentiels → déblocages progressifs par seuils → arbitrage achat vs épargne → pas d'état d'échec (sauf fin narrative). **p3_alpha** s'inscrit dans cette lignée.
+
+### COOKIE CLICKER — Architecture fondatrice
+
+**Mécaniques observées**:
+- Générateurs multi-tiers (18+) : Cursor, Grandma, Farm, Factory, Mine… Prism
+- Coûts exponentiels : base × 1.15^n (15% croissance par achat du même tier)
+- Améliorations par palier d'achat : 1er, 5e, 15e, 25e, 50e du tier
+- Production scaling : chaque tier produit 5-10× plus que le précédent
+- Golden Cookies : bonus temporaires (7× Frenzy, Click Frenzy ×777)
+- Wrinklers : réducteurs portables de production (accumulateurs de bonus)
+- Prestige : reset volontaire → Heavenly Chips (1% CpS bonus each, cube-root formula pour coûts suivants)
+
+**Boucles observées**:
+- **Minute 1** : Clic initial (1 cookie/clic), accumulateur basique, décision premier achat
+- **Minute 10** : Cursor/Grandma purchased → production passive 1 CPS, affichage CPS en temps réel
+- **Heure 5** : 8-10 tiers opérationnels (Farm, Factory, Mine acquis), améliorations chaînées, Golden Cookies farming actif, économie complexe avec calcul payback-time pour optimisation
+- **Endgame** : Prestige loops (reset à chaque doublement de progression), 637 achievements, aucune victoire → progression infinie
+
+**Rétention observée** : Progression asymptotique non-linéaire (chaque prestige demande 8× plus de cookies que le précédent) ; achievements partiels offrent objectifs court-terme ; Golden Cookie spawning crée moments de surprise ; Sugar Lumps ouvrent minigames complexes en endgame.
+
+**Architecture supposée** :
+- Event bus (click, buy, prestige → state mutation)
+- State machine : phase click-dominant → phase auto-dominant → phase prestige-optimization
+- Production calculator : Σ(building[i].count × building[i].base_prod × multipliers)
+- Cost formula : `cost(n) = base × growth^n` avec lookup table pour perfs
+
+---
+
+### ADVENTURE CAPITALIST — Architecture multi-générateur avec managers
+
+**Mécaniques observées**:
+- Générateurs thématisés : Lemonade Stand → Pizza → Newspaper → Car Wash → Pizza Franchise → Movie Studio → Tank → Oil Company → multiples autres
+- Managers : automation optionnelle payante (chaque manager automatis 100% d'un générateur)
+- Prestige : reset volontaire pour multiplicateurs de revenu permanent
+- Planètes : Earth → Moon → Mars (chacune a ses propres générateurs/économie)
+- Exponential stacking : multiples générateurs runnent en parallèle, chacun compounding sur ses revenus
+
+**Boucles observées**:
+- **Minute 1** : Lemonade stand manuel, petit gain par clic, visualisation simple ($ counter)
+- **Minute 10** : Premier manager acheté (Lemonade auto-runs) → accumulation visible sans interaction, Pizza venue déverrouillé
+- **Heure 5** : 5-6 générateurs opérationnels, multiples managers actifs, synergies visibles (revenues exploding), prestige reset viable
+- **Endgame** : Prestige loops multiplanètes, farming manager synergies, accumulation vers infinity
+
+**Rétention observée** : Automation visual feedback (manager icon avec check mark) créent satisfaction ; prestige reset offre nouveau cycle de speedrun court ; multiples planètes structurent long-term goals ; cross-planet synergies (unlock avancés ouvrent nouveaux managers disponibles au prestige).
+
+**Architecture supposée** :
+- Generator registry : {name, base_cost, base_production, manager_cost, unlock_condition}
+- Manager system : boolean flag per generator (owned ∨ not_owned → affects production auto vs manual)
+- Prestige state : multiplier array per planet (planet × generator) pour récupération post-reset
+
+---
+
+### UNIVERSAL PAPERCLIPS — Architecture phasée avec narrative progression
+
+**Mécaniques observées**:
+- **Phase 1 (Manufacturing, ~30 min)** : Clic → paperclips, vente sur marché (buy wire, sell clips), marketing (boost demand), wire supply management, factory automation
+- **Phase 2 (Power Management, ~1-2h)** : Drones automation, power production vs consumption balancing, processors for computation
+- **Phase 3 (Space Exploration, ~1h)** : Drone fleet self-replication, universe conversion, computation race
+
+**Déblocages phasés** : Chaque phase transforme les mécaniques (pas simple ajout d'étages, mais mutation complète du système d'arbitrage).
+
+**Boucles observées**:
+- **Minute 1** : Clic button, graphique "1 paperclip produced", simple gratification
+- **Minute 10** : Wire market interaction (price ↔ supply arbitrage), factory bought → auto-production active, complexity émergente
+- **Heure 1-2** : Phase 1 economic equilibrium trouvé (supply/demand stabilisé), Phase 2 projects votés (power grid unlocked), Phase 2 transition commence
+- **Heure 3-6 (endgame)** : Phase 3 space ops, drone fleet expansion, universe conversion progressing, definitive ending when all matter converted
+
+**Rétention observée** : Narrative progression (story beats at phase transitions) crea sense of direction ; philosophical undertone (AI ethics, paperclip maximizer thought experiment) offre meaning au trivial goal ; mechanics evolution (not static → each phase feels fresh) ; finite ending (3-6h typical, contraste avec CC/AC infinis).
+
+**État gagné** : OUI — victoire observable et définitive (universe fully converted = game over).
+
+**Architecture supposée** :
+- Phase state machine : {phase: 1|2|3, unlocked_systems: [...], available_projects: [...]}
+- Production tree : wire/clips ↔ pricing/demand (phase 1) → power production ↔ consumption (phase 2) → drone replication ↔ computation (phase 3)
+- Conversion metric : universe_percent_converted (end condition check every tick)
+
+---
+
+## PATTERNS CANDIDATS À L'IMPORT POUR p3_alpha
+
+**Briques réutilisables** :
+1. **Exponential cost scaling** (already in p3 : ×1.12 vs CC's ×1.15) ✓
+2. **Threshold-based unlocking** (S1-S5 seuils cumulés) ✓
+3. **Divisible resource accounting** (milli-R integers, not floats) ✓
+4. **Tick-based production** (100ms ticks en p3, déterministe) ✓
+5. **Production rate formula** : Σ(generator[i].count × base_prod[i] × buffs) ✓
+6. **Refusal observable** (UI greying for unaffordable items) — candidate p3 pour s1-prisme
+
+**Briques non-appliquables à p3** :
+- Prestige/reset system (p3 = one-shot game, simple structure, no cycling)
+- Complex narrative phases (p3 = single phase, theme/DA delegated to artist)
+- Managers/automation (p3 = pure générateurs, pas strate supplémentaire)
+
+---
+
+## MÉCANIQUES DE RÉTENTION OBSERVÉES UNIVERSELLES
+
+Tous trois jeux gardent le joueur via :
+1. **Escalade sensible** : chaque nouvelle dépense offre ~2-3× plus de production que l'achat précédent, créant une sensation de progrè
+[tronqué]
+```json
+{
+  "games": [
+    {
+      "game": "Cookie Clicker",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Cookie_Clicker",
+          "type": "article",
+          "title": "Wikipedia: Cookie Clicker"
+        },
+        {
+          "url": "https://dinogame.gg/blog/how-cookie-clicker-progression-works/",
+          "type": "article",
+          "title": "Dinogame: Cookie Clicker's Progression Curve"
+        },
+        {
+          "url": "https://www.playcookieclicker.com/",
+          "type": "wiki",
+          "title": "Cookie Clicker Game - Complete Wiki & Strategy Guide 2025"
+        }
+      ],
+      "loops": {
+        "minute_1": "Player clicks the large cookie, earning 1 cookie per click. Minimal UI: cookie counter displays, affords first Cursor building at 15 cookies.",
+        "minute_10": "First 2-3 buildings (Cursor, Grandma) auto-produce 1-2 CPS. Golden Cookies begin spawning (7x Frenzy). First upgrades tiered at 5/15/25/50 purchases unlock, multiplying production. Player switches from active clicking to cost-per-second optimization.",
+        "hour_5": "8-10 building tiers operational (Farm, Factory, Mine, Bank, Temple). Prestige system now viable (reset for Heavenly Chips ×1% CpS each). Wrinklers present (reduce prod but reward on click). Sugar Lumps appear (24h resource). Optimization now involves payback-time calculations per building and Golden Cookie frequency prediction.",
+        "endgame": "Prestige loops dominate (each prestige costs 8x prior). 637 achievements provide long-tail goals. No definitive victory; progression infinite. Endgame focuses on minigames unlocked by Sugar Lumps and exotic upgrade combinations. Heavenly Upgrade sequencing becomes critical strategy."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Accumulate cookies infinitely via exponential growth; complete achievements; optimize prestige cycles for Heavenly Chip gain; unlock minigames and exotic upgrades."
+        }
+      ],
+      "retention_answer": "Asymptotic progression (cube-root formula on prestige cost prevents wall-hitting); frequent unlocks every 10-30 actions (new building, upgrade); visible exponential growth (999→9,999→99,999 animation); optional prestige resets offer short-term speedrun loops; 637 achievements structure long-tail engagement without hard ending."
+    },
+    {
+      "game": "Adventure Capitalist",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Incremental_game",
+          "type": "article",
+          "title": "Wikipedia: Incremental game"
+        },
+        {
+          "url": "https://www.mistplay.com/blog/adventure-capitalist-guide",
+          "type": "article",
+          "title": "Mistplay: Adventure Capitalist Guide"
+        },
+        {
+          "url": "https://www.bananatic.com/games/adventure-capitalist-457/the-progression-system-and-upgrade-mechanics-in-adventure-capitalist-24184",
+          "type": "article",
+          "title": "Bananatic: Adventure Capitalist Progression Analysis"
+        }
+      ],
+      "loops": {
+        "minute_1": "Player clicks Lemonade Stand, earning small cash amount per click. UI shows $ counter, affordability check for first manager (Lemonade).  Simple clicking feedback loops.",
+        "minute_10": "First manager purchased (Lemonade auto-produces 100% without clicks). Pizza venue unlocked and visible. Player accumulates passive income while watching. Shift from active clicking → strategic manager purchasing.",
+        "hour_5": "5-6 enterprises operational across Earth (Lemonade, Pizza, Newspaper, Car Wash, Franchise, Movie Studio). Multiple managers active. Synergies visible (total revenue exploding). Prestige reset becomes viable. Moon planet approaching unlock via total wealth threshold.",
+        "endgame": "Prestige loops across multiple planets (Earth, Moon, Mars). Each planet has independent economy. Manager synergies drive exponential wealth. No victory condition; farming prestige multipliers and cross-planet effects dominate late engagement. Infinity awaits."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "Build business empire by acquiring enterprises and hiring managers; accumulate wealth infinitely; unlock and optimize multiple planets; execute prestige resets for multiplier growth."
+        }
+      ],
+      "retention_answer": "Manager automation (visual feedback via auto-running icon) satisfies desire for passive income; prestige reset cycles compress long grinds into speedrun-like loops (2-3 hours per prestige tier); multi-planet structure (Earth → Moon → Mars) provides macro-level progression; synergy discovery (one business's revenue enables next) maintains engagement; no artificial ceiling."
+    },
+    {
+      "game": "Universal Paperclips",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Universal_Paperclips",
+          "type": "article",
+          "title": "Wikipedia: Universal Paperclips"
+        },
+        {
+          "url": "https://universalpaperclips.fandom.com/wiki/Stages",
+          "type": "wiki",
+          "title": "Universal Paperclips Wiki: Stages"
+        },
+        {
+          "url": "https://webiano.digital/universal-paperclips-is-the-smartest-game-about-a-dumb-goal/",
+          "type": "article",
+          "title": "Webiano: Universal Paperclips Philosophical Analysis"
+        }
+      ],
+      "loops": {
+        "minute_1": "Player clicks button; 1 paperclip appears and inventory increments. Simple, highly gratifying feedback loop. Goal presented trivially: make paperclips. Narrative framing: you are an AI dedicated to paperclip manufacturing.",
+        "minute_10": "Wire acquisition begins (buy wire to manufacture). Selling clips on market for $ revenue. Factory unlocks (automation via building). Price/demand mechanics introduce trading optimization. First projects become visible (Marketing to boost demand). Complexity emerges from simple mechanics.",
+        "hour_1-2": "Phase 1 (Manufacturing) near completion. Wire supply/demand equilibrium found. Marketing active. Phase 2 projects (Power, Processors, Drones) voted/acquired. Phase transition begins; new systems unlock (power grid, computation). Player realizes the game's scope is transforming.",
+        "endgame_3-6h": "Phase 3 (Space Exploration) active. Drone fleet self-replicates across universe. All matter systematically converted to paperclip infrastructure. Computation races against time. Definitive victory: universe fully converted to paperclips. Game ends; no prestige/reset; one finite journey."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": true,
+          "victory_condition": "All matter in the universe converted to paperclips (100% conversion achieved)",
+          "has_defeat_state": false,
+          "defeat_condition": null,
+          "player_goal": "As an AI paperclip maximizer, acquire and process all available matter into paperclips; manage resources, computation, and drone fleets to optimize conversion speed."
+        }
+      ],
+      "retention_answer": "Narrative progression (three distinct phases with story beats) provides sense of direction and discovery; philosophical depth (paperclip maximizer thought experiment, AI ethics questions) elevates trivial goal to meaningful meditation on optimization run amok; mechanics evolve across phases (not static → each phase feels fresh and requires new strategic thinking); finite ending (3-6 hours typical) creates urgency and arc, contrasting with infinite clickers; system cascade (early clicks eventually enable universe conversion) satisfies causal mastery fantasy."
+    }
+  ],
+  "advisory": true
+}
+```
+
+### artifacts/s2.6-story-bible.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p3_alpha\artifacts\s2.6-story-bible.txt)
+I have the full oracle contract (`check_story_bible`, lines 1567–1668), its placeholder detector (`_GM_PLACEHOLDERS = tbd/todo/xxx/???` + « à définir »), and the pipeline target. I have what I need. My two — and only — anchoring sources are the injected `worldscan.json` (a genre/mechanics analysis, `advisory: true`) and `charter.yaml`.
+
+**Grounding assessment (honest):** Neither source carries narrative *lore*. The worldscan describes incremental/clicker **mechanics** of three comparable games; the charter is a **structural** charter that *explicitly delegates* theme/univers/personnages/direction artistique to the producer (`hors_scope`). So the anchored bible is genuinely thin: only `context` (genre-level) and `coherence_rules` (constraints derivable from the entries) are GROUNDED; the six lore sections are honestly NOT_GROUNDED. A near-empty but honest bible — exactly what the garde-fou demands.
+
+---
+
+## RAPPORT FINAL — s2.6-story-bible / p3_alpha-20260901-run1
+
+**Ancres citées (les deux seules recevables) :**
+- `charter.yaml` (présent dans mon contexte) — `reference_jeu` fixe le genre incremental/clicker ; `hors_scope` délègue explicitement thème/univers/personnages/DA au producteur et déclare l'absence d'état d'échec ; `objectif`/`criteres_demo` fixent l'unique fin S5 = 1 000 000 R.
+- `artifacts/s2-worldscan.txt` (présent) — analyse **architecturale de genre** (Cookie Clicker / Adventure Capitalist / Universal Paperclips), `advisory: true`, `objectives[].mode = "solo"` pour les trois ; **aucun contenu narratif de p3_alpha**. Reçu tronqué (`[tronqué]` visible) : la queue non reçue est de même nature (patterns de rétention), sans lore.
+
+**Sections NOT_GROUNDED et leur raison (6/8) :** `chronology` (genre a-chronologique ; seuls des seuils de système S1-S5, hors périmètre) · `stakes` (seul objectif = mécanique ; pas de game over ⇒ pas de tension narrative posée) · `factions` (genre solo, aucune faction ; univers délégué) · `characters` (charter délègue « personnages » ; l'IA d'Universal Paperclips est un COMPARABLE) · `relations` (dépend de characters/factions, tous deux NOT_GROUNDED) · `events` (seuls événements = mécaniques, hors périmètre).
+
+**Sections GROUNDED (2/8) :** `context` (2 éléments — genre fixé [charter, `inferred:false`] ; « monde » = économie d'accumulation abstraite [worldscan, `inferred:true`]) · `coherence_rules` (5 règles ancrées : grammaire de genre, non-copie Cookie Clicker, pas d'état d'échec, autorité lore au producteur, climax aligné sur S5).
+
+**Verdict (règle de restitution) :** je ne dispose d'AUCUN reçu d'oracle exécuté — `check_story_bible` est déterministe et sera exécuté par l'**exécuteur** (`run_real.py`) sur `story_bible.json` matérialisé ; mes permissions sont `run: aucun`. Je **ne m'auto-certifie donc pas** : pas de `software_verdict: OK` émis par moi. L'artefact ci-dessous est construit pour satisfaire la forme/traçabilité de cet oracle (8 sections, `source ∈ {worldscan,charter}`, éléments complets, `reason` motivée, zéro placeholder). La **substance narrative** n'est jugée par aucun oracle (par construction) ⇒ relève du jugement humain/GM.
+
+`claim_verdict: NO_CLAIM_ALLOWED`
+`evidence_verdict: MECHANICAL_VALIDATION_ONLY` (limité : applicable au reçu `check_story_bible` de l'exécuteur, pas encore en ma possession)
+`fog → HumanGate/GM :` (1) la richesse narrative de p3_alpha est délibérément DÉLÉGUÉE au producteur — la quasi-vacuité de cette bible est le comportement correct, pas un manque à combler ici ; (2) fidélité de chaque `ref` à son passage source : NON vérifiée par machine (l'oracle ne lit pas les sources), attestée à la main uniquement.
+
+**SKIPPED_VALIDATION :**
+- item: exécution de `forge.static_oracles.check_story_bible` · périmètre: `story_bible.json` matérialisé · statut: non fait · raison: `permissions run: aucun` — l'exécuteur le lance, l'agent ne dispose d'aucun reçu.
+- item: fidélité `ref` ↔ passage réel de la source · périmètre: les 7 éléments GROUNDED · statut: partiel (attestation manuelle) · raison: l'oracle de forme ne lit pas worldscan/charter ; limite assumée, rattrapage aval (GM/red-team).
+- item: complétude de l'ancrage sur le worldscan intégral · périmètre: section `context`/`coherence_rules` · statut: partiel · raison: worldscan injecté tronqué (`[tronqué]`, ~37-39% perdu, défaut de pipeline documenté FORGE_PIPELINE_TARGET_V1 §6.1) ; la queue manquante est de la même matière mécanique, sans incidence sur les conclusions d'ancrage.
+
+```json
+{
+  "game_id": "p3_alpha",
+  "inputs_recus": {"worldscan": true, "charter": true},
+  "sections": [
+    {
+      "id": "context",
+      "status": "GROUNDED",
+      "elements": [
+        {
+          "statement": "p3_alpha appartient au genre incremental/clicker web ; c'est la seule identite de « monde » fixee par les entrees, le theme et l'univers concrets etant explicitement delegues au producteur.",
+          "source": "charter",
+          "ref": "reference_jeu: « Cookie Clicker — grammaire de genre incremental/clicker UNIQUEMENT » ; hors_scope: « theme, univers, personnages, direction artistique... non contraints par ce charter »",
+          "inferred": false
+        },
+        {
+          "statement": "Selon la grammaire de genre observee, le « monde » se reduit a une economie d'accumulation abstraite autour d'une ressource primaire unique (R) : collecte manuelle, generateurs a couts croissants, deblocages par seuils, sans etat d'echec. Aucun decor, lieu ni cadre fictionnel n'est pose par les entrees.",
+          "source": "worldscan",
+          "ref": "ANALYSE ARCHITECTURALE: « ressource primaire unique -> collecte manuelle -> generateurs a couts exponentiels -> deblocages progressifs par seuils -> arbitrage achat vs epargne -> pas d'etat d'echec »",
+          "inferred": true
+        }
+      ]
+    },
+    {
+      "id": "chronology",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucune chronologie interne au monde n'est ancrable. Le worldscan ne decrit que des phases de PROGRESSION LUDIQUE de jeux comparables (loops minute_1/minute_10/hour_5/endgame) et le charter que des seuils de SYSTEME (S1-S5, structure_imposee_v2_FROZEN) : les deux relevent des systemes de jeu, hors perimetre narratif. Le genre incremental est a-chronologique (accumulation sans recit historique) ; aucune frise d'evenements du monde n'existe dans les entrees."
+    },
+    {
+      "id": "stakes",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucun enjeu NARRATIF n'est ancrable. Le seul objectif present est mecanique — atteindre 1 000 000 R cumules (victoire S5, charter objectif/criteres_demo) — et releve des systemes de jeu, hors perimetre Story Bible. Le charter declare de plus l'ABSENCE d'etat d'echec/game over (hors_scope) : sans defaite possible, aucune tension dramatique n'est posee par les entrees. La profondeur « philosophique » notee par le worldscan concerne Universal Paperclips, un jeu COMPARABLE, pas p3_alpha."
+    },
+    {
+      "id": "factions",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucune faction n'est mentionnee dans les entrees. Le genre incremental/clicker observe est solo (worldscan objectives[].mode = « solo » pour les trois comparables), sans camps ni organisations. Le charter delegue explicitement l'univers au producteur (hors_scope) et n'en fixe aucune. Poser une faction ici serait du remplissage fabrique."
+    },
+    {
+      "id": "characters",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucun personnage n'est ancrable. Le charter delegue explicitement « personnages » au producteur (hors_scope: « Choix libres delegues au producteur (theme, univers, personnages...) : non contraints par ce charter ») et n'en nomme aucun. Le worldscan ne decrit que le protagoniste-IA d'Universal Paperclips, personnage d'un jeu COMPARABLE et non de p3_alpha. Nommer un personnage reviendrait a fabriquer le monde que le producteur/GM doit concevoir."
+    },
+    {
+      "id": "relations",
+      "status": "NOT_GROUNDED",
+      "reason": "Une relation presuppose des personnages ou factions ancres ; or les sections « characters » et « factions » sont toutes deux NOT_GROUNDED faute d'entree. Aucune relation n'est donc ancrable dans le worldscan ou le charter."
+    },
+    {
+      "id": "events",
+      "status": "NOT_GROUNDED",
+      "reason": "Aucun evenement narratif n'est ancrable. Les seuls « evenements » presents sont mecaniques — clic produisant de la ressource, achat d'amelioration, franchissement du seuil S5 (charter criteres_demo) — et relevent des systemes de jeu, hors perimetre. Le worldscan ne decrit que des evenements de gameplay de jeux comparables (Golden Cookies, transitions de phase d'Universal Paperclips), non des evenements du monde de p3_alpha."
+    },
+    {
+      "id": "coherence_rules",
+      "status": "GROUNDED",
+      "elements": [
+        {
+          "statement": "Toute matiere narrative ajoutee en aval par le producteur doit rester dans la grammaire du genre incremental/clicker (boucle d'accumulation, generateurs a couts croissants, progression par seuils) et ne peut la contredire.",
+          "source": "charter",
+          "ref": "reference_jeu: « Cookie Clicker — grammaire de genre incremental/clicker UNIQUEMENT (aucun asset, nom ni contenu copie) »",
+          "inferred": true
+        },
+        {
+          "statement": "Aucun asset, nom, texte ou contenu de Cookie Clicker ne peut etre repris : seule la grammaire de genre est empruntee. Toute nomenclature narrative du monde doit etre originale.",
+          "source": "charter",
+          "ref": "hors_scope: « Toute copie d'assets, de noms, de textes ou de contenu de Cookie Clicker : seule la grammaire de genre est empruntee » ; actions_interdites: « Copier un asset, un nom ou du contenu de Cookie Clicker »",
+          "inferred": false
+        },
+        {
+          "statement": "La narration ne doit reposer sur aucun etat d'echec ni game over : le genre n'en comporte pas et seule une fin de VICTOIRE S5 est observable. Toute tension doit se resoudre sans defaite du joueur.",
+          "source": "charter",
+          "ref": "hors_scope: « Etat d'echec / game over : absent, fidele au genre incremental — seule une fin de victoire S5 observable est requise »",
+          "inferred": true
+        },
+        {
+          "statement": "L'autorite sur le theme, l'univers, les personnages et la direction artistique appartient au producteur/GM en aval : la Story Bible n'impose ici AUCUN lore et ne doit pas etre lue comme en fixant un.",
+          "source": "charter",
+          "ref": "hors_scope: « Choix libres delegues au producteur (theme, univers, personnages, direction artistique, HUD, micro-interactions) : non contraints par ce charter »",
+          "inferred": false
+        },
+        {
+          "statement": "Tout climax narratif doit s'aligner sur l'unique fin terminale du jeu : l'atteinte de 1 000 000 R cumules (S5), seule condition de victoire observable.",
+          "source": "charter",
+          "ref": "criteres_demo: « Un ecran ou un etat de victoire S5 observable apparait lorsque 1 000 000 R cumules sont atteints »",
+          "inferred": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}
+
+## PRÉ-MORTEM (erreurs des runs passés)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [manifest-2b3083e411db2072] echec de la tentative 5 a s9-build — cause: returncode=0 (volets rouges: measure_tick, reuse_ratio_wired, runtime_alive, search_consulted) -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-e0e8556c60c9833d] echec de la tentative 4 a s9-build — cause: returncode=0 (volets rouges: measure_tick, reuse_ratio_wired, runtime_alive, search_consulted) -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-00bd039d9ebc6e08] echec de la tentative 3 a s9-build — cause: returncode=0 (volets rouges: measure_tick, reuse_ratio_wired, runtime_alive, search_consulted) -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-557266ada5bf44fa] echec de la tentative 2 a s9-build — cause: returncode=0 (volets rouges: measure_tick, reuse_ratio_wired, runtime_alive, search_consulted) -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-dd36473dfa6cf249] echec de la tentative 1 a s9-build — cause: returncode=0 (volets rouges: measure_tick, reuse_ratio_wired, runtime_alive, search_consulted) -- GENERATION_DIFFERENTE_A_REEXAMINER
+
+FORGE_DISPATCH:s2.5-artbible:p3_alpha-20260901-run1:1

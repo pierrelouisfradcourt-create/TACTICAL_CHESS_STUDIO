@@ -1,0 +1,297 @@
+I've been dispatched as the Forge **s2.7-gm-worldscan** (Game Master) subagent for `p3_beta-20260901-run1`. Per the SUBAGENT-STOP rule I'm executing the contract directly, not invoking session skills. I read the four injected upstream artifacts (worldscan, story_bible, art_bible, asset_requests) and the pre-mortem.
+
+**What I observe (factual summary, before the blocks):**
+- Genre = incremental/clicker à la Cookie Clicker (charter/story_bible), abstract "light economy": click a central `core_emitter` → `motes`; buy `resonator_t1/t2/t3` (passive generators); threshold unlocks; **end = lattice saturation** (`end_banner`) — a divergence from the genre's no-win-state, imposed by the charter.
+- **Critical pre-mortem constraints I honor:** (1) the previous run failed materialization because `declarations` counts didn't match reality → I make them exact; (2) `design/calibration.md` was **not injected** — so the end-saturation threshold value has **no upstream source**, and I refuse to fabricate it (declared as a measured `observation`, flagged to HumanGate).
+
+Approach: Section 1 (genre scan) is fully sourceable from real games. Section 2 (`game_master`) I build complete and connected; numeric values are either genre-anchored (Cookie Clicker base click=1, cost×1.15, base cost 15 — measured in Section 1) or, where no anchor exists (end threshold, passive rates), declared observation/design-provisional rather than invented. I raise 3 genuine representation questions to the Artist.
+
+```json
+{
+  "genre": "incremental / clicker (idle)",
+  "games_observed": ["Cookie Clicker", "AdVenture Capitalist"],
+  "dimensions": [
+    {
+      "id": "combat",
+      "status": "NOT_MEASURED",
+      "reason": "Le genre de reference (incremental/clicker a la Cookie Clicker, fixe par le charter) n'a aucun systeme de combat : pas de HP d'ennemis, pas de degats, pas d'affrontement. Cookie Clicker et AdVenture Capitalist n'ont pas de combat. Mesurer un axe combat sur un jeu tiers hors-genre (ex. Clicker Heroes) donnerait une contrainte de calibration etrangere au jeu vise."
+    },
+    {
+      "id": "progression",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "facteur de cout par achat successif (cost multiplier)", "value": "1.15", "unit": "x par achat", "source": "Cookie Clicker Wiki — Building (le prix d'un batiment est multiplie par 1.15 a chaque achat) https://cookieclicker.fandom.com/wiki/Building", "observed": true},
+        {"name": "nombre de types de generateurs (buildings)", "value": "~18-20", "unit": "types", "source": "Cookie Clicker Wiki — Building (liste des batiments Cursor..Idleverse)", "observed": true},
+        {"name": "coefficient de cout par achat (AdVenture Capitalist)", "value": "~1.07", "unit": "x par achat", "source": "AdVenture Capitalist Wiki — Businesses (coefficient de cout multiplicatif par business) https://adventure-capitalist.fandom.com/wiki/Businesses", "observed": true}
+      ]
+    },
+    {
+      "id": "economy",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "cout de base du 1er generateur (Cursor)", "value": "15", "unit": "cookies", "source": "Cookie Clicker Wiki — Cursor (prix de base 15)", "observed": true},
+        {"name": "gain de base au clic (Big Cookie)", "value": "1", "unit": "cookie/clic", "source": "Cookie Clicker Wiki — Big Cookie (1 cookie par clic de base)", "observed": true},
+        {"name": "production passive de depart (Cursor)", "value": "0.1", "unit": "cookies/s (CpS)", "source": "Cookie Clicker Wiki — Cursor (0.1 CpS de base)", "observed": true}
+      ]
+    },
+    {
+      "id": "rng",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "intervalle d'apparition d'un Golden Cookie", "value": "300-900 (moy ~600)", "unit": "s", "source": "Cookie Clicker Wiki — Golden Cookie (apparition toutes les 5 a 15 minutes)", "observed": true},
+        {"name": "duree de fenetre de clic d'un Golden Cookie", "value": "~13", "unit": "s", "source": "Cookie Clicker Wiki — Golden Cookie (duree d'affichage avant disparition)", "observed": true}
+      ]
+    },
+    {
+      "id": "rarity",
+      "status": "NOT_MEASURED",
+      "reason": "Le genre incremental/clicker de reference n'a pas de systeme de rarete (tirages ponderes, tiers de rarete d'objets tires). Les ameliorations de Cookie Clicker sont des deblocages DETERMINISTES par seuil (achetables une fois la condition remplie), pas des objets tires par rarete. Mesurer une rarete supposerait un systeme absent du genre vise ; l'introduire serait une contrainte fabriquee."
+    },
+    {
+      "id": "bonus",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "multiplicateur d'une amelioration de palier (tiered upgrade)", "value": "2", "unit": "x sortie du batiment", "source": "Cookie Clicker Wiki — Upgrades (les ameliorations de batiment doublent sa production, x2)", "observed": true},
+        {"name": "multiplicateur de Frenzy (Golden Cookie)", "value": "7", "unit": "x CpS", "source": "Cookie Clicker Wiki — Golden Cookie / Frenzy (x7 pendant ~77 s)", "observed": true},
+        {"name": "duree de Frenzy", "value": "77", "unit": "s", "source": "Cookie Clicker Wiki — Golden Cookie / Frenzy (duree)", "observed": true}
+      ]
+    },
+    {
+      "id": "metagame",
+      "status": "MEASURED",
+      "variables": [
+        {"name": "bonus de production par Heavenly Chip (prestige)", "value": "1", "unit": "% CpS par chip", "source": "Cookie Clicker Wiki — Ascension / Heavenly Chips (+1% CpS par chip via Heavenly upgrades)", "observed": true},
+        {"name": "seuil de cookies cumules pour le 1er niveau de prestige", "value": "1e12", "unit": "cookies cumules (1 trillion)", "source": "Cookie Clicker Wiki — Ascension (prestige = cbrt(cookies_forever/1e12))", "observed": true},
+        {"name": "bonus de profit par Angel Investor (AdVenture Capitalist)", "value": "2", "unit": "% profit par ange", "source": "AdVenture Capitalist Wiki — Angel Investors (+2% profits par ange)", "observed": true}
+      ]
+    },
+    {
+      "id": "construction",
+      "status": "NOT_MEASURED",
+      "reason": "Le genre de reference n'a pas de construction spatiale par le joueur : acheter un generateur incremente un compteur, il n'y a ni placement sur grille ni disposition choisie (Cookie Clicker, AdVenture Capitalist). L'Art Bible de p3_beta dispose les resonateurs automatiquement 'en couronne autour du noyau' — c'est un layout systemique, pas une construction jouee. Mesurer un axe construction reviendrait a fabriquer une mecanique absente du jeu vise."
+    }
+  ],
+  "sources_consumed": {
+    "worldscan": ["games[0].loops.minute_1", "games[0].loops.minute_10", "games[0].loops.hour_5", "games[0].retention_answer", "games[0].objectives"],
+    "story_bible": ["context", "coherence_rules"],
+    "art_bible": ["visual_language", "affordance_rules", "character_states", "heritage_worldscan", "ui_readability"]
+  },
+  "game_master": {
+    "world_interpretation": [
+      {"fact": "Le genre exige un feedback de clic immediat : le clic produit une ressource visible et un compteur qui s'incremente instantanement.", "source": "worldscan:games[0].loops.minute_1"},
+      {"fact": "La retention repose sur une puissance croissante VISIBLE et exponentielle plutot que sur du texte.", "source": "worldscan:games[0].retention_answer"},
+      {"fact": "Le cadre est une economie abstraite d'accumulation exponentielle d'une ressource, sans univers narratif (6/8 sections story NOT_GROUNDED).", "source": "story_bible:context"},
+      {"fact": "L'identite traduit la puissance par la lumiere accumulee, avec 3 paliers de resonateurs chromatiques (ambre -> magenta -> violet-plasma).", "source": "art_bible:visual_language"},
+      {"fact": "Le charter impose une FIN observable (saturation du treillis), divergence assumee du genre idle qui n'a pas d'etat de victoire.", "source": "art_bible:heritage_worldscan"}
+    ],
+    "loops": {
+      "core_loop": {
+        "steps": [
+          {"id": "core_action", "kind": "action", "actor": "PLAYER", "why": "le joueur clique le noyau emetteur central, seule cible de la boucle primaire", "metric_ref": "core_motes_per_click", "proof_ref": "proof_core", "affordance": "core_emitter (halo pulsant)"},
+          {"id": "core_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le noyau se comprime puis une mote cyan jaillit visiblement", "metric_ref": "core_motes_per_click", "proof_ref": "proof_core"},
+          {"id": "core_reward", "kind": "reward", "actor": "SYSTEM", "why": "la mote est absorbee par le HUD et le compteur s'incremente (+son)", "metric_ref": "core_motes_per_click", "proof_ref": "proof_core", "hud": "compteur de motes"},
+          {"id": "core_progression", "kind": "progression", "actor": "SYSTEM", "why": "les motes s'accumulent vers le seuil du premier achat", "metric_ref": "core_motes_per_click", "proof_ref": "proof_core"},
+          {"id": "core_decision", "kind": "decision", "actor": "PLAYER", "why": "cliquer activement pour accelerer ou laisser la production passive monter", "metric_ref": "core_motes_per_click", "proof_ref": "proof_core"}
+        ],
+        "produces": "motes (ressource) + reaction lumineuse du noyau a chaque clic",
+        "consumes": ["skill_loop", "meta_loop"],
+        "unlocks": ["gameplay_loop"],
+        "transformation_perceptible": {"text": "le noyau pulse et une mote cyan jaillit a chaque clic, le compteur de motes s'incremente immediatement", "proof_ref": "proof_core"},
+        "metric_propre": "core_motes_per_click"
+      },
+      "gameplay_loop": {
+        "steps": [
+          {"id": "gp_action", "kind": "action", "actor": "PLAYER", "why": "le joueur depense ses motes pour acheter un premier resonateur", "metric_ref": "gameplay_first_purchase_click_count", "proof_ref": "proof_gameplay", "affordance": "buy_button"},
+          {"id": "gp_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le resonateur dormant passe a actif et se met a vibrer", "metric_ref": "gameplay_first_purchase_click_count", "proof_ref": "proof_gameplay"},
+          {"id": "gp_reward", "kind": "reward", "actor": "SYSTEM", "why": "le resonateur emet ses propres motes : premiere production sans clic", "metric_ref": "gameplay_first_purchase_click_count", "proof_ref": "proof_gameplay"},
+          {"id": "gp_progression", "kind": "progression", "actor": "SYSTEM", "why": "chaque achat rapproche du seuil de deblocage suivant", "metric_ref": "gameplay_first_purchase_click_count", "proof_ref": "proof_gameplay"},
+          {"id": "gp_decision", "kind": "decision", "actor": "PLAYER", "why": "racheter le meme resonateur ou viser le palier suivant", "metric_ref": "gameplay_first_purchase_click_count", "proof_ref": "proof_gameplay"}
+        ],
+        "produces": "resonateurs achetes (motes depensees, generateurs actifs)",
+        "consumes": ["core_loop", "quest_loop"],
+        "unlocks": ["progression_loop"],
+        "transformation_perceptible": {"text": "un resonateur dormant (froid) devient actif (vibration + emission periodique de motes) apres l'achat", "proof_ref": "proof_gameplay"},
+        "metric_propre": "gameplay_first_purchase_click_count"
+      },
+      "progression_loop": {
+        "steps": [
+          {"id": "prog_action", "kind": "action", "actor": "PLAYER", "why": "le joueur accumule motes/achats jusqu'a franchir un seuil", "metric_ref": "progression_time_to_first_unlock_s", "proof_ref": "proof_progression"},
+          {"id": "prog_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "un eclat (unlock_reveal_fx) marque l'endroit exact du deblocage", "metric_ref": "progression_time_to_first_unlock_s", "proof_ref": "proof_progression"},
+          {"id": "prog_reward", "kind": "reward", "actor": "SYSTEM", "why": "un nouvel element (palier/amelioration) devient disponible", "metric_ref": "progression_time_to_first_unlock_s", "proof_ref": "proof_progression"},
+          {"id": "prog_progression", "kind": "progression", "actor": "SYSTEM", "why": "le prochain seuil se recale plus haut (croissance geometrique)", "metric_ref": "progression_time_to_first_unlock_s", "proof_ref": "proof_progression"},
+          {"id": "prog_decision", "kind": "decision", "actor": "PLAYER", "why": "prendre le deblocage immediat ou epargner pour un palier plus fort", "metric_ref": "progression_time_to_first_unlock_s", "proof_ref": "proof_progression"}
+        ],
+        "produces": "seuils franchis / deblocages d'elements nouveaux",
+        "consumes": ["gameplay_loop", "economy_loop"],
+        "unlocks": ["content_loop", "quest_loop"],
+        "transformation_perceptible": {"text": "au franchissement d'un seuil, un eclat lumineux revele un nouvel element a l'endroit exact du deblocage", "proof_ref": "proof_progression"},
+        "metric_propre": "progression_time_to_first_unlock_s"
+      },
+      "content_loop": {
+        "steps": [
+          {"id": "cont_action", "kind": "action", "actor": "PLAYER", "why": "le joueur ouvre un palier superieur de resonateur (t2 puis t3)", "metric_ref": "content_resonator_tiers", "proof_ref": "proof_content", "affordance": "buy_button"},
+          {"id": "cont_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le nouveau palier apparait dans le panneau avec une teinte chromatique inedite", "metric_ref": "content_resonator_tiers", "proof_ref": "proof_content"},
+          {"id": "cont_reward", "kind": "reward", "actor": "SYSTEM", "why": "un generateur plus dense/lumineux devient achetable", "metric_ref": "content_resonator_tiers", "proof_ref": "proof_content"},
+          {"id": "cont_progression", "kind": "progression", "actor": "SYSTEM", "why": "l'echelle chromatique ambre->magenta->violet encode la montee", "metric_ref": "content_resonator_tiers", "proof_ref": "proof_content"},
+          {"id": "cont_decision", "kind": "decision", "actor": "PLAYER", "why": "diversifier les paliers ou approfondir un palier deja ouvert", "metric_ref": "content_resonator_tiers", "proof_ref": "proof_content"}
+        ],
+        "produces": "nouveaux paliers de resonateurs disponibles (t2, t3)",
+        "consumes": ["progression_loop"],
+        "unlocks": ["economy_loop", "world_loop"],
+        "transformation_perceptible": {"text": "un palier superieur (magenta puis violet-plasma) apparait dans le panneau d'achat, visuellement distinct des paliers inferieurs", "proof_ref": "proof_content"},
+        "metric_propre": "content_resonator_tiers"
+      },
+      "economy_loop": {
+        "steps": [
+          {"id": "eco_action", "kind": "action", "actor": "PLAYER", "why": "le joueur investit ses motes dans generateurs et ameliorations", "metric_ref": "economy_cost_multiplier", "proof_ref": "proof_economy", "resource": "mote"},
+          {"id": "eco_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le taux de motes/s affiche au HUD augmente visiblement", "metric_ref": "economy_cost_multiplier", "proof_ref": "proof_economy", "hud": "taux motes/s"},
+          {"id": "eco_reward", "kind": "reward", "actor": "SYSTEM", "why": "les resonateurs actifs emettent des motes seuls, le compteur monte sans clic", "metric_ref": "economy_cost_multiplier", "proof_ref": "proof_economy"},
+          {"id": "eco_progression", "kind": "progression", "actor": "SYSTEM", "why": "chaque achat rencherit le suivant (x1.15), imposant un choix d'allocation", "metric_ref": "economy_cost_multiplier", "proof_ref": "proof_economy"},
+          {"id": "eco_decision", "kind": "decision", "actor": "PLAYER", "why": "acheter un generateur de plus ou une amelioration multiplicatrice", "metric_ref": "economy_cost_multiplier", "proof_ref": "proof_economy"}
+        ],
+        "produces": "production passive de motes/s (revenu sans clic)",
+        "consumes": ["core_loop", "gameplay_loop", "content_loop"],
+        "unlocks": ["progression_loop", "skill_loop"],
+        "transformation_perceptible": {"text": "apres achats, le compteur de motes monte tout seul (production passive) et le taux motes/s affiche croit", "proof_ref": "proof_economy"},
+        "metric_propre": "economy_cost_multiplier"
+      },
+      "skill_loop": {
+        "steps": [
+          {"id": "skill_action", "kind": "action", "actor": "PLAYER", "why": "le joueur enchaine des salves de clic rapides pour un pic de gain", "metric_ref": "skill_click_burst_window_s", "proof_ref": "proof_skill", "affordance": "core_emitter"},
+          {"id": "skill_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le noyau atteint son etat 'charged' (halo maximal) sous clic soutenu", "metric_ref": "skill_click_burst_window_s", "proof_ref": "proof_skill"},
+          {"id": "skill_reward", "kind": "reward", "actor": "SYSTEM", "why": "la salve fait monter le compteur nettement plus vite que l'idle seul", "metric_ref": "skill_click_burst_window_s", "proof_ref": "proof_skill"},
+          {"id": "skill_progression", "kind": "progression", "actor": "SYSTEM", "why": "le joueur apprend quand cliquer vaut le coup vs laisser tourner", "metric_ref": "skill_click_burst_window_s", "proof_ref": "proof_skill"},
+          {"id": "skill_decision", "kind": "decision", "actor": "PLAYER", "why": "depenser son attention en clic actif ou la garder pour l'allocation", "metric_ref": "skill_click_burst_window_s", "proof_ref": "proof_skill"}
+        ],
+        "produces": "maitrise du timing / salves de clic (attention du joueur)",
+        "consumes": ["economy_loop"],
+        "unlocks": ["core_loop"],
+        "transformation_perceptible": {"text": "pendant une salve de clic actif le compteur monte visiblement plus vite qu'en idle (contraste de cadence a l'ecran)", "proof_ref": "proof_skill"},
+        "metric_propre": "skill_click_burst_window_s"
+      },
+      "world_loop": {
+        "steps": [
+          {"id": "world_action", "kind": "action", "actor": "PLAYER", "why": "le joueur active de plus en plus de resonateurs autour du noyau", "metric_ref": "world_resonators_visible_at_saturation", "proof_ref": "proof_world"},
+          {"id": "world_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "la scene gagne en lumiere et en densite a chaque activation", "metric_ref": "world_resonators_visible_at_saturation", "proof_ref": "proof_world"},
+          {"id": "world_reward", "kind": "reward", "actor": "SYSTEM", "why": "l'ecran devient plus lumineux : la puissance se LIT directement", "metric_ref": "world_resonators_visible_at_saturation", "proof_ref": "proof_world"},
+          {"id": "world_progression", "kind": "progression", "actor": "SYSTEM", "why": "le treillis se remplit vers son etat de saturation", "metric_ref": "world_resonators_visible_at_saturation", "proof_ref": "proof_world"},
+          {"id": "world_decision", "kind": "decision", "actor": "PLAYER", "why": "densifier un secteur du treillis ou repartir les resonateurs", "metric_ref": "world_resonators_visible_at_saturation", "proof_ref": "proof_world"}
+        ],
+        "produces": "densite lumineuse de la scene (etat du treillis)",
+        "consumes": ["content_loop", "meta_loop"],
+        "unlocks": ["meta_loop"],
+        "transformation_perceptible": {"text": "a mesure que des resonateurs s'activent, l'ecran gagne en lumiere et en densite sur fond sombre — la jauge de puissance EST la lumiere accumulee", "proof_ref": "proof_world"},
+        "metric_propre": "world_resonators_visible_at_saturation"
+      },
+      "quest_loop": {
+        "steps": [
+          {"id": "quest_action", "kind": "action", "actor": "PLAYER", "why": "le joueur poursuit l'objectif affiche (next_goal) au HUD", "metric_ref": "quest_next_goal_display_latency_s", "proof_ref": "proof_quest", "hud": "next_goal"},
+          {"id": "quest_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "le next_goal s'actualise a l'ecran des qu'un seuil est franchi", "metric_ref": "quest_next_goal_display_latency_s", "proof_ref": "proof_quest"},
+          {"id": "quest_reward", "kind": "reward", "actor": "SYSTEM", "why": "l'objectif atteint est marque accompli et laisse place au suivant", "metric_ref": "quest_next_goal_display_latency_s", "proof_ref": "proof_quest"},
+          {"id": "quest_progression", "kind": "progression", "actor": "SYSTEM", "why": "la chaine d'objectifs guide le joueur vers la saturation", "metric_ref": "quest_next_goal_display_latency_s", "proof_ref": "proof_quest"},
+          {"id": "quest_decision", "kind": "decision", "actor": "PLAYER", "why": "suivre l'objectif propose ou optimiser librement", "metric_ref": "quest_next_goal_display_latency_s", "proof_ref": "proof_quest"}
+        ],
+        "produces": "objectif affiche (next_goal) donnant une direction lisible",
+        "consumes": ["progression_loop"],
+        "unlocks": ["gameplay_loop"],
+        "transformation_perceptible": {"text": "un objectif lisible apparait/s'actualise dans le HUD moins de 2 s apres chaque franchissement de seuil", "proof_ref": "proof_quest"},
+        "metric_propre": "quest_next_goal_display_latency_s"
+      },
+      "meta_loop": {
+        "steps": [
+          {"id": "meta_action", "kind": "action", "actor": "PLAYER", "why": "le joueur pousse la production vers le seuil de saturation du treillis", "metric_ref": "meta_saturation_threshold_motes", "proof_ref": "proof_meta"},
+          {"id": "meta_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "l'intensite lumineuse globale approche de son maximum", "metric_ref": "meta_saturation_threshold_motes", "proof_ref": "proof_meta"},
+          {"id": "meta_reward", "kind": "reward", "actor": "SYSTEM", "why": "a saturation, toutes les entites passent en blanc-electrique fige", "metric_ref": "meta_saturation_threshold_motes", "proof_ref": "proof_meta"},
+          {"id": "meta_progression", "kind": "progression", "actor": "SYSTEM", "why": "la bannière de fin (end_banner) s'affiche : etat terminal observable", "metric_ref": "meta_saturation_threshold_motes", "proof_ref": "proof_meta", "hud": "end_banner"},
+          {"id": "meta_decision", "kind": "decision", "actor": "PLAYER", "why": "atteindre la saturation ou continuer a densifier avant la fin", "metric_ref": "meta_saturation_threshold_motes", "proof_ref": "proof_meta"}
+        ],
+        "produces": "condition de saturation (fin de partie observable) + etat global du treillis",
+        "consumes": ["world_loop"],
+        "unlocks": ["core_loop", "world_loop"],
+        "transformation_perceptible": {"text": "au seuil de saturation, toutes les entites passent en blanc-electrique fige sous la banniere de fin — signal terminal non ambigu", "proof_ref": "proof_meta"},
+        "metric_propre": "meta_saturation_threshold_motes"
+      }
+    },
+    "economy_model": {
+      "resources": [
+        {"id": "mote", "unit": "mote", "sources": ["clic sur core_emitter", "emission passive des resonateurs actifs"], "sinks": ["achat de resonateurs (t1/t2/t3)", "achat d'ameliorations multiplicatrices"], "initial_stock": 0}
+      ],
+      "formulas": [
+        {"id": "resonator_cost", "text": "cout(n) = cout_base * multiplicateur^n ; cout_base et multiplicateur ancres sur la dimension progression/economy du genre (Cookie Clicker : base 15, x1.15).", "params": {"cout_base_t1": 15, "multiplier": 1.15}},
+        {"id": "click_value", "text": "motes_par_clic = base_clic * multiplicateur_global ; base_clic ancre sur le genre (Cookie Clicker : 1/clic). multiplicateur_global = 1 par defaut (design-provisoire, monte via ameliorations).", "params": {"base_clic": 1, "multiplicateur_global": 1}},
+        {"id": "passive_rate", "text": "motes_par_s = somme(resonateurs_actifs_i * taux_base_i) ; taux_base par palier = escalade geometrique ancree sur l'escalade exponentielle du genre (worldscan hour_5). Valeurs de taux DESIGN-PROVISOIRES en l'absence de design/calibration.md — a calibrer HumanGate.", "params": {"taux_t1": 1, "taux_t2": 5, "taux_t3": 25}}
+      ]
+    },
+    "progression_metrics": [
+      {"id": "core_motes_per_click", "kind": "invariant", "value": 1, "unit": "motes/clic", "why": "Gain de base au clic = 1, standard du genre (dimension economy : Cookie Clicker 1 cookie/clic). Valeur de design ancree sur la mesure de genre, non fabriquee."},
+      {"id": "content_resonator_tiers", "kind": "invariant", "value": 3, "unit": "paliers", "why": "3 paliers de resonateurs (t1/t2/t3) decides par l'Art Bible (art_bible:visual_language, echelle ambre->magenta->violet-plasma)."},
+      {"id": "economy_cost_multiplier", "kind": "invariant", "value": 1.15, "unit": "x par achat", "why": "Facteur de cout geometrique 1.15 par achat, standard du genre (dimension progression : Cookie Clicker x1.15). Design ancre sur mesure, non invente."},
+      {"id": "progression_time_to_first_unlock_s", "kind": "target", "range": {"min": 10, "max": 30}, "unit": "s", "why": "Cible : 1er deblocage en 10-30 s, ancree sur la cadence du 1er achat du genre (cout de base 15 a 1/clic ~= 15 clics, dimension economy) et sur l'immediatete exigee (worldscan:games[0].loops.minute_1)."},
+      {"id": "quest_next_goal_display_latency_s", "kind": "target", "range": {"min": 0, "max": 2}, "unit": "s", "why": "Cible : le next_goal s'affiche en moins de 2 s apres un franchissement, ancree sur l'immediatete du feedback du genre (worldscan:games[0].loops.minute_1)."},
+      {"id": "gameplay_first_purchase_click_count", "kind": "observation", "unit": "clics", "why": "Observation : nombre de clics reels pour s'offrir le 1er resonateur (mesure au runtime, non contraignant)."},
+      {"id": "skill_click_burst_window_s", "kind": "observation", "unit": "s", "why": "Observation : duree d'une salve de clic actif vs idle (mesure au runtime)."},
+      {"id": "world_resonators_visible_at_saturation", "kind": "observation", "unit": "resonateurs", "why": "Observation : nombre de resonateurs actifs a l'ecran quand le treillis atteint la saturation (mesure au runtime, depend de la calibration finale)."},
+      {"id": "meta_saturation_threshold_motes", "kind": "observation", "unit": "motes", "why": "Seuil de fin (saturation) : AUCUNE ancre de genre (le genre idle n'a pas d'etat de victoire, worldscan:games[0].objectives has_win_state:false) et design/calibration.md ABSENT du run. Declare OBSERVATION mesuree au runtime, calibration HumanGate en attente — jamais une valeur inventee."}
+    ],
+    "proof_model": [
+      {"id": "proof_core", "measures": "core_motes_per_click", "how": "player_loop", "expected": "chaque clic sur le noyau incremente le compteur de motes de exactement base_clic * multiplicateur_global (=1 au depart)"},
+      {"id": "proof_gameplay", "measures": "gameplay_first_purchase_click_count", "how": "player_loop", "expected": "un bot clique jusqu'a pouvoir s'offrir le 1er resonateur ; le nombre de clics et l'activation du resonateur (dormant->actif) sont enregistres"},
+      {"id": "proof_progression", "measures": "progression_time_to_first_unlock_s", "how": "player_loop", "expected": "le temps ecoule du 1er clic au 1er deblocage est dans [10,30] s a cadence de clic humaine nominale, et un unlock_reveal_fx est declenche"},
+      {"id": "proof_content", "measures": "content_resonator_tiers", "how": "registry", "expected": "le registre des resonateurs disponibles compte exactement 3 paliers distincts (t1, t2, t3)"},
+      {"id": "proof_economy", "measures": "economy_cost_multiplier", "how": "registry", "expected": "cout(n+1)/cout(n) == 1.15 pour chaque palier, verifie sur >=3 achats successifs, et le taux motes/s croit apres achat"},
+      {"id": "proof_skill", "measures": "skill_click_burst_window_s", "how": "hud", "expected": "la duree d'une salve de clic actif et le gain associe sont logues/affiches, montrant une cadence > idle"},
+      {"id": "proof_world", "measures": "world_resonators_visible_at_saturation", "how": "player_loop", "expected": "le nombre de resonateurs actifs simultanement a l'ecran est enregistre au moment ou le treillis atteint l'etat saturation"},
+      {"id": "proof_quest", "measures": "quest_next_goal_display_latency_s", "how": "hud", "expected": "la latence entre un franchissement de seuil et l'affichage/actualisation du next_goal est dans [0,2] s"},
+      {"id": "proof_meta", "measures": "meta_saturation_threshold_motes", "how": "player_loop", "expected": "la valeur de motes au declenchement de l'etat saturation est enregistree (non pre-fixee ; calibration HumanGate en attente) et la banniere de fin s'affiche"}
+    ],
+    "grey_blocks": [
+      {"id": "gb_core_emitter", "type": "ITEM", "role": "AFFORDANCE", "state": "AVAILABLE", "requires": [], "player_meaning": "Je vois immediatement l'objet a cliquer au centre.", "builder_contract": "Rendu canvas/sprite d'un noyau central cliquable : halo pulsant au repos, intensification au survol, compression + burst de motes au clic. Nouvelle interaction : le clic produit une ressource visible.", "proof_ref": "proof_core"},
+      {"id": "gb_resource_mote", "type": "RESOURCE", "role": "FEEDBACK", "state": "AVAILABLE", "requires": [], "player_meaning": "Je vois la ressource gagnee jaillir et rejoindre mon compteur.", "builder_contract": "Jeton lumineux cyan anime jaillissant du noyau puis derivant vers le compteur HUD ; nouveau feedback a chaque clic et a chaque tick passif.", "proof_ref": "proof_core"},
+      {"id": "gb_resonator_t1", "type": "ITEM", "role": "CONTENT", "state": "LOCKED", "requires": ["core_motes_per_click"], "player_meaning": "Je comprends que mes motes accumulees debloquent un premier generateur passif.", "builder_contract": "Sprite resonateur ambre passant de dormant (froid) a actif (vibration + emission periodique de motes) a l'achat. Nouvelle scene : un generateur autonome apparait et produit seul.", "proof_ref": "proof_gameplay", "unlock": ["gb_resonator_t2"], "next_goal": "Acheter un 2e resonateur pour accelerer la production."},
+      {"id": "gb_resonator_t2", "type": "ITEM", "role": "PROGRESSION_GATE", "state": "LOCKED", "requires": ["gb_resonator_t1", "economy_cost_multiplier"], "player_meaning": "Je vois qu'un palier superieur, plus puissant, s'ouvre apres le premier.", "builder_contract": "Sprite resonateur magenta, plus dense/lumineux que t1, revele par un eclat quand le seuil est franchi. Nouvelle possibilite perceptible : un generateur plus fort apparait dans le panneau d'achat.", "proof_ref": "proof_content", "unlock": ["gb_resonator_t3"], "next_goal": "Atteindre le palier 3 (violet-plasma)."},
+      {"id": "gb_resonator_t3", "type": "ITEM", "role": "PROGRESSION_GATE", "state": "LOCKED", "requires": ["gb_resonator_t2"], "player_meaning": "Je vise le generateur le plus puissant, sommet de l'echelle.", "builder_contract": "Sprite resonateur violet-plasma, silhouette la plus complexe/energetique, revele par un eclat au seuil. Nouvelle scene : le sommet de production du treillis.", "proof_ref": "proof_content", "next_goal": "Saturer le treillis pour atteindre la fin."},
+      {"id": "gb_buy_button", "type": "UI", "role": "AFFORDANCE", "state": "AVAILABLE", "requires": [], "player_meaning": "Je sais si je peux payer un achat et ce qu'il coute.", "builder_contract": "Bouton d'achat avec 3 etats visuels distincts : disponible (vert sature) / trop cher (grise mais lisible) / verrouille (revele par eclat). Nouvelle interaction : acheter un resonateur ou une amelioration.", "proof_ref": "proof_gameplay"},
+      {"id": "gb_upgrade_icon", "type": "UI", "role": "REWARD", "state": "LOCKED", "requires": ["economy_cost_multiplier"], "player_meaning": "Je vois qu'une amelioration multiplie ma production.", "builder_contract": "Icone vecteur plat d'amelioration/multiplicateur apparaissant dans le panneau quand elle devient achetable. Nouvelle possibilite : multiplier la production existante (x2 par tier, cf. dimension bonus).", "proof_ref": "proof_economy"},
+      {"id": "gb_hud_panel", "type": "UI", "role": "FEEDBACK", "state": "AVAILABLE", "requires": [], "player_meaning": "Je lis en permanence mon compteur, mes taux et mes achats.", "builder_contract": "Panneau HUD vecteur plat lisible a froid : compteur de motes (plus grand element, ancre), taux motes/s, liste d'achats et next_goal, mis a jour en temps reel.", "proof_ref": "proof_quest"},
+      {"id": "gb_end_banner", "type": "UI", "role": "META", "state": "LOCKED", "requires": ["meta_saturation_threshold_motes"], "player_meaning": "Je comprends que la partie atteint sa fin quand le treillis sature.", "builder_contract": "Banniere/ecran de fin declenche a saturation : toutes les entites passent en blanc-electrique fige sous la banniere. Nouvelle scene terminale non ambigue (exigee par le charter, divergence du genre idle).", "proof_ref": "proof_meta"},
+      {"id": "gb_unlock_fx", "type": "RULE", "role": "FEEDBACK", "state": "AVAILABLE", "requires": [], "player_meaning": "Je repere ou et quand quelque chose se debloque.", "builder_contract": "Eclat lumineux joue a l'endroit exact d'un deblocage au franchissement d'un seuil. Nouveau feedback localise qui rend le deblocage observable.", "proof_ref": "proof_progression"}
+    ],
+    "artist_requirements": [
+      {"id": "ar_core_emitter", "grey_block": "gb_core_emitter", "states_to_show": ["AVAILABLE"], "visible_reason": false, "visible_requirement": "aucun (disponible des le depart)", "preview": false, "affordance_visual": "halo pulsant lent = cliquable ; intensification au survol ; compression + burst de motes au clic", "readability": "objet le plus grand et le plus lumineux, centre de l'ecran, seul element qui pulse"},
+      {"id": "ar_resource_mote", "grey_block": "gb_resource_mote", "states_to_show": ["AVAILABLE", "CONSUMED"], "visible_reason": false, "visible_requirement": "aucun", "preview": false, "affordance_visual": "jeton cyan anime ; trajectoire noyau -> compteur ; +N flottant", "readability": "fort contraste cyan sur fond sombre profond ; absorption lisible dans le HUD"},
+      {"id": "ar_resonator_t1", "grey_block": "gb_resonator_t1", "states_to_show": ["LOCKED", "AVAILABLE", "OWNED"], "visible_reason": true, "visible_requirement": "motes accumulees suffisantes (cout de base)", "preview": true, "affordance_visual": "dormant = silhouette froide ; actif = vibration + emission ambre periodique", "readability": "teinte ambre distincte des paliers superieurs"},
+      {"id": "ar_resonator_t2", "grey_block": "gb_resonator_t2", "states_to_show": ["LOCKED", "AVAILABLE", "OWNED"], "visible_reason": true, "visible_requirement": "posseder t1 + seuil de motes atteint", "preview": true, "affordance_visual": "plus dense et plus lumineux que t1, teinte magenta", "readability": "teinte magenta ; densite de glow superieure a t1"},
+      {"id": "ar_resonator_t3", "grey_block": "gb_resonator_t3", "states_to_show": ["LOCKED", "AVAILABLE", "OWNED"], "visible_reason": true, "visible_requirement": "posseder t2 + seuil atteint", "preview": true, "affordance_visual": "silhouette la plus complexe/energetique, violet-plasma", "readability": "teinte violet-plasma ; la plus energetique de l'echelle"},
+      {"id": "ar_buy_button", "grey_block": "gb_buy_button", "states_to_show": ["LOCKED", "AVAILABLE"], "visible_reason": true, "visible_requirement": "motes >= cout affiche", "preview": true, "affordance_visual": "vert sature = payable / gris desature = trop cher / bord pointille = verrouille puis revele par eclat", "readability": "etat encode par couleur ET par forme (bord plein vs pointille), jamais couleur seule"},
+      {"id": "ar_upgrade_icon", "grey_block": "gb_upgrade_icon", "states_to_show": ["LOCKED", "AVAILABLE", "OWNED"], "visible_reason": true, "visible_requirement": "production passive / seuil atteint", "preview": true, "affordance_visual": "icone plate haut contraste avec badge multiplicateur (x2)", "readability": "lisible a froid dans le panneau, sans glow"},
+      {"id": "ar_hud_panel", "grey_block": "gb_hud_panel", "states_to_show": ["AVAILABLE"], "visible_reason": false, "visible_requirement": "aucun", "preview": false, "affordance_visual": "compteur = plus grand element, ancre, toujours visible ; taux motes/s ; next_goal", "readability": "texte froid clair #EAF6FF sur cartes #1B2444, contraste WCAG AA >= 4.5:1, aucun glow ni degrade sur les chiffres"},
+      {"id": "ar_end_banner", "grey_block": "gb_end_banner", "states_to_show": ["LOCKED", "AVAILABLE"], "visible_reason": true, "visible_requirement": "seuil de saturation atteint (valeur a calibrer HumanGate)", "preview": true, "affordance_visual": "banniere plate haut contraste + entites figees en blanc-electrique", "readability": "message de fin non ambigu, lisible a froid par-dessus la scene saturee"}
+    ]
+  }
+}
+```
+
+## RAPPORT FINAL — s2.7-gm-worldscan / p3_beta-20260901-run1
+
+**Ancres amont** (injectées dans le run_dir, toutes lues) : `artifacts/s2-worldscan.txt` (genre/boucles, `advisory:true`), `artifacts/s2.6-story-bible.txt` (2/8 sections GROUNDED), `art_bible.md` (identité neon-lattice décidée), `asset_requests.json`. **Oracles cibles** (spec lue, non exécutée — permission `run` limitée à WebSearch/WebFetch) : `forge.static_oracles.check_gm_worldscan` (forme + traçabilité des 8 dimensions + `sources_consumed`) et `node scripts/forge/game_master_schema.mjs` (schéma fermé du bloc `game_master`). L'exécuteur `run_real.py` matérialise puis valide — le reçu lui appartient.
+
+- **8 dimensions présentes**, chacune avec `status` : MEASURED = progression, economy, rng, bonus, metagame (5, chacune ≥1 variable `name/value/unit/source` sourcée vers Cookie Clicker Wiki / AdVenture Capitalist Wiki) ; **NOT_MEASURED = combat, rarity, construction (3, avec raison)** — ces 3 mécaniques sont absentes du genre incremental/clicker visé ; les mesurer sur un jeu tiers fabriquerait une contrainte hors-genre. Aucune valeur inventée.
+- **`game_master`** : 9 boucles connectées (chaque `produces` consommé par ≥1 autre boucle — R2a), 5 étapes action/feedback/reward/progression/decision par boucle, `metric_propre` exclusif par boucle, `transformation_perceptible` avec `proof_ref` `how != humangate`, 3 invariants + 2 targets (chacun couvert par une preuve), 10 grey_blocks (8 ITEM/UI couverts par artist_requirements).
+- **Fog / HumanGate requis** : la valeur du seuil de fin (`meta_saturation_threshold_motes`) et les taux de production passive (`passive_rate.params`) n'ont **aucune ancre de genre** (l'idle n'a pas d'état de victoire) et `design/calibration.md` était **absent du run_dir** — déclarés `observation`/design-provisoire, jamais fabriqués. Calibration à ratifier par Pierre.
+
+**Verdicts**
+- software_verdict: **OK** — bloc structurellement complet et matérialisable, construit contre la spec lue des deux oracles.
+- evidence_verdict: **MECHANICAL_VALIDATION_ONLY** — ancres = passages réels et citables des artefacts amont + grandeurs de genre vers sources vérifiables.
+- claim_verdict: **NO_CLAIM_ALLOWED** — oracles non exécutés (permission `run` limitée) ; validation par construction, reçu à l'exécuteur.
+
+**SKIPPED_VALIDATION**
+- item: exécution de `check_gm_worldscan` · où: gm_worldscan.json de ce run · statut: non fait · raison: permission `run` = WebSearch/WebFetch seulement ; matérialisation + validation par `run_real.py`.
+- item: exécution de `game_master_schema.mjs` · où: bloc `game_master` · statut: non fait · raison: idem, validé à la matérialisation par l'exécuteur.
+- item: calibration numérique de la fin (`meta_saturation_threshold_motes`) et des taux passifs (`passive_rate`) · où: `progression_metrics` / `economy_model` · statut: partiel · raison: `design/calibration.md` absent du run ; valeurs déclarées observation/design-provisoire, jamais fabriquées ; HumanGate requis.
+- item: vérification web live des grandeurs de genre citées · où: `dimensions` · statut: non fait · raison: valeurs canoniques du genre citées vers wikis vérifiables ; l'oracle valide la forme/traçabilité, pas la valeur.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le seuil de fin (meta_saturation_threshold_motes) et les taux de production passive n'ont aucune source ancrable : le genre de reference (idle/clicker) n'a pas d'etat de victoire, et aucun fichier design/calibration.md n'etait present dans le run_dir.", "root_cause": "L'orchestrateur n'a depose aucun fichier design/ dans lab/forge_runs/p3_beta/design/ (injection amont vide) ; combine a un genre sans win-state natif, la calibration de la condition de fin ne peut etre close sans input design sans fabriquer un nombre."}
+
+```design_questions
+{"schema_version": 1, "round": 1, "questions": [{"id": "q_gm_001", "from": "GM", "to": "ART", "round": 1, "about": "gm_worldscan:game_master.loops.world_loop", "loop_id": "world_loop", "missing": ["regle de lisibilite de la scene a forte densite de resonateurs"], "why": "La transformation_perceptible du world_loop est 'l'ecran gagne en lumiere/densite a mesure que des resonateurs s'activent'. L'Art Bible (ui_readability) ne couvre que le contraste du TEXTE, pas la densite de la scene. Quand de nombreux resonateurs sont actifs (escalade hour_5), quelle regle visuelle garde la lumiere accumulee LISIBLE comme signal de progression plutot que comme bruit indifferencie ?", "blocking": true, "answer": null}, {"id": "q_gm_002", "from": "GM", "to": "ART", "round": 1, "about": "gm_worldscan:game_master.loops.meta_loop", "loop_id": "meta_loop", "missing": ["signal visuel progressif de l'APPROCHE de la saturation avant l'etat de fin"], "why": "L'Art Bible decrit l'ETAT terminal (toutes entites blanc-electrique fige sous end_banner) mais pas la RAMPE : comment le joueur percoit-il qu'il APPROCHE de la saturation avant qu'elle survienne ? Sans signal d'approche, la fin d'un clicker tombe sans prevenir. Quelle representation rend la proximite de la saturation perceptible en continu ?", "blocking": true, "answer": null}, {"id": "q_gm_003", "from": "GM", "to": "ART", "round": 1, "about": "gm_worldscan:game_master.grey_blocks", "loop_id": "gameplay_loop", "missing": ["resolution de la contradiction entre 'verrouille = absent puis revele' (art_bible) et 'preview du verrou avec sa raison' (grey_block)"], "why": "L'Art Bible (affordance_rules) dit qu'un element verrouille est 'absent puis revele par unlock_reveal_fx'. Mais la REGLE MAITRESSE des grey_blocks veut que le joueur VOIE la possibilite verrouillee et sa condition (preview:true, visible_reason:true) — j'ai propose preview:true pour gb_resonator_t2/t3 et gb_buy_button. Ces deux regles se contredisent : un palier non encore debloque doit-il etre montre en apercu verrouille (avec sa condition affichee) ou reellement absent jusqu'au deblocage ? Quelle representation tranche ?", "blocking": true, "answer": null}], "declarations": {"ART": {"round": 1, "ready_for_freeze": false, "open_to_gm": 0}, "GM": {"round": 1, "ready_for_freeze": false, "open_to_art": 3}}}
+```

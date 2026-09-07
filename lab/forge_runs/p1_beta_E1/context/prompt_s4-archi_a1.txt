@@ -1,0 +1,2047 @@
+## RÔLE
+Architecte (étape 4). Point de vue imposé : architecte logiciel senior qui découpe par responsabilité, pas par confort.
+
+## EXIGENCES COGNITIVES
+Raisonnement architecture profond, effort élevé. Doit tenir un graphe de dépendances complet en tête et détecter les cycles avant qu'ils existent.
+
+## MÉMOIRE DE TRAVAIL
+Consomme la featuremap (étape 3) ; sur repo existant, connaît le blueprint en place (diff d'archi, pas réinvention). Conventions : CLAUDE.md + rules/.
+
+## OBJECTIF
+Produire blueprint.yaml gelé : modules + responsabilités · deps autorisées/interdites (ex : ui→api→engine ok, ui→engine interdit) · ownership · invariants d'archi.
+
+## DANS LE PÉRIMÈTRE (in_scope)
+Découpage en modules, graphe de dépendances autorisées/interdites, ownership par module, invariants d'architecture. Écrit uniquement blueprint.yaml.
+
+## HORS PÉRIMÈTRE (out_of_scope)
+Aucune écriture de code d'implémentation. Ne crée aucun fichier source. Ne décide pas la WireMap (étape 5). Ne touche pas aux lanes protégées (tests/, src/).
+
+## PERMISSIONS
+read: repo entier. write: blueprint.yaml uniquement. create: blueprint.yaml. run: aucun. delete: aucun.
+
+## GARDE-FOU
+Jamais « au feeling » : la structure physique est une CONSÉQUENCE du blueprint, justifiée par la featuremap. Tue les god-objects avant qu'ils existent. Toute dépendance interdite doit être explicite.
+
+## CRITÈRES DE RÉUSSITE
+blueprint valide ; chaque feature de la featuremap couverte par ≥1 module ; chaque module porte une responsabilité et une preuve attendue ; aucune dépendance cyclique ; aucune dépendance déclarée qui soit elle-même interdite ; deps_interdites listées explicitement et non vides.
+
+## ORACLES / TESTS
+DEUX ORACLES, DEUX MOMENTS — ne pas les confondre. AVANT build (ici) : `node scripts/forge/check_blueprint_contract.mjs <run_dir>/blueprint.json --featuremap <run_dir>/featuremap.json` répond « cette architecture couvre-t-elle le besoin ? » (couverture, responsabilités, cycles, contradictions, preuves). APRÈS build (étape s10b) : `forge.static_oracles.check_architecture` répond « le code respecte-t-il l'architecture ? ». Appelé en amont sur un src vide, il ne trouve aucun import et serait vacuement vert : ce n'est pas ton oracle. Jamais de LLM-as-judge.
+
+## CONTRAT DE SORTIE
+Un bloc ```json``` TERMINAL, matérialisé en blueprint.json par l'exécuteur (tu n'écris JAMAIS ce fichier toi-même) : {"modules": ["<id>", ...], "deps_interdites": [["source", "cible"], ...], "ownership": {...}, "responsabilites": [{"module", "responsabilite", "couvre": ["<id de feature>"], "dependances": ["<module>"], "preuve_attendue": {"kind", "statement"}}]}. `modules` reste une liste de CHAÎNES (forme consommée telle quelle par check_architecture après build — ne jamais la transformer en objets). RÈGLES DURES : `couvre` cite l'`id` EXACT d'une feature de featuremap.json — une feature que nul module ne couvre signifie que l'architecture ne répond pas au besoin. `dependances` est OBLIGATOIRE et peut être vide (module feuille), jamais absent ; les consommateurs en sont DÉRIVÉS mécaniquement, ne les saisis pas. Ne déclare jamais une dépendance que tu inscris toi-même dans deps_interdites.
+
+## RAPPORT FINAL
+software/evidence/claim séparés ; cite le reçu de check_blueprint_contract ; liste les features non couvertes et les couvertures fantômes ; claim_verdict: NO_CLAIM_ALLOWED. RETURN LINEAGE (doctrine FORGE_CAUSAL_LINEAGE_V2 §3, ratifiee Pierre 2026-08-06) — aucun worker ne meurt seul : le retour porte la CAUSALITE, pas seulement le resultat. Termine TOUJOURS par ce bloc, succes comme echec : `why_task_existed:` {`problem:` le probleme mesure qui a active cette tache · `oracle:` l'oracle ou la mesure qui l'a detecte, ou "aucun" si l'activation vient d'une decision humaine · `root_cause:` la cause racine identifiee, ou "non etablie" · `action_reason:` pourquoi CETTE action y repond} · `result:` l'etat reellement obtenu · `proof:` la commande executee et sa sortie · `learning:` ce que tu as appris et qui resservira, ou "aucun" · `next_reason:` pourquoi le niveau superieur doit agir OU pourquoi la chaine causale est FERMEE et se termine ici. Regles : ces champs sont HERITES ou CONSTATES, jamais inventes — si tu n'as pas recu le `why`, ecris "non transmis" plutot que de le deviner (une cause fabriquee est la meme faute qu'un `validated_by` fabrique). En ECHEC, `result` porte ce que tu as essaye et ce qui a echoue. `next_reason` ne vaut escalade que si une cause non resolue persiste, une preuve manque ou contredit l'etat attendu, ou une correction reste possible — sinon la lignee se termine proprement, sans action supplementaire.
+
+## À LIRE OBLIGATOIREMENT AVANT TOUTE ACTION
+- scripts/forge/standard/repo_map.yaml
+- scripts/forge/contracts/SCHEMA.md
+- l'artefact featuremap produit par l'étape 3 (Décompo fonctionnelle)
+- le blueprint.yaml existant si le repo est déjà structuré
+- lab/forge_runs/<projet>/knowledge_packet.json — patterns externes cités, ADVISORY jamais prescriptif
+- lab/forge_runs/<projet>/charter.yaml — INTENT LINEAGE : intention humaine, invariants, hors_scope, et le bloc `provenance` (source Pierre, fog_humangate). HERITE, jamais reecrit : l'etape verifie que sa decision la respecte, ou remonte le conflit.
+- scripts/forge/standard/repo_map.yaml — TABLE FIGEE des racines et des gabarits d'adresse. Realite verifiable, pas une intention : toute adresse decidee ici y est confrontee (defaut mesure 2026-08-05 : racine 04_CONTENT inventee, 232 019 tokens de reprise).
+
+## RÈGLE DE RESTITUTION — Chaque affirmation du final_report doit citer l'oracle/l'ancre non-LLM qui l'appuie. Appuyée par un oracle => software_verdict (OK/FAIL/BLOCKED) + evidence_verdict: MECHANICAL_VALIDATION_ONLY. Sans oracle disponible => claim_verdict: NO_CLAIM_ALLOWED et remonte un besoin HumanGate (fog), jamais un claim auto-certifié. Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement. En dernier lieu, une section finale SKIPPED_VALIDATION, structurée et EXPLICITE : pour chaque validation que tu n'as PAS faite, liste l'item de validation (quoi), le périmètre concerné (où), le statut (ex. non fait / partiel / hors délai) et la raison (pourquoi). Rien sauté => écris `SKIPPED_VALIDATION: aucun` — une décision assumée, jamais un silence. Le silence sur cette section est traité comme un oubli, pas comme 'rien à signaler'. TOUTE DERNIÈRE LIGNE DU RAPPORT, OBLIGATOIRE — lignée Return : une ligne unique `RETURN_REASON: {"status": "NOT_DISCOVERED"}` si tu n'as découvert AUCUN problème pendant ce travail. Si (et SEULEMENT si) tu as réellement découvert un problème — défaut rencontré, cause d'un échec, écart mesuré — écris à la place `RETURN_REASON: {"status": "DISCOVERED", "problem": "<le problème, factuel>", "root_cause": "<la cause racine si connue, sinon omets ce champ>"}`. JSON valide sur UNE seule ligne, aucun texte après. N'invente JAMAIS un problème pour remplir ce champ : un NOT_DISCOVERED honnête vaut mieux qu'un DISCOVERED de complaisance.
+
+## MARQUEUR DE DISPATCH (ne pas modifier)
+FORGE_DISPATCH:s4-archi:p1_beta_E1-20260831-run1:1
+
+## TÂCHE CONCRÈTE (p1_beta_E1-20260831-run1 / s4-archi)
+ENTREES AMONT SUPPLEMENTAIRES (experience E1).
+Les documents ci-dessous ont ete produits AVANT toi dans ce meme run par l'Art Director (s2.5) et le Game Master (s2.7). Ils te sont transmis en direct.
+
+=== ART BIBLE (s2.5-artbible) ===
+---
+styles: [luminous-vector, ember-glow, deep-space-flat, hud-neon]
+mood_keywords: [luminous, ascendant, cosmic, calm-to-radiant, weightless, incandescent, meditative, minimal]
+---
+
+# Art Bible — p1_beta (v0.2 — round 2, réconciliation avec le GM)
+
+> Run : `p1_beta-20260830-run1` · étape : `s2.5-artbible-r2` · rôle : Art Director (bras LIBRE L).
+> Sources héritées réellement présentes : `charter.yaml`, `worldscan.json` (3 comparables),
+> `story_bible.json` (7 sections NOT_GROUNDED, 1 GROUNDED : `coherence_rules`).
+> La Story Bible n'impose AUCUN monde diégétique (`story_bible:context` = NOT_GROUNDED) —
+> l'identité visuelle ci-dessous est donc DÉCIDÉE de zéro, sous les seules contraintes
+> `story_bible:coherence_rules` (pas de copie Cookie Clicker, grammaire de genre, fin finie).
+> `claim_verdict: NO_CLAIM_ALLOWED` — ce document décrit une intention visuelle et sa
+> traduction structurée ; il ne certifie aucune qualité esthétique.
+>
+> **RÉCONCILIATION ROUND 2 (2026-08-30).** Le modèle de monde du Game Master
+> (`gm_worldscan.json`, matérialisé APRÈS ma bible round 1) tranche `q_art_001` au FOND :
+> l'état terminal est un **SEUIL sur la ressource unique accumulée** (`light >= 5000`,
+> `gm_worldscan:game_master.progression_metrics.progression_threshold_light` +
+> `game_master.grey_blocks.gb_terminal_rule`), **PAS un jalon-entité distinct** — donc
+> `vr_progress_constellation` reste **une seule entité** (elle EST la lecture visuelle de
+> `light/seuil`), aucun dédoublement (ma supposition round 1 est confirmée). Ce même modèle
+> révèle DEUX entités visibles que ma bible round 1 ne couvrait pas et que le GM me requiert :
+> l'**autel d'ascension** (`ar_ascension_altar` / `gb_ascension_altar` / `meta_loop`) et un
+> **marqueur de jalon** distinct (`quest_loop` : « un marqueur de jalon distinct s'affiche au
+> franchissement »). Les deux sont AJOUTÉS en round 2 (§3 + `asset_requests.json`, une requête
+> distincte par entité). `q_art_001`/`q_art_002` restent OUVERTES vers le GM (canal append-only) :
+> leur `answer` formel est du ressort du GM, matérialisé à `s2.7-gm-worldscan-r2`.
+
+## 1. IDENTITÉ VISUELLE
+
+**Thème décidé : « Le Foyer » — une forge de lumière cosmique.** Le joueur attise un
+foyer de lumière unique posé au centre d'un champ sombre et vide. Chaque action d'attisage
+projette des éclats de lumière qui alimentent un compteur ; des émetteurs achetables
+prolongent et automatisent cette lumière ; à mesure que la lumière s'accumule, le champ
+noir s'illumine et une constellation se dessine, jusqu'à un embrasement final observable
+qui clôt la partie. Après l'embrasement, un **autel d'ascension** permet de repartir plus
+fort (boucle méta, `gm_worldscan:meta_loop`). Aucun avatar, aucun personnage, aucun monde
+nommé : les seuls « acteurs » sont des systèmes abstraits de lumière (cohérent avec
+`story_bible:characters` = NOT_GROUNDED, aucun personnage à ancrer).
+
+**Palette (décidée) :**
+- **Fond** — indigo quasi-noir `#0B0E1A` → violet profond `#1A1636`. Vide, calme, non
+  distrayant ; se réchauffe globalement à mesure de la progression (embrasement).
+- **Foyer / ressource (chaud, émissif)** — braise `#FF7A18` → or incandescent `#FFD24A` →
+  blanc-chaud `#FFF3D0` au cœur. C'est le seul foyer chaud de l'écran : l'œil y va d'abord.
+- **Émetteurs / progression (froid, luminescent)** — cyan `#3FE0D0`, violet-néon `#A46BFF`.
+  Signalent l'automatisation et l'avancée, en contraste franc avec le chaud du foyer.
+- **Autel d'ascension (froid-doré, méta)** — froid luminescent `#3FE0D0` liseré or `#FFD24A` :
+  une zone à part, ni le chaud du foyer ni le froid pur des émetteurs, pour marquer un
+  registre méta distinct (après l'embrasement).
+- **UI / HUD (neutre lisible)** — texte `#EAF0FF` sur panneaux `#12162B` à ~85 % d'opacité,
+  liseré néon `#3FE0D0`. Accent d'action (boutons actifs) en or `#FFD24A`.
+- **États verrouillés** — désaturés vers gris-bleu `#3A4060`, opacité réduite, aucun glow.
+
+**Mood :** lumineux, ascendant, apesanteur, méditatif au départ puis incandescent à la fin
+(`calm-to-radiant`). Registre minimal et vectoriel : formes nettes + halo émissif, jamais
+de texture chargée. Composition CENTRÉE (le foyer au milieu, l'UI en périphérie) — le genre
+clicker n'a pas de point de vue navigable, la lecture est frontale.
+
+**Références de style (mots-clés, advisory) :** art vectoriel émissif « glow-on-dark »,
+lisibilité de dataviz nocturne, minimalisme lumineux. AUCUN emprunt à Cookie Clicker
+(ni biscuit, ni pâtisserie, ni curseur/grand-mère, ni valeur numérique) — contrainte dure
+`story_bible:coherence_rules[0]`.
+
+## 2. RATIONALE
+
+**Pourquoi ce style sert la boucle observable exigée par le charter.** Le charter
+(`criteres_demo`) impose quatre choses VISIBLES : (a) une action cœur qui fait monter un
+compteur à l'écran, (b) au moins un achat/déblocage qui change observablement l'écran,
+(c) un état terminal signalé à l'écran, (d) le déterminisme. Le thème « forge de lumière »
+mappe chacune sur un signal visuel non ambigu :
+
+- **(a) Action cœur → chaleur.** Attiser le foyer émet une gerbe d'éclats chauds et fait
+  bondir le compteur de lumière. La chaleur = la ressource : un seul foyer chaud à l'écran,
+  impossible à confondre. Hérité de la convention de genre « clic → le nombre monte, le
+  prochain achat se déverrouille » (`worldscan:games[0].loops.minute_1`).
+- **(b) Achat → froid qui s'allume.** Chaque émetteur acheté APPARAÎT physiquement autour
+  du foyer (nouvelle silhouette froide luminescente) ET augmente visiblement le flux de
+  lumière. Le passage « le revenu passif devient visible » du genre
+  (`worldscan:games[0].loops.minute_10`) devient ici une addition d'objets à l'écran, pas
+  seulement un chiffre qui accélère.
+- **(c) Fin → embrasement.** La progression remplit une constellation ; à saturation, le
+  champ entier s'embrase et un panneau de fin s'affiche. Le genre observé GRAVITE vers
+  l'absence de fin (`worldscan:games[0].objectives[0].has_win_state` = false,
+  `worldscan:games[1].objectives[0].has_win_state` = false) — la fin est une déviation
+  DÉLIBÉRÉE exigée par le charter (`story_bible:coherence_rules[2..3]`), donc elle doit être
+  le moment visuel le PLUS fort (contraste maximal chaud→blanc). Le précédent d'un genre
+  qui PEUT avoir une fin existe (`worldscan:games[2].objectives[0].has_win_state` = true,
+  Kittens Game / space age), ce qui rend l'exigence cohérente avec le genre, pas étrangère.
+  Le GM confirme que la fin se déclenche par un SEUIL sur la ressource unique (light ≥ 5000)
+  et non par un jalon-entité séparé (`gm_worldscan:game_master.grey_blocks.gb_terminal_rule`).
+- **(d) Déterminisme → lisibilité stable.** Palette et silhouettes fixes, aucun aléa
+  visuel non seedé : deux rejeux d'une même seed donnent la même image aux mêmes ticks.
+
+**Réconciliation round 2 (entités ajoutées).** Le GM route AUSSI, au-delà du minimum
+observable ci-dessus, une boucle méta (ascension) et des jalons intermédiaires. Deux
+signaux visuels supplémentaires en découlent, chacun non ambigu :
+- **Ascension → autel froid-doré.** Après l'embrasement, un autel distinct apparaît ; son
+  action rehausse durablement la lumière par attisage (`gm_worldscan:meta_loop`,
+  `ar_ascension_altar`). Registre chromatique à part (froid-doré) pour signaler « ceci est
+  méta, pas la boucle courante ».
+- **Jalon franchi → marqueur distinct.** Un marqueur de progression discret s'affiche au
+  franchissement d'un jalon intermédiaire (`gm_worldscan:quest_loop`), lisible d'un coup
+  d'œil, sans se confondre avec la jauge continue de la constellation.
+
+**La prose ci-dessus n'est PAS une preuve de couverture.** La couverture réelle est portée
+UNIQUEMENT par la section 3 (`visual_requirements` structurés) et par `asset_requests.json` —
+seule cette donnée structurée est vérifiée mécaniquement par `check_artbible.mjs`. Ce
+RATIONALE explique les choix ; il ne les certifie pas.
+
+## 3. BESOINS VISUELS
+
+Chaque entité visuelle distincte de la boucle clicker est listée ci-dessous. `required:true`
+dès qu'une entité est citée par une source héritée OU centrale à l'action cœur / au déblocage /
+à l'état terminal (conditions observables du charter) OU requise par le GM (`artist_requirements`).
+`required:false` UNIQUEMENT pour du décor réellement cosmétique. Chaque `required:true` a au
+moins une `asset_request` de même `entity_role` dans `asset_requests.json` (couverture close).
+
+```json
+{
+  "visual_requirements": [
+    {
+      "id": "vr_core_hearth",
+      "entity_role": "other",
+      "required": true,
+      "description": "Le FOYER central attisable — objet lumineux chaud, unique, au centre de l'ecran. C'est l'affordance de l'action coeur : le cliquer emet de la lumiere et fait monter le compteur. Doit lire 'chaud, vivant, cliquable' au premier coup d'oeil (source heritee : worldscan:games[0].loops.minute_1, action coeur du genre ; gm_worldscan:game_master.artist_requirements.ar_hearth)."
+    },
+    {
+      "id": "vr_emitter_unit",
+      "entity_role": "item",
+      "required": true,
+      "description": "Un EMETTEUR achetable — silhouette froide luminescente (cyan/violet) qui apparait autour du foyer une fois acquise et automatise/prolonge la production de lumiere. C'est le deblocage/achat qui change observablement l'ecran (charter:criteres_demo ; worldscan:games[0].loops.minute_10 'le revenu passif devient visible' ; gm_worldscan:ar_emitter)."
+    },
+    {
+      "id": "vr_spark_burst",
+      "entity_role": "effect",
+      "required": true,
+      "description": "La gerbe d'ECLATS emise a chaque attisage du foyer — feedback visuel immediat prouvant a l'ecran que le compteur augmente (charter:criteres_demo 'compteur qui AUGMENTE visiblement' ; gm_worldscan:core_loop.core_feedback). Particules chaudes courtes, deterministes (pas d'alea non seede)."
+    },
+    {
+      "id": "vr_light_counter",
+      "entity_role": "ui",
+      "required": true,
+      "description": "Le COMPTEUR de lumiere (ressource) affiche en HUD — le nombre central que l'action coeur fait monter et qui sert de score/progression. Lisibilite maximale sur fond sombre (charter:criteres_demo ; gm_worldscan:ar_light_counter)."
+    },
+    {
+      "id": "vr_buy_button",
+      "entity_role": "ui",
+      "required": true,
+      "description": "Le BOUTON d'achat/amelioration d'un emetteur — affordance UI cliquable, avec etat actif (or) et etat non-abordable (desature). Central a la progression : sans lui, aucun deblocage n'est declenchable (gm_worldscan:ar_buy_button, economy_loop.economy_action)."
+    },
+    {
+      "id": "vr_progress_constellation",
+      "entity_role": "ui",
+      "required": true,
+      "description": "L'INDICATEUR DE PROGRESSION vers la fin — une constellation/jauge qui se remplit a mesure que la lumiere s'accumule, rendant l'avancee vers l'etat terminal observable a l'ecran (charter:condition_de_victoire, fin ATTEIGNABLE et OBSERVABLE). ROUND 2 : reste UNE seule entite — le GM confirme que la fin est un seuil sur la ressource unique (light>=5000), pas un jalon-entite distinct (gm_worldscan:gb_terminal_rule, ar_constellation) ; aucun dedoublement."
+    },
+    {
+      "id": "vr_end_screen",
+      "entity_role": "ui",
+      "required": true,
+      "description": "L'ECRAN/MARQUEUR DE FIN — panneau d'embrasement affiche quand l'etat terminal est atteint dans le budget de ticks. Signale sans ambiguite 'la partie est finie' (charter:criteres_demo 'atteint et SIGNALE A L'ECRAN un etat terminal' ; gm_worldscan:gb_end_screen, ar_end_screen)."
+    },
+    {
+      "id": "vr_locked_glyph",
+      "entity_role": "icon",
+      "required": true,
+      "description": "Le GLYPHE d'etat verrouille — petite icone desaturee sans glow indiquant qu'un emetteur/amelioration n'est pas encore accessible. Porte la regle d'affordance verrouille vs disponible, necessaire pour que la progression (deverrouillages successifs) soit lisible (gm_worldscan:gb_locked_glyph, ar_locked_glyph)."
+    },
+    {
+      "id": "vr_ascension_altar",
+      "entity_role": "environment",
+      "required": true,
+      "description": "L'AUTEL D'ASCENSION — zone/lieu distinct (froid-dore) qui APPARAIT apres le premier embrasement ; son action d'ascension convertit la progression en bonus permanent et rehausse durablement la lumiere par attisage. Entite HERITEE du modele de monde du GM, materialise round 2 (gm_worldscan:game_master.artist_requirements.ar_ascension_altar ; grey_blocks.gb_ascension_altar ; loops.meta_loop). required:true : c'est une nouvelle zone visible ET interactive (nouvelle possibilite), pas du decor. Etats a montrer : LOCKED (avant l'embrasement) / AVAILABLE (autel actif apres embrasement) / CONSUMED (glow d'ascension pris, foyer rallume plus fort). Le 'glow d'ascension' (gm_worldscan:meta_loop.meta_reward, ressource ascension_glow) est le visuel d'etat de cet autel (etat actif/CONSUMED), non une entite d'asset separee."
+    },
+    {
+      "id": "vr_quest_milestone",
+      "entity_role": "ui",
+      "required": true,
+      "description": "Le MARQUEUR DE JALON — repere de progression discret et distinct qui s'affiche au franchissement d'un jalon intermediaire sur la route vers l'embrasement (gm_worldscan:loops.quest_loop 'un marqueur de jalon distinct s'affiche au franchissement' ; transformation_perceptible). DISTINCT de la constellation (jauge continue light/seuil) : le jalon est un repere discret ponctuel. Materialise round 2 ; required:true (feedback de progression observable, doctrine 'en cas de doute, required:true')."
+    },
+    {
+      "id": "vr_field_background",
+      "entity_role": "environment",
+      "required": false,
+      "description": "Le CHAMP de fond cosmique (indigo->violet) qui se rechauffe globalement avec la progression. Cosmetique : la boucle observable fonctionne sur un aplat de couleur uni ; ce fond enrichit l'ambiance sans etre requis pour aucune condition de victoire/defaite/score. Marque required:false a ce titre (decor veritablement optionnel)."
+    }
+  ]
+}
+```
+
+## heritage_worldscan
+
+Ce que l'identité visuelle HÉRITE du World Scan (`worldscan.json`), avec adresses réelles —
+matière citée, jamais redite ni jugée :
+
+- **Action cœur = clic qui fait monter un nombre et déverrouille l'achat suivant.**
+  `worldscan:games[0].loops.minute_1` (« Manual clicking accumulates first cookies […]
+  number increases, next purchase unlocks »). → Décision visuelle : un unique foyer chaud
+  cliquable + un compteur qui bondit à chaque clic (cf. `vr_core_hearth`, `vr_light_counter`).
+- **L'automatisation doit devenir VISIBLE, pas seulement plus rapide.**
+  `worldscan:games[0].loops.minute_10` (« Passive income becomes visible »). → Chaque
+  émetteur acheté est un OBJET ajouté à l'écran, pas un simple coefficient
+  (cf. `vr_emitter_unit`).
+- **Le feedback direct de l'action est un pilier du genre.**
+  `worldscan:games[1].loops.minute_1` (« Feedback: monster health decreases, gold
+  increases »). → La gerbe d'éclats à chaque attisage (cf. `vr_spark_burst`).
+- **La progression exponentielle porte la « sensation de puissance ».**
+  `worldscan:games[0].retention_answer` (« Exponential progression creates eternal sense of
+  power »). → Rendu par un embrasement croissant du champ (le fond se réchauffe globalement).
+- **Le genre gravite vers l'ABSENCE de fin — donc la fin est une déviation à afficher fort.**
+  `worldscan:games[0].objectives[0].has_win_state` = false ;
+  `worldscan:games[1].objectives[0].has_win_state` = false. → L'état terminal reçoit le
+  contraste visuel maximal (cf. `vr_end_screen`, `vr_progress_constellation`).
+- **Un précédent de genre AVEC fin observable existe et rend l'exigence cohérente.**
+  `worldscan:games[2].objectives[0].has_win_state` = true, `victory_condition` = « Reach
+  space age ». → Justifie qu'une fin atteignable n'est pas étrangère au genre.
+
+## heritage_story_bible
+
+Ce que l'identité visuelle HÉRITE de la Story Bible (`story_bible.json`) — quasi vide par
+construction (genre sans monde inhérent), donc l'héritage est surtout une série de
+CONTRAINTES et de latitudes, avec adresses réelles :
+
+- **Aucun monde diégétique imposé → latitude totale de décision visuelle.**
+  `story_bible:context` = NOT_GROUNDED (« Ni le charter ni le worldscan ne fixent de monde
+  diegetique »). → L'Art Director invente librement le thème « forge de lumière ».
+- **Aucun personnage imposé → pas d'avatar, acteurs abstraits.**
+  `story_bible:characters` = NOT_GROUNDED. → Les « acteurs » sont des systèmes de lumière
+  (foyer, émetteurs, autel), jamais un personnage (cf. `vr_core_hearth`, `vr_emitter_unit`).
+- **Interdit dur : aucune reprise de Cookie Clicker (asset, nom, contenu, valeur).**
+  `story_bible:coherence_rules[0]` (source charter `actions_interdites`). → Thème non
+  alimentaire, non pâtissier ; aucune référence de curseur/grand-mère ; palette et
+  silhouettes originales.
+- **Rester dans la grammaire du genre incremental/clicker.**
+  `story_bible:coherence_rules[1]` (source charter `reference_jeu`). → Composition frontale
+  centrée, action cœur unique, achats périphériques, compteur proéminent.
+- **Le monde visuel doit accueillir une fin observable et atteignable ; idle infini proscrit.**
+  `story_bible:coherence_rules[2]` (source charter `condition_de_victoire`). → La
+  constellation/jauge et l'embrasement final matérialisent une clôture
+  (cf. `vr_progress_constellation`, `vr_end_screen`).
+- **La fin est une déviation délibérée par rapport à la norme du genre, à MAINTENIR.**
+  `story_bible:coherence_rules[3]` (source worldscan). → L'état terminal est le climax
+  visuel, pas un détail.
+
+## visual_language
+
+Style réel DÉCIDÉ (aucune adresse héritée exigée ici) :
+
+- **Langage :** art vectoriel plat + halo émissif (glow additif sur fond sombre). Formes
+  géométriques simples et nettes ; le volume est suggéré par le glow, jamais par des textures.
+- **Hiérarchie chromatique :** un seul foyer CHAUD (le point d'action) ; les émetteurs et la
+  progression en FROID ; l'autel d'ascension en FROID-DORÉ (registre méta à part) ; l'UI en
+  NEUTRE. Le chaud est réservé à la ressource et à l'action — jamais utilisé pour du décor,
+  pour que l'œil sache toujours où cliquer.
+- **Épaisseur de trait :** contours fins et réguliers (2 px de référence à l'échelle 1x),
+  coins arrondis doux. Pas de dégradés sales : dégradés radiaux propres du cœur vers le halo.
+- **Échelle & composition :** foyer centré occupant ~25–30 % de la hauteur ; UI ancrée aux
+  bords (compteur en haut, achats sur un côté). Marges généreuses, densité faible : la
+  lumière respire. L'autel d'ascension n'apparaît qu'après l'embrasement (écran/zone méta).
+- **Animation :** pulsations lentes du foyer au repos ; flash bref (< 200 ms) à l'attisage ;
+  montée de glow continue du fond avec la progression ; apparition marquée (fondu court) du
+  marqueur de jalon et de l'autel. Toute animation dérive de l'état de jeu (déterministe),
+  jamais d'un timer aléatoire non seedé.
+
+## affordance_rules
+
+Règles d'affordance DÉCIDÉES — comment le joueur SAIT ce qui est interactif :
+
+- **Chaud + halo pulsant = cliquable maintenant** (le foyer). C'est la SEULE source chaude
+  animée ; elle attire l'action.
+- **Froid + pleine opacité + liseré net = achetable et abordable** (émetteur/bouton actif,
+  accent or sur le bouton).
+- **Froid-doré + liseré or = zone méta interactive** (l'autel d'ascension, uniquement après
+  l'embrasement) — un registre distinct pour ne pas le confondre avec la boucle courante.
+- **Désaturé + opacité réduite + aucun glow = verrouillé / non abordable** (cf. `vr_locked_glyph`).
+  Un élément verrouillé ne doit JAMAIS emprunter le chaud ni un halo, sous peine de fausse
+  affordance.
+- **Transition d'état visible :** au moment où un achat devient abordable, l'élément passe
+  de désaturé à froid-plein (changement observable exigé par le charter). Au moment de
+  l'achat, l'émetteur APPARAÎT autour du foyer.
+- **Un seul niveau de focus à la fois :** pendant l'écran de fin, l'interaction de jeu est
+  visuellement neutralisée (assombrissement du HUD) pour que le climax soit sans ambiguïté ;
+  l'autel d'ascension prend alors le focus.
+
+## character_states
+
+Le jeu n'a pas de personnage (avatar) — `story_bible:characters` = NOT_GROUNDED. Les « états »
+concernent donc les objets-systèmes, DÉCIDÉS ici :
+
+- **Foyer :** `dormant` (glow faible, pulsation lente) → `attisé` (flash bref à chaque clic)
+  → `saturé` (glow soutenu quand la production est haute) → `embrasé` (état terminal, blanc-chaud).
+- **Émetteur :** `verrouillé` (absent/silhouette fantôme désaturée) → `disponible`
+  (silhouette froide pleine, prête à l'achat) → `actif` (émet un filet de lumière visible
+  vers le foyer/le compteur).
+- **Bouton d'achat :** `indisponible` (désaturé) → `abordable` (accent or) → `pressé`
+  (flash) → `épuisé/max` (verrouillé neutre si plus rien à acheter).
+- **Autel d'ascension (round 2) :** `verrouillé` (absent avant l'embrasement) → `disponible`
+  (froid-doré actif après l'embrasement, action d'ascension proposée) → `consommé` (glow
+  d'ascension pris, l'autel se referme et le foyer se rallume plus fort).
+- Aucune animation d'état n'introduit d'aléa non déterministe : chaque état est fonction
+  pure de l'état de jeu à un tick donné.
+
+## ui_readability
+
+Règles de lisibilité UI DÉCIDÉES (fond sombre, sonde mesurée + évaluateur humain aveugle) :
+
+- **Contraste :** texte `#EAF0FF` sur panneaux `#12162B` ≥ ratio AA (≥ 4.5:1) pour les
+  valeurs de compteur et les libellés d'achat.
+- **Compteur = plus gros élément textuel** de l'écran ; toujours visible, jamais recouvert
+  par un émetteur ou un effet (les effets se dessinent SOUS la couche HUD).
+- **Chiffres :** police à chasse tabulaire (les colonnes de chiffres ne « sautent » pas quand
+  la valeur monte) — critique pour lire une progression rapide et pour un rejeu déterministe
+  comparable image à image.
+- **Zone d'action protégée :** le foyer et sa gerbe d'éclats ne recouvrent jamais le
+  compteur ni les boutons ; marge de sécurité autour du HUD.
+- **Marqueur de jalon (round 2) :** discret, non modal, n'occulte jamais le compteur ni le
+  foyer ; apparition brève puis fondu — un repère, pas une interruption.
+- **État terminal non ambigu :** l'écran de fin porte un libellé texte explicite (ex.
+  « Embrasement complet ») en plus du signal chromatique — un marqueur lisible par un bot
+  comme par un humain.
+
+## world_constraints
+
+Contraintes connues DÉCIDÉES (limites que l'aval doit respecter) :
+
+- **Runtime :** web HTML + JS canvas 2D uniquement (charter:plateforme_cible). Tous les
+  assets sont 2D `html` ; aucun modèle 3D, aucun octet réseau à l'exécution.
+- **Rendu déterministe :** aucun effet visuel ne peut dépendre d'un aléa non seedé (le rejeu
+  d'une seed doit reproduire l'image aux mêmes ticks — charter:criteres_demo).
+- **Budget de ticks fixe :** la progression visuelle (remplissage constellation, réchauffement
+  du fond) doit être bornée et atteindre l'embrasement dans le budget — pas d'idle infini
+  visuel (charter:condition_de_victoire).
+- **Isolement L/D :** aucune valeur numérique, nom ou asset repris de Cookie Clicker ni du
+  bras dirigé (charter:actions_interdites). Les silhouettes et la palette ci-dessus sont
+  originales.
+- **Aucune ingestion d'asset :** cette étape ne télécharge ni ne génère aucun octet ; toute
+  nouvelle ingestion catalogue reste une gate Pierre (knowledge_base/README.md).
+
+## asset_rules
+
+Règles d'assets DÉCIDÉES (comment l'aval doit produire/résoudre) :
+
+- **Un asset = une entité de la boucle.** Aucune requête générique « fourre-tout » : chaque
+  `visual_requirement` `required:true` porte sa propre `asset_request` (cf. `asset_requests.json`).
+  ROUND 2 : deux requêtes distinctes ajoutées — `req_ascension_altar` (environment) et
+  `req_quest_milestone` (ui) — plutôt qu'un rattachement silencieux à une requête existante,
+  même si la couverture par rôle (`environment`/`ui`) serait mécaniquement satisfaite sans elles.
+- **Le glow d'ascension n'est PAS un asset séparé.** Il est le visuel d'état de l'autel
+  (états `disponible`/`consommé` de `vr_ascension_altar`), comme le GM l'a modélisé
+  (`ar_ascension_altar.states_to_show`) — décision assumée, pas un oubli.
+- **Style déclaré = style demandé.** Chaque `asset_request.style` appartient au frontmatter
+  `styles` de cette bible (`luminous-vector`, `ember-glow`, `deep-space-flat`, `hud-neon`) —
+  cohérence bible↔requêtes vérifiée par `check_artbible.mjs`.
+- **Formats :** sprites/icônes/vfx 2D `html`, licences ouvertes
+  (`CC0-1.0`/`MIT`/`CC-BY-4.0`/`CC-BY-3.0`), pas de plafond de taille imposé (`max_size_kb:null`).
+- **Résolution advisory attendue = BLOCKED, et c'est légitime.** Le catalogue actuel ne
+  contient aucun asset de style « lumineux cosmique incremental » (il a `candy-pop` et
+  `flat-top-down`, genres `shooter`/`tactical`) : les requêtes résoudront BLOCKED contre le
+  catalogue. C'est un `resolution_stats.blocked` LÉGITIME (catalogue incomplet), à sourcer
+  en HumanGate — jamais un `coverage.missing`, et jamais une raison d'assouplir une requête.
+- **Aucun jugement esthétique mécanique.** `style_tag_match` compare des tags, pas des pixels
+  (docs/forge/ASSET_CONTRACT_V0.md) : l'adéquation visuelle réelle reste un fog HumanGate.
+
+
+=== GM WORLD SCAN (s2.7-gm-worldscan) ===
+{
+ "genre": "incremental / clicker (idle)",
+ "games_observed": [
+  "Cookie Clicker",
+  "Clicker Heroes",
+  "Kittens Game",
+  "AdVenture Capitalist"
+ ],
+ "dimensions": [
+  {
+   "id": "combat",
+   "status": "NOT_MEASURED",
+   "reason": "Deux des trois exemplaires canoniques du genre (Cookie Clicker, Kittens Game) n'ont AUCUN systeme de combat. Le 'combat' de Clicker Heroes est mecaniquement une porte de production (DPS automatique contre PV de monstre a seuil croissant), sans defense, positionnement ni contre-jeu : il n'existe pas de bande de combat calibrable, independante de la progression et mesurable de facon stable a travers le genre. Aucune valeur ne serait honnete ici, et la cible p1_beta (forge de lumiere) n'a pas de combat."
+  },
+  {
+   "id": "progression",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "Croissance du cout par batiment identique (Cookie Clicker)",
+     "value": "1.15",
+     "unit": "multiplicateur par achat successif",
+     "source": "https://cookieclicker.fandom.com/wiki/Building",
+     "observed": true
+    },
+    {
+     "name": "Nombre de paliers de generateurs distincts (Cookie Clicker)",
+     "value": "~20",
+     "unit": "types de batiment",
+     "source": "https://en.wikipedia.org/wiki/Cookie_Clicker",
+     "observed": true
+    },
+    {
+     "name": "Croissance du cout par palier (AdVenture Capitalist)",
+     "value": "~1.07 a 1.15",
+     "unit": "multiplicateur par niveau (variable selon le business)",
+     "source": "https://adventure-capitalist.fandom.com/wiki/Businesses",
+     "observed": false
+    }
+   ]
+  },
+  {
+   "id": "economy",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "Monnaies primaires (Clicker Heroes)",
+     "value": "2 (gold ephemere + Hero Souls permanents)",
+     "unit": "types de monnaie",
+     "source": "https://clickerheroes.fandom.com/wiki/Hero_Souls",
+     "observed": true
+    },
+    {
+     "name": "Taille de la toile de ressources (Kittens Game)",
+     "value": ">=50",
+     "unit": "ressources distinctes source/puits",
+     "source": "https://www.incrementaldb.com/game/kittens-game",
+     "observed": false
+    },
+    {
+     "name": "Forme de la courbe de cout du genre",
+     "value": "exponentielle (geometrique)",
+     "unit": "famille de courbe",
+     "source": "https://en.wikipedia.org/wiki/Incremental_game",
+     "observed": true
+    }
+   ]
+  },
+  {
+   "id": "rng",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "Fenetre d'apparition des Golden Cookies (Cookie Clicker, base)",
+     "value": "300 a 900",
+     "unit": "secondes entre deux apparitions",
+     "source": "https://cookieclicker.fandom.com/wiki/Golden_Cookie",
+     "observed": true
+    },
+    {
+     "name": "Multiplicateur du buff Frenzy (Cookie Clicker)",
+     "value": "7",
+     "unit": "x CpS pendant 77 s",
+     "source": "https://cookieclicker.fandom.com/wiki/Golden_Cookie",
+     "observed": true
+    }
+   ]
+  },
+  {
+   "id": "rarity",
+   "status": "NOT_MEASURED",
+   "reason": "Le genre incremental/clicker canonique n'a pas de systeme de raretes a paliers (pas de pools common/rare/epic avec distribution de drop). Les analogues les plus proches — types de Sugar Lumps de Cookie Clicker, invocation d'Anciens de Clicker Heroes — sont soit deterministes soit d'acquisition quasi-uniforme, sans distribution de rarete a mesurer. Declarer une plage serait fabriquer une grandeur inexistante ; la cible p1_beta n'a pas non plus de rarete."
+  },
+  {
+   "id": "bonus",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "Multiplicateur Click Frenzy (Cookie Clicker)",
+     "value": "777",
+     "unit": "x valeur du clic pendant 13 s",
+     "source": "https://cookieclicker.fandom.com/wiki/Golden_Cookie",
+     "observed": true
+    },
+    {
+     "name": "Multiplicateur d'amelioration de batiment (Cookie Clicker)",
+     "value": "2",
+     "unit": "x production du batiment par amelioration a palier",
+     "source": "https://cookieclicker.fandom.com/wiki/Upgrades",
+     "observed": true
+    },
+    {
+     "name": "Increment de bonus d'Ancien (Clicker Heroes)",
+     "value": "+1 (typique)",
+     "unit": "% par niveau d'Ancien",
+     "source": "https://clickerheroes.fandom.com/wiki/Ancients",
+     "observed": false
+    }
+   ]
+  },
+  {
+   "id": "metagame",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "Bonus de prestige (Cookie Clicker, Heavenly Chips)",
+     "value": "+1",
+     "unit": "% CpS permanent par niveau de prestige",
+     "source": "https://cookieclicker.fandom.com/wiki/Ascension",
+     "observed": true
+    },
+    {
+     "name": "Exposant d'echelle du prestige (Cookie Clicker)",
+     "value": "3",
+     "unit": "total cumule proportionnel a prestige^3 (gain en racine cubique)",
+     "source": "https://cookieclicker.fandom.com/wiki/Ascension",
+     "observed": true
+    },
+    {
+     "name": "Bonus de DPS par Hero Soul (Clicker Heroes)",
+     "value": "+10",
+     "unit": "% DPS par Hero Soul",
+     "source": "https://clickerheroes.fandom.com/wiki/Hero_Souls",
+     "observed": true
+    },
+    {
+     "name": "Bonus de profit par Angel Investor (AdVenture Capitalist)",
+     "value": "+2",
+     "unit": "% profit par ange (base)",
+     "source": "https://adventure-capitalist.fandom.com/wiki/Angel_Investors",
+     "observed": true
+    }
+   ]
+  },
+  {
+   "id": "construction",
+   "status": "MEASURED",
+   "variables": [
+    {
+     "name": "Taille de la grille du Jardin (Cookie Clicker)",
+     "value": "36",
+     "unit": "parcelles (6x6 au maximum)",
+     "source": "https://cookieclicker.fandom.com/wiki/Garden",
+     "observed": true
+    },
+    {
+     "name": "Taille de l'arbre technologique (Kittens Game)",
+     "value": ">=50",
+     "unit": "technologies",
+     "source": "https://www.incrementaldb.com/game/kittens-game",
+     "observed": false
+    },
+    {
+     "name": "Categories de batiments (Kittens Game)",
+     "value": ">=50",
+     "unit": "batiments distincts",
+     "source": "https://store.steampowered.com/app/1097410/Kittens_Game/",
+     "observed": false
+    }
+   ]
+  }
+ ],
+ "sources_consumed": {
+  "worldscan": [
+   "worldscan:games[0].loops.minute_1",
+   "worldscan:games[0].loops.minute_10",
+   "worldscan:games[1].loops.minute_1",
+   "worldscan:games[2].objectives[0].victory_condition"
+  ],
+  "story_bible": [
+   "story_bible:coherence_rules",
+   "story_bible:context",
+   "story_bible:characters"
+  ],
+  "art_bible": [
+   "art_bible:visual_language",
+   "art_bible:affordance_rules",
+   "art_bible:character_states",
+   "art_bible:world_constraints"
+  ]
+ },
+ "game_master": {
+  "world_interpretation": [
+   {
+    "fact": "L'action-coeur du genre incremente un compteur unique et deverrouille l'achat suivant : ici, attiser un foyer produit de la lumiere et fait monter un compteur.",
+    "source": "worldscan:games[0].loops.minute_1"
+   },
+   {
+    "fact": "L'automatisation doit devenir un OBJET visible a l'ecran, pas seulement un coefficient : chaque emetteur achete apparait autour du foyer.",
+    "source": "worldscan:games[0].loops.minute_10"
+   },
+   {
+    "fact": "Le feedback direct de l'action est un pilier du genre : chaque attisage emet une gerbe d'eclats chauds immediate.",
+    "source": "worldscan:games[1].loops.minute_1"
+   },
+   {
+    "fact": "Aucun monde diegetique ni personnage n'est impose ; les acteurs sont des systemes de lumiere abstraits, et la fin doit rester finie et cloturable (deviation deliberee du genre perpetuel).",
+    "source": "story_bible:coherence_rules"
+   },
+   {
+    "fact": "L'identite visuelle decidee est une forge de lumiere cosmique : un seul foyer chaud central, des emetteurs froids, un embrasement final comme climax.",
+    "source": "art_bible:visual_language"
+   }
+  ],
+  "loops": {
+   "core_loop": {
+    "steps": [
+     {
+      "id": "core_action",
+      "kind": "action",
+      "actor": "PLAYER",
+      "why": "le joueur attise le foyer central d'un clic",
+      "metric_ref": "core_light_per_stoke",
+      "proof_ref": "proof_core",
+      "affordance": "hearth"
+     },
+     {
+      "id": "core_feedback",
+      "kind": "feedback",
+      "actor": "SYSTEM",
+      "why": "le foyer flashe et une gerbe d'eclats chauds jaillit a chaque attisage",
+      "metric_ref": "core_light_per_stoke",
+      "proof_ref": "proof_core"
+     },
+     {
+      "id": "core_reward",
+      "kind": "reward",
+      "actor": "SYSTEM",
+      "why": "le compteur de lumiere bondit d'exactement 1 unite par attisage",
+      "metric_ref": "core_light_per_stoke",
+      "proof_ref": "proof_core",
+      "resource": "light"
+     },
+     {
+      "id": "core_progression",
+      "kind": "progression",
+      "actor": "SYSTEM",
+      "why": "la lumiere s'accumule sur un axe UNIQUE : la meme ressource light nourrit d'abord le seuil du premier achat, puis plus loin le seuil terminal (light>=5000) — aucune monnaie de jalon ni entite-jalon distincte, la fin est un SEUIL sur cette ressource unique (reponse a q_art_001 : la constellation est la lecture unique de light/seuil, jamais dedoublee ; les jalons intermediaires de quest_loop sont des reperes DISCRETS sur ce meme axe light, jamais le declencheur terminal)",
+      "metric_ref": "core_light_per_stoke",
+      "proof_ref": "proof_core"
+     },
+     {
+      "id": "core_decision",
+      "kind": "decision",
+      "actor": "PLAYER",
+      "why": "attiser encore, ou basculer vers l'achat d'un emetteur",
+      "metric_ref": "core_light_per_stoke",
+      "proof_ref": "proof_core"
+     }
+    ],
+    "produces": "de la lumiere et l'attention active du foyer",
+    "consumes": [
+     "meta_loop"
+    ],
+    "unlocks": [
+     "gameplay_loop"
+    ],
+    "transformation_perceptible": {
+     "text": "le foyer reagit a chaque attisage (flash chaud, gerbe d'eclats) et le compteur augmente visiblement",
+     "proof_ref": "proof_core"
+    },
+    "metric_propre": "core_light_per_stoke"
+   },
+   "gameplay_loop": {
+    "steps": [
+     {
+      "id": "gameplay_action",
+      "kind": "action",
+      "actor": "PLAYER",
+      "why": "le joueur enchaine des attisages a un certain rythme",
+      "metric_ref": "gameplay_active_stoke_rate",
+      "proof_ref": "proof_gameplay"
+     },
+     {
+      "id": "gameplay_feedback",
+      "kind": "feedback",
+      "actor": "SYSTEM",
+      "why": "le HUD montre la cadence et l'acceleration du flux de lumiere",
+      "metric_ref": "gameplay_active_stoke_rate",
+      "proof_ref": "proof_gameplay"
+     },
+     {
+      "id": "gameplay_reward",
+      "kind": "reward",
+      "actor": "SYSTEM",
+      "why": "un rythme soutenu fait grimper le compteur plus vite, sensation de puissance",
+      "metric_ref": "gameplay_active_stoke_rate",
+      "proof_ref": "proof_gameplay"
+     },
+     {
+      "id": "gameplay_progression",
+      "kind": "progression",
+      "actor": "SYSTEM",
+      "why": "le flux cumule rapproche le premier palier d'emetteur",
+      "metric_ref": "gameplay_active_stoke_rate",
+      "proof_ref": "proof_gameplay"
+     },
+     {
+      "id": "gameplay_decision",
+      "kind": "decision",
+      "actor": "PLAYER",
+      "why": "attiser en rafale (tempo) ou economiser pour un achat",
+      "metric_ref": "gameplay_active_stoke_rate",
+      "proof_ref": "proof_gameplay"
+     }
+    ],
+    "produces": "un rythme d'attisage soutenu et un flux de lumiere visiblement accelere",
+    "consumes": [
+     "core_loop"
+    ],
+    "unlocks": [
+     "progression_loop"
+    ],
+    "transformation_perceptible": {
+     "text": "attiser plus vite fait monter le compteur plus vite, lisible en direct au HUD",
+     "proof_ref": "proof_gameplay"
+    },
+    "metric_propre": "gameplay_active_stoke_rate"
+   },
+   "progression_loop": {
+    "steps": [
+     {
+      "id": "prog_action",
+      "kind": "action",
+      "actor": "PLAYER",
+      "why": "le joueur pousse la lumiere accumulee vers le seuil terminal",
+      "metric_ref": "progression_threshold_light",
+      "proof_ref": "proof_progression"
+     },
+     {
+      "id": "prog_feedback",
+      "kind": "feedback",
+      "actor": "SYSTEM",
+      "why": "la constellation se remplit proportionnellement a lumiere/seuil",
+      "metric_ref": "progression_threshold_light",
+      "proof_ref": "proof_progression"
+     },
+     {
+      "id": "prog_reward",
+      "kind": "reward",
+      "actor": "SYSTEM",
+      "why": "le champ de fond se rechauffe globalement a mesure de l'avancee",
+      "metric_ref": "progression_threshold_light",
+      "proof_ref": "proof_progression"
+     },
+     {
+      "id": "prog_progression",
+      "kind": "progression",
+      "actor": "SYSTEM",
+      "why": "au franchissement du seuil de 5000 lumiere, l'embrasement final se declenche",
+      "metric_ref": "progression_threshold_light",
+      "proof_ref": "proof_progression"
+     },
+     {
+      "id": "prog_decision",
+      "kind": "decision",
+      "actor": "PLAYER",
+      "why": "foncer vers le seuil au clic, ou investir dans des emetteurs pour l'atteindre passivement",
+      "metric_ref": "progression_threshold_light",
+      "proof_ref": "proof_progression"
+     }
+    ],
+    "produces": "l'avancee mesurable de la constellation vers l'embrasement terminal",
+    "consumes": [
+     "gameplay_loop"
+    ],
+    "unlocks": [
+     "content_loop"
+    ],
+    "transformation_perceptible": {
+     "text": "la constellation se remplit et le champ noir se rechauffe a mesure que la lumiere approche du seuil de fin",
+     "proof_ref": "proof_progression"
+    },
+    "metric_propre": "progression_threshold_light"
+   },
+   "content_loop": {
+    "steps": [
+     {
+      "id": "content_action",
+      "kind": "action",
+      "actor": "PLAYER",
+      "why": "le joueur franchit un palier qui deverrouille un nouveau type d'emetteur",
+      "metric_ref": "content_emitter_types_unlocked",
+      "proof_ref": "proof_content"
+     },
+     {
+      "id": "content_feedback",
+      "kind": "feedback",
+      "actor": "SYSTEM",
+      "why": "un glyphe verrouille passe a disponible et affiche sa condition",
+      "metric_ref": "content_emitter_types_unlocked",
+      "proof_ref": "proof_content"
+     },
+     {
+      "id": "content_reward",
+      "kind": "reward",
+      "actor": "SYSTEM",
+      "why": "un nouvel emetteur, silhouette froide, apparait pret a l'achat autour du foyer",
+      "metric_ref": "content_emitter_types_unlocked",
+      "proof_ref": "proof_content"
+     },
+     {
+      "id": "content_progression",
+      "kind": "progression",
+      "actor": "SYSTEM",
+      "why": "le nombre de types d'emetteurs deverrouilles augmente le plafond de production",
+      "metric_ref": "content_emitter_types_unlocked",
+      "proof_ref": "proof_content"
+     },
+     {
+      "id": "content_decision",
+      "kind": "decision",
+      "actor": "PLAYER",
+      "why": "acheter le nouveau type maintenant ou densifier les emetteurs existants",
+      "metric_ref": "content_emitter_types_unlocked",
+      "proof_ref": "proof_content"
+     }
+    ],
+    "produces": "de nouveaux types d'emetteurs deverrouilles et rendus visibles",
+    "consumes": [
+     "progression_loop"
+    ],
+    "unlocks": [
+     "economy_loop"
+    ],
+    "transformation_perceptible": {
+     "text": "un emetteur jusque-la verrouille (glyphe desature) devient disponible et apparait, achetable, autour du foyer",
+     "proof_ref": "proof_content"
+    },
+    "metric_propre": "content_emitter_types_unlocked"
+   },
+   "economy_loop": {
+    "steps": [
+     {
+      "id": "economy_action",
+      "kind": "action",
+      "actor": "PLAYER",
+      "why": "le joueur achete un emetteur au bouton d'achat quand la lumiere le permet",
+      "metric_ref": "economy_first_emitter_cost",
+      "proof_ref": "proof_economy",
+      "affordance": "buy_button"
+     },
+     {
+      "id": "economy_feedback",
+      "kind": "feedback",
+      "actor": "SYSTEM",
+      "why": "le cout est retire du compteur et le bouton passe de or a desature si plus abordable",
+      "metric_ref": "economy_first_emitter_cost",
+      "proof_ref": "proof_economy"
+     },
+     {
+      "id": "economy_reward",
+      "kind": "reward",
+      "actor": "SYSTEM",
+      "why": "l'emetteur demarre un filet de lumiere passif visible vers le compteur",
+      "metric_ref": "economy_first_emitter_cost",
+      "proof_ref": "proof_economy",
+      "resource": "light"
+     },
+     {
+      "id": "economy_progression",
+      "kind": "progression",
+      "actor": "SYSTEM",
+      "why": "le cout du prochain emetteur croit geometriquement (x1.18), regulant le rythme",
+      "metric_ref": "economy_first_emitter_cost",
+      "proof_ref": "proof_economy"
+     },
+     {
+      "id": "economy_decision",
+      "kind": "decision",
+      "actor": "PLAYER",
+      "why": "reinvestir la lumiere en production passive ou la garder pour le seuil terminal",
+      "metric_ref": "economy_first_emitter_cost",
+      "proof_ref": "proof_economy"
+     }
+    ],
+    "produces": "des achats d'emetteurs qui convertissent la lumiere en production passive",
+    "consumes": [
+     "content_loop"
+    ],
+    "unlocks": [
+     "skill_loop"
+    ],
+    "transformation_perceptible": {
+     "text": "acheter un emetteur retire son cout du compteur ET fait demarrer un filet de lumiere passif visible",
+     "proof_ref": "proof_economy"
+    },
+    "metric_propre": "economy_first_emitter_cost"
+   },
+   "skill_loop": {
+    "steps": [
+     {
+      "id": "skill_action",
+      "kind": "action",
+      "actor": "PLAYER",
+      "why": "le joueur optimise l'ordre attisage/achat pour atteindre le premier emetteur au plus tot",
+      "metric_ref": "skill_time_to_first_emitter",
+      "proof_ref": "proof_skill"
+     },
+     {
+      "id": "skill_feedback",
+      "kind": "feedback",
+      "actor": "SYSTEM",
+      "why": "un chrono/jauge de ticks montre le temps jusqu'au premier achat",
+      "metric_ref": "skill_time_to_first_emitter",
+      "proof_ref": "proof_skill"
+     },
+     {
+      "id": "skill_reward",
+      "kind": "reward",
+      "actor": "SYSTEM",
+      "why": "un meilleur tempo place le premier emetteur dans la bande cible (8 a 20 ticks)",
+      "metric_ref": "skill_time_to_first_emitter",
+      "proof_ref": "proof_skill"
+     },
+     {
+      "id": "skill_progression",
+      "kind": "progression",
+      "actor": "SYSTEM",
+      "why": "un premier emetteur plus precoce avance tout le reste de la partie",
+      "metric_ref": "skill_time_to_first_emitter",
+      "proof_ref": "proof_skill"
+     },
+     {
+      "id": "skill_decision",
+      "kind": "decision",
+      "actor": "PLAYER",
+      "why": "attiser d'abord pour un achat rapide, ou temporiser pour un emetteur plus fort",
+      "metric_ref": "skill_time_to_first_emitter",
+      "proof_ref": "proof_skill"
+     }
+    ],
+    "produces": "un tempo d'achat optimise par l'adresse du joueur",
+    "consumes": [
+     "economy_loop"
+    ],
+    "unlocks": [
+     "world_loop"
+    ],
+    "transformation_perceptible": {
+     "text": "un joueur qui gere mieux son tempo atteint le premier emetteur plus tot, visible sur la jauge de ticks",
+     "proof_ref": "proof_skill"
+    },
+    "metric_propre": "skill_time_to_first_emitter"
+   },
+   "world_loop": {
+    "steps": [
+     {
+      "id": "world_action",
+      "kind": "action",
+      "actor": "PLAYER",
+      "why": "le joueur accumule assez de lumiere pour rechauffer le champ cosmique",
+      "metric_ref": "world_field_warmth_ratio",
+      "proof_ref": "proof_world"
+     },
+     {
+      "id": "world_feedback",
+      "kind": "feedback",
+      "actor": "SYSTEM",
+      "why": "le fond indigo vire vers le violet chaud selon le ratio de chaleur atteint",
+      "metric_ref": "world_field_warmth_ratio",
+      "proof_ref": "proof_world"
+     },
+     {
+      "id": "world_reward",
+      "kind": "reward",
+      "actor": "SYSTEM",
+      "why": "l'ambiance globale s'illumine, sensation d'un monde qui prend vie",
+      "metric_ref": "world_field_warmth_ratio",
+      "proof_ref": "proof_world"
+     },
+     {
+      "id": "world_progression",
+      "kind": "progression",
+      "actor": "SYSTEM",
+      "why": "le ratio de chaleur du champ suit la lumiere cumulee vers l'embrasement",
+      "metric_ref": "world_field_warmth_ratio",
+      "proof_ref": "proof_world"
+     },
+     {
+      "id": "world_decision",
+      "kind": "decision",
+      "actor": "PLAYER",
+      "why": "pousser la lumiere pour l'ambiance, ou se concentrer sur les achats",
+      "metric_ref": "world_field_warmth_ratio",
+      "proof_ref": "proof_world"
+     }
+    ],
+    "produces": "un champ cosmique qui s'illumine globalement avec la progression",
+    "consumes": [
+     "skill_loop"
+    ],
+    "unlocks": [
+     "quest_loop"
+    ],
+    "transformation_perceptible": {
+     "text": "le fond noir se rechauffe visiblement en fonction du ratio de chaleur atteint",
+     "proof_ref": "proof_world"
+    },
+    "metric_propre": "world_field_warmth_ratio"
+   },
+   "quest_loop": {
+    "steps": [
+     {
+      "id": "quest_action",
+      "kind": "action",
+      "actor": "PLAYER",
+      "why": "le joueur vise un jalon de lumiere affiche (objectif intermediaire)",
+      "metric_ref": "quest_milestones_reached",
+      "proof_ref": "proof_quest"
+     },
+     {
+      "id": "quest_feedback",
+      "kind": "feedback",
+      "actor": "SYSTEM",
+      "why": "un marqueur de jalon distinct s'affiche au franchissement",
+      "metric_ref": "quest_milestones_reached",
+      "proof_ref": "proof_quest"
+     },
+     {
+      "id": "quest_reward",
+      "kind": "reward",
+      "actor": "SYSTEM",
+      "why": "chaque jalon franchi confirme l'avancee et annonce le suivant",
+      "metric_ref": "quest_milestones_reached",
+      "proof_ref": "proof_quest"
+     },
+     {
+      "id": "quest_progression",
+      "kind": "progression",
+      "actor": "SYSTEM",
+      "why": "le nombre de jalons franchis balise la route vers l'embrasement",
+      "metric_ref": "quest_milestones_reached",
+      "proof_ref": "proof_quest"
+     },
+     {
+      "id": "quest_decision",
+      "kind": "decision",
+      "actor": "PLAYER",
+      "why": "poursuivre le prochain jalon ou consolider la production",
+      "metric_ref": "quest_milestones_reached",
+      "proof_ref": "proof_quest"
+     }
+    ],
+    "produces": "des jalons de progression franchis et affiches au joueur",
+    "consumes": [
+     "world_loop"
+    ],
+    "unlocks": [
+     "meta_loop"
+    ],
+    "transformation_perceptible": {
+     "text": "franchir un jalon affiche un marqueur de progression distinct a l'ecran",
+     "proof_ref": "proof_quest"
+    },
+    "metric_propre": "quest_milestones_reached"
+   },
+   "meta_loop": {
+    "steps": [
+     {
+      "id": "meta_action",
+      "kind": "action",
+      "actor": "PLAYER",
+      "why": "apres l'embrasement, le joueur choisit l'ascension a l'autel",
+      "metric_ref": "meta_ascension_bonus",
+      "proof_ref": "proof_meta"
+     },
+     {
+      "id": "meta_feedback",
+      "kind": "feedback",
+      "actor": "SYSTEM",
+      "why": "l'ascension convertit la progression en glow d'ascension, affiche a l'ecran",
+      "metric_ref": "meta_ascension_bonus",
+      "proof_ref": "proof_meta"
+     },
+     {
+      "id": "meta_reward",
+      "kind": "reward",
+      "actor": "SYSTEM",
+      "why": "chaque ascension rehausse durablement la lumiere par attisage (+5% permanent)",
+      "metric_ref": "meta_ascension_bonus",
+      "proof_ref": "proof_meta",
+      "resource": "ascension_glow"
+     },
+     {
+      "id": "meta_progression",
+      "kind": "progression",
+      "actor": "SYSTEM",
+      "why": "le bonus permanent reinjecte dans le foyer accelere la partie suivante",
+      "metric_ref": "meta_ascension_bonus",
+      "proof_ref": "proof_meta"
+     },
+     {
+      "id": "meta_decision",
+      "kind": "decision",
+      "actor": "PLAYER",
+      "why": "rallumer un foyer plus fort maintenant, ou s'arreter sur l'embrasement atteint",
+      "metric_ref": "meta_ascension_bonus",
+      "proof_ref": "proof_meta"
+     }
+    ],
+    "produces": "un bonus d'ascension permanent reinjecte dans le foyer",
+    "consumes": [
+     "quest_loop"
+    ],
+    "unlocks": [
+     "core_loop"
+    ],
+    "transformation_perceptible": {
+     "text": "apres l'embrasement, l'ascension rehausse durablement la lumiere par attisage : le foyer rallume brille plus fort qu'avant",
+     "proof_ref": "proof_meta"
+    },
+    "metric_propre": "meta_ascension_bonus"
+   }
+  },
+  "economy_model": {
+   "resources": [
+    {
+     "id": "light",
+     "unit": "lumiere",
+     "sources": [
+      "core_action",
+      "economy_reward"
+     ],
+     "sinks": [
+      "economy_action"
+     ],
+     "initial_stock": 0
+    },
+    {
+     "id": "ascension_glow",
+     "unit": "glow d'ascension",
+     "sources": [
+      "meta_reward"
+     ],
+     "sinks": [
+      "meta_action"
+     ],
+     "initial_stock": 0
+    }
+   ],
+   "formulas": [
+    {
+     "id": "emitter_cost",
+     "text": "cost(n) = base * growth^n (cout du n-ieme emitter d'un type)",
+     "params": {
+      "base": 15,
+      "growth": 1.18
+     }
+    },
+    {
+     "id": "emitter_output",
+     "text": "output_passif = somme des taux des emetteurs actifs",
+     "params": {
+      "base_rate": 0.5
+     }
+    },
+    {
+     "id": "terminal_condition",
+     "text": "fin observable si light >= threshold",
+     "params": {
+      "threshold": 5000
+     }
+    },
+    {
+     "id": "ascension_bonus",
+     "text": "light_per_stoke = 1 * (1 + per_glow * ascension_glow)",
+     "params": {
+      "per_glow": 0.05
+     }
+    }
+   ]
+  },
+  "progression_metrics": [
+   {
+    "id": "core_light_per_stoke",
+    "kind": "invariant",
+    "value": 1,
+    "unit": "lumiere/clic",
+    "why": "rendement de base de l'action-coeur, fixe pour que l'increment du compteur soit lisible et le rejeu seede comparable ; valeur originale (jamais reprise de Cookie Clicker), forme heritee de la grammaire de genre worldscan:games[0].loops.minute_1"
+   },
+   {
+    "id": "gameplay_active_stoke_rate",
+    "kind": "observation",
+    "unit": "clics/tick",
+    "why": "cadence d'attisage reellement mesuree sur une sonde ; non contraignante, elle observe l'engagement actif"
+   },
+   {
+    "id": "progression_threshold_light",
+    "kind": "invariant",
+    "value": 5000,
+    "unit": "lumiere",
+    "why": "seuil terminal decide (structure deleguee par le charter) ; choisi ATTEIGNABLE par une sonde deterministe dans un budget de ticks fixe tout en exigeant des achats d'emetteurs — pas d'idle infini (charter:condition_de_victoire). Repond au fond de q_art_001 : la fin est un seuil sur la ressource unique, pas un jalon-entite distinct"
+   },
+   {
+    "id": "content_emitter_types_unlocked",
+    "kind": "observation",
+    "unit": "types d'emetteurs",
+    "why": "nombre de types d'emetteurs deverrouilles a un instant donne ; observe la diversite de contenu accessible"
+   },
+   {
+    "id": "economy_first_emitter_cost",
+    "kind": "invariant",
+    "value": 15,
+    "unit": "lumiere",
+    "why": "cout du premier emetteur, porte d'achat initiale ; valeur originale calibree pour un premier achat rapide mais non gratuit apres quelques attisages"
+   },
+   {
+    "id": "skill_time_to_first_emitter",
+    "kind": "target",
+    "range": {
+     "min": 8,
+     "max": 20
+    },
+    "unit": "ticks",
+    "why": "bande cible de temps jusqu'au premier achat : au-dessous, trop trivial ; au-dessus, l'ennui du genre ; tolerance qui laisse l'adresse du joueur peser sans etre punitive"
+   },
+   {
+    "id": "world_field_warmth_ratio",
+    "kind": "observation",
+    "unit": "ratio [0,1]",
+    "why": "part de rechauffement du champ = light/threshold borne a 1 ; observe l'ambiance atteinte, non bloquant"
+   },
+   {
+    "id": "quest_milestones_reached",
+    "kind": "observation",
+    "unit": "jalons",
+    "why": "nombre de jalons intermediaires franchis ; observe le balisage de la route vers l'embrasement"
+   },
+   {
+    "id": "meta_ascension_bonus",
+    "kind": "invariant",
+    "value": 5,
+    "unit": "% lumiere/clic permanent par ascension",
+    "why": "bonus permanent d'ascension ; valeur originale, assez faible pour que la boucle reste finie et l'embrasement toujours l'objectif, assez sensible pour rendre l'ascension perceptible"
+   }
+  ],
+  "proof_model": [
+   {
+    "id": "proof_core",
+    "measures": "core_light_per_stoke",
+    "how": "player_loop",
+    "expected": "sur un rejeu seede, chaque attisage ajoute exactement 1 lumiere au compteur et emet un flash — verifiable image a image"
+   },
+   {
+    "id": "proof_gameplay",
+    "measures": "gameplay_active_stoke_rate",
+    "how": "hud",
+    "expected": "le HUD reflete la cadence d'attisage et l'acceleration du flux de lumiere en direct"
+   },
+   {
+    "id": "proof_progression",
+    "measures": "progression_threshold_light",
+    "how": "player_loop",
+    "expected": "une sonde deterministe atteint 5000 lumiere et declenche l'embrasement + l'ecran de fin dans le budget de ticks fixe"
+   },
+   {
+    "id": "proof_content",
+    "measures": "content_emitter_types_unlocked",
+    "how": "registry",
+    "expected": "le registre d'etat expose le nombre de types d'emetteurs passes de verrouille a disponible"
+   },
+   {
+    "id": "proof_economy",
+    "measures": "economy_first_emitter_cost",
+    "how": "decision",
+    "expected": "un achat d'emetteur n'est possible que si light >= cost ; l'achat retire le cout et cree un producteur passif"
+   },
+   {
+    "id": "proof_skill",
+    "measures": "skill_time_to_first_emitter",
+    "how": "player_loop",
+    "expected": "le nombre de ticks jusqu'au premier achat varie selon la strategie de la sonde et tombe dans la bande 8-20 pour un jeu competent (variance non triviale attendue)"
+   },
+   {
+    "id": "proof_world",
+    "measures": "world_field_warmth_ratio",
+    "how": "hud",
+    "expected": "la couleur de fond suit light/threshold, borne a 1, visible a l'ecran"
+   },
+   {
+    "id": "proof_quest",
+    "measures": "quest_milestones_reached",
+    "how": "registry",
+    "expected": "le registre d'etat incremente le compteur de jalons a chaque seuil intermediaire franchi"
+   },
+   {
+    "id": "proof_meta",
+    "measures": "meta_ascension_bonus",
+    "how": "player_loop",
+    "expected": "apres une ascension, light_per_stoke effectif augmente de 5% de facon permanente, verifiable sur le rejeu suivant"
+   }
+  ],
+  "grey_blocks": [
+   {
+    "id": "gb_hearth",
+    "type": "ITEM",
+    "role": "AFFORDANCE",
+    "state": "AVAILABLE",
+    "requires": [],
+    "player_meaning": "Je vois un foyer chaud au centre : je comprends que c'est cliquable et que ca produit de la lumiere.",
+    "builder_contract": "rendre un foyer chaud emissif au centre de l'ecran ; au clic, emettre une gerbe d'eclats chauds et incrementer le compteur de lumiere — nouvelle interaction, pas cosmetique.",
+    "proof_ref": "proof_core"
+   },
+   {
+    "id": "gb_light_counter",
+    "type": "UI",
+    "role": "FEEDBACK",
+    "state": "AVAILABLE",
+    "requires": [],
+    "player_meaning": "Je vois ma lumiere monter, c'est mon score et ma progression.",
+    "builder_contract": "afficher un compteur HUD a chasse tabulaire, plus gros element textuel de l'ecran, mis a jour chaque tick, jamais recouvert par les effets.",
+    "proof_ref": "proof_gameplay"
+   },
+   {
+    "id": "gb_buy_button",
+    "type": "UI",
+    "role": "AFFORDANCE",
+    "state": "AVAILABLE",
+    "requires": [],
+    "player_meaning": "Je vois le cout d'un emetteur et si je peux me le permettre.",
+    "builder_contract": "bouton affichant le cout courant ; etat or si abordable, desature sinon ; au clic quand abordable, declenche l'achat (changement d'etat de scene).",
+    "proof_ref": "proof_economy"
+   },
+   {
+    "id": "gb_locked_glyph",
+    "type": "UI",
+    "role": "FEEDBACK",
+    "state": "LOCKED",
+    "requires": [],
+    "player_meaning": "Je comprends pourquoi un emetteur n'est pas encore accessible et ce qu'il me faut.",
+    "builder_contract": "sur un emetteur verrouille, afficher un glyphe desature sans glow + la raison visible ('X lumiere requise') ; ne jamais emprunter le chaud ni un halo.",
+    "proof_ref": "proof_content"
+   },
+   {
+    "id": "gb_emitter",
+    "type": "ITEM",
+    "role": "REWARD",
+    "state": "LOCKED",
+    "requires": [
+     "economy_first_emitter_cost"
+    ],
+    "player_meaning": "Je peux acheter un emetteur qui produit de la lumiere tout seul, et je le vois apparaitre.",
+    "builder_contract": "a l'achat (light >= cost), faire APPARAITRE une silhouette froide luminescente autour du foyer et demarrer un filet de lumiere passif visible — nouvelle possibilite a voir et a faire.",
+    "proof_ref": "proof_economy",
+    "next_goal": "Acheter d'autres emetteurs pour accelerer la lumiere passive."
+   },
+   {
+    "id": "gb_constellation",
+    "type": "UI",
+    "role": "PROGRESSION_GATE",
+    "state": "LOCKED",
+    "requires": [
+     "progression_threshold_light"
+    ],
+    "player_meaning": "Je vois combien il me reste avant l'embrasement final.",
+    "builder_contract": "constellation/jauge qui se remplit proportionnellement a light/threshold ; a 100% elle declenche l'ecran de fin — porte de progression perceptible, pas un simple pourcentage.",
+    "proof_ref": "proof_progression",
+    "unlock": [
+     "gb_end_screen"
+    ],
+    "next_goal": "Atteindre l'embrasement final."
+   },
+   {
+    "id": "gb_end_screen",
+    "type": "UI",
+    "role": "REWARD",
+    "state": "LOCKED",
+    "requires": [
+     "progression_threshold_light",
+     "gb_constellation"
+    ],
+    "player_meaning": "Je sais sans ambiguite que la partie est finie.",
+    "builder_contract": "quand light >= threshold, afficher un panneau d'embrasement blanc-chaud + un libelle texte explicite ('Embrasement complet') et neutraliser l'interaction de jeu — etat terminal signale a l'ecran.",
+    "proof_ref": "proof_progression"
+   },
+   {
+    "id": "gb_ascension_altar",
+    "type": "LOCATION",
+    "role": "META",
+    "state": "LOCKED",
+    "requires": [
+     "progression_threshold_light"
+    ],
+    "player_meaning": "Apres l'embrasement, je peux repartir avec un bonus permanent, plus fort.",
+    "builder_contract": "apres l'embrasement, proposer un autel d'ascension qui convertit la progression en glow d'ascension et rehausse durablement light_per_stoke ; nouvelle zone/ecran visible et interactive.",
+    "proof_ref": "proof_meta",
+    "unlock": [
+     "gb_hearth"
+    ],
+    "next_goal": "Rallumer le foyer, plus puissant."
+   },
+   {
+    "id": "gb_terminal_rule",
+    "type": "RULE",
+    "role": "PROGRESSION_GATE",
+    "state": "AVAILABLE",
+    "requires": [
+     "progression_threshold_light"
+    ],
+    "player_meaning": "La partie a une fin atteignable et non un idle infini.",
+    "builder_contract": "regle deterministe seedee : si light >= threshold alors etat terminal ; meme seed => meme tick d'embrasement, verifiable par rejeu de sonde.",
+    "proof_ref": "proof_progression"
+   },
+   {
+    "id": "gb_quest_milestone",
+    "type": "UI",
+    "role": "FEEDBACK",
+    "state": "AVAILABLE",
+    "requires": [],
+    "player_meaning": "Quand je franchis un jalon intermediaire, un marqueur distinct apparait brievement : je vois que j'ai avance, sans le confondre avec la jauge continue.",
+    "builder_contract": "quand quest_milestones_reached s'incremente (franchissement d'un seuil intermediaire de light), afficher un marqueur de jalon DISCRET et ponctuel, distinct de la constellation continue (jauge light/seuil) : apparition breve puis fondu, non modal, n'occulte jamais le compteur ni le foyer — un repere de progression, pas la jauge terminale. Repond au round-2 vr_quest_milestone de l'Artiste (le marqueur avait un proof/metric mais aucune cible Builder avant ce grey_block).",
+    "proof_ref": "proof_quest"
+   }
+  ],
+  "artist_requirements": [
+   {
+    "id": "ar_hearth",
+    "grey_block": "gb_hearth",
+    "states_to_show": [
+     "AVAILABLE",
+     "PLACED"
+    ],
+    "visible_reason": false,
+    "visible_requirement": "aucune condition : le foyer est disponible des le depart",
+    "preview": false,
+    "affordance_visual": "objet chaud emissif central avec halo pulsant lent au repos, flash bref (<200ms) a l'attisage",
+    "readability": "seule source chaude animee de l'ecran — l'oeil y va d'abord, impossible a confondre avec un element froid ou neutre"
+   },
+   {
+    "id": "ar_light_counter",
+    "grey_block": "gb_light_counter",
+    "states_to_show": [
+     "AVAILABLE"
+    ],
+    "visible_reason": false,
+    "visible_requirement": "toujours visible",
+    "preview": false,
+    "affordance_visual": "compteur HUD neutre lisible, chiffres a chasse tabulaire sur panneau sombre",
+    "readability": "contraste AA (>=4.5:1), plus gros element textuel, jamais recouvert par les effets (effets dessines sous la couche HUD)"
+   },
+   {
+    "id": "ar_buy_button",
+    "grey_block": "gb_buy_button",
+    "states_to_show": [
+     "AVAILABLE",
+     "OWNED"
+    ],
+    "visible_reason": true,
+    "visible_requirement": "cout en lumiere affiche sur le bouton",
+    "preview": true,
+    "affordance_visual": "bouton froid a lisere net, accent or quand abordable, desature quand non-abordable",
+    "readability": "la transition desature -> or est un changement observable qui signale 'tu peux acheter maintenant'"
+   },
+   {
+    "id": "ar_locked_glyph",
+    "grey_block": "gb_locked_glyph",
+    "states_to_show": [
+     "LOCKED",
+     "AVAILABLE"
+    ],
+    "visible_reason": true,
+    "visible_requirement": "texte 'X lumiere requise' visible sur l'emetteur verrouille",
+    "preview": true,
+    "affordance_visual": "icone desaturee gris-bleu sans glow ; passe a froid-plein quand la condition est remplie",
+    "readability": "l'absence de chaud et de halo dit sans ambiguite 'pas encore accessible' — jamais de fausse affordance"
+   },
+   {
+    "id": "ar_emitter",
+    "grey_block": "gb_emitter",
+    "states_to_show": [
+     "LOCKED",
+     "AVAILABLE",
+     "PLACED"
+    ],
+    "visible_reason": true,
+    "visible_requirement": "cout d'achat en lumiere ; apparait physiquement autour du foyer une fois achete",
+    "preview": true,
+    "affordance_visual": "silhouette froide luminescente (cyan/violet) emettant un filet de lumiere vers le foyer une fois placee",
+    "readability": "l'apparition d'un nouvel objet a l'ecran (pas seulement un chiffre qui accelere) rend l'automatisation visible"
+   },
+   {
+    "id": "ar_constellation",
+    "grey_block": "gb_constellation",
+    "states_to_show": [
+     "LOCKED",
+     "AVAILABLE",
+     "PLACED"
+    ],
+    "visible_reason": true,
+    "visible_requirement": "remplissage proportionnel a light/seuil, seuil final implicite",
+    "preview": true,
+    "affordance_visual": "constellation/jauge froide qui se remplit progressivement vers un motif complet",
+    "readability": "l'etat de remplissage rend l'avancee vers la fin lisible d'un coup d'oeil, bot comme humain"
+   },
+   {
+    "id": "ar_end_screen",
+    "grey_block": "gb_end_screen",
+    "states_to_show": [
+     "LOCKED",
+     "PLACED"
+    ],
+    "visible_reason": false,
+    "visible_requirement": "s'affiche quand light >= seuil",
+    "preview": false,
+    "affordance_visual": "panneau d'embrasement blanc-chaud plein ecran, contraste maximal chaud->blanc, libelle texte 'Embrasement complet'",
+    "readability": "climax visuel le plus fort du jeu + libelle texte : un marqueur terminal lisible par un bot et par un humain"
+   },
+   {
+    "id": "ar_ascension_altar",
+    "grey_block": "gb_ascension_altar",
+    "states_to_show": [
+     "LOCKED",
+     "AVAILABLE",
+     "CONSUMED"
+    ],
+    "visible_reason": true,
+    "visible_requirement": "debloque apres le premier embrasement (seuil atteint)",
+    "preview": true,
+    "affordance_visual": "autel/zone froide-doree distincte apparaissant apres l'embrasement, avec une action d'ascension explicite",
+    "readability": "nouvelle zone visible = nouvelle possibilite ; l'etat CONSUMED apres ascension signale que le bonus a ete pris et le foyer rallume"
+   },
+   {
+    "id": "ar_quest_milestone",
+    "grey_block": "gb_quest_milestone",
+    "states_to_show": [
+     "AVAILABLE",
+     "PLACED"
+    ],
+    "visible_reason": true,
+    "visible_requirement": "s'affiche au franchissement d'un jalon de lumiere intermediaire (seuil discret)",
+    "preview": false,
+    "affordance_visual": "marqueur discret froid (non chaud, pour ne pas simuler une affordance cliquable) : petite pastille/etincelle de jalon avec un fondu court, visuellement distincte de la jauge de constellation continue",
+    "readability": "repere ponctuel lisible d'un coup d'oeil par un bot comme par un humain, jamais confondu avec la jauge continue light/seuil ni avec l'embrasement terminal"
+   }
+  ]
+ }
+}
+
+=== STORY BIBLE (s2.6-story-bible) ===
+{
+ "game_id": "p1_beta",
+ "inputs_recus": {
+  "worldscan": true,
+  "charter": true
+ },
+ "sections": [
+  {
+   "id": "context",
+   "status": "NOT_GROUNDED",
+   "reason": "Ni le charter ni le worldscan ne fixent de monde diegetique (lieu, epoque, cadre fictionnel). Le charter est purement structurel et experimental (objectif: fermer la chaine full_content d'un jeu-sonde incremental/clicker) et interdit tout remplissage narratif ; le worldscan decrit les MECANIQUES de trois jeux comparables dont les cadres divergent (patisserie pour Cookie Clicker, donjon fantasy pour Clicker Heroes, village pour Kittens Game) — cette divergence prouve que le genre incremental/clicker n'impose aucun monde commun. Le seul cadre disponible (accumulation de ressource) releve des SYSTEMES de jeu, explicitement hors perimetre (la Story Bible dit le MONDE, pas le jeu). Ancrer un cadre diegetique ici serait une invention."
+  },
+  {
+   "id": "chronology",
+   "status": "NOT_GROUNDED",
+   "reason": "Aucune histoire ni chronologie diegetique dans les deux entrees. Les marqueurs temporels du worldscan (loops: minute_1, minute_10, hour_5, endgame) decrivent la progression d'une SESSION de jeu, pas une frise d'evenements racontes du monde. Le charter ne fixe qu'un etat terminal STRUCTUREL (condition_de_victoire: une fin observable et atteignable), pas une chronologie narrative. Reconstituer une chronologie serait fabrique."
+  },
+  {
+   "id": "stakes",
+   "status": "NOT_GROUNDED",
+   "reason": "Aucun enjeu diegetique (conflit, ce qui se gagne ou se perd dans la fiction) n'est fixe. Les enjeux du charter sont experimentaux (criteres_succes: fermeture mesurable de la chaine, verdict AUTHENTIQUE) et structurels (existence d'une fin), non narratifs. Les enjeux releves par le worldscan (survie hivernale de Kittens Game, risque du Grandmapocalypse de Cookie Clicker) appartiennent aux jeux comparables, pas a p1_beta."
+  },
+  {
+   "id": "factions",
+   "status": "NOT_GROUNDED",
+   "reason": "Aucune faction n'est nommee ni impliquee pour p1_beta, ni dans le charter (silencieux sur toute fiction), ni dans le worldscan (les comparables incremental/clicker n'ont pas de veritables factions). En inventer une serait un remplissage pur."
+  },
+  {
+   "id": "characters",
+   "status": "NOT_GROUNDED",
+   "reason": "Aucun personnage n'est fixe pour p1_beta. Le joueur cible du charter designe des bots de mesure deterministes et un evaluateur humain en aveugle (consommateurs reels du jeu-sonde), pas un personnage diegetique. Les entites citees par le worldscan (Grandma, Cursor, Treebeast, kittens) appartiennent a d'autres jeux, et le charter INTERDIT explicitement de reprendre tout asset, nom ou contenu de Cookie Clicker (actions_interdites) — les ancrer violerait a la fois l'isolement de la paire pilote et l'interdit de fabrication."
+  },
+  {
+   "id": "relations",
+   "status": "NOT_GROUNDED",
+   "reason": "Une relation presuppose des personnages ou des factions ancres ; aucun n'existe (voir sections characters et factions, toutes deux NOT_GROUNDED). Il n'y a donc rien a relier sans inventer d'abord les termes de la relation."
+  },
+  {
+   "id": "events",
+   "status": "NOT_GROUNDED",
+   "reason": "Aucun evenement diegetique n'est fixe pour p1_beta. Les evenements releves par le worldscan (Golden Cookies, saisons, Grandmapocalypse) sont des MECANIQUES de jeux comparables, pas de la matiere narrative pour ce projet ; le charter ne raconte aucun evenement du monde."
+  },
+  {
+   "id": "coherence_rules",
+   "status": "GROUNDED",
+   "elements": [
+    {
+     "statement": "Toute matiere narrative etablie en aval doit s'interdire de reprendre un asset, un nom, un contenu ou une valeur numerique de Cookie Clicker (isolement de la paire pilote L/D).",
+     "source": "charter",
+     "ref": "actions_interdites : « NE JAMAIS reprendre de Cookie Clicker un asset, nom, contenu ou valeur numerique »",
+     "inferred": false
+    },
+    {
+     "statement": "Tout monde ou recit defini en aval doit rester dans la grammaire du genre incremental/clicker, seule reference de genre autorisee par le run.",
+     "source": "charter",
+     "ref": "reference_jeu : « grammaire de genre incremental/clicker UNIQUEMENT, jamais une copie »",
+     "inferred": true
+    },
+    {
+     "statement": "Le monde doit pouvoir accueillir un etat terminal OBSERVABLE et ATTEIGNABLE ; un cadre d'idle infini est proscrit, donc toute trame narrative doit etre finie et cloturable.",
+     "source": "charter",
+     "ref": "condition_de_victoire : « etat terminal OBSERVABLE et ATTEIGNABLE » ; « Idle infini INTERDIT (non prouvable) »",
+     "inferred": true
+    },
+    {
+     "statement": "Cette exigence de fin est une deviation deliberee par rapport a la norme du genre observee : les comparables incremental/clicker sont perpetuels et sans fin objective ; la coherence narrative de p1_beta doit donc maintenir une fin la ou le genre gravite vers l'absence de fin.",
+     "source": "worldscan",
+     "ref": "objectives : Cookie Clicker « has_win_state: false » et « Le jeu est perpetuel » ; Clicker Heroes « has_win_state: false — aucune fin, jeu d'ascension infinie »",
+     "inferred": true
+    }
+   ]
+  }
+ ]
+}
+
+
+## ARTEFACTS AMONT (run_dir)
+
+### charter.yaml (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p1_beta_E1\charter.yaml)
+objectif: 'Produire un jeu incremental/clicker web JOUABLE (HTML+JS canvas), créé
+  de zéro sous games/p1_beta, dont TOUTE la structure (boucles, ressources, actions,
+  progression, déblocages, économie, dimensionnement, condition de fin) est INVENTÉE
+  PAR LA CHAÎNE elle-même — jamais fournie. C''est le bras LIBRE (L) de la paire pilote
+  L/D de RUN 2 : variable manipulée = l''AUTEUR DE LA STRUCTURE. Fermer la chaîne
+  full_content jusqu''au verdict signé + verify_run AUTHENTIQUE. La qualité ludique
+  n''est PAS jugée par ce run (donnée M7, jugement humain en aveugle) : l''objectif
+  est la fermeture MESURABLE de la chaîne, pas un jeu « bon ».
+
+  '
+hors_scope:
+- 'Invention des GRANDEURS structurelles (coefficients, coûts, seuils, comptes, économie,
+  dimensionnement) : DÉLÉGUÉE à l''aval (s2 world scan, design, s4 architecture) —
+  pas décidée au charter. Le charter EXIGE leur provenance N2, il ne les FIXE pas.'
+- Décision d'architecture technique (s4) et world scan (s2).
+- 'Jugement de la QUALITÉ ludique / du fun : donnée M7, jugement humain en aveugle.'
+- 'Réponse à la question expérimentale complète (≥2 paires) : cette paire est PILOTE
+  — elle mesure la mesurabilité du protocole, elle ne valide pas « libre > dirigé
+  ».'
+- 'Copie de Cookie Clicker : aucun asset, nom, contenu, ni valeur numérique repris.'
+- Toute consultation de lab/forge_briefs/p1_alpha/** ou d'une valeur du bras dirigé
+  (D).
+- Écriture hors games/p1_beta ; lanes protégées (tests/, src/).
+criteres_succes:
+- 'Chaîne full_content complète : verdict signé + verify_run rend AUTHENTIQUE.'
+- Structure entièrement documentée avec provenance agent (N2) — aucune grandeur inventée
+  en aval sans source tracée (mesure M2 satisfaite).
+- design_questions / r2 / design_freeze exercés normalement.
+- Chaque asset_request.id est resolved-avec-fichier OU blocked-justifié (check_asset_consumption).
+- 'check_artbible exécuté par le driver (executed_by: driver).'
+- 's11 red-team indépendant réel (qwen, independent: true) ; LM Studio down => HALT
+  sans fallback.'
+- 'Bots de mesure : temps-jusqu''à-la-fin et jalons à budget de ticks fixe, à variance
+  NON triviale (≥2 valeurs distinctes non triviales — règle de variance des métriques).'
+- 'SOLVABILITÉ prouvée : au moins une sonde déterministe ATTEINT réellement la fin
+  observable (pas un test unitaire en isolation, pas un >= tautologique).'
+actions_interdites:
+- NE JAMAIS consulter lab/forge_briefs/p1_alpha/** ni aucune valeur structurelle du
+  bras D (isolement — Pierre 2026-08-30). Une contamination invalide la paire.
+- NE JAMAIS reprendre de Cookie Clicker un asset, nom, contenu ou valeur numérique.
+- NE JAMAIS inventer une grandeur structurelle en aval sans source tracée au charter
+  (N2 / M2).
+- 'NE JAMAIS livrer un idle infini : la fin doit être ATTEIGNABLE et OBSERVABLE.'
+- NE JAMAIS statuer la solvabilité par un test en isolation ni par un >= tautologique
+  — asserter le comportement STRICT ; une sonde doit FINIR (leçon s10a pré-mortem).
+- NE JAMAIS émettre un reçu code sans evidence_path (=> BLOCKED, leçon s12 pré-mortem).
+- 'NE JAMAIS substituer un fallback à s11 si LM Studio est down : HALT.'
+- 'NE JAMAIS de LLM-as-judge : oracles déterministes non-LLM ; red-team advisory,
+  jamais juge.'
+- NE JAMAIS écrire hors games/p1_beta ni toucher tests/ ou src/.
+plateforme_cible: 'web — HTML + JS (canvas). Socle sonde N1 : déterminisme seedé,
+  window.__game exposé, harnais complet à la racine de games/p1_beta. [SOURCE PIERRE
+  : project_brief.yaml `cible`]
+
+  '
+reference_jeu: 'Cookie Clicker — grammaire de genre incremental/clicker UNIQUEMENT,
+  jamais une copie (aucun asset, nom, contenu ni valeur numérique repris). [SOURCE
+  PIERRE 2026-08-30 : project_brief.yaml `references_autorisees`]
+
+  '
+criteres_demo:
+- L'action cœur (clic/action) produit à l'écran un compteur de ressource qui AUGMENTE
+  visiblement — la boucle est observable, pas seulement dans window.__game.
+- Au moins un déblocage/achat modifie OBSERVABLEMENT l'écran (nouvelle affordance
+  visible OU taux de production visiblement changé) — progression observable.
+- Le jeu atteint et SIGNALE À L'ÉCRAN un état terminal (écran/marqueur de fin) dans
+  un budget de ticks fixe — la fin observable exigée par le brief.
+- Même seed => même déroulé (déterminisme seedé, vérifiable par rejeu d'une sonde).
+joueur_cible: 'Jeu-SONDE, pas produit expédié. Consommateurs réels : (1) bots de mesure
+  déterministes (temps-jusqu''à-la-fin, jalons à budget de ticks fixe) ; (2) évaluateur
+  humain en aveugle (M7). Public notionnel DÉRIVÉ du genre fixé : joueur d''incremental/clicker
+  web. Dérivé du genre Pierre + finalité expérimentale du brief — non inventé, non
+  stipulé nominativement par Pierre.
+
+  '
+condition_de_victoire: 'Le jeu DOIT définir un état terminal OBSERVABLE et ATTEIGNABLE
+  : une sonde déterministe seedée l''atteint dans un budget de ticks fixe, et il est
+  signalé À L''ÉCRAN. Idle infini INTERDIT (non prouvable). La FORME exacte de la
+  fin (ressource/seuil/jalon déclencheur) est DÉLÉGUÉE (structure = variable expérimentale)
+  : le charter exige l''EXISTENCE et l''OBSERVABILITÉ d''une fin atteignable, il n''en
+  fixe pas la valeur.
+
+  '
+perimetre_v1: 'V1 minimal JOUABLE : une boucle incremental/clicker complète et fermée
+  — action(s) → ressource(s) visible(s) → au moins un déblocage/achat changeant observablement
+  l''état → progression → état terminal observable atteignable. Socle sonde web N1
+  à la racine de games/p1_beta. La structure interne (quelles ressources, quels coûts,
+  quelle économie, quel dimensionnement) est inventée en aval avec provenance agent
+  tracée (N2) — hors de ce contrat de cadrage.
+
+  '
+
+
+### artifacts/s3-decompo.txt (chemin réel : C:\TACTICAL_CHESS_STUDIO\lab\forge_runs\p1_beta_E1\artifacts\s3-decompo.txt)
+I've now verified the exact contract of both oracles (`check_decompo.mjs` + `upstream_schema.mjs`). The binding constraints are unambiguous, and they force several non-obvious structural decisions. Here is the decomposition.
+
+---
+
+## RAPPORT FINAL — s3-decompo / p1_beta-20260830-run1
+
+**software/evidence/claim séparés.**
+- `software_verdict: OK` — appuyé par lecture ligne-à-ligne des deux oracles non-LLM (`check_decompo.mjs`, `upstream_schema.mjs`). L'arbre respecte `validateFeaturemap` (systèmes/features/feuilles non vides, ids uniques, `expected_proof{kind∈PROOF_KINDS, statement}`) et `checkDecompoDoc` (couverture, non-invention, entrées joueur, maillons F..J, grey blocks).
+- `evidence_verdict: MECHANICAL_VALIDATION_ONLY`
+- `claim_verdict: NO_CLAIM_ALLOWED` — je n'ai **pas exécuté** `check_decompo` (`permissions.run: aucun`). La conformité est établie **par inspection du code**, pas par un reçu. L'exécuteur re-lance l'oracle et signe ; « la featuremap passe » est un jugement à sa charge + HumanGate.
+
+**Reçu d'oracle cité (attendu, non exécuté par moi).** Commande que l'exécuteur doit lancer :
+`node scripts/forge/chec
+[tronqué]
+```json
+{
+  "game_id": "p1_beta",
+  "systemes": [
+    {
+      "id": "SYS_CORE_LOOP",
+      "features": [
+        {
+          "id": "FEAT_GOAL",
+          "capacites": [
+            {
+              "id": "cap_goal_terminal_hud",
+              "capacite": "Le HUD affiche en continu, dès le tick 0, un objectif de fin non vide nommant le seuil terminal (embrasement à 5000 lumiere), tant que le seuil n'est pas franchi.",
+              "source_ref": "R1",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "une sonde lit le HUD objectif au tick 0 et trouve une chaine non vide nommant le seuil terminal 5000"
+              }
+            },
+            {
+              "id": "gb_constellation",
+              "capacite": "La constellation/jauge de progression rend visible, en permanence, l'avancée de la lumiere vers le seuil terminal (lecture unique de light/seuil), et déclenche l'écran de fin à saturation.",
+              "source_ref": "R1",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "constellation/jauge qui se remplit proportionnellement a light/threshold ; a 100% elle declenche l'ecran de fin — porte de progression perceptible, pas un simple pourcentage."
+              }
+            }
+          ]
+        },
+        {
+          "id": "FEAT_STOKE",
+          "capacites": [
+            {
+              "id": "cap_stoke_input",
+              "capacite": "ENTRÉE joueur : le joueur agit sur l'affordance nommée hearth (attiser le foyer) depuis la scène/entrypoint racine ; l'entrée est réellement câblée, pas décorative.",
+              "source_ref": "R2",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "une sonde, depuis main.tscn (scene/entrypoint racine ; pour la cible web = index.html), clique l'affordance hearth 10 fois et mesure que le compteur lumiere est strictement croissant, +1 par clic"
+              }
+            },
+            {
+              "id": "cap_hearth_response",
+              "capacite": "EFFET : à chaque attisage, l'état visuel du foyer change (flash chaud bref < 200 ms) de façon détectable image à image.",
+              "source_ref": "R3",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "capture image-a-image : le pixel central du foyer change de luminance entre la frame du clic et la suivante"
+              }
+            },
+            {
+              "id": "gb_hearth",
+              "capacite": "Objet foyer : source chaude émissive centrale, cliquable, qui réagit à l'attisage par une gerbe d'éclats et incrémente le compteur (grey block gb_hearth ; porté sur R3, exigence non-joueur la plus proche, car R2 est réservée à la preuve d'entrée main.tscn).",
+              "source_ref": "R3",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "rendre un foyer chaud emissif au centre de l'ecran ; au clic, emettre une gerbe d'eclats chauds et incrementer le compteur de lumiere — nouvelle interaction, pas cosmetique."
+              }
+            },
+            {
+              "id": "cap_light_reward",
+              "capacite": "EFFET/récompense : chaque attisage crédite exactement +1 lumiere au compteur, vérifiable par égalité stricte (jamais un >=).",
+              "source_ref": "R4",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "sonde seedee : apres N clics sans achat, lumiere == N exactement (jamais un >=)"
+              }
+            }
+          ]
+        },
+        {
+          "id": "FEAT_DECISION",
+          "capacites": [
+            {
+              "id": "cap_decision_divergence",
+              "capacite": "Point de décision significatif : deux politiques (idle vs actif) produisent des trajectoires de lumiere mesurablement distinctes à horizon fixe — le choix n'est pas cosmétique.",
+              "source_ref": "R5",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "sonde a deux trajectoires : politiques idle vs actif produisent 2 valeurs de lumiere distinctes non triviales a 300 frames"
+              }
+            },
+            {
+              "id": "gb_buy_button",
+              "capacite": "Bouton d'achat : affordance UI présentée par le point de décision, affichant le coût, or si abordable / désaturé sinon (grey block gb_buy_button ; porté sur R5, qui oppose hearth et buy_button, car R6 est réservée à la preuve d'entrée main.tscn).",
+              "source_ref": "R5",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "bouton affichant le cout courant ; etat or si abordable, desature sinon ; au clic quand abordable, declenche l'achat (changement d'etat de scene)."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SYS_ECONOMY",
+      "features": [
+        {
+          "id": "FEAT_BUY",
+          "capacites": [
+            {
+              "id": "cap_buy_input",
+              "capacite": "ENTRÉE joueur (maillon F/UNLOCK) : le joueur agit sur l'affordance nommée buy_button pour acheter un émetteur quand la lumiere suffit, depuis la scène/entrypoint racine.",
+              "source_ref": "R6",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "une sonde, depuis main.tscn (scene/entrypoint racine ; pour la cible web = index.html), clique l'affordance buy_button au premier moment ou lumiere>=15 ; le groupe visuel emetteurs passe de 0 a 1 element distinct et la production passive devient >0"
+              }
+            }
+          ]
+        },
+        {
+          "id": "FEAT_EMITTER_PROGRESS",
+          "capacites": [
+            {
+              "id": "cap_next_goal_second_emitter",
+              "capacite": "EFFET VISIBLE (maillon G/NEXT_GOAL) : après le premier émetteur, le label HUD objectif change pour un texte nouveau (acheter un second émetteur pour densifier la production passive).",
+              "source_ref": "R7a",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "capture du HUD objectif : apres le 1er achat, le texte objectif differe textuellement de l'objectif initial (nouvel enonce : acheter un second emetteur)"
+              }
+            },
+            {
+              "id": "gb_emitter",
+              "capacite": "Objet émetteur : à l'achat, une silhouette froide apparaît autour du foyer et démarre un producteur passif visible — l'automatisation devient un objet à l'écran, pas seulement un coefficient (grey block gb_emitter ; porté sur R7a, l'exigence des émetteurs à acquérir, car R6 est réservée à la preuve d'entrée main.tscn).",
+              "source_ref": "R7a",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "a l'achat (light >= cost), faire APPARAITRE une silhouette froide luminescente autour du foyer et demarrer un filet de lumiere passif visible — nouvelle possibilite a voir et a faire."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SYS_PROGRESSION_END",
+      "features": [
+        {
+          "id": "FEAT_NEXT_GOAL_END",
+          "capacites": [
+            {
+              "id": "cap_next_goal_embrasement",
+              "capacite": "EFFET VISIBLE (maillon G/NEXT_GOAL) : quand la production passive est active, le label HUD objectif change encore pour un texte distinct des deux précédents, nommant le seuil d'embrasement (5000 lumiere).",
+              "source_ref": "R7b",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "capture du HUD objectif : le texte a ce stade differe textuellement des deux objectifs precedents et nomme le seuil 5000"
+              }
+            }
+          ]
+        },
+        {
+          "id": "FEAT_TERMINAL",
+          "capacites": [
+            {
+              "id": "gb_end_screen",
+              "capacite": "État terminal signalé à l'écran : au franchissement de 5000 lumiere, un panneau d'embrasement plein écran avec le libellé texte 'Embrasement complet' s'affiche et neutralise l'interaction (réalise l'exigence R11).",
+              "source_ref": "R11",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "quand light >= threshold, afficher un panneau d'embrasement blanc-chaud + un libelle texte explicite ('Embrasement complet') et neutraliser l'interaction de jeu — etat terminal signale a l'ecran."
+              }
+            },
+            {
+              "id": "gb_terminal_rule",
+              "capacite": "Règle terminale déterministe seedée derrière l'écran de fin : light>=seuil déclenche l'état terminal, même seed => même tick d'embrasement (grey block gb_terminal_rule, sans exigence Prisme dédiée ; porté sur R11, l'écran de fin observable qu'elle déclenche).",
+              "source_ref": "R11",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "regle deterministe seedee : si light >= threshold alors etat terminal ; meme seed => meme tick d'embrasement, verifiable par rejeu de sonde."
+              }
+            }
+          ]
+        },
+        {
+          "id": "FEAT_AMBIENCE",
+          "capacites": [
+            {
+              "id": "cap_field_warmth",
+              "capacite": "Le fond se réchauffe continûment de l'indigo vers le violet chaud en fonction de light/5000 (borné à 1), en parallèle du compteur — lecture périphérique de la progression.",
+              "source_ref": "R14",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "capture a light=0, 2500, 5000 : la teinte de fond se rechauffe de facon monotone avec le ratio"
+              }
+            },
+            {
+              "id": "gb_quest_milestone",
+              "capacite": "Marqueur de jalon discret : au franchissement d'un seuil intermédiaire de lumiere, un repère ponctuel apparaît brièvement, distinct de la jauge continue (grey block gb_quest_milestone, sans exigence Prisme dédiée — ajouté au GM round 2 ; porté sur R14, l'autre exigence de progression-feedback SYSTEM).",
+              "source_ref": "R14",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "quand quest_milestones_reached s'incremente (franchissement d'un seuil intermediaire de light), afficher un marqueur de jalon DISCRET et ponctuel, distinct de la constellation continue (jauge light/seuil) : apparition breve puis fondu, non modal, n'occulte jamais le compteur ni le foyer — un repere de progression, pas la jauge terminale. Repond au round-2 vr_quest_milestone de l'Artiste (le marqueur avait un proof/metric mais aucune cible Builder avant ce grey_block)."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SYS_META_ASCENSION",
+      "features": [
+        {
+          "id": "FEAT_ASCENSION",
+          "capacites": [
+            {
+              "id": "cap_ascension_input",
+              "capacite": "ENTRÉE joueur (maillon I/META_LOOP) : après l'embrasement, le joueur agit sur l'affordance nommée ascension_altar ; la lumiere retombe visiblement à zéro et un glow d'ascension permanent est crédité.",
+              "source_ref": "R9",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "une sonde, depuis main.tscn (scene/entrypoint racine ; pour la cible web = index.html), clique l'affordance ascension_altar apres l'embrasement ; la lumiere repasse a 0 et un compteur de glow d'ascension passe de 0 a >0"
+              }
+            },
+            {
+              "id": "gb_ascension_altar",
+              "capacite": "Objet autel d'ascension : nouvelle zone visible et interactive apparaissant après l'embrasement, qui convertit la progression en glow d'ascension et rehausse durablement light_per_stoke (grey block gb_ascension_altar ; porté sur R10, l'effet méta de l'ascension, car R9 est réservée à la preuve d'entrée main.tscn).",
+              "source_ref": "R10",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "apres l'embrasement, proposer un autel d'ascension qui convertit la progression en glow d'ascension et rehausse durablement light_per_stoke ; nouvelle zone/ecran visible et interactive."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SYS_HUD_READABILITY",
+      "features": [
+        {
+          "id": "FEAT_HUD",
+          "capacites": [
+            {
+              "id": "gb_light_counter",
+              "capacite": "Compteur de lumiere HUD : à chasse tabulaire, plus gros élément textuel de l'écran, mis à jour chaque tick, jamais recouvert par les effets (réalise l'exigence R13).",
+              "source_ref": "R13",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "afficher un compteur HUD a chasse tabulaire, plus gros element textuel de l'ecran, mis a jour chaque tick, jamais recouvert par les effets."
+              }
+            },
+            {
+              "id": "gb_locked_glyph",
+              "capacite": "Glyphe d'état verrouillé : sur un émetteur non accessible, glyphe désaturé sans glow + condition visible ('X lumiere requise'), sans emprunter le chaud ni un halo (réalise l'exigence R12).",
+              "source_ref": "R12",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "sur un emetteur verrouille, afficher un glyphe desature sans glow + la raison visible ('X lumiere requise') ; ne jamais emprunter le chaud ni un halo."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+## PRÉ-MORTEM (erreurs des runs passés)
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- ⚑ [s10a-oracle-code] ORACLE DE JEU: tester la SOLVABILITÉ (un bot doit GAGNER), pas seulement les mécaniques en isolation — un jeu aux objectifs inatteignables passe tous les tests unitaires. Obligatoire s9-build.
+- ⚑ [s10a-oracle-code] JAMAIS de >= tautologique dans un test : asserter le comportement STRICT (kill tue vraiment, coins == n+1). Un >= masque une mécanique morte.
+- ⚑ [s12-verdict] Reçu code SANS evidence_path => exécution non prouvable => BLOCKED. Toujours passer evidence_path.
+- [manifest-c02158869a24c1ef] La jauge de fin (endGauge) etait indexee sur elapsedTicks : un bot inactif atteignait 100% en attendant 72000 ticks sans jamais jouer, rendant inertes la decision d'allocation (R5) et la repetition de boucle (R12) ; de plus prestigeReset remettait elapsedTicks a 0, faisant DECROITRE la jauge en violation de la monotonie exigee par R10. Les 4 oracles etaient verts malgre cela. — cause: L'oracle de solvabilite ne testait qu'une seule politique (un bot joue et gagne) sans contre-epreuve : un jeu qui se gagne en attendant satisfait cette assertion a l'identique, donc le volet solvabilite ne discriminait pas un jeu jouable d'un minuteur. Il faut mesurer la DIVERGENCE entre plusieurs politiques, pas la reussite d'une seule. -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-13fcd2170bc24836] wiremap.json portait des champs 'fonction' composes (ex. 'createState + renderHTML') qui ne matchent jamais la recherche exacte de check_wiremap contre les noms reellement definis, faisant echouer s10c-oracle-wiremap independamment du gate mutation — cause: le builder precedent (haiku) a documente plusieurs fonctions collaboratrices par feature au lieu d'une seule reference exacte attendue par l'oracle statique -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-a1e8b435ec71c8bf] run-oracle.mjs converted a missing-Playwright import exception into passed:true (fake-green e2e), and the underlying game had a DOM-rebuild bug that silently broke click buttons after the first render — both were hidden by the fake-green e2e — cause: e2e.mjs was dynamically imported in-process without NODE_PATH wired to the studio's shared playwright install, so it always threw ERR_MODULE_NOT_FOUND, and run-oracle.mjs caught that specific error and marked it passed instead of failed -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-ed9f187a13f135de] echec de la tentative 4 a s9-build — cause: returncode=0 (volets rouges: asset_consumption, reuse_ratio_wired, runtime_alive) -- GENERATION_DIFFERENTE_A_REEXAMINER
+- [manifest-ce85d7706fa0bb70] echec de la tentative 3 a s9-build — cause: returncode=0; mutation=FAIL (volets rouges: asset_consumption, reuse_ratio_wired, runtime_alive) -- GENERATION_DIFFERENTE_A_REEXAMINER
+
+FORGE_DISPATCH:s4-archi:p1_beta_E1-20260831-run1:1

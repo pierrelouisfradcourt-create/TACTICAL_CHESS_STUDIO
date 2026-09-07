@@ -59,6 +59,14 @@ RUN 1 + paire pilote CLOS. Détail complet archivé :
 - Kitten Clicker : référence produit = sonde V5 « 3 tableaux » ; C.6 V1.1 PROPOSED, 5 décisions
   HumanGate en attente. Séance de ratification PRÊTE : `lab/reports/ratification_session_20260828.md`.
 
+## Revue hebdomadaire de mémoire — 2026-09-06 (tâche planifiée, lecture seule du dépôt)
+- Vault réaligné : `000_HOME.md` (projets + dashboard), `gamedesign/lessons.md` (aucune promotion :
+  0 playtest sur la période), `projects/snake-survivor-genesis.md` (contrôle de péremption, 42 j).
+- **Constat neuf : `games/kitten_clicker/` est absent du dépôt** — ni sur disque, ni suivi, ni ignoré.
+  Preuves conservées dans `lab/forge_runs/kitten_clicker/`. Suppression volontaire ou perte : à trancher.
+- 5 gestes des 09-01→09-03 n'ont pas d'entrée au decision-log (qui s'arrête au 09-01). Candidats
+  rédigés **en propose-only** : `decisions/PROPOSED_2026-09-06_ratifications.md`. **Rien logué.**
+
 ## Prochaine étape
 1. GO gestes 2 et 3 du refresh (archivage référents/sentinelle, skills legacy, hook ELO).
 2. Décisions C.6 (5) + niveau CONTENT REQUIREMENTS — inchangé.

@@ -1,0 +1,118 @@
+I've read the mandatory sources (SCHEMA.md, the project brief) and confirmed there is **no** Project Bible yet (project created from zero — the brief is the single source of command). The pré-mortem is inlined in my dispatch. I have everything needed.
+
+Per the concrete task and the brief technique *« le charter DOIT être matérialisé par s0 (bloc ```yaml) »* + *« Texte seul, aucun fichier écrit »*, I materialize the charter as a fenced YAML block below — I write no file.
+
+---
+
+## Charter — `micro_sonde_v1` (matérialisé par s0)
+
+```yaml
+# charter.yaml — micro_sonde_v1 (s0-contrat, 2026-09-01)
+# Source de commande unique : lab/forge_briefs/micro_sonde_v1/project_brief.yaml (Pierre 2026-09-01)
+# Contenu (personnages/endroits/thème/interaction/fin) : DÉLÉGUÉ aux étapes aval — non fixé ici.
+
+objectif: |
+  Produire en un seul run un micro-prototype web immédiatement jouable — un « sas » de
+  production/playtest — tenant dans un périmètre VERROUILLÉ PAR PIERRE : exactement 1 pièce
+  contenant 3 endroits distincts et 3 personnages. Le jeu doit s'ouvrir dans un navigateur et
+  se jouer à la souris et/ou au clavier par un HUMAIN (pas seulement par bot), donner envie
+  d'interagir dès la première minute SANS tutoriel, et permettre d'atteindre un état
+  intéressant — victoire, défaite ou renversement de situation PERCEPTIBLE — en moins de
+  5 minutes de jeu humain, le tout SANS aucune économie, aucun compteur affiché, aucune
+  ressource numérique visible, aucun score. Le CONTENU (identité des 3 personnages, nature des
+  3 endroits, thème, ton, enjeu, nature de l'interaction, forme exacte de la fin/du
+  renversement) est DÉLÉGUÉ aux étapes aval (liberté de conception) et n'est PAS fixé par ce
+  charter. Joueur cible : un humain au navigateur. Juge final de la qualité : Pierre, en
+  playtest court après s12 — les oracles ne prouvent que « ça tourne ».
+
+hors_scope:
+  - "Toute économie, tout compteur affiché, toute ressource numérique visible, tout score"
+  - "Plus d'1 pièce, plus de 3 endroits, ou plus de 3 personnages (périmètre verrouillé Pierre)"
+  - "Toute mesure expérimentale M1–M7, toute comparaison, toute analyse expérimentale (c'est un sas de production/playtest, pas une expérience)"
+  - "Toute paire L/D (aucune paire — décision Pierre 2026-09-01)"
+  - "Toute référence externe, grammaire de genre ou œuvre-guide (le pipeline invente seul)"
+  - "Tout tutoriel ou texte d'apprentissage requis pour jouer"
+  - "Toute plateforme autre que web HTML+JS (pas de Godot ni autre moteur)"
+  - "La décision de CONTENU par s0 (déléguée aux étapes aval — hors du charter)"
+  - "Tout jugement automatisé du « fun »/de la qualité (réservé au playtest humain de Pierre)"
+
+criteres_succes:
+  - "Chaîne micro_sonde complète s0→s9→s10a→s11→s12 : verdict signé HMAC + verify_run AUTHENTIQUE"
+  - "charter matérialisé par s0 (bloc yaml)"
+  - "Socle sonde web N1 : HTML+JS, déterminisme seedé, window.__game exposé, harnais complet à la racine du jeu"
+  - "LANCEMENT : le jeu s'ouvre dans un navigateur et affiche la pièce, les 3 endroits et les 3 personnages"
+  - "INTERACTION : chaque personnage ET chaque endroit réagit de façon perceptible à une action du joueur"
+  - "Jouable au navigateur par un humain à la souris et/ou au clavier (pas seulement par bot)"
+  - "BOUCLE D'ACTION : le harnais E2E prouve qu'une séquence d'actions change l'état du jeu ET que ce nouvel état change les possibilités suivantes"
+  - "ÉTAT INTÉRESSANT : le harnais prouve par bot scripté (solvabilité) qu'une fin ou un renversement est ATTEIGNABLE — assertion STRICTE, jamais un >= tautologique"
+  - "Un état intéressant est atteignable en < 5 minutes de jeu humain"
+  - "s11 red-team Qwen réel ; si LM Studio est down → HALT sans fallback"
+
+actions_interdites:
+  - "Introduire une économie, un compteur affiché, une ressource numérique visible ou un score"
+  - "Dépasser le périmètre 1 pièce / 3 endroits / 3 personnages"
+  - "Ajouter un tutoriel ou un texte d'apprentissage pour rendre le jeu jouable"
+  - "Emprunter à une référence externe, une grammaire de genre ou une œuvre-guide"
+  - "Exécuter une mesure M1–M7, une comparaison ou une analyse expérimentale"
+  - "Substituer un fallback à Qwen en s11 si LM Studio est down (obligation de HALT)"
+  - "Émettre un verdict de qualité/fun automatisé (les oracles ne prouvent que « ça tourne »)"
+  - "git commit / git push (gate Pierre — aucun sous-agent ne commite)"
+  - "Écrire hors de games/micro_sonde_v1/ et des artefacts de run autorisés ; toucher aux lanes protégées (tests/, src/)"
+  - "Poursuivre au-delà de s12 même tous voyants verts (STOP — jugement humain Pierre)"
+
+plateforme_cible: "web (HTML+JS canvas) — socle sonde N1 (source : project_brief.yaml champ `cible`, Pierre 2026-09-01)"
+
+reference_jeu: >
+  AUCUNE référence externe — décision EXPLICITE Pierre 2026-09-01 (project_brief.yaml,
+  provenance.references_autorisees ; references_autorisees: []). La sonde teste ce que le
+  pipeline invente SEUL, sans grammaire de genre ni œuvre-guide. Champ DÉCLARÉ-VIDE assumé et
+  TRACÉ à une source Pierre : ce n'est ni une invention d'agent ni un fog ouvert.
+
+criteres_demo:
+  - "À l'ouverture dans le navigateur, on VOIT la pièce, les 3 endroits et les 3 personnages à l'écran (rien n'est vide/noir)"
+  - "Cliquer/agir sur un personnage produit une réaction PERCEPTIBLE à l'écran (le personnage change visiblement d'état, répond, bouge…)"
+  - "Cliquer/agir sur un endroit produit une réaction PERCEPTIBLE à l'écran"
+  - "Enchaîner quelques actions ouvre VISIBLEMENT de nouvelles possibilités qui n'existaient pas avant (ex. un accès qui s'ouvre, un personnage qui devient interactif) — perceptible SANS aucun compteur ni chiffre"
+  - "Une fin ou un renversement se produit VISIBLEMENT à l'écran (un changement d'état lisible comme « il s'est passé quelque chose »), atteint en < 5 min, sans score ni nombre"
+  - "Dans la première minute, un élément à l'écran invite à interagir SANS aucun texte de tutoriel"
+```
+
+---
+
+## FINAL REPORT
+
+### Flous du prompt — résolus vs remontés
+
+**Résolus (source Pierre traçable) :**
+- `plateforme_cible` → `web (HTML+JS canvas)`, tracé au brief champ `cible`.
+- `reference_jeu` → **AUCUNE**, résolu par ratification Pierre explicite (`provenance.references_autorisees` + `references_autorisees: []`). Le tag « FOG_HUMANGATE » du brief documente que c'ÉTAIT une question de design-intent ; elle est **close** par la décision Pierre « aucune référence externe ». Champ *déclaré-vide* légitime (SCHEMA §3 états), **pas** un fog ouvert, **pas** une invention d'agent (leçon AutoBattler respectée).
+- `criteres_demo[]` → dérivés des `criteres_sortie` du brief, reformulés en critères **observables à l'écran** (pas mécaniques internes).
+- Contenu (personnages / endroits / thème / interaction / condition de fin) → **délégué aux étapes aval** par `libertes_deleguees`. Non-résolution **délibérée**, pas un flou : s0 ne l'invente pas.
+
+**Remontés (fog HumanGate / besoin) :**
+- **Exécution de l'oracle CHARTER déterministe** : je ne peux pas l'exécuter (permissions `run: aucun` + tâche texte-seul, aucun fichier écrit). Le driver / l'étape suivante DOIT lancer le validateur de schéma non-LLM contre le charter matérialisé pour confirmer mécaniquement la complétude.
+
+### Oracle cité / preuve
+- Oracle de référence : **validateur de schéma CHARTER déterministe non-LLM** (parse le charter, échoue si un champ requis est vide/absent/« à définir »). **NON exécuté par moi** (`run: aucun`). J'ai réalisé un **contrôle structurel manuel** du bloc : 7/7 champs requis remplis, 0 vide, 0 « à définir », 0 absent.
+- La provenance Pierre de `reference_jeu` n'est **pas** mécaniquement vérifiable par ce validateur (fait de gate, pas de schéma) — elle est tracée ci-dessus, pas auto-certifiée.
+
+### Verdicts
+- **software_verdict: OK** — livrable produit : charter matérialisé, structurellement complet (7/7 champs, 0 vide, 0 « à définir ») par inspection structurelle.
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY — NON APPLICABLE** : aucun oracle exécuté (contrôle structurel manuel uniquement ; `run: aucun`). Confirmation mécanique **en attente** du driver.
+- **claim_verdict: NO_CLAIM_ALLOWED**
+
+### SKIPPED_VALIDATION
+- **item** : exécution de l'oracle CHARTER déterministe · **où** : charter.yaml matérialisé de micro_sonde_v1 · **statut** : non fait · **raison** : permissions `run: aucun` + tâche texte-seul (aucun fichier écrit) — l'exécution mécanique revient au driver/étape suivante.
+
+### RETURN LINEAGE
+- **why_task_existed:**
+  - **problem:** le studio a besoin d'un contrat produit borné et sans flou AVANT tout build ; le profil micro_sonde exige que s0 matérialise un charter à zéro « à définir » (anti-drift à la racine).
+  - **oracle:** validateur de schéma CHARTER (mesure que cette étape sert à satisfaire) ; l'**activation** de cette tâche vient d'une **décision humaine** (GO Pierre pour lancer micro_sonde_v1, 2026-09-01).
+  - **root_cause:** non établie — projet neuf, pas la réparation d'un défaut mesuré.
+  - **action_reason:** rédiger un charter complet ferme chaque champ design-intent avec une source traçable et **délègue explicitement le contenu**, donnant aux étapes aval un cadre borné sans rien inventer.
+- **result:** charter matérialisé (bloc yaml) ; 7/7 champs remplis, 0 vide/absent/« à définir » ; `reference_jeu` résolu par ratification Pierre (aucune référence) ; oracle CHARTER **non exécuté** (`run: aucun`).
+- **proof:** aucune commande exécutée (permissions `run: aucun`) ; contrôle structurel manuel du bloc yaml ci-dessus (comptage des 7 champs requis, recherche de vide/« à définir » → 0).
+- **learning:** (1) le template s0 générique déclare `permissions write: charter.yaml` alors que le profil/tâche micro_sonde impose « texte seul + bloc ```yaml » — résolu en matérialisant un bloc ; les futurs runs s0 sur profils text-only doivent l'anticiper. (2) `reference_jeu` peut être un *déclaré-vide* LÉGITIME (« AUCUNE ») quand Pierre ratifie explicitement « aucune référence » — distinct d'un fog ouvert et distinct d'une invention d'agent.
+- **next_reason:** chaîne **NON close** — le driver doit (a) exécuter l'oracle CHARTER contre le charter matérialisé pour confirmer mécaniquement la complétude (je ne pouvais pas : `run: aucun`), puis (b) poursuivre la chaîne micro_sonde (s9→s10a→s11→s12). Une preuve mécanique manque encore → l'étage supérieur doit agir.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "le contrat s0 generique declare permissions write: charter.yaml alors que la tache concrete micro_sonde impose 'texte seul, aucun fichier ecrit' et le brief impose un bloc yaml", "root_cause": "template s0 generique non reconcilie avec le profil micro_sonde (s0 text-only)"}

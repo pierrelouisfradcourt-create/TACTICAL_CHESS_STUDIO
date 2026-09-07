@@ -9,6 +9,10 @@
 >
 > **Revue 2026-07-19** : aucune promotion — toujours aucun playtest joueur réel, ni sur Belote (0 activité git depuis 2026-07-06) ni sur `games/auto_battler/` (le travail Forge de la période est du QA/oracle mécanique — build/tests/mutation/red-team — pas un playtest de fun). Un nouveau prior sourcé ajouté ci-dessous (CB-001, pacing combat) suite à une recherche TFT commandée par un HumanGate. Les CR-*/RD-* génériques marché restent valables quel que soit le Titre 1 réel du moment.
 >
+> **Revue 2026-08-23** : **première promotion depuis la création du fichier.** La semaine 08-17→08-23 (66 commits, 100 % Forge / Kitten Clicker) a produit le **premier playtest interne enregistré** du studio : Pierre a joué le build du run 9 et a rendu un **HumanGate FAIL argumenté en 4 causes** ([[../decisions/decision-log|KITTEN_HUMANGATE_BASELINE_V1]]). Ce n'est pas de la télémétrie joueur — c'est un playtest concepteur, **n = 1**. Conséquences ici : **CR-006 passe `observed` (`evidence_n: 1`)** et **CR-007 est ajoutée** (règle sortie du playtest, pas de la recherche marché). Tous les autres CR-*/RD-*/CB-001 restent `prior`, `evidence_n: 0` — aucune télémétrie, aucun jeu shippé. **Aucune règle n'est invalidée** : rien dans le playtest ne contredit un prior existant.
+>
+> **Revue 2026-09-06** : **aucune promotion, aucun nouveau prior, aucune invalidation.** La période 08-24→09-06 (55 commits, 100 % Forge) n'a produit **aucun playtest** : les jeux forgés sont des **sondes expérimentales** de l'expérience Libre vs Dirigé, jugées par des oracles mécaniques, jamais par un joueur. Le gate fun minute-12 (CR-001) **n'a donc pas été rejoué** ; CR-006 et CR-007 restent `observed`, `evidence_n: 1`, sur la seule observation Kitten du 08-23. Point d'honnêteté à conserver : le build qui a produit cette observation (`games/kitten_clicker/`) **n'est plus dans le dépôt** — les priors restent valides (ils reposent sur le jugement écrit de Pierre et son audit, pas sur le binaire), mais l'observation **n'est plus rejouable**. Aucune télémétrie joueur n'existe toujours nulle part.
+>
 > **Revue 2026-07-26** : aucune promotion — la semaine a produit du QA/oracle mécanique (backend Godot certifié, brique `M01` grid-navigator, consolidation git) et 0 playtest joueur réel. Tous les CR-*/RD-*/CB-001 restent `prior`, `evidence_n: 0`. Un enseignement de mesure hors gamedesign a émergé côté Forge (courbe d'apprentissage indexée sur la mauvaise unité `brick_id` vs `subject{type,id}`) — pertinent pour le compilateur de design (§ Règles du Compilateur), pas encore un prior de gamedesign en soi.
 
 ---
@@ -73,7 +77,45 @@
 
 **Application** : Phase 0 = prototype du hook uniquement. Kill-gate Pierre avant Phase 1.
 
-**Statut** : `prior` (doctrine TCS + game design fondamentaux)
+**Statut** : `observed` — `evidence_n: 1` (promu le 2026-08-23)
+**Observation** : Kitten Clicker run 9 (`kitten_clicker-20260823a`) — le jeu avait **du contenu**
+(6 chatons, prestige, jardin, habillage) et une boucle **mécaniquement vérifiée verte de bout en
+bout** (A→J 13/13, DÉCISION 6/6, mesuré par le driver, pas par un LLM). HumanGate Pierre :
+**FAIL — « prototype mécanique avec habillage »**. Le contenu n'a pas sauvé le hook, exactement
+comme la règle le prédit. Réserve d'honnêteté : **n = 1**, playtest concepteur (l'auteur du jeu),
+pas un joueur externe ni de la télémétrie. Une deuxième observation indépendante est nécessaire
+avant `validated`.
+**Source** : [[../decisions/decision-log|KITTEN_HUMANGATE_BASELINE_V1]] · `docs/audit/2026-08-23-kitten-clicker-design-chain-audit.md`
+
+---
+
+### CR-007 — Une chaîne d'oracles verte ne mesure pas le fun : quatre pathologies nommées
+
+**Principe** : un jeu peut passer **toutes** ses vérifications mécaniques et rester injouable. Le
+premier playtest interne du studio a produit quatre causes nommées, indépendantes du genre, qui
+distinguent un système d'un jeu :
+
+1. **Récompense visible avant d'être gagnée = récompense annulée.** Les 6 chatons affichés dès le
+   départ étaient décoratifs. Corollaire actionnable : rien n'est affiché avant d'être gagné,
+   **sauf sous forme de silhouette explicitement marquée « à débloquer »**.
+2. **Un prestige sans reset réel, sans bonus permanent et sans nouvelle stratégie n'est pas un 2ᵉ
+   niveau — c'est un bouton.** Les trois conditions sont conjointes.
+3. **Un espace pauvre transforme la progression en variable.** « Nombre de chatons » n'est pas une
+   colonie ; un plafond de places sans raison lisible est un mur arbitraire. La contrainte
+   spatiale doit être une **règle de jeu lisible** (`places occupées / totales` affiché, action
+   grisée **avec sa raison**, jamais un bouton mort).
+4. **Sans hiérarchie OBJECTIF → ACTION → CONSÉQUENCE → PROCHAINE POSSIBILITÉ, le guidage est
+   illisible** — même quand chaque élément existe séparément.
+
+**Règle maîtresse dérivée** (ratifiée Pierre le même jour) : **UNLOCK = possibilité perceptible,
+jamais +X %.** Un achat qui ne transforme pas visiblement la scène n'est pas un déblocage.
+
+**Statut** : `observed` — `evidence_n: 1` (playtest concepteur, HumanGate Pierre 2026-08-23)
+**Portée** : les 4 causes sont observées sur un idle/clicker. Les points 1, 2 et 4 semblent
+généraux ; le point 3 (espace) est probablement spécifique aux jeux de collection/placement.
+**À ne pas confondre avec une mesure** : ce sont des jugements de concepteur, pas de la
+télémétrie. Ils ne deviendront `validated` qu'après ≥ 2 titres indépendants.
+**Source** : [[../decisions/decision-log|KITTEN_HUMANGATE_BASELINE_V1]] · [[kitten_clicker_direction_produit_v1|Direction produit V1]]
 
 ---
 

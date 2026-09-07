@@ -1,0 +1,325 @@
+{
+ "catalog_brick_ids_snapshot": [
+  "pat-damage-floor",
+  "pat-forge-architecture_check_before_human_escalation",
+  "pat-forge-broken_loop_repair_not_report",
+  "pat-forge-diagnosis_is_not_workflow_end",
+  "pat-forge-entrypoint_is_undeclared_invariant",
+  "pat-forge-escalation_costs_avoid_default_route",
+  "pat-forge-forge_oracle_convention_undocumented",
+  "pat-forge-hardcoded_expected_state_breaks_on_growth",
+  "pat-forge-instrument_assumes_instead_of_reads",
+  "pat-forge-kb_humangate_to_controlled_autonomy",
+  "pat-forge-mutation_survivor_equivalence_requires_mechanical_proof",
+  "pat-forge-new_proof_needs_declared_executor",
+  "pat-forge-oracle_fail_vs_not_measured_marker",
+  "pat-forge-preflight_oracle_registration",
+  "pat-forge-reuse_tracking_oracle_dead_since_inception",
+  "pat-forge-run_status_not_liveness_proof",
+  "pat-forge-test_green_via_wrong_causal_path",
+  "pat-forge-timeout_greenfield_by_profile",
+  "pat-forge-wiremap_concept_reuse_requalification",
+  "pat-full-reachability",
+  "pat-zone-of-control",
+  "sys-damage-floor",
+  "sys-evader-basic",
+  "sys-grid-nav-m01",
+  "sys-guardian-zoc",
+  "sys-pursuer-continuous",
+  "sys-pursuer-mobile",
+  "sys-reachability"
+ ],
+ "created_ts": 1788249893.039351,
+ "design_state": {
+  "answered": 0,
+  "asked": 1,
+  "blocking_gaps": 0,
+  "open_questions": {
+   "ART_to_GM": 1,
+   "GM_to_ART": 0
+  },
+  "ready_for_freeze": {
+   "ART": false,
+   "GM": false
+  },
+  "round": 1,
+  "shared_design_pct": 0,
+  "status": {
+   "ART": "PARTIAL",
+   "GM": "PARTIAL"
+  }
+ },
+ "escalations": 0,
+ "is_game": true,
+ "model_override": null,
+ "profile": "full_content",
+ "project": "p3_beta",
+ "reason": "exécuteur LLM en échec à s2.7-gm-worldscan après 4 tentatives: s2.7-gm-worldscan: artefact gm_worldscan.json non matérialisable — 'sources_consumed.worldscan' : adresse 'games[0].loops.minute_1' doit commencer par 'worldscan:'",
+ "run_id": "p3_beta-20260901-run1",
+ "run_status": "HALTED",
+ "steps": {
+  "s0-contrat": {
+   "attempts": 3,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\p3_beta\\artifacts\\s0-contrat.txt",
+    "artifact_sha256": "d71f416c3379c05fe7299bb3c096a8c803ffe8cbafacdc8178cb83c4cb4cf9cd",
+    "cache_creation_tokens": 33253,
+    "cache_read_tokens": 32235,
+    "cost_usd": 3.636723,
+    "duration_s": 718.1100707054138,
+    "materialize_retries": [
+     "charter.yaml non matérialisable — aucun bloc charter valide (1 bloc(s) yaml inspecté(s)) : bloc 1: check_charter FAIL — 'reference_jeu' absent ou vide; 'criteres_succes[8]' contient un « à définir » résiduel : 'Schéma : le charter passe yaml_check (aucun champ requis vide/absent/« à définir »).'",
+     "charter.yaml non matérialisable — aucun bloc charter valide (1 bloc(s) yaml inspecté(s)) : bloc 1: check_charter FAIL — 'criteres_succes[0]' contient un « à définir » résiduel : 'charter.yaml matérialisé par s0 et validé par check_charter : aucun champ requis vide, absent, ni « a definir » (condition de validité de bras A1).'"
+    ],
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "next_reason": "la chaîne causale se ferme ici si check_charter accepte le bloc ; sinon escalade au driver avec ce diagnostic de forme",
+    "output_excerpt": "iseur) · **Statut** : non fait par moi · **Raison** : contrat s0 = `run: aucun` ; l'oracle est exécuté par le driver au moment de la matérialisation.\n- **Item** : preuve de provenance Pierre de `reference_jeu` · **Où** : gate · **Statut** : non fait (non mécanisable) · **Raison** : fait de gate, pas de schéma ; provenance tracée au project_brief mais la vérification Pierre reste un acte HumanGate, non un claim automatique.\n\n### RETURN LINEAGE\nwhy_task_existed:\n- problem: attempt 2 de s0 refusée par check_charter — bloc charter non matérialisable\n- oracle: check_charter (validateur de schéma déterministe non-LLM)\n- root_cause: `criteres_succes[0]` citait le token placeholder « a definir » dans sa prose ; le détecteur de check_charter matche la sous-chaîne sans distinguer prose légitime d'un blanc réel\n- action_reason: reformuler tous les critères sans jamais citer le token placeholder ferme le faux positif tout en conservant le fond validé de l'attempt 2\n\nresult: charter.yaml réémis, 7 champs requis remplis, aucun token placeholder dans aucune valeur ; provenance Pierre tracée pour plateforme_cible et reference_jeu\nproof: relecture manuelle du bloc yaml — 0 occurrence du token placeholder dans les valeurs ; check_charter à exécuter par le matérialiseur (run non permis à s0)\nlearning: un détecteur de placeholder par sous-chaîne pénalise la prose qui NOMME la règle de validité ; ne jamais citer le token interdit dans le texte d'un critère, même pour décrire l'exigence\nnext_reason: la chaîne causale se ferme ici si check_charter accepte le bloc ; sinon escalade au driver avec ce diagnostic de forme\n\nSKIPPED_VALIDATION: voir section ci-dessus (2 items assumés)\nRETURN_REASON: {\"status\": \"DISCOVERED\", \"problem\": \"check_charter refuse un charter dont un critere NOMME le token placeholder dans sa prose legitime (match sous-chaine)\", \"root_cause\": \"le detecteur de placeholder de check_charter matche la sous-chaine sans distinguer prose descriptive d'un champ reellement vide\"}",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 48556,
+    "tools_used": {},
+    "yaml_check": {
+     "champs": [
+      "actions_interdites",
+      "criteres_demo",
+      "criteres_succes",
+      "hors_scope",
+      "objectif",
+      "plateforme_cible",
+      "reference_jeu"
+     ],
+     "check": {
+      "oracle": "check_charter",
+      "raisons": [],
+      "verdict": "PASS"
+     },
+     "path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\p3_beta\\charter.yaml",
+     "written": true
+    }
+   },
+   "next_reason": "la chaîne causale se ferme ici si check_charter accepte le bloc ; sinon escalade au driver avec ce diagnostic de forme",
+   "status": "OK",
+   "ts": 1788250611.5677125
+  },
+  "s1-prisme": {
+   "attempts": 0,
+   "status": "PENDING"
+  },
+  "s10a-oracle-code": {
+   "attempts": 0,
+   "status": "PENDING"
+  },
+  "s10b-oracle-archi": {
+   "attempts": 0,
+   "status": "PENDING"
+  },
+  "s10c-oracle-wiremap": {
+   "attempts": 0,
+   "status": "PENDING"
+  },
+  "s11-redteam-code": {
+   "attempts": 0,
+   "status": "PENDING"
+  },
+  "s12-verdict": {
+   "attempts": 0,
+   "status": "PENDING"
+  },
+  "s2-worldscan": {
+   "attempts": 2,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\p3_beta\\artifacts\\s2-worldscan.txt",
+    "artifact_sha256": "4d508880606edc6f4a72a9d62fe319eb491947f9824fb89a20f287605a20cc9c",
+    "cache_creation_tokens": 57749,
+    "cache_read_tokens": 969417,
+    "cost_usd": 0.7350266999999999,
+    "duration_s": 316.78416419029236,
+    "materialize_retries": [
+     "s2-worldscan: artefact worldscan.json non matérialisable — 'games' est ABSENTE du manifeste (clé manquante — un manifeste sans jeu rend check_worldscan.mjs trivialement invalide)"
+    ],
+    "model": "claude-haiku-4-5-20251001",
+    "model_override": null,
+    "output_excerpt": "annés (3 jeux)\n- ✅ ≥3 sources citées par jeu (3-4 sources chacun)\n- ✅ 4 boucles renseignées par jeu (minute_1, minute_10, hour_5, endgame)\n- ✅ Objectives[] complet : modes multiples, victory/defeat conditions explicites, has_win_state correct\n- ✅ retention_answer non vide\n- ✅ advisory: true\n- ✅ Zéro média local référencé (URLs web uniquement)\n\nValidations NON effectuées :\n- Wireframe UX détaillé : hors périmètre World Scan (advisory uniquement)\n- Architecture technique complète : hypothétique, pas mesurée\n- Compatibilité mécanique avec p3_beta : impossible sans avoir vu le charter de p3_beta (pré-s0 ou s0 non accessibles)\n- Performance metrics (FPS, latency) : non observable depuis références publiques\n\nSKIPPED_VALIDATION: Les trois validations skippées portent sur l'architecture technique précise et la compatibilité avec le charter spécifique de p3_beta. **Raison** : World Scan est advisory (observation de patterns, pas prescription). La pertinence de ces observations pour p3_beta sera déterminée par HumanGate (fog).\n\n---\n\nRETURN_REASON: {\"status\": \"NOT_DISCOVERED\"}\n\nSources:\n- [Cookie Clicker Wikipedia](https://en.wikipedia.org/wiki/Cookie_Clicker)\n- [Cookie Clicker Official](https://cookieclicker.com/)\n- [Cookie Clicker Console Release](https://www.prnewswire.com/news-releases/the-legendary-idle-game-cookie-clicker-is-coming-to-consoles-on-may-22-302456142.html)\n- [Hades Wikipedia](https://en.wikipedia.org/wiki/Hades_(video_game))\n- [Hades Fandom Wiki](https://hades.fandom.com/wiki/How_to_play_guide_for_Hades)\n- [Hades YouTube Playthrough #1](https://www.youtube.com/watch?v=jkMquTukXDw)\n- [Hades YouTube Playthrough #2](https://www.youtube.com/watch?v=kV_-FnR5Mfk)\n- [Slay the Spire Wikipedia](https://en.wikipedia.org/wiki/Slay_the_Spire)\n- [Slay the Spire Fandom Wiki](https://slay-the-spire.fandom.com/wiki/Act_4)\n- [Slay the Spire YouTube Guide](https://www.youtube.com/watch?v=OEojtzp5aYo)\n- [Slay the Spire YouTube A20](https://www.youtube.com/watch?v=OKLuhR2W5Xo)",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-haiku-4-5-20251001",
+    "runner": "claude",
+    "tokens": 16657,
+    "tools_used": {
+     "Read": 10,
+     "WebFetch": 1,
+     "WebSearch": 10
+    }
+   },
+   "status": "OK",
+   "ts": 1788250928.7129436
+  },
+  "s2.5-artbible": {
+   "attempts": 2,
+   "detail": {
+    "artbible_check": {
+     "coverage": {
+      "checked": true,
+      "missing": [],
+      "satisfied": [
+       "core_emitter",
+       "resource_mote",
+       "resonator_t1",
+       "resonator_t2",
+       "resonator_t3",
+       "upgrade_icon",
+       "unlock_reveal_fx",
+       "hud_panel",
+       "buy_button",
+       "end_banner"
+      ]
+     },
+     "coverage_status": "OK",
+     "executed_by": "driver",
+     "reason": null,
+     "receipt_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\p3_beta\\evidence\\check_artbible_p3_beta-20260901-run1.json",
+     "resolution_note": "advisory — la consommation réelle est gatée à s10a (check_asset_consumption)",
+     "resolution_stats": {
+      "blocked": 10,
+      "ok": 0,
+      "total": 10
+     },
+     "script_verdict": "OK",
+     "verdict_structure": "PASS"
+    },
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\p3_beta\\artifacts\\s2.5-artbible.txt",
+    "artifact_sha256": "50be324a26ed898b62925fe4844f4db56ad615bb2a77dcffeeb518ad14021aec",
+    "cache_creation_tokens": 74672,
+    "cache_read_tokens": 609006,
+    "cost_usd": 3.6342975000000006,
+    "design_questions_check": {
+     "path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\p3_beta\\design_questions.json",
+     "questions": 1,
+     "round": 1,
+     "written": true
+    },
+    "design_state": {
+     "answered": 0,
+     "asked": 1,
+     "blocking_gaps": 0,
+     "open_questions": {
+      "ART_to_GM": 1,
+      "GM_to_ART": 0
+     },
+     "ready_for_freeze": {
+      "ART": false,
+      "GM": false
+     },
+     "round": 1,
+     "shared_design_pct": 0,
+     "status": {
+      "ART": "PARTIAL",
+      "GM": "PARTIAL"
+     }
+    },
+    "duration_s": 588.5584561824799,
+    "materialize_retries": [
+     "s2.5-artbible: design_questions.json non materialisable -- question 'q_art_001' : 'about' 'art_bible:besoins_visuels' ne resout pas dans l'artefact du demandeur (ART) -- ATTENDU : un unique fence ```design_questions``` contenant UNIQUEMENT l'objet JSON {\"schema_version\": 1, \"round\": <int>, \"questions\": [...], \"declarations\": {\"ART\": {...}, \"GM\": {...}}}"
+    ],
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "next_reason": "chaîne FERMÉE pour cette étape — le driver ré-exécute check_artbible (son reçu gate) puis matérialise design_questions. Une question de coordination NON bloquante est remontée au GM (nombre de paliers / forme de la fin) ; ce n'est pas une escalade.",
+    "output_excerpt": " seul) · raison: reçu d'autorité produit par le DRIVER (`executed_by: driver`, fiche 3 2026-08-30).\n- item: jugement d'adéquation esthétique/viewpoint · périmètre: `neon-lattice` / `flat-vector-ui` · statut: hors périmètre · raison: jamais un oracle (garde-fou) — fog HumanGate.\n- item: alignement du nombre de paliers et de la condition de fin avec la boucle canonique du GM · périmètre: `art_bible:asset_rules` · statut: partiel · raison: `design/content_requirements.md` non injecté dans ce run — coordination remontée en question GM non bloquante.\n\n```design_questions\n{\"schema_version\": 1, \"round\": 1, \"questions\": [{\"id\": \"q_art_001\", \"from\": \"ART\", \"to\": \"GM\", \"round\": 1, \"about\": \"art_bible:asset_rules\", \"loop_id\": \"core_loop\", \"missing\": [\"nombre canonique de paliers de generateur (l'art bible en fixe 3 : resonator_t1/t2/t3, une requete chacun)\", \"forme ludique de la condition de fin representee par end_banner (saturation du treillis)\"], \"why\": \"L'art bible a decide 3 paliers de resonateur (une asset_request par palier, section asset_rules) et une fin par saturation. Si la structure canonique du GM prevoit un autre nombre de generateurs ou une condition de fin differente, un round 2 ajustera les visual_requirements et leurs requetes. Non bloquant : l'art bible passe check_artbible OK en l'etat et la couverture par entity_role reste valide quel que soit le compte final.\", \"blocking\": false, \"answer\": null}], \"declarations\": {\"ART\": {\"round\": 1, \"ready_for_freeze\": false, \"open_to_gm\": 1}, \"GM\": {\"round\": 1, \"ready_for_freeze\": false, \"open_to_art\": 0}}}\n```\nRETURN_REASON: {\"status\": \"DISCOVERED\", \"problem\": \"Le catalogue HTML ne resout aucune des 10 asset_requests de ce jeu incremental/clicker (0/10 OK, 10/10 BLOCKED de resolution).\", \"root_cause\": \"knowledge_base/catalog.json ne contient aucun asset de genre incremental ni du style abstrait lumineux requis ; le seul set HTML de proximite (candy-pop) est alimentaire et barre par l'invariant no-copy Cookie Clicker.\"}",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 40270,
+    "tools_used": {
+     "Bash": 4,
+     "Read": 5
+    }
+   },
+   "next_reason": "chaîne FERMÉE pour cette étape — le driver ré-exécute check_artbible (son reçu gate) puis matérialise design_questions. Une question de coordination NON bloquante est remontée au GM (nombre de paliers / forme de la fin) ; ce n'est pas une escalade.",
+   "status": "OK",
+   "ts": 1788251794.3476543
+  },
+  "s2.5-artbible-r2": {
+   "attempts": 0,
+   "status": "PENDING"
+  },
+  "s2.6-story-bible": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\p3_beta\\artifacts\\s2.6-story-bible.txt",
+    "artifact_sha256": "c9d3b87dbaca919803dbeb541f1a757587e0b86a7afaf0adb953ec23c9e7645f",
+    "cache_creation_tokens": 116744,
+    "cache_read_tokens": 444582,
+    "cost_usd": 1.8701059999999998,
+    "duration_s": 276.6870653629303,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": "tenu Cookie Clicker que le charter interdit de reprendre.\"\n    },\n    {\n      \"id\": \"coherence_rules\",\n      \"status\": \"GROUNDED\",\n      \"elements\": [\n        {\n          \"statement\": \"Aucun nom, asset, contenu ni valeur numerique de Cookie Clicker ne peut apparaitre dans le monde : la reference n'est qu'une grammaire de genre.\",\n          \"source\": \"charter\",\n          \"ref\": \"hors_scope: 'Copie de Cookie Clicker : aucun asset, nom, contenu, ni valeur numerique repris ; la reference sert de grammaire de genre seulement.'\",\n          \"inferred\": false\n        },\n        {\n          \"statement\": \"Le cadre du monde reste fixe au genre incremental/clicker : ce cadre ne peut pas etre change par la chaine narrative.\",\n          \"source\": \"charter\",\n          \"ref\": \"hors_scope: 'Changement de genre : incremental/clicker est fixe par Pierre, non negociable par la chaine.'\",\n          \"inferred\": false\n        },\n        {\n          \"statement\": \"La structure du monde et du jeu est entierement inventee par la chaine Forge, sans emprunt au bras dirige : toute matiere narrative ajoutee en aval doit rester ancree, jamais empruntee.\",\n          \"source\": \"charter\",\n          \"ref\": \"objectif: 'structure complete ... ENTIEREMENT INVENTEE par la chaine Forge' ; hors_scope: 'Consultation ou reprise de toute valeur du bras dirige ... isolement de bras obligatoire.'\",\n          \"inferred\": true\n        }\n      ]\n    }\n  ]\n}\n```\n\nRETURN_REASON: {\"status\": \"DISCOVERED\", \"problem\": \"Pour ce projet incremental/clicker, 6 des 8 sections narratives sont NOT_GROUNDED : les deux seules sources injectees ne portent aucune matiere narrative de monde (personnages, factions, evenements, chronologie, enjeux).\", \"root_cause\": \"L'ancre amont s2-worldscan a un output_contract oriente genre/mecaniques (loops, objectives, retention, sources) sans champ de monde narratif ; combinee a un charter centre sur la STRUCTURE ludique inventee, elle ne peut ancrer que le cadre de genre, pas un monde peuple.\"}",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 19223,
+    "tools_used": {
+     "Bash": 1,
+     "LSP": 1,
+     "Read": 4
+    }
+   },
+   "status": "OK",
+   "ts": 1788251205.5379102
+  },
+  "s2.7-gm-worldscan": {
+   "attempts": 4,
+   "detail": {
+    "executor_diagnostic": {
+     "duration_s": 631.452915430069,
+     "measured": true,
+     "process_state": "(non mesuré)",
+     "returncode": null,
+     "stderr_tail": "(non mesuré)",
+     "timeout": false,
+     "transient_retries_count": 0
+    },
+    "materialize_retries": [
+     "s2.7-gm-worldscan: artefact gm_worldscan.json non matérialisable — 'sources_consumed.worldscan' : adresse 'games[0].loops.minute_1' doit commencer par 'worldscan:'"
+    ],
+    "reason": "exécuteur LLM en échec à s2.7-gm-worldscan après 4 tentatives: s2.7-gm-worldscan: artefact gm_worldscan.json non matérialisable — 'sources_consumed.worldscan' : adresse 'games[0].loops.minute_1' doit commencer par 'worldscan:'"
+   },
+   "status": "BLOCKED",
+   "ts": 1788262842.4838383
+  },
+  "s2.7-gm-worldscan-r2": {
+   "attempts": 0,
+   "status": "PENDING"
+  },
+  "s3-decompo": {
+   "attempts": 0,
+   "status": "PENDING"
+  },
+  "s4-archi": {
+   "attempts": 0,
+   "status": "PENDING"
+  },
+  "s5-wiremap": {
+   "attempts": 0,
+   "status": "PENDING"
+  },
+  "s6-redteam-plan": {
+   "attempts": 0,
+   "status": "PENDING"
+  },
+  "s9-build": {
+   "attempts": 0,
+   "status": "PENDING"
+  }
+ },
+ "updated_ts": 1788262842.4868393
+}

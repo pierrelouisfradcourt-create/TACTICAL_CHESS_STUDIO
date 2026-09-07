@@ -1,0 +1,78 @@
+{
+  "patch_note": "V04 monkeypatch documente : v2.mjs_identifier_lines est remplace par mjs_identifier_lines_v4 (meme signature, meme contrat de retour) AVANT tout appel a v2._build_caches()/mode_sweep_worktree(). Rien d'autre dans V02 n'est modifie ou intercepte -- verifie par diff de comportement cible (self-guard test).",
+  "self_guard_test": {
+    "auditAgentFile": {
+      "lines_seen_v04_scanner": [
+        205,
+        338
+      ],
+      "lines_seen_v02v03_scanner": [
+        205
+      ],
+      "consumer_line_found_v04": true,
+      "consumer_line_found_v02v03": false
+    },
+    "collectDeclaredFields": {
+      "lines_seen_v04_scanner": [
+        244,
+        358
+      ],
+      "lines_seen_v02v03_scanner": [
+        244
+      ],
+      "consumer_line_found_v04": true,
+      "consumer_line_found_v02v03": false
+    },
+    "readersNamingField": {
+      "lines_seen_v04_scanner": [
+        280,
+        361
+      ],
+      "lines_seen_v02v03_scanner": [
+        280
+      ],
+      "consumer_line_found_v04": true,
+      "consumer_line_found_v02v03": false
+    },
+    "PASS": true
+  },
+  "delta_identity_tests": {
+    "a_line_shift_python": {
+      "identical": true,
+      "key_base": "foo|py|function(a,b)",
+      "key_shifted": "foo|py|function(a,b)",
+      "pass": true
+    },
+    "a_line_shift_mjs": {
+      "identical": true,
+      "key_base": "foo|mjs|function(a, b)",
+      "key_shifted": "foo|mjs|function(a, b)",
+      "pass": true
+    },
+    "b_moved_in_file_python": {
+      "identical_to_base": true,
+      "key_base": "foo|py|function(a,b)",
+      "key_moved": "foo|py|function(a,b)",
+      "pass": true
+    },
+    "b_moved_in_file_mjs": {
+      "identical_to_base": true,
+      "key_base": "foo|mjs|function(a, b)",
+      "key_moved": "foo|mjs|function(a, b)",
+      "pass": true
+    },
+    "c_renamed_python": {
+      "differs_from_base": true,
+      "key_base": "foo|py|function(a,b)",
+      "key_renamed": "foo_renamed|py|function(a,b)",
+      "pass": true
+    },
+    "c_renamed_mjs": {
+      "differs_from_base": true,
+      "key_base": "foo|mjs|function(a, b)",
+      "key_renamed": "foo_renamed|mjs|function(a, b)",
+      "pass": true
+    },
+    "ALL_PASS": true
+  }
+}

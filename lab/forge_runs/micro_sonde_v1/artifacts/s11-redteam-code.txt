@@ -1,0 +1,83 @@
+The Write tool is disabled in this session, so I cannot create `rapport_redteam_code.md` on disk. The deterministic parser (`forge.run_real.extract_redteam_findings`) reads my response text, so I deliver the full report inline and note the file-write impossibility in `SKIPPED_VALIDATION`.
+
+---
+
+# rapport_redteam_code.md — micro_sonde_v1 (run1 / s11-redteam-code)
+
+Red-team CODE **aveuglé** : audit adverse du code de l'étape 9, sans les justifications du builder. Le red-team **critique**, les oracles **prouvent**. Chaque faille cite une **reproduction** exécutable par un oracle non-LLM (ancre statique par ligne, ou script node déterministe). Permission `run: aucun` → **je n'ai rien exécuté** : les ancres statiques sont vérifiables par simple lecture ; les repro dynamiques sont des specs à faire tourner en aval.
+
+Périmètre lu : `games/micro_sonde_v1/{index.html, game.mjs, run-oracle.mjs, logic.test.mjs, properties.test.mjs, solvability.mjs, e2e.mjs}`.
+
+---
+
+## F1 — Les 3 volets d'oracle node ne testent PAS l'artefact livré (`game.mjs`)
+- **angle** : preuve qui ne traverse pas la frontière qu'elle valide (couplage oracle↔artefact).
+- **faille** : `logic.test.mjs`, `properties.test.mjs` et `solvability.mjs` **redéfinissent chacun une copie locale** de `class GameState` (`logic.test.mjs:17`, `properties.test.mjs:17`, `solvability.mjs:17`) et **n'importent jamais** `game.mjs`. Ils certifient leurs propres copies inlinées, pas le code chargé par `index.html:175` (`<script src="game.mjs">`). 3 des 4 volets de `run-oracle.mjs` sont découplés de l'artefact expédié ; seul le volet e2e (navigateur) touche réellement `game.mjs`. Une divergence introduite dans `game.mjs` laisserait logic/properties/solvability **verts**.
+- **sévérité** : HIGH
+- **reproduction** : ancre statique — `grep -n "game.mjs" games/micro_sonde_v1/logic.test.mjs games/micro_sonde_v1/properties.test.mjs games/micro_sonde_v1/solvability.mjs` → **0 correspondance**. Repro dynamique (mutation) : remplacer `game.mjs:95` par `this.winState = (state0 === state1) && false;` puis `node games/micro_sonde_v1/run-oracle.mjs` → logic/properties/solvability restent PASS (seul e2e tombe).
+
+## F2 — Le « test 5 seeds » de solvabilité (et les tests de déterminisme) ne portent aucune information : le seed n'est jamais consommé
+- **angle** : preuve factice / règle de variance des métriques (ratifiée Pierre 2026-07-21).
+- **faille** : aucune mécanique ne lit le RNG. `door/window/mirror` (`game.mjs:68-85`) et `cycleCharacter` (`game.mjs:56-63`) sont des additions modulaires déterministes, indépendantes du seed. `solvability.mjs:169` itère sur `[12345,42,999,54321,11111]` et conclut « PASS (5/5 seeds) », mais les 5 parties sont **identiques** — un test unique déguisé en cinq. `logic.test.mjs:147-159` (Test 8) et `properties.test.mjs:203-231` (Property 8) sont tautologiques ; `logic.test.mjs:161-175` (Test 9) l'avoue en commentaire (« They might be same by chance ») puis se rabat sur `actionCount == 1`.
+- **sévérité** : HIGH
+- **reproduction** : script node — copier `findWinningPath`/`GameState` depuis `solvability.mjs`, puis `assert.notDeepStrictEqual(findWinningPath(42).path.map(x=>x.type+x.target), findWinningPath(999).path.map(x=>x.type+x.target))` → **ÉCHOUE** (chemins gagnants identiques pour deux seeds distincts).
+
+## F3 — `SeededRandom` est mort ET arithmétiquement cassé : `next()`/`rand()` renvoient toujours 0
+- **angle** : mécanisme déclaré / non exécuté + primitive fausse.
+- **faille** : `game.mjs:7-14` — `next()` calcule `this.seed = (…)>>>0` (donc `seed ∈ [0,2^32)`) puis `return (this.seed / 0x100000000) >>> 0`. Or `seed/2^32 ∈ [0,1)`, et `>>> 0` tronque à **0** : `next()` renvoie toujours 0, `rand()` = 0. La classe « Seeded PRNG for deterministic behavior » (`game.mjs:1`) est jamais appelée par une mécanique **et** constante. Tout l'appareil de seed décore une primitive inerte.
+- **sévérité** : MEDIUM
+- **reproduction** : `assert.strictEqual(new SeededRandom(42).rand(), 0)` (vrai) ; `assert.notStrictEqual(new SeededRandom(1).next(), new SeededRandom(2).next())` → **ÉCHOUE** (0 === 0). Statiquement décidable par l'arithmétique.
+
+## F4 — `e2e.mjs` est une zone morte, jamais importée, et cassée si activée (API Puppeteer sous Playwright)
+- **angle** : zone morte / trompe-l'œil de couverture + écart outillage.
+- **faille** : `e2e.mjs:2` annonce « Expected to be run by run-oracle.mjs with Playwright », mais `run-oracle.mjs` **n'importe jamais** `e2e.mjs` : il redéfinit son propre `runE2ETests` inline (`run-oracle.mjs:199`). Code orphelin. De plus, branché sur Playwright (`run-oracle.mjs:11`) il planterait : `e2e.mjs:13` utilise `waitUntil: 'networkidle2'` (option **Puppeteer**, invalide en Playwright : `load|domcontentloaded|networkidle|commit`) et `page.waitForTimeout`. Un relecteur croit lire la suite e2e ; la vraie est une copie divergente.
+- **sévérité** : MEDIUM
+- **reproduction** : ancres statiques — `grep -n "e2e.mjs" games/micro_sonde_v1/run-oracle.mjs` → **0** ; `grep -n "networkidle2" games/micro_sonde_v1/*.mjs` → uniquement `e2e.mjs:13` (la suite réelle `run-oracle.mjs:207` utilise `'networkidle'`).
+
+## F5 — `isWon()` contredit la règle de victoire à l'état initial ; deux tests verts se contredisent
+- **angle** : incohérence logique / cache de victoire non évalué (état initial déjà aligné).
+- **faille** : le constructeur (`game.mjs:22-41`) pose `winState=false` **sans** appeler `checkWinCondition()`. L'état initial `[0,0,0]` satisfait pourtant la règle `s0===s1===s2` (`game.mjs:90-97`). `isWon()` renvoie le cache périmé (`false`), pas l'évaluation vive : statut rapporté ≠ plateau réel. Le puzzle **démarre dans une configuration gagnante** masquée par le cache. Le corpus acte les deux comportements pour le MÊME plateau : `properties.test.mjs:104-116` (Property 2, après `checkWinCondition`) exige `isWon()===true` ; `properties.test.mjs:192-201` (Property 7) et `logic.test.mjs:99` (Test 1) exigent `isWon()===false`. Les deux passent selon qu'on lit avant/après l'éval — oracle auto-contradictoire, vert.
+- **sévérité** : MEDIUM
+- **reproduction** : `const g=new GameState(); const s=g.getAllCharacterStates(); assert.strictEqual(g.isWon(), s[0]===s[1]&&s[1]===s[2])` → **ÉCHOUE** (`false !== true`).
+
+## F6 — Le log de l'oracle annonce `node --test` mais exécute `node <fichier>`
+- **angle** : preuve factice dans le transcript.
+- **faille** : `run-oracle.mjs:115/125` impriment « node --test … », alors que `runCommand` (`run-oracle.mjs:65`) fait `spawn(process.execPath, [file])` **sans** `--test`. Sans incidence sur le verdict (un `assert` lancé sort en code ≠ 0), mais le log ment sur la commande réelle.
+- **sévérité** : LOW
+- **reproduction** : ancre statique — comparer `run-oracle.mjs:115` (« node --test … ») à `run-oracle.mjs:65` (`spawn(process.execPath, [file])`).
+
+## F7 — Garde anti-traversée du serveur de test faible (match par préfixe sans séparateur)
+- **angle** : sécurité (serveur HTTP de l'oracle e2e).
+- **faille** : `run-oracle.mjs:24-29` autorise tout `realPath.startsWith(__dirname)` **sans séparateur final** : un dossier frère partageant le préfixe (`…/games/micro_sonde_v1_x`) passe la garde annoncée « prevent directory traversal » (`run-oracle.mjs:23`). Portée réelle faible (serveur éphémère `localhost:8888`, non expédié).
+- **sévérité** : LOW
+- **reproduction** : `GET /../micro_sonde_v1_x/secret` → `path.join(__dirname, …)` = `…/games/micro_sonde_v1_x/secret`, `realPath.startsWith(__dirname)` **true** → servi hors dossier. Ancre : `run-oracle.mjs:25` (`startsWith(__dirname)` vs `startsWith(__dirname + path.sep)`).
+
+---
+
+## Verdicts (séparés)
+- **software_verdict: FAIL** *(ADVISORY — le red-team alimente `redteam_advisory`, ne juge pas le code ; autorité = oracles signés + HumanGate)* — appuyé par ancres non-LLM statiques : imports absents (F1, F4), seed inerte (F2), arithmétique `next()→0` (F3), constructeur sans `checkWinCondition` (F5).
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — pour les seules affirmations à **ancre statique** citée par ligne (vérifiables par lecture). Les repro **dynamiques** n'ont **pas** été exécutées (`run: aucun`) : specs pour oracle aval.
+- **claim_verdict: NO_CLAIM_ALLOWED**.
+
+## fog → HumanGate
+Le **brief/contrat** de `micro_sonde_v1` n'a pu être localisé (ni Bash ni Glob ni Write dans cette session ; chemins probables `lab/forge_briefs/micro_sonde_v1/*` inexistants). Les « écarts contrat↔code » sont donc jugés contre l'**intention auto-déclarée dans le code** + `SCHEMA.md`, pas contre un contrat écrit. **Portée à décider par Pierre** : `micro_sonde` est vraisemblablement une **sonde du pipeline** (artefact minimal pour éprouver la chaîne d'oracle), pas un jeu joueur — recalibrer la sévérité gameplay selon cette intention.
+
+## SKIPPED_VALIDATION
+- **item** : écriture du livrable `rapport_redteam_code.md` — **où** : `lab/forge_briefs/micro_sonde_v1/` — **statut** : non fait — **raison** : outil `Write` désactivé dans la session ; rapport rendu inline (lu par le parseur déterministe).
+- **item** : exécution des reproductions (node/mutation) — **où** : `games/micro_sonde_v1/*.mjs` — **statut** : non fait — **raison** : permission `run: aucun` ; fournies comme specs pour oracle aval.
+- **item** : diff contrat↔code formel — **où** : `lab/forge_briefs/micro_sonde_v1/` — **statut** : partiel — **raison** : brief introuvable (voir fog).
+- **item** : audit `index.html` au-delà du chargement de module — **où** : `games/micro_sonde_v1/index.html` — **statut** : partiel — **raison** : périmètre centré logique/oracle ; CSS/markup sans faille reproductible identifiée.
+- **item** : volets harnais Forge (`reuse_ratio_wired`, `runtime_alive`, `search_consulted`) cités au pré-mortem — **où** : hors `games/micro_sonde_v1/` — **statut** : non fait — **raison** : hors périmètre (code projet uniquement).
+
+## RETURN LINEAGE (FORGE_CAUSAL_LINEAGE_V2 §3)
+- **why_task_existed** — `problem:` non transmis (dispatch s11 ; contexte builder masqué par construction) · `oracle:` aucun (activation pipeline/humaine, pas mesure reçue) · `root_cause:` non établie (aveuglé) · `action_reason:` produire un rapport de failles indépendant.
+- **result** : 7 failles ; 3/4 volets node ne testent pas `game.mjs` (F1), seed inerte + RNG cassé (F2/F3), `e2e.mjs` mort (F4), `isWon()` contredit la règle à l'init (F5).
+- **proof** : ancres statiques citées par ligne (imports absents, arithmétique `next()→0`, constructeur sans `checkWinCondition`). Aucune exécution de ma part (`run: aucun`, `Write`/`Bash` désactivés).
+- **learning** : un « oracle 4 volets » peut être vert alors que 3/4 volets sont découplés de l'artefact (copies inlinées) et qu'un multi-seed n'a aucune variance — la couverture affichée ≠ couverture réelle ; à confirmer par mutation en aval.
+- **next_reason** : escalade justifiée — F1 et F2 contredisent l'état attendu d'un oracle « qui prouve le jeu livré » ; correction possible (importer `game.mjs`, brancher ou assumer `aucun` le seed). HumanGate décide.
+
+```json
+{"findings": [{"angle": "preuve qui ne traverse pas la frontiere (couplage oracle-artefact)", "faille": "logic.test.mjs, properties.test.mjs et solvability.mjs redefinissent chacun une copie locale de class GameState (lignes 17) et n'importent jamais game.mjs ; 3 des 4 volets de run-oracle.mjs certifient des copies inlinees, pas l'artefact charge par index.html:175. Seul l'e2e touche game.mjs.", "severite": "HIGH", "reproduction": "grep -n 'game.mjs' games/micro_sonde_v1/logic.test.mjs games/micro_sonde_v1/properties.test.mjs games/micro_sonde_v1/solvability.mjs => 0 correspondance. Mutation: remplacer game.mjs:95 par 'this.winState=(state0===state1)&&false;' puis node run-oracle.mjs => logic/properties/solvability restent PASS, seul e2e tombe."}, {"angle": "preuve factice / regle de variance des metriques", "faille": "Aucune mecanique ne lit le RNG ; door/window/mirror et cycleCharacter (game.mjs:56-85) sont deterministes independamment du seed. solvability.mjs:169 conclut PASS 5/5 seeds alors que les 5 parties sont identiques (un test unique deguise en cinq). Tests de determinisme (logic.test.mjs:147, properties.test.mjs:203) tautologiques.", "severite": "HIGH", "reproduction": "Script node reprenant findWinningPath/GameState de solvability.mjs: assert.notDeepStrictEqual(findWinningPath(42).path.map(x=>x.type+x.target), findWinningPath(999).path.map(x=>x.type+x.target)) => ECHOUE (chemins gagnants identiques pour deux seeds distincts)."}, {"angle": "mecanisme declare non execute + primitive fausse", "faille": "game.mjs:7-14 SeededRandom.next() renvoie (seed/0x100000000)>>>0 avec seed dans [0,2^32) => quotient dans [0,1) tronque a 0 : next() renvoie toujours 0, rand() renvoie 0. La classe 'Seeded PRNG' n'est jamais appelee par une mecanique ET est constante.", "severite": "MEDIUM", "reproduction": "assert.strictEqual(new SeededRandom(42).rand(), 0) (vrai) ; assert.notStrictEqual(new SeededRandom(1).next(), new SeededRandom(2).next()) => ECHOUE (0===0). Statiquement decidable par l'arithmetique."}, {"angle": "zone morte / trompe-l'oeil de couverture + ecart outillage", "faille": "e2e.mjs:2 annonce etre lance par run-oracle.mjs, mais run-oracle.mjs n'importe jamais e2e.mjs et redefinit son propre runE2ETests inline (run-oracle.mjs:199). e2e.mjs est orphelin et casse: e2e.mjs:13 utilise waitUntil:'networkidle2' (option Puppeteer invalide en Playwright) et page.waitForTimeout.", "severite": "MEDIUM", "reproduction": "grep -n 'e2e.mjs' games/micro_sonde_v1/run-oracle.mjs => 0. grep -n 'networkidle2' games/micro_sonde_v1/*.mjs => uniquement e2e.mjs:13 (la suite reelle run-oracle.mjs:207 utilise 'networkidle')."}, {"angle": "incoherence logique / cache de victoire non evalue a l'init", "faille": "Le constructeur game.mjs:22-41 pose winState=false sans appeler checkWinCondition() ; l'etat initial [0,0,0] satisfait pourtant la regle s0===s1===s2 (game.mjs:90-97). isWon() renvoie le cache perime. Corpus contradictoire vert: properties.test.mjs:104-116 exige isWon()===true (apres checkWinCondition), properties.test.mjs:192-201 et logic.test.mjs:99 exigent isWon()===false.", "severite": "MEDIUM", "reproduction": "const g=new GameState(); const s=g.getAllCharacterStates(); assert.strictEqual(g.isWon(), s[0]===s[1]&&s[1]===s[2]) => ECHOUE (false !== true)."}, {"angle": "preuve factice dans le transcript", "faille": "run-oracle.mjs:115/125 impriment 'node --test ...' alors que runCommand (run-oracle.mjs:65) spawn process.execPath [file] sans --test. Le log ment sur la commande reellement executee.", "severite": "LOW", "reproduction": "Comparer run-oracle.mjs:115 (texte 'node --test ...') a run-oracle.mjs:65 (spawn(process.execPath,[file]) sans --test)."}, {"angle": "securite (serveur HTTP de test e2e)", "faille": "run-oracle.mjs:24-29 autorise tout realPath.startsWith(__dirname) sans separateur final : un dossier frere partageant le prefixe (games/micro_sonde_v1_x) passe la garde 'prevent directory traversal'. Portee faible (serveur ephemere localhost:8888 non expedie).", "severite": "LOW", "reproduction": "GET /../micro_sonde_v1_x/secret => path.join(__dirname,...) = games/micro_sonde_v1_x/secret, realPath.startsWith(__dirname) true => servi hors dossier. Ancre run-oracle.mjs:25 (startsWith(__dirname) vs startsWith(__dirname+path.sep))."}]}
+```
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "3 des 4 volets d'oracle node (logic/properties/solvability) redefinissent une copie inline de GameState et n'importent jamais game.mjs, donc ne testent pas l'artefact livre ; le multi-seed de solvabilite n'a aucune variance (seed jamais consomme, RNG cabosse a 0)", "root_cause": "logique de jeu dupliquee au lieu d'etre importee depuis game.mjs, et appareil de seed decoratif non branche sur les mecaniques"}

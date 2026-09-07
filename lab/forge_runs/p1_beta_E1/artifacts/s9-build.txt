@@ -1,0 +1,78 @@
+Build complete and green on the tree as it stands on disk.
+
+## RAPPORT FINAL — s9-build · p1_beta_E1-20260831-run1
+
+### Ce qui existait / ce que j'ai fait
+
+`games/p1_beta_E1/` contenait une **copie octet-pour-octet** de `games/p1_beta` (défaut de seeding déjà consigné au pré-mortem `manifest-8ea68f0ad8f5d882`), qui ne satisfaisait PAS le blueprint E1 : les modules `economy` et `objective` n'existaient pas, et `render.mjs` dupliquait le seuil terminal que `engine.mjs` déclarait déjà (la duplication que le blueprint demande explicitement de fermer). J'ai construit ce delta.
+
+### software_verdict: OK
+### evidence_verdict: MECHANICAL_VALIDATION_ONLY
+### claim_verdict: NO_CLAIM_ALLOWED
+
+**Oracle code exécuté** : `node games/p1_beta_E1/run-oracle.mjs` → `GLOBAL: PASS`, exit 0.
+**evidence_path** : `lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log` (190 lignes)
+
+| Volet | Résultat mesuré |
+|---|---|
+| Mécanique (`node --test logic.test.mjs properties.test.mjs`) | 70/70 PASS |
+| E2E (Chromium réel, Playwright) | `RESULT: PASS` — 17 observations par l'écran |
+| Solvabilité | SOLVABLE, embrasement **tick 2454 / budget 8000**, rejeu même seed = même tick, **contre-épreuve idle : terminal=false, light=0** |
+| Gate mutation | baseline_ok=true, **40 mutants, 39 tués**, 1 survivant trié équivalent → `check_mutation_gate.passed=true` |
+| Reuse ratio (advisory, hors gate) | `reuse_ratio = 0/(5+0) = 0.000` |
+
+**Oracles statiques** : `check_architecture` ✅ (0 dep interdite) · `check_wiremap` ✅ · `check_e2e_harness` ✅ · `check_solvability_wired` ✅ · `check_harness_no_hardcoded_flags` ✅ · `check_reuse_ratio_wired` ✅ · `check_search_consulted` ✅ (23) · **`check_feature_set_frozen` ❌ — voir ci-dessous, hors de mon périmètre.**
+
+### Fichiers touchés vs ownership
+
+Ownership blueprint (chemins réécrits `games/p1_beta` → `games/p1_beta_E1` conformément à la tâche concrète — **divergence déclarée**, le charter et le blueprint disent `games/p1_beta`, l'ordre d'exécution dit `games/p1_beta_E1`) :
+
+- **Créés** : `economy.mjs`, `objective.mjs`
+- **Modifiés** : `engine.mjs`, `render.mjs`, `main.mjs`, `index.html`, `server.mjs`, `e2e.mjs`, `solvability.mjs`, `logic.test.mjs`, `properties.test.mjs`, `run-oracle.mjs`, `mutation_triage.json`
+- **Non touché** : `input.mjs` (md5 identique à l'original), `asset_resolution.json`
+- **WireMap** (permission explicite du contrat) : `lab/forge_runs/p1_beta_E1/wiremap.json` — colonnes `version` + `statut` seulement ; feature/fonction/fichiers/preuve **intactes** (le script refusait d'écrire si le jeu de règles divergeait)
+- **Preuves écrites** : `evidence/oracle_p1_beta_E1-20260831-run1.log`, `evidence/mutation_p1_beta_E1-20260831-run1.json`
+- **Hors périmètre, RIEN touché** : `tests/**`, `src/**`, `scripts/**`, `autopilot.py`. **Aucun commit, aucun git write.**
+
+### Le delta structurel
+
+1. **`economy.mjs`** — source unique, provenance N2 citée par constante (`economy.json`). `MILESTONE_STEP` est **dérivé** (`TERMINAL_THRESHOLD / MILESTONE_COUNT`), il ne peut plus dériver seul.
+2. **`objective.mjs`** — `currentObjective(state)` extrait de l'engine (l'engine ne fabrique plus aucune chaîne d'interface ; `engine → objective` est interdit par le blueprint).
+3. **Garde de non-duplication falsifiable** — `properties.test.mjs` **extrait les valeurs d'`economy.mjs` à l'exécution** (jamais recopiées) et scanne les autres `.mjs`. Je l'ai **prouvée falsifiable** : injection d'un `const SEUIL_DUPLIQUE_SONDE = 5000;` dans `render.mjs` → `render.mjs:16 — 5000 (valeur de TERMINAL_THRESHOLD) ré-écrite en dur`, sonde retirée ensuite.
+4. **Contre-épreuve du pré-mortem `manifest-c02158869a24c1ef`** — mesurée dans les DEUX volets : `properties.test` (idle sur 30000 frames ne franchit jamais le seuil) et `solvability.mjs` (`idle_loses: true`, `policies_diverge: true` dans le résumé machine). Un jeu qui se gagne en attendant rougit désormais.
+5. **Triage mutation re-vérifié sur CE code, pas hérité** : mutation `&&`→`||` posée à la main, 2 sondes sur les cas réellement divergents, trajectoire complète (tick 2454 identique), `solvability` sous mutant, suite 70/70 sous mutant, puis revert.
+
+### fog → HumanGate (besoins, pas des claims)
+
+1. **`p1_beta_E1` n'est PAS enregistré dans `scripts/forge/oracles.json`.** Mesuré : `resolve_oracle('p1_beta_E1')` → `OracleNotFound: no oracle configured for project 'p1_beta_E1'`, et `driver._oracle_argv()` rend `()` ⇒ le gate rendra BLOCKED. Le fichier est **hors de mon ownership** ; je ne l'ai pas écrit. Entrée à ajouter : `"p1_beta_E1": {"cwd": "games/p1_beta_E1", "command": ["node", "run-oracle.mjs"]}`.
+2. **`check_feature_set_frozen` = FAIL, cause en amont.** `lab/forge_runs/p1_beta_E1/wiremap_frozen.json` est l'ancre du run **p1_beta** (15 noms accentués) ; le `wiremap.json` E1 produit à s5 porte 22 noms non accentués — **intersection = 0**. Je n'ai touché ni l'un ni l'autre en identité de règle. Corriger l'ancre moi-même reviendrait à blanchir un gel : décision Pierre.
+3. **`MILESTONE_COUNT` n'a aucune source N2.** `featuremap.json:gb_quest_milestone` exige « un seuil intermédiaire » sans valeur ; `economy.json` ne porte aucun invariant de jalon. Grandeur décidée en aval, ce que le charter interdit. Je l'ai **déclarée** (`PROVENANCE_GAPS`) au lieu de fabriquer une provenance — mesure M2 à trancher.
+4. **Neutralisation terminale : nature de l'entrée déclarée.** L'overlay étant modal, un clic souris matériel sur `#hearth` ne prouverait que l'occultation. L'e2e dispatche un **événement click réel** qui emprunte le vrai chemin `document.body → input.mjs → engine`. C'est écrit dans le code, dans le log et dans la WireMap — pas un clic souris matériel.
+5. **Divergence de chemin charter/blueprint (`games/p1_beta`) vs tâche (`games/p1_beta_E1`)** — j'ai suivi la tâche. Si l'intention était `games/p1_beta`, tout ce build est au mauvais endroit.
+
+### SKIPPED_VALIDATION
+
+| Item | Périmètre | Statut | Raison |
+|---|---|---|---|
+| Enregistrement oracle | `scripts/forge/oracles.json` | **non fait** | Hors ownership blueprint. Le gate rendra BLOCKED sans lui (voir fog #1). |
+| `check_feature_set_frozen` | `wiremap_frozen.json` ↔ `wiremap.json` | **non fait (FAIL constaté)** | Ancre du run p1_beta seedée dans le run dir E1 ; les deux fichiers sont hors ownership en identité de règle (voir fog #2). |
+| Provenance N2 de `MILESTONE_COUNT` | `economy.mjs` | **partiel** | Aucune source amont n'existe ; déclarée en gap plutôt qu'inventée (voir fog #3). |
+| Clic souris **matériel** en état terminal | `e2e.mjs` | **partiel** | Physiquement intercepté par l'overlay modal ; remplacé par un événement click réel, limite déclarée (voir fog #4). |
+| Rejeu du gate mutation après édition du triage | `mutation_triage.json` | **non refait** | Seule la justification texte a changé après la mesure ; les 40 mutants n'ont pas été re-générés. `check_mutation_gate` re-évalué sur le résultat mesuré : `passed=true`. |
+| `modules_sans_test` = e2e, run-oracle, server, solvability | `games/p1_beta_E1` | **non fait** | Signalé par `check_architecture` mais non bloquant ; ce sont les modules de preuve eux-mêmes — les tester exigerait un méta-harnais, hors périmètre de ce dispatch. |
+| Jugement de la qualité ludique | jeu entier | **non fait** | Explicitement hors charter (donnée M7, jugement humain en aveugle). |
+| Nettoyage d'un script temporaire | `C:\Users\Studio-Dev\AppData\Local\Temp\wiremap_update_p1betaE1.py` | **non fait** | Hors du dépôt ; la suppression a été refusée par le garde-fou de session. Aucun fichier temporaire ne subsiste dans le dépôt. |
+
+### RETURN LINEAGE
+
+- **why_task_existed** :
+  - `problem:` `games/p1_beta_E1` portait une copie du jeu p1_beta ne satisfaisant pas le blueprint E1 (modules `economy`/`objective` absents, seuil terminal dupliqué entre `engine.mjs` et `render.mjs`).
+  - `oracle:` pré-mortem `manifest-8ea68f0ad8f5d882` (copie octet-pour-octet constatée) + le blueprint E1 lui-même, dont la preuve attendue du module `economy` nomme cette duplication.
+  - `root_cause:` **non établie** — le mécanisme de seeding du run dir E1 depuis p1_beta n'a pas été observé, seulement son résultat.
+  - `action_reason:` seul le delta manquant rend le blueprint satisfaisable ; réécrire le jeu entier détruirait des preuves déjà vertes sans nécessité.
+- **result** : les 4 volets d'oracle verts, 6 oracles statiques verts sur 7, gate mutation vert avec 1 exception tracée, WireMap à jour sur 22 lignes. `check_feature_set_frozen` reste rouge pour une cause amont non touchée.
+- **proof** : `node games/p1_beta_E1/run-oracle.mjs` → `GLOBAL: PASS` (exit 0) · `lab/forge_runs/p1_beta_E1/evidence/oracle_p1_beta_E1-20260831-run1.log` · `lab/forge_runs/p1_beta_E1/evidence/mutation_p1_beta_E1-20260831-run1.json` (40/39/1).
+- **learning** : une règle de non-duplication n'est vérifiable que si le test **dérive** les valeurs surveillées de la source unique au lieu de les recopier — sinon il s'auto-exempte et ne détecte jamais la valeur ajoutée demain. Et une garde neuve doit être **prouvée rouge** avant d'être crue verte.
+- **next_reason** : la chaîne causale **n'est PAS fermée**. Deux causes non résolues persistent, toutes deux hors de mon ownership : (1) l'absence d'entrée `p1_beta_E1` dans `oracles.json` empêchera mécaniquement le gate de s'exécuter (BLOCKED mesuré) ; (2) `wiremap_frozen.json` ancre le mauvais run, ce qui garde `check_feature_set_frozen` rouge quoi que fasse le builder. Le niveau supérieur doit trancher les deux avant s10/s12.
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Le projet p1_beta_E1 n'a aucune entree dans scripts/forge/oracles.json (resolve_oracle leve OracleNotFound, driver._oracle_argv() rend () => gate BLOCKED), et lab/forge_runs/p1_beta_E1/wiremap_frozen.json ancre les 15 features accentuees du run p1_beta alors que le wiremap.json E1 en porte 22 non accentuees (intersection 0), ce qui rend check_feature_set_frozen rouge independamment du code produit", "root_cause": "le run dir p1_beta_E1 a ete seede depuis le run dir p1_beta (blueprint copie octet pour octet, wiremap_frozen herite) sans que l'enregistrement d'oracle ni la re-ancre du gel du jeu de regles ne soient refaits pour le nouveau projet"}

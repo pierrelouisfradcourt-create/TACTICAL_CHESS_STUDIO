@@ -1,0 +1,277 @@
+{
+ "features": [
+  {
+   "feature": "R1 Gain au clic (economie)",
+   "fonction": "clickGain",
+   "fichiers": [
+    "games/p3_alpha/state.mjs",
+    "games/p3_alpha/economy.mjs"
+   ],
+   "preuve": "logic.test.mjs: bot clique N fois ; solde_mR augmente d'EXACTEMENT N x gain_clic x 1000 (test R1-clickGain-*, assertions ===). e2e.mjs (test R1_click_gain_exact_no_listener_leak): 5 VRAIS clics souris espaces de 150ms sur le canvas reel -> gain EXACTEMENT 5000 mR — couvre la regression du listener {once:true} reenregistre a chaque frame (corrigee, cf. index.html) qui aurait sur-compte le gain.",
+   "couvre": [
+    "clickGain"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R2 Production par tick des generateurs",
+   "fonction": "tickProduction",
+   "fichiers": [
+    "games/p3_alpha/state.mjs",
+    "games/p3_alpha/economy.mjs",
+    "games/p3_alpha/engine.mjs",
+    "games/p3_alpha/index.html"
+   ],
+   "preuve": "solvability.mjs: engine.tick() sans clic fait croitre cumul ; deux runs seed=12345 produisent trajectoire identique (determinism test). e2e.mjs (test R2_passive_production_reaches_displayed_state): apres achat reel d'un generateur G1 par clic souris, cumul_mR affiche par window.__game augmente reellement sur 1.2s d'horloge murale — couvre la regression de wiring (engine.tick() mutait un GameState interne DISTINCT de celui lu par InputHandler/render/window.__game ; corrigee dans index.html : state = engine.state).",
+   "couvre": [
+    "tickProduction"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R3 Courbe de cout x1.12",
+   "fonction": "generatorCost",
+   "fichiers": [
+    "games/p3_alpha/economy.mjs"
+   ],
+   "preuve": "logic.test.mjs (test R3-costCurve-*): getGeneratorCost_mR(i, n) == floor(base[i] x 1.12^n), egalite stricte, n=0..3.",
+   "couvre": [
+    "requires-capabilities"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R4 Multiplicateur amelioration de clic (x2/x4)",
+   "fonction": "clickMultiplier",
+   "fichiers": [
+    "games/p3_alpha/state.mjs",
+    "games/p3_alpha/economy.mjs"
+   ],
+   "preuve": "logic.test.mjs (test R1-clickGain-multiplier-*): x2 double gain strictement, x4 quadruple, egalite ===.",
+   "couvre": [
+    "clicMultiplier"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R5 Multiplicateur amelioration de production (x2)",
+   "fonction": "productionMultiplier",
+   "fichiers": [
+    "games/p3_alpha/state.mjs",
+    "games/p3_alpha/economy.mjs"
+   ],
+   "preuve": "logic.test.mjs: getProductionMultiplier(i) retourne 2 si upgrade possedee, 1 sinon, egalite ===.",
+   "couvre": [
+    "prod_gN_x2"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R6 Validite d'achat / refus sous-finance",
+   "fonction": "tryPurchase",
+   "fichiers": [
+    "games/p3_alpha/state.mjs"
+   ],
+   "preuve": "logic.test.mjs (test R6-tryPurchase-*): insufficient=false+state.unchanged ; sufficient=true+solde.debited.exactly+count.incremented.",
+   "couvre": [
+    "tryPurchase"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R7 Taux R/s courant",
+   "fonction": "currentRate",
+   "fichiers": [
+    "games/p3_alpha/economy.mjs"
+   ],
+   "preuve": "logic.test.mjs (test R7-rate-*): no_generators=0 ; g1_owned=0.1 ; monotonic increase verified.",
+   "couvre": [
+    "currentRate"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R8 Deblocage par seuils cumules S1-S4",
+   "fonction": "updateUnlocks",
+   "fichiers": [
+    "games/p3_alpha/progression.mjs"
+   ],
+   "preuve": "logic.test.mjs (test R8-gateG2-*): cumul<100R => g2.locked ; cumul>=100R => g2.unlocked, transition STRICT.",
+   "couvre": [
+    "updateUnlocks"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R9 Texte d'objectif evolutif",
+   "fonction": "goalText",
+   "fichiers": [
+    "games/p3_alpha/progression.mjs"
+   ],
+   "preuve": "runtime: goalText() change texte a chaque milestone (observable via render ou window.__game).",
+   "couvre": [
+    "goalText"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R10 Detection de victoire S5",
+   "fonction": "checkVictory",
+   "fichiers": [
+    "games/p3_alpha/progression.mjs"
+   ],
+   "preuve": "logic.test.mjs (test R10-victory-*): cumul<1M => false ; cumul>=1M => true, transition STRICTE.",
+   "couvre": [
+    "checkVictory"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R11 Invariant absence de defaite",
+   "fonction": "isDefeatReachable",
+   "fichiers": [
+    "games/p3_alpha/progression.mjs"
+   ],
+   "preuve": "logic.test.mjs (test R11-no-defeat) + properties.test.mjs: isDefeatReachable() == false, toujours.",
+   "couvre": [
+    "isDefeatReachable"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R12 Boucle rejouable (nouveau deblocage)",
+   "fonction": "replayProbe",
+   "fichiers": [
+    "games/p3_alpha/harness.mjs"
+   ],
+   "preuve": "solvability.mjs: bot progresse S1->S2->... ; chaque franchise declenche newUnlock ; trajectory.length > 5000 ticks.",
+   "couvre": [
+    "replayProbe"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R13 Comptabilite milli-R entiers",
+   "fonction": "creditMilliR",
+   "fichiers": [
+    "games/p3_alpha/state.mjs"
+   ],
+   "preuve": "properties.test.mjs: solde_mR et cumul_mR always integers ; solvability bot trajectory verifies no fractional mR.",
+   "couvre": [
+    "creditMilliR"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R14 Nouvelle partie / relance a zero",
+   "fonction": "newGame",
+   "fichiers": [
+    "games/p3_alpha/state.mjs",
+    "games/p3_alpha/progression.mjs",
+    "games/p3_alpha/engine.mjs",
+    "games/p3_alpha/input.mjs"
+   ],
+   "preuve": "logic.test.mjs (test R14-reset): post-reset solde=0, cumul=0, generators=[0,0,0,0], upgrades=false. e2e.mjs (test R14_new_game_resets_and_stays_live): window.__game.reset() reel remet a zero PUIS un clic souris reel qui suit gagne encore exactement 1000 mR — couvre la regression ou GameEngine.reset() remplacait this.state/this.progression par de nouvelles instances (new GameState()), orphelinant les references tenues par index.html/InputHandler ; corrigee : reset() mute desormais l'etat existant EN PLACE (cf. engine.js).",
+   "couvre": [
+    "newGame"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R15 Boucle de simulation deterministe seedee",
+   "fonction": "tick",
+   "fichiers": [
+    "games/p3_alpha/engine.mjs"
+   ],
+   "preuve": "solvability.mjs (testDeterminism): seed=12345, two runs produce identical cumul trajectory over 1000 ticks.",
+   "couvre": [
+    "tick"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R16 Solvabilite runtime (bot atteint S5)",
+   "fonction": "runSolvabilityBot",
+   "fichiers": [
+    "games/p3_alpha/harness.mjs"
+   ],
+   "preuve": "solvability.mjs: SolvabilityBot.playSolvabilityBot() reaches checkVictory()=true in tick_count<=72000.",
+   "couvre": [
+    "runSolvabilityBot"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R17 Rendu compteur + feedback de clic (squish)",
+   "fonction": "render",
+   "fichiers": [
+    "games/p3_alpha/render.mjs",
+    "games/p3_alpha/index.html"
+   ],
+   "preuve": "e2e.mjs (browser reel, Playwright/Chromium via server.mjs): canvas #gameCanvas rendu (contexte 2d verifie), compteur R lu via window.__game apres clics reels, cartes generateur affichent generators_owned a jour.",
+   "couvre": [
+    "render"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R18 Traduction entree -> action logique",
+   "fonction": "dispatchPointer",
+   "fichiers": [
+    "games/p3_alpha/input.mjs",
+    "games/p3_alpha/index.html"
+   ],
+   "preuve": "e2e.mjs (browser reel): clic souris reel sur la region core -> gain credite (test 2) ; clic souris reel sur la carte G1 -> buyGenerator(0) declenche, solde debite et generators_owned incremente (test R6_R18_real_click_buys_generator). Couvre aussi la regression du hitRegions vide a la toute premiere frame (corrigee : un premier render() synchrone precede desormais le lancement de la boucle rAF, cf. index.html) qui aurait pu avaler le tout premier clic d'un joueur.",
+   "couvre": [
+    "clickGain",
+    "buyGenerator",
+    "possede"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R19 Sonde de decision (variance non triviale)",
+   "fonction": "decisionProbe",
+   "fichiers": [
+    "games/p3_alpha/harness.mjs"
+   ],
+   "preuve": "solvability.mjs (DecisionProbe.probeDecisionVariance): idle_cumul != active_cumul over 300 frames, variance_detected=true.",
+   "couvre": [
+    "decisionProbe"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  },
+  {
+   "feature": "R20 Composition et exposition window.__game",
+   "fonction": "bootGame",
+   "fichiers": [
+    "games/p3_alpha/index.html"
+   ],
+   "preuve": "e2e.mjs (test window_game_api_exists): window.__game defini avec solde_mR/cumul_mR/tick_count/clickCore/buyGenerator/newGame/reset ; verifie via un navigateur reel servi par server.mjs (pas d'injection manuelle).",
+   "couvre": [
+    "bootGame"
+   ],
+   "version": "v1",
+   "statut": "construit"
+  }
+ ]
+}

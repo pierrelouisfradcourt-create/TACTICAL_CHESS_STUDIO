@@ -1,0 +1,44 @@
+{
+  "_note": "Résultats mécaniques rejoués le 2026-08-07, godot v4.6.3-stable_win64_console.exe (scripts/forge/godot.config.json). NO_CLAIM_ALLOWED — MECHANICAL_VALIDATION_ONLY.",
+  "cas_1_defaut_historique": {
+    "game_dir": "lab/forge_evidence/DIVERGENCE_ORACLE_V1/sandbox_v5_defect (copie hors games/**, mode neutralisé)",
+    "commande": "godot --headless --path <sandbox_v5_defect> --script scripts/forge/godot_probes/divergence_probe.gd -- --adapter=<pacman_mode_adapter.gd> --param=mode --seed=7 --ticks=200 --value_a=0 --value_b=1 --ignore=mode_jeu",
+    "ok": false,
+    "controle": {"ticks": 200, "ticks_divergents": 0, "cles": []},
+    "reel": {"ticks": 200, "ticks_divergents": 0, "cles": []},
+    "cout_ms": 515,
+    "exit_code": 1,
+    "verdict": "DEFAUT DETECTE — le paramètre 'mode' est rendu FAIL, nommé, avec la liste des clés d'état comparées (Producteur sans consommateur)",
+    "trace": "traces/run_defect.txt"
+  },
+  "cas_2_jeu_corrige": {
+    "game_dir": "games/pacman (produit gelé, RÉEL, jamais modifié — aucune écriture)",
+    "commande": "godot --headless --path <games/pacman> --script scripts/forge/godot_probes/divergence_probe.gd -- --adapter=<pacman_mode_adapter.gd> --param=mode --seed=7 --ticks=200 --value_a=0 --value_b=1 --ignore=mode_jeu",
+    "ok": true,
+    "controle": {"ticks": 200, "ticks_divergents": 0, "cles": []},
+    "reel": {"ticks": 200, "ticks_divergents": 200, "cles": ["vies"]},
+    "cout_ms": 507,
+    "exit_code": 0,
+    "verdict": "ACCEPTE — divergence mesurée sur 'vies' exclusivement, 200/200 tics, exactement la correction V6 décrite dans games/pacman/07_TESTS/oracle/v6_p1_mode_governs_lives.gd",
+    "trace": "traces/run_corrige.txt"
+  },
+  "cas_3_controle_negatif_isole": {
+    "game_dir": "games/pacman (même valeur des deux côtés : value_a=0, value_b=0)",
+    "ok": false,
+    "controle": {"ticks": 200, "ticks_divergents": 0, "cles": []},
+    "reel": {"ticks": 200, "ticks_divergents": 0, "cles": []},
+    "cout_ms": 500,
+    "exit_code": 1,
+    "verdict": "Contrôle négatif isolé, mêmes valeurs des deux côtés — 0 divergence, comme attendu. FAIL rendu par la sonde car 'reel' == 'controle' (mode inerte) sur cette invocation ; c'est la forme correcte de la garde : la sonde ne prétend jamais qu'un paramètre non testé diverge.",
+    "trace": "traces/run_controle_isole.txt"
+  },
+  "cout_mesure": {
+    "duree_par_parametre_ms_godot_reporte": [515, 507, 500],
+    "moyenne_ms": 507,
+    "note": "durée mesurée CÔTÉ SONDE (2 campagnes de 200 tics chacune, seed fixe) — un process Godot headless par paramètre. Le collecteur Python ajoute host_duration_ms (lancement du process compris, mesuré séparément dans les tests unitaires injectés, cf. test_product_oracle_godot_divergence.py::test_parametre_avec_divergence_reelle_et_controle_propre_rend_ok)."
+  },
+  "tests_pytest": {
+    "commande": ".venv312/Scripts/python.exe -m pytest scripts/forge/tests/test_product_oracle_godot_divergence.py -v",
+    "resultat": "17 passed (15 injectés + 2 réels avec binaire Godot, dont les cas 1 et 2 ci-dessus rejoués automatiquement)"
+  }
+}

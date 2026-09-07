@@ -1,0 +1,104 @@
+{
+ "schema_version": 1,
+ "resources": [
+  {
+   "id": "R",
+   "unit": "milli-R (mR ; 1 R = 1000 mR, comptabilite entiere)",
+   "sources": [
+    "clic_manuel",
+    "generateurs_G1_G4"
+   ],
+   "sinks": [
+    "achat_generateur",
+    "achat_amelioration"
+   ],
+   "initial_stock": 0
+  }
+ ],
+ "formulas": [
+  {
+   "id": "cout_generateur",
+   "text": "cout = cout_base[i] * 1.12^(n_possedes_du_tier)",
+   "params": {
+    "cout_base": [
+     15,
+     100,
+     1100,
+     12000
+    ],
+    "croissance": 1.12
+   }
+  },
+  {
+   "id": "gain_clic",
+   "text": "gain_clic = gain_clic_initial * 2^(clic_x2 achete) * 2^(clic_x4 achete)",
+   "params": {
+    "gain_clic_initial": 1
+   }
+  },
+  {
+   "id": "production_tick",
+   "text": "production_mR_par_tick = somme(n_i * prod_i) * (tick_ms/1000) * 1000 (entier en mR)",
+   "params": {
+    "prod_R_par_s": [
+     0.1,
+     1,
+     8,
+     47
+    ],
+    "tick_ms": 100
+   }
+  },
+  {
+   "id": "victoire_s5",
+   "text": "victoire si total_cumule_R >= 1000000",
+   "params": {
+    "seuil_s5": 1000000
+   }
+  }
+ ],
+ "invariants": [
+  {
+   "id": "content_upgrade_count",
+   "value": 6,
+   "unit": "ameliorations",
+   "why": "6 ameliorations imposees (structure ameliorations_mapping) ; volume de contenu achetable"
+  },
+  {
+   "id": "core_gain_clic",
+   "value": 1,
+   "unit": "R/clic",
+   "why": "gain_clic initial impose = 1 (structure_imposee economy.gain_clic_initial) ; base de tout revenu manuel"
+  },
+  {
+   "id": "economy_growth",
+   "value": 1.12,
+   "unit": "x/achat",
+   "why": "facteur de croissance de cout impose (structure economy.cout_generateur) ; moteur de l'arbitrage acheter/epargner"
+  },
+  {
+   "id": "gameplay_g1_prod",
+   "value": 0.1,
+   "unit": "R/s",
+   "why": "production imposee du 1er generateur G1 (structure prod[0]) ; premiere production automatique"
+  },
+  {
+   "id": "progression_s1",
+   "value": 100,
+   "unit": "R cumules",
+   "why": "seuil cumule S1 impose (structure dimensioning.seuils_cumules[0]) ; revele G2"
+  },
+  {
+   "id": "quest_pre_victory_thresholds",
+   "value": 4,
+   "unit": "seuils",
+   "why": "S1-S4 = 4 jalons de deblocage avant la victoire (structure seuils_cumules[0..3])"
+  },
+  {
+   "id": "world_s5_victory",
+   "value": 1000000,
+   "unit": "R cumules",
+   "why": "condition de fin/victoire S5 imposee (structure dimensioning.fin) ; seule fin observable"
+  }
+ ]
+}

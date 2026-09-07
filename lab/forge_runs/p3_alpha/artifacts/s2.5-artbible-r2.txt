@@ -1,0 +1,48 @@
+Oracle is green (`VERDICT ART_BIBLE: OK`), and I've verified the artifacts against the GM's normative answer:
+
+**Consistency check (art_bible ↔ GM answer q_art_001):**
+- Reveal order — my `visual_requirements`: G2 "revele au seuil S1", G3 "seuil S2", G4 "seuil S3", prod-upgrades "dispo S4", clic_x2 "dispo debut", clic_x4 "requiert clic_x2" → **matches** GM's normative fixing exactly (S1→G2, S2→G3, S3→G4, S4→4 prod-upgrades, 2 click-upgrades from start).
+- Affordance states — my `character_states` + `affordance_rules`: generator `locked → revealed_affordable/unaffordable → owned`; core has *no* locked state (`idle/hover/pressed/victory`) → **matches** GM's `LOCKED → AVAILABLE(afford/not) → OWNED` and "core_clicker n'a AUCUN etat verrouille".
+
+Nothing I represented contradicts the loop; GM's `modification_locus: gm_worldscan` confirms **no Art Bible change is required**. I received **zero** questions from GM (`open_to_art: 0`). The round-2 close is therefore: preserve `q_art_001` + its GM answer (append-only), and flip the ART declaration to `ready_for_freeze: true`.
+
+**Round-2 close — design_questions (JSON-only, append-only, `q_art_001` + GM answer preserved verbatim):**
+
+```design_questions
+{"schema_version": 1, "round": 2, "questions": [{"id": "q_art_001", "from": "ART", "to": "GM", "round": 1, "about": "art_bible:character_states", "loop_id": "core_loop", "missing": ["confirmation que les etats visuels d'affordance (grise-non-achetable, possede, verrouille, presse->eclat de clic) et l'ordre de reveal G2/G3/G4/ameliorations refletent exactement les transitions de la boucle canonique du GM, et non des transitions inventees par l'ART"], "why": "content_requirements.md (carte C.3) n'a pas ete injecte a cette etape ; j'ai ancre les etats d'objet sur structure_imposee_v2_FROZEN + worldscan. Leur fidelite a la boucle reelle du GM (moment du refus observable, feedback de clic, sequence de deblocage) doit etre confirmee cote GM pour que l'art ne represente pas une mecanique que le GM n'a pas posee.", "blocking": false, "answer": {"round": 2, "by": "GM", "ref": "grey_blocks.gate_g2", "text": "Confirme et fixe normativement. Ordre de revelation = seuils CUMULES imposes (structure_imposee dimensioning.seuils_cumules) : S1=100 R revele G2 (grey_blocks.gate_g2), S2=1000 R revele G3 (gate_g3), S3=12000 R revele G4 (gate_g4), S4=150000 R revele les 4 ameliorations x2 prod (prod_upgrades_panel) ; les 2 ameliorations de CLIC sont disponibles des le debut (click_upgrades), jamais deblocables par seuil. Etats d'affordance a montrer : LOCKED (silhouette neutre, seuil non atteint) -> AVAILABLE achetable (carte coloree) vs AVAILABLE non-achetable (grise, refus observable et etat inchange) -> OWNED (possede, scintillement). Le noyau (core_clicker) n'a AUCUN etat verrouille : repos/survol/presse(squish+eclat), le clic n'est jamais refuse. Ces etats et cet ordre vivent maintenant dans mon game_master (grey_blocks + artist_requirements) : l'ART s'y ancre, rien de ce qu'il a represente ne contredit la boucle.", "modification_locus": {"type": "gm_worldscan", "justification": "La reponse fixe l'ordre de revelation et les etats d'affordance dans mon propre bloc game_master (grey_blocks gate_g2/gate_g3/gate_g4/prod_upgrades_panel/core_clicker/click_upgrades et leurs artist_requirements) ; c'est mon artefact qui porte desormais la verite que l'ART questionnait, aucune modification de l'Art Bible n'est requise."}}}], "declarations": {"ART": {"round": 2, "ready_for_freeze": true, "open_to_gm": 0}, "GM": {"round": 2, "ready_for_freeze": false, "open_to_art": 0}}}
+```
+
+---
+
+## RAPPORT FINAL — s2.5-artbible-r2 / p3_alpha-20260901-run1 (Art Director, round 2)
+
+**Résumé factuel.** Round 2 de la boucle de complétion mutuelle. La seule question ouverte, `q_art_001` (ART→GM, `blocking:false`, sur la fidélité des états d'affordance et de l'ordre de reveal), a reçu une réponse GM normative confirmant mes choix ; le GM déclare `modification_locus: gm_worldscan` (la vérité vit dans son `game_master`, aucune modif d'Art Bible requise). J'ai vérifié la cohérence de `art_bible.md` avec cette réponse (reveal order + états d'affordance : identiques) et re-passé l'oracle. `art_bible.md` et `asset_requests.json` restent **inchangés** — aucune modif n'était requise et l'oracle est déjà OK. ART passe `ready_for_freeze: true` ; le GM reste à `false` (sa décision, hors de mon autorité).
+
+**Oracle cité (autorité non-LLM).**
+- `check_artbible.mjs` → `VERDICT ART_BIBLE: OK`. Couverture besoin↔requête complète : 15 `visual_requirements` `required:true` → 15 requêtes du même `entity_role` (collectible ×1, item ×10, icon ×1, effect ×1, ui ×2) ; `vr_background` `required:false` sans requête (décor procédural assumé). `coverage.missing` vide.
+- `software_verdict: OK` · `evidence_verdict: MECHANICAL_VALIDATION_ONLY` (reçu faisant foi = celui ré-exécuté par le **driver**, `evidence/check_artbible_<run_id>.json`, `executed_by: driver` ; mon exécution n'est qu'une discipline de travail, cf. fiche 3 2026-08-30).
+
+**asset_requests produits + statut de résolution (STATISTIQUE ADVISORY, jamais un juge pass/fail) :** 15 requêtes, **15 OK / 0 BLOCKED** contre le catalogue candy-pop. `req_core_clicker` (collectible/sprite) · `req_generator_g1..g4` + `req_upgrade_clic_x2/x4` + `req_upgrade_prod_g1..g4` (item/icon) · `req_resource_pip` (icon) · `req_click_burst` (effect/vfx) · `req_hud_frame`, `req_victory_state` (ui/sprite). Aucun `resolution_stats.blocked` à rapporter.
+
+**fog → HumanGate/GM (jamais un claim) :**
+1. Le « 15 OK » de résolution est mécanique (`style_tag_match` compare des TAGS, pas des pixels ni le rôle). Le catalogue est mono-style (candy-pop) : la **couverture** est prouvée, mais l'**adéquation esthétique par entité** (le BON bonbon pour CE rôle) n'est prouvée par aucun oracle — jugement humain (limite documentée `ASSET_CONTRACT_V0` v0.1, corroborée par le pré-mortem `manifest-0cf2c60ca6114709`).
+2. La fidélité des adresses `worldscan:…` / `story_bible:…` citées dans les sections `heritage_*` à leurs passages sources n'est pas vérifiée par machine (l'oracle ne lit pas les sources) — attestée à la main.
+
+**SKIPPED_VALIDATION :**
+- item: adéquation esthétique par entité des assets résolus · périmètre: 15 requêtes · statut: non fait (hors périmètre — mécanique uniquement) · raison: `style_tag_match` compare des tags, pas des pixels/rôles ; par construction non gaté par un oracle → fog.
+- item: fidélité `ref` héritées ↔ passages réels de worldscan/story_bible · périmètre: sections `heritage_worldscan` / `heritage_story_bible` · statut: partiel (attestation manuelle) · raison: `check_artbible.mjs` ne lit pas les sources amont.
+- item: dérivation indépendante de la fidélité à la carte C.5 (`content_requirements.md`) · périmètre: `character_states` / reveal order · statut: non fait · raison: fichier `content_requirements.md` non injecté dans le run_dir (documenté pré-mortem `manifest-7b538cd03e3a47f5`) ; la fidélité est confirmée via la réponse GM normative (`modification_locus: gm_worldscan`), pas re-dérivée par l'ART.
+
+**RETURN LINEAGE — why_task_existed :**
+- `problem:` le round-1 ART laissait une question de vérification ouverte (`q_art_001`) : les états d'affordance et l'ordre de reveal de l'Art Bible reflètent-ils fidèlement la boucle canonique du GM, ou des transitions inventées par l'ART ?
+- `oracle:` `check_artbible.mjs` (structure OK) + le canal de complétion mutuelle `design_questions` (réponse GM round 2).
+- `root_cause:` `content_requirements.md` (C.5) et les fichiers `design/` non déposés dans le run_dir → l'ART a dû ancrer sur `structure_imposee_v2_FROZEN` + worldscan et différer la confirmation de fidélité au GM plutôt que fabriquer des transitions.
+- `action_reason:` round 2 ferme la boucle — le GM a répondu normativement, confirme qu'aucune modif d'Art Bible n'est requise ; l'ART vérifie la cohérence et déclare `ready_for_freeze`.
+- `result:` `art_bible.md` + `asset_requests.json` inchangés et re-vérifiés OK (couverture 15/15) ; `q_art_001` préservée avec sa réponse GM ; `ART.ready_for_freeze: true`, `GM.ready_for_freeze: false`.
+- `proof:` `node scripts/forge/check_artbible.mjs lab/forge_runs/p3_alpha/art_bible.md lab/forge_runs/p3_alpha/asset_requests.json` → `VERDICT ART_BIBLE: OK / 15 OK / 0 BLOCKED / 15 total`.
+- `learning:` quand les entrées C.5/`design/` ne sont pas injectées, le canal de complétion mutuelle est le mécanisme correct pour différer puis confirmer la fidélité de boucle — jamais fabriquer les transitions dans l'Art Bible.
+- `next_reason:` la chaîne causale **côté ART est FERMÉE** (question répondue, oracle OK, zéro item ouvert, zéro question reçue). Le `ready_for_freeze:false` du GM relève de la décision GM/orchestrateur, pas d'une escalade ART → la lignée ART se termine proprement ici.
+
+`software_verdict: OK` · `evidence_verdict: MECHANICAL_VALIDATION_ONLY` · `claim_verdict: NO_CLAIM_ALLOWED`
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

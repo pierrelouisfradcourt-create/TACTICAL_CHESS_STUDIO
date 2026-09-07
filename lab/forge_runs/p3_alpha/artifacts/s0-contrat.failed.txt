@@ -1,0 +1,117 @@
+I have everything I need: the charter schema (SCHEMA.md), the normative structure (structure_imposee_v2_FROZEN.yaml), the project brief with explicit Pierre-traceable provenance, and my contract. No Project Bible exists for p3_alpha (confirmed absent — not a blocker; the brief is the ratified command source). The charter oracle is `check_charter` (BLOQUANT in the driver per commit fcf56b5e; a deterministic non-LLM schema validator). Per A1, s0 materializes the charter as a single ```yaml block — no file written by me.
+
+---
+
+# Charter — p3_alpha (D2, PAIRE 3) — s0-contrat
+
+Tous les champs design-intent sont tracés à une source Pierre explicite (aucun fog à remonter). Voici le charter, en un bloc `yaml` unique destiné à `check_charter` :
+
+```yaml
+# charter.yaml — p3_alpha (bras DIRIGÉ D2, PAIRE 3)
+# Source de commande : lab/forge_briefs/p3_alpha/project_brief.yaml (GO paire 3 Pierre 2026-08-30)
+# Structure normative : lab/forge_briefs/p3_alpha/structure_imposee_v2_FROZEN.yaml (RATIFIÉE Pierre 2026-08-30)
+# Rédigé par : s0-contrat / run p3_alpha-20260901-run1
+
+objectif: >
+  Produire un jeu incremental/clicker web JOUABLE (games/p3_alpha), créé de zéro, dont la
+  STRUCTURE est intégralement imposée par structure_imposee_v2_FROZEN.yaml, et fermer la chaîne
+  de preuve full_content (verdict signé + verify_run AUTHENTIQUE). Intention : offrir la boucle
+  de fond du genre — arbitrage « acheter maintenant vs épargner » — via clic manuel puis
+  production automatique. Joueur cible : joueur web casual du genre incremental/idle. Condition
+  de victoire OBSERVABLE : total cumulé de R produit ≥ 1 000 000 (seuil S5) ; aucun état d'échec
+  (fidèle au genre). Périmètre V1 minimal jouable : clic manuel (+gain_clic), 4 générateurs
+  G1..G4 (coût_base [15,100,1100,12000], croissance ×1.12^n, prod [0.1,1,8,47] R/s), 6
+  améliorations (2 clic dispo début, 4 prod dispo S4), 5 seuils cumulés
+  [100,1000,12000,150000,1000000] qui débloquent la suite, comptabilité en milli-R entiers
+  (tick_ms 100), fin de partie visible à S5. La SOLVABILITÉ RUNTIME (un bot scripté atteint S5
+  dans le budget de mesure) est une obligation de CE run — le desk-check ne compte pas.
+
+plateforme_cible: >
+  web (HTML + JS, canvas) — socle sonde web N1 : déterminisme seedé, window.__game exposé,
+  harnais complet à la racine du jeu. Source : project_brief.yaml champ `cible` +
+  FORGE_DESIGN_FREEDOM_SPEC_V0 N1, ratifié par le GO paire 3 (Pierre 2026-08-30).
+
+reference_jeu: >
+  Cookie Clicker — grammaire de GENRE UNIQUEMENT (jamais une copie : aucun asset, nom ou contenu
+  repris). Modèle de référence CHOISI PAR PIERRE (project_brief.yaml references_autorisees,
+  source « Pierre 2026-08-30 — genre de la paire »). La structure chiffrée de référence est le
+  document normatif structure_imposee_v2_FROZEN.yaml (ratifié Pierre 2026-08-30), repris TEL QUEL.
+
+hors_scope:
+  - "Le thème, l'univers, les personnages/entités et leur nommage (libertés déléguées — brief)."
+  - "La direction artistique et les assets (libertés déléguées — brief)."
+  - "La présentation/HUD et les micro-interactions non couvertes par la structure imposée."
+  - "Tout détail d'implémentation non fixé par structure_imposee_v2_FROZEN.yaml."
+  - "Le jugement de la qualité ludique (donnée M7 du protocole V1 — hors périmètre de ce run)."
+  - "Toute décision d'architecture (étape s4) et le world scan (étape s2)."
+  - "Les lanes protégées : tests/, src/, autopilot.py, scripts/studioV2/ (jamais touchées)."
+
+criteres_succes:
+  - "charter.yaml matérialisé par s0 en un bloc ```yaml unique (A1 — condition de validité de bras) ; check_charter passe (aucun champ vide/absent/« à définir »)."
+  - "Structure du jeu == structure_imposee_v2_FROZEN.yaml ; toute déviation déclarée en champ structuré, jamais silencieuse (M3)."
+  - "Invariant comptable exact par construction : solde_mR == Σ(gains_clic_mR) + Σ(production_mR) − Σ(dépenses_mR), en milli-R entiers (aucun flottant dans l'état) ; affichage = floor(solde_mR/1000)."
+  - "SOLVABILITÉ RUNTIME prouvée : un bot scripté atteint S5 (total cumulé ≥ 1 000 000 R) en ≤ 72000 ticks de mesure."
+  - "Métriques de divergence à VARIANCE NON TRIVIALE : temps-jusqu'à-S5 (en ticks) et jalons atteints portent ≥2 valeurs distinctes non triviales sur les bots de mesure (règle de variance des métriques Forge)."
+  - "Chaîne full_content complète : verdict signé HMAC + forge.verify_run AUTHENTIQUE."
+  - "product_snapshot.md matérialisé (exigible pour M7(a), protocole V1 A3)."
+  - "s11 red-team Qwen réel, independent: true ; LM Studio down => HALT sans fallback."
+  - "Chaque asset_request.id resolved-avec-fichier ou blocked-justifié (check_asset_consumption) ; check_artbible exécuté par le driver."
+
+actions_interdites:
+  - "Copier Cookie Clicker (assets, noms, contenu) : grammaire de genre uniquement, jamais une copie."
+  - "Dévier de structure_imposee_v2_FROZEN.yaml sans déclarer l'écart en champ structuré (M3) — aucune déviation silencieuse."
+  - "Modifier une valeur normative : croissance 1.12, coûts de base, productions, mapping des 6 améliorations, seuils cumulés, tick_ms 100, budget_ticks_mesure 72000, fin S5 = 1 000 000 R."
+  - "Introduire un état d'échec/défaite artificiel (le genre n'en a pas)."
+  - "Utiliser des flottants dans l'état comptable (milli-R entiers obligatoires)."
+  - "Substituer un fallback à la red-team quand LM Studio est down (HALT obligatoire)."
+  - "Écrire un assert tautologique (>=) dans un test d'oracle : asserter le comportement STRICT (victoire == seuil atteint, refus d'achat == état inchangé) — pré-mortem s10a."
+  - "Toucher tests/, src/, autopilot.py, scripts/studioV2/ ; git commit/push (gate Pierre explicite)."
+  - "Émettre un claim de qualité ludique (donnée M7)."
+
+criteres_demo:
+  - "Un compteur de R visible à l'écran augmente à chaque clic manuel (+gain_clic)."
+  - "Sans cliquer, le compteur de R monte tout seul dès qu'au moins un générateur est possédé (production au tick)."
+  - "Cliquer « acheter un générateur » fait baisser R visiblement et fait apparaître/incrémenter ce générateur à l'écran."
+  - "Quand R est insuffisant, le bouton d'achat est grisé et le clic ne change rien (refus observable, état inchangé)."
+  - "Au franchissement d'un seuil, un nouvel élément devient visible à l'écran (G2, puis G3, puis G4, puis les améliorations de production à S4)."
+  - "À l'atteinte de S5 (total cumulé ≥ 1 000 000 R), un état/écran de victoire est visible."
+```
+
+---
+
+## RAPPORT FINAL
+
+**software_verdict: OK** — le livrable est produit : `charter.yaml` matérialisé en un bloc `yaml` unique (A1), les **7 champs requis** sont remplis, non vides, sans occurrence de « à définir ». Vérification par inspection contre le schéma attendu du champ (`objectif · hors_scope[] · criteres_succes[] · actions_interdites[] · plateforme_cible · reference_jeu · criteres_demo[]`).
+
+**evidence_verdict: MECHANICAL_VALIDATION_ONLY** — l'oracle mécanique autoritaire est **`check_charter`** (validateur de schéma déterministe non-LLM, BLOQUANT dans le driver, commit `fcf56b5e`), qui parse le bloc `yaml` et échoue si un champ requis est vide/absent/« à définir ». Je ne l'ai **pas exécuté** (permissions : `run: aucun` ; c'est le driver qui l'exécute au point de preuve) — voir SKIPPED_VALIDATION.
+
+**claim_verdict: NO_CLAIM_ALLOWED**
+
+### Flous du prompt — résolus vs remontés
+| Élément design-intent | Statut | Source Pierre tracée |
+|---|---|---|
+| `reference_jeu` (Cookie Clicker, grammaire de genre) | **résolu** | project_brief `references_autorisees` — « Pierre 2026-08-30 (genre de la paire) » |
+| `reference_jeu` (structure chiffrée normative) | **résolu** | `structure_imposee_v2_FROZEN.yaml` — ratifiée Pierre 2026-08-30 |
+| `plateforme_cible` (web HTML+JS canvas) | **résolu** | project_brief `cible` + N1 + GO paire 3 Pierre 2026-08-30 |
+| `criteres_demo[]` | **résolu** | dérivés des actions/unlocks/fin OBSERVABLES de la structure normative (pas une invention d'identité de jeu) |
+| Condition de victoire / périmètre V1 | **résolu** | structure normative (S5 = 1 000 000 R cumulés ; G1..G4 + 6 améliorations + 5 seuils) |
+
+**Fog HumanGate remonté : aucun.** Tous les champs design-intent (`plateforme_cible`, `reference_jeu`, `criteres_demo[]`) portent une source Pierre explicite et traçable — la garde AutoBattler (modèle choisi sans Pierre) ne s'applique pas ici. Project Bible `lab/forge_runs/p3_alpha/PROJECT_BIBLE.md` **absente** (confirmé) : ce n'est pas un blocage, le `project_brief.yaml` ratifié tient lieu de source de commande unique.
+
+### SKIPPED_VALIDATION
+- **item** : exécution de l'oracle `check_charter` sur le bloc charter · **où** : driver Forge (point de preuve s0) · **statut** : non fait par s0 · **raison** : permissions du contrat `run: aucun` ; `check_charter` est exécuté par le driver, pas par le rédacteur — la validation mécanique autoritaire aura lieu en aval, hors de mon périmètre.
+
+### RETURN LINEAGE
+```yaml
+why_task_existed:
+  problem: "PAIRE 3 doit produire la première paire VALIDE (compteur actuel : 0) ; le bras D2 exige un charter matérialisé (A1) sinon le bras est invalide."
+  oracle: "aucun (activation par décision humaine : GO paire 3 Pierre 2026-08-30) ; l'oracle de validité du charter est check_charter, en aval."
+  root_cause: "non etablie (activation planifiée du protocole V1, pas la correction d'un défaut)"
+  action_reason: "s0-contrat est l'étape de cadrage qui matérialise charter.yaml à partir du brief ratifié et de la structure normative, sans flou résiduel."
+result: "charter.yaml matérialisé (1 bloc yaml, 7 champs remplis, 0 « à définir ») ; 0 fog remonté ; toutes les sources design-intent tracées à Pierre."
+proof: "Lectures : SCHEMA.md, structure_imposee_v2_FROZEN.yaml, project_brief.yaml, s0-contrat.yaml. Inspection : 7/7 champs présents et non vides, aucune chaîne « à définir ». Exécution de check_charter : non faite (run: aucun) — driver."
+learning: "Les 3 champs design-intent de p3_alpha sont tous Pierre-sourcés dans le brief ; contrairement à la leçon AutoBattler, aucun n'a dû être inventé — la variance runtime (solvabilité + divergence des bots) reste l'obligation forte, portée en criteres_succes pour les étapes aval."
+next_reason: "La chaîne continue normalement : s1..s9 consomment ce charter ; le point de preuve fort (solvabilité runtime S5 ≤ 72000 ticks + verify_run AUTHENTIQUE) reste à établir par les étapes build/oracle/verdict. La lignée n'est PAS fermée."
+```
+
+RETURN_REASON: {"status": "NOT_DISCOVERED"}

@@ -311,3 +311,15 @@ résultat         : projet=p2_beta · statut=HALTED · verdict=BLOCKED · ts=202
 
 ## p1_beta_E1-20260831-run1 — 2026-08-31
 résultat         : projet=p1_beta_E1 · statut=DONE · verdict=BLOCKED · ts=2026-08-31T15:52:29Z
+
+## p3_beta-20260901-run1 — 2026-09-01
+résultat         : projet=p3_beta · statut=HALTED · verdict=BLOCKED · ts=2026-09-01T09:13:52Z
+
+## p3_alpha-20260901-run1 — 2026-09-01
+résultat         : projet=p3_alpha · statut=HALTED · verdict=BLOCKED · ts=2026-09-01T09:14:53Z
+
+## jeu-1 — 2026-09-01
+résultat         : projet=jeu · statut=DONE · verdict=FAIL · ts=2026-09-01T13:07:57Z
+
+## micro_sonde_v1-20260901-run1 — 2026-09-01
+résultat         : projet=micro_sonde_v1 · statut=DONE · verdict=BLOCKED · ts=2026-09-01T15:00:46Z

@@ -1,5 +1,13 @@
 # Studio AutoDev Pipeline I/O Contract V0
 
+> **LEGACY PRE-FORGE — FROZEN 2026-08-28 (HumanGate decision: Pierre).**
+> Pre-Forge AutoDev control plane (last substantive update 2026-06). NOT current
+> studio truth — do not use as a source anchor for Forge-lane work. The report
+> discipline it defines (verdict triple, status vocabulary, UNKNOWN⇒BLOCKED)
+> remains good practice and lives on in mission charters. Current truth:
+> `docs/forge/STUDIO_MASTER_SCHEMA.html` (Détail M, 2026-08-28) +
+> `docs/adr/ADR-003-forge-workflow-coherence-audit.md`.
+
 Status: DOCUMENTED_ONLY
 Owner: HumanGate
 Scope: Studio-wide AutoDev task framing, executor reporting, and future read-only analysis-agent input

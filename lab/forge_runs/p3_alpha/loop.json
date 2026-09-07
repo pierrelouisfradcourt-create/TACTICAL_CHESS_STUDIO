@@ -1,0 +1,123 @@
+{
+ "schema_version": 1,
+ "game_id": "p3_alpha",
+ "steps": [
+  {
+   "role": "PLAYER_GOAL",
+   "ref": "ex_goal_seuil",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "nonempty"
+   }
+  },
+  {
+   "role": "PLAYER_ACTION",
+   "ref": "ex_action_clic",
+   "affordance": "noyau",
+   "repeat": 1,
+   "observe": {
+    "hud": "ressource",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "GAME_RESPONSE",
+   "ref": "ex_response_squish",
+   "repeat": 1,
+   "observe": {
+    "hud": "ressource",
+    "predicate": "changes"
+   }
+  },
+  {
+   "role": "REWARD",
+   "ref": "ex_reward_credit",
+   "repeat": 1,
+   "observe": {
+    "hud": "ressource",
+    "predicate": "increases"
+   }
+  },
+  {
+   "role": "DECISION",
+   "ref": "ex_decision_arbitrage",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "changes"
+   },
+   "options": [
+    "ex_action_clic",
+    "ex_unlock_g2"
+   ],
+   "metric": "ressource",
+   "horizon_frames": 300,
+   "policies": [
+    {
+     "name": "idle",
+     "click": null,
+     "every_frames": 0
+    },
+    {
+     "name": "clic_actif",
+     "click": "noyau",
+     "every_frames": 3
+    }
+   ]
+  },
+  {
+   "role": "UNLOCK",
+   "ref": "ex_unlock_g2",
+   "affordance": "acheter_generateur",
+   "repeat": 1,
+   "observe": {
+    "hud": "generateurs",
+    "predicate": "changes",
+    "appears": "generateurs"
+   }
+  },
+  {
+   "role": "NEXT_GOAL",
+   "ref": "ex_nextgoal_s2",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   }
+  },
+  {
+   "role": "NEXT_GOAL",
+   "ref": "ex_nextgoal_s3",
+   "repeat": 1,
+   "observe": {
+    "hud": "objectif",
+    "predicate": "new_distinct"
+   }
+  },
+  {
+   "role": "REPEAT",
+   "ref": "ex_repeat_newstate",
+   "repeat": 1,
+   "observe": {
+    "hud": "ressource",
+    "predicate": "increases"
+   },
+   "replay": [
+    "ex_action_clic",
+    "ex_reward_credit",
+    "ex_unlock_g2"
+   ]
+  },
+  {
+   "role": "META_LOOP",
+   "ref": "ex_meta_replay",
+   "affordance": "nouvelle_partie",
+   "repeat": 1,
+   "observe": {
+    "hud": "ressource",
+    "predicate": "resets"
+   }
+  }
+ ]
+}

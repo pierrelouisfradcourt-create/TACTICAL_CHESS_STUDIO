@@ -1,0 +1,235 @@
+I now have everything needed. Confirmed:
+- **No PROJECT_BIBLE** for `p3_beta` (fresh project) — `project_brief.yaml` is the single command source.
+- **Isolement respected**: I read only SCHEMA.md, my own arm's brief (`p3_beta`), the design-freedom spec, and the paire-3 launch note. I consulted **no** `p3_alpha`/`p2_alpha`/`p1_alpha` value.
+- **A1 + concrete task reconciled**: the charter is *materialized as a fenced ```yaml block* in this report (the driver captures + hashes it via `yaml_check`); no file written (`run: aucun`, task says "texte seul").
+- **Pierre-traced design-intent**: `plateforme_cible` (brief `cible`) and `reference_jeu` (genre + Cookie-Clicker genre-grammar, Pierre 2026-08-30) both have explicit sources → **not** fog. The *theme and structure* are the delegated free-arm variable → authored by me, traced `SOURCE: agent` (M2b, not M2a).
+
+Here is the deliverable.
+
+---
+
+## charter.yaml — p3_beta (bras LIBRE L3, PAIRE 3)
+
+```yaml
+# charter matérialisé par s0-contrat — p3_beta-20260901-run1 (A1, protocole V1)
+# Bras LIBRE : toute la structure est INVENTÉE ici et tracée SOURCE: agent (N2/M2b).
+projet: p3_beta
+titre_travail: "Lumen Abyss"          # SOURCE: agent (thème librement choisi)
+
+objectif: >
+  Produire un jeu incremental/clicker web jouable, déterministe et seedé, dont la
+  structure complète (boucle noyau, ressource, générateurs, upgrades, progression,
+  économie, condition de fin) est INVENTÉE par la chaîne et matérialisée ici. Le
+  joueur cultive la Lumen (particules de lumière) depuis une lanterne au fond de
+  l'abysse : un clic « Pulse » produit de la Lumen, la Lumen achète des organismes
+  bioluminescents qui produisent de la Lumen passivement, l'accumulation débloque
+  des paliers, et la partie se termine de façon OBSERVABLE quand la lumière perce la
+  surface (l'Aube). Joueur cible : joueur d'incremental web au clavier/souris, une
+  session courte. Le charter doit être schéma-valide (yaml_check) et solvable en
+  runtime (un bot compétent atteint l'Aube dans la fenêtre de mesure).
+
+plateforme_cible: "web — HTML + JS (canvas)"   # SOURCE: Pierre (project_brief.cible)
+
+reference_jeu:
+  genre: "incremental / clicker"               # SOURCE: Pierre 2026-08-30 (genre de la paire)
+  grammaire_de_genre: >
+    Cookie Clicker — GRAMMAIRE DE GENRE UNIQUEMENT (clic manuel, générateurs à coût
+    croissant, production passive, déblocages par paliers). Jamais une copie : aucun
+    asset, nom, contenu, ni AUCUNE valeur numérique reprise.
+  source_reference: "Pierre 2026-08-30 (references_autorisees du project_brief)"
+
+# ── ÉCONOMIE INVENTÉE (SOURCE: agent — liberté déléguée, N2/N4) ───────────────────
+# Formules à VALEUR UNIQUE (N4) : aucune ambiguïté linéaire/composé.
+economie:
+  ressource_primaire: "Lumen (L)"
+  action_manuelle:
+    nom: "Pulse"
+    gain_base_par_clic: 1               # click_value de base
+  formule_cout: "cout(gen, possede) = cout_base(gen) * 1.15 ** possede"   # 1.15 = valeur unique
+  formule_production_par_tick: "prod_tick = somme(possede[gen] * prod_base(gen)) * (symbiosis ? 1.25 : 1.0)"
+  formule_clic_effectif: "clic_effectif = gain_base_par_clic * (pulse_amplifier ? 2 : 1)"
+  generateurs:
+    - id: glowmite
+      nom: "Glowmite"                   # micro-organisme, palier 1 (disponible au tick 0)
+      cout_base: 15
+      prod_base_par_tick: 0.2
+      debloque_ssi: "toujours (palier initial)"
+    - id: lanternfish
+      nom: "Poisson-lanterne"           # palier 2
+      cout_base: 100
+      prod_base_par_tick: 1
+      debloque_ssi: "possede[glowmite] >= 1"
+    - id: medusa
+      nom: "Méduse abyssale"            # palier 3
+      cout_base: 1100
+      prod_base_par_tick: 8
+      debloque_ssi: "possede[lanternfish] >= 1"
+    - id: coral_reactor
+      nom: "Récif-réacteur"             # palier 4
+      cout_base: 12000
+      prod_base_par_tick: 47
+      debloque_ssi: "possede[medusa] >= 1"
+  upgrades:
+    - id: pulse_amplifier
+      nom: "Amplificateur de Pulse"
+      cout: 500
+      effet: "double le gain par clic (x2), one-shot"
+    - id: symbiosis
+      nom: "Symbiose"
+      cout: 50000
+      effet: "+25% à la production de TOUS les générateurs, one-shot"
+  condition_de_fin:
+    id: "Aube"
+    regle: "lumen >= 1000000"           # seuil de fin OBSERVABLE, inventé (SOURCE: agent)
+    effet_observable: "window.__game.ended = true ; écran d'Aube affiché (la lumière perce la surface)"
+
+# ── VECTEUR D'ÉTAT INITIAL EXHAUSTIF (E1 / N3) — tout ce qui existe au tick 0 ──────
+etat_initial:
+  seed: 1                               # RNG seedé présent (N1) ; jeu déterministe même si RNG peu sollicité
+  tick: 0
+  ended: false
+  lumen: 0
+  lumen_cumule: 0                        # total produit (pour jalons de variance, monotone)
+  click_value: 1
+  possede: { glowmite: 0, lanternfish: 0, medusa: 0, coral_reactor: 0 }
+  upgrades: { pulse_amplifier: false, symbiosis: false }
+  window_game_expose: [seed, tick, ended, lumen, lumen_cumule, click_value, possede, upgrades]
+
+criteres_succes:
+  - "window.__game expose {seed, tick, ended, lumen, lumen_cumule, click_value, possede{...}, upgrades{...}} — état lisible par oracle non-LLM."
+  - "Clic Pulse : lumen augmente d'EXACTEMENT clic_effectif (assertion STRICTE ==, jamais >=)."
+  - "Achat générateur : retire EXACTEMENT cout(gen, possede) du lumen ET incrémente possede[gen] d'EXACTEMENT 1 (STRICT)."
+  - "Production passive : à chaque tick, lumen augmente d'EXACTEMENT prod_tick (STRICT), et lumen_cumule croît du même montant."
+  - "Déblocage : le palier N est disponible SSI possede[palier N-1] >= 1 (glowmite disponible au tick 0)."
+  - "Fin OBSERVABLE : lumen >= 1000000 ⇒ ended=true ET écran d'Aube affiché."
+  - "SOLVABILITÉ RUNTIME : un bot scripté compétent (réinvestit) atteint ended=true en <= 72000 ticks ; un bot naïf (clic seul) ne l'atteint PAS dans la fenêtre → variance non triviale (temps-jusqu'à-l'Aube + jalons de lumen_cumule)."
+  - "Déterminisme : deux exécutions même seed + même séquence d'actions ⇒ états identiques (hash)."
+  - "Schéma : le charter passe yaml_check (aucun champ requis vide/absent/« à définir »)."
+
+criteres_demo:                          # OBSERVABLES à l'écran (pas des mécaniques internes)
+  - "Un compteur de Lumen visible qui MONTE à chaque clic sur le bouton Pulse."
+  - "Après un achat, un organisme APPARAÎT et le compteur de Lumen se met à monter tout seul (production passive visible)."
+  - "De nouveaux organismes (paliers) qui APPARAISSENT à l'écran au fil de la progression."
+  - "Une barre/indicateur de progression vers l'Aube (1 000 000 Lumen) qui se remplit visiblement."
+  - "Un écran d'AUBE clairement affiché quand la partie se termine (la lumière perce la surface)."
+
+hors_scope:
+  - "Pas de prestige/renaissance : une seule montée vers l'Aube ; un prestige n'ajoute aucune décision nouvelle pour prouver la boucle V1."
+  - "Pas de sauvegarde persistante entre sessions (localStorage) : l'état vit dans window.__game pour l'oracle ; hors preuve de boucle."
+  - "Pas d'audio, pas de monétisation, pas de multijoueur."
+  - "Pas de tuning « fun-optimal » de la balance : la balance initiale est un choix libre (FOG-5), pas un objet de calibrage dans ce run."
+  - "Pas plus de 4 paliers de générateurs + 2 upgrades en V1 (dimensionnement minimal jouable)."
+
+actions_interdites:
+  - "Consulter ou reprendre AUCUNE valeur des bras dirigés (p3_alpha, p2_alpha, p1_alpha) — isolement du bras ; contamination = paire invalidée."
+  - "Copier Cookie Clicker (asset, nom, contenu, ou valeur numérique) — grammaire de genre uniquement."
+  - "Toucher aux lanes protégées (tests/, src/), à autopilot.py, ou à la lane STUDIO gelée."
+  - "Émettre un claim de qualité ludique / fun (M7 = jugement humain aveugle, jamais oracle ni LLM)."
+  - "Modifier le budget de mesure (72000 ticks / 100 ms) — constante de protocole V1, pas une valeur de design."
+  - "git commit / push (HumanGate Pierre)."
+
+# ── PROVENANCE PAR CHAMP (N2, obligatoire) ────────────────────────────────────────
+provenance_commande:
+  objectif: "SOURCE: Pierre (intention project_brief) + agent (formulation produit)"
+  plateforme_cible: "SOURCE: Pierre (project_brief.cible = web HTML+JS canvas)"
+  reference_jeu.genre: "SOURCE: Pierre 2026-08-30 (genre de la paire)"
+  reference_jeu.grammaire_de_genre: "SOURCE: Pierre 2026-08-30 (references_autorisees)"
+  budget_mesure_72000_tick_100ms: "SOURCE: Pierre — constante protocole V1 (PAS une valeur de design)"
+  theme_lumen_abyss: "SOURCE: agent (liberté déléguée)"
+  economie_complete: "SOURCE: agent — générateurs, valeurs, upgrades, seuil 1M, growth 1.15, productions, déblocages, nommage (liberté déléguée ; délégation ratifiée Pierre 2026-08-30)"
+  etat_initial: "SOURCE: agent (E1/N3)"
+  criteres_succes: "SOURCE: agent, sauf le volet solvabilité/72000 ticks = protocole Pierre"
+  criteres_demo: "SOURCE: agent (observables déduits de la structure inventée)"
+  hors_scope: "SOURCE: agent (motivé)"
+  non_impose_par_pierre:
+    - "thème et univers (Lumen Abyss)"
+    - "les 4 générateurs, leurs coûts de base, productions et le facteur de croissance 1.15"
+    - "les 2 upgrades et leurs effets/coûts"
+    - "le seuil de fin 1 000 000 Lumen"
+    - "l'ordre et la règle de déblocage des paliers"
+    - "le nommage de toutes les entités"
+    - "la direction artistique et le HUD"
+
+# ── EXPLICITATIONS EXIGÉES (E3-E7) ────────────────────────────────────────────────
+portee_criteres:                        # E3 : mesure / ne_mesure_pas par critère
+  - critere: "clic Pulse strict"
+    mesure: "l'incrément exact du lumen sur un clic"
+    ne_mesure_pas: "l'ergonomie du bouton, le ressenti de rythme"
+  - critere: "production passive stricte"
+    mesure: "l'incrément exact par tick"
+    ne_mesure_pas: "si la courbe de croissance est agréable (FOG-4)"
+  - critere: "solvabilité runtime"
+    mesure: "qu'un bot compétent ATTEINT l'Aube <= 72000 ticks + variance vs bot naïf"
+    ne_mesure_pas: "le temps OPTIMAL, ni si la durée est plaisante"
+hypotheses_dominance:                   # E4
+  voie_gagnante_revendiquee: "une seule voie de fin (accumulation → Aube) ; pas de voies concurrentes revendiquées"
+  non_analyse: "l'ordre d'achat optimal entre paliers n'est pas figé — laissé au bot de preuve"
+garde_fous_operants:                    # E5
+  - regle: "aucun plafond de ressource"
+    mord_quand: "jamais — décoratif assumé (pas de cap ; l'Aube borne la partie par le haut)"
+  - regle: "déblocage par palier (possede[N-1]>=1)"
+    mord_quand: "au démarrage — empêche l'achat d'un palier avancé avant le précédent (garde-fou OPÉRANT)"
+statut_bots_preuve:                     # E7
+  bot_competent: "candidat plausible — réinvestit ses gains dans le meilleur ratio prod/coût ; N'EST PAS scripté pour un chemin unique connu-gagnant"
+  bot_naif: "candidat naïf plausible — clic seul, aucun achat (borne basse de variance)"
+
+# ── FOGS HUMANGATE (N8 / E6) ──────────────────────────────────────────────────────
+fog_humangate:
+  - id: FOG-A
+    type: "jetable-vs-graine (FOG-2)"
+    question: "Lumen Abyss est-il une sonde jetable ou une graine de jeu à cultiver ? — décision Pierre."
+  - id: FOG-B
+    type: "qualité ressentie / fun (FOG-4, permanent)"
+    question: "La balance initiale (growth 1.15, seuil 1M, productions) est-elle plaisante ? — jugement humain aveugle M7, jamais un oracle ni un LLM."
+  - id: FOG-C
+    type: "balance initiale (FOG-5)"
+    question: "Si la solvabilité runtime échoue dans 72000 ticks AVEC ces valeurs, c'est une DÉCOUVERTE à rapporter (re-balance = nouveau cycle vs archiver) — décision Pierre, jamais un ajustement silencieux en cours de run."
+  - id: FOG-D
+    type: "seuil doré de solvabilité (FOG-3)"
+    question: "La valeur exacte du 'temps-jusqu'à-l'Aube' de référence est figée au PREMIER run réel puis gelée — arbitrage Pierre."
+
+references_provenance:
+  protocole: "RUN2_PROTOCOLE_V1.md (RATIFIÉ Pierre 2026-08-30) ; GO paire 3 Pierre 2026-09-01"
+  normative: "FORGE_DESIGN_FREEDOM_SPEC_V0 N1-N4, N7-N9 (RATIFIÉE Pierre 2026-08-30)"
+  brief: "lab/forge_briefs/p3_beta/project_brief.yaml (source de commande unique)"
+```
+
+---
+
+## RAPPORT FINAL — s0-contrat (p3_beta-20260901-run1)
+
+**Oracle cité** : `yaml_check` / `check_charter` (validateur de schéma déterministe non-LLM, exécuté par le **driver en aval** ; contrôle A1 = lecture du reçu `yaml_check` PASS + sha256 du charter, PAIRE3_LAUNCH). Je ne le lance pas (`run: aucun`).
+
+**software_verdict: OK** — charter matérialisé (bloc ```yaml ci-dessus). Les 7 champs requis (`objectif`, `hors_scope[]`, `criteres_succes[]`, `actions_interdites[]`, `plateforme_cible`, `reference_jeu`, `criteres_demo[]`) sont remplis, non vides, sans « à définir ». Blocs N2 (`provenance_commande`), N3/E1 (`etat_initial`), N4 (formules à valeur unique), N8/E6 (`fog_humangate`), E3-E7 présents. Toute grandeur citée par un `criteres_succes` figure dans `etat_initial`/`economie` (N3). *Fait de construction, lisible sur l'artefact ; la conformité de schéma reste à confirmer par l'oracle aval.*
+
+**evidence_verdict: MECHANICAL_VALIDATION_ONLY** — mais la validation mécanique de schéma est **hors périmètre s0** (aucune commande exécutée) ; elle appartient au driver (`yaml_check`). Je cite l'oracle, je ne produis pas sa sortie.
+
+**claim_verdict: NO_CLAIM_ALLOWED**
+
+**Flous du prompt — résolus vs remontés** :
+- *Résolu* : `plateforme_cible` ← Pierre (`project_brief.cible`). Pas un fog.
+- *Résolu* : `reference_jeu` (genre + grammaire Cookie-Clicker) ← Pierre 2026-08-30. **Provenance Pierre traçable → pas un fog** (garde-fou AutoBattler satisfait : le genre n'est PAS inventé unilatéralement ; seuls thème/structure le sont, sous liberté déléguée tracée `SOURCE: agent`).
+- *Résolu par invention tracée (M2b)* : toute la structure (économie, générateurs, valeurs, seuil de fin, déblocages) — bras LIBRE, `SOURCE: agent`, `non_impose_par_pierre` explicite.
+- *Remonté (fog HumanGate)* : FOG-A (jetable/graine), FOG-B (fun, permanent), FOG-C (échec de balance = découverte FOG-5), FOG-D (seuil doré solvabilité FOG-3).
+
+**Isolement du bras** : lectures effectuées = `SCHEMA.md`, `p3_beta/project_brief.yaml`, `FORGE_DESIGN_FREEDOM_SPEC_V0`, `PAIRE3_LAUNCH_20260901`. **Aucune** consultation de `p3_alpha`/`p2_alpha`/`p1_alpha` ni d'une valeur du bras dirigé. Toutes les grandeurs sont inventées ici.
+
+**SKIPPED_VALIDATION** :
+- item: exécution `yaml_check`/`check_charter` · où: charter p3_beta · statut: non fait · raison: `run: aucun` en périmètre s0 ; exécuté par le driver en aval (A1).
+- item: solvabilité runtime (bot atteint l'Aube ≤ 72000 ticks) · où: build · statut: non fait · raison: pas de build à l'étape s0 (s9).
+- item: variance des métriques (temps-jusqu'à-l'Aube, jalons `lumen_cumule`) · où: mesure runtime · statut: non fait · raison: nécessite build+run (s9/s10).
+- item: passe adversariale N5 (red-team indépendant sur les critères de preuve) · où: critères s0 · statut: non fait · raison: hors s0, propriétaire distinct (s11).
+- item: confirmation que la balance choisie EST solvable · où: économie inventée · statut: partiel · raison: sanity-check manuel seulement (bot naïf ≤ 144 000 L < 1 M ; réinvestisseur exponentiel > 1 M) — non exécuté ; FOG-5 assumé, solvabilité prouvée en s9.
+
+**RETURN LINEAGE** :
+- `why_task_existed:`
+  - `problem:` aucun problème mesuré — activation par **décision humaine** (GO Pierre paire 3, assignation L3 sur p3_beta) ; un bras sans charter matérialisé est invalide (A1).
+  - `oracle:` aucun (activation = décision humaine / protocole V1 A1).
+  - `root_cause:` non établie (étape normale d'entrée de boucle, pas un défaut).
+  - `action_reason:` s0 est le point d'entrée ; un charter sans champ flou est la précondition de s2→s12.
+- `result:` charter « Lumen Abyss » matérialisé en bloc yaml ; 7 champs requis + N2/N3/N4/N8/E1-E7 remplis ; structure entièrement inventée et tracée `SOURCE: agent` (M2b) ; isolement du bras respecté.
+- `proof:` aucune commande exécutée (`run: aucun`) ; l'artefact EST le bloc yaml ci-dessus ; validation mécanique `yaml_check` = aval driver.
+- `learning:` sur le bras LIBRE, s0 EST l'auteur de la structure — l'invention doit être tracée bloc par bloc (`SOURCE: agent`) sous peine de M2a (inventé-silencieux = défaut) ; distinguer strictement `reference_jeu` (Pierre : genre) de thème+structure (agent).
+- `next_reason:` lignée **NON fermée** — le charter est une précondition, pas un livrable terminal. Le driver doit lancer `yaml_check` (contrôle A1) puis l'étape suivante ; une cause non résolue subsiste en aval (la solvabilité runtime n'est pas encore prouvée).
+
+RETURN_REASON: {"status": "DISCOVERED", "problem": "Tension entre out_of_scope du contrat s0 générique ('ne décide pas l'architecture') et l'exigence du bras Libre (N2/N3 + criteres_sortie 'structure entièrement documentée au charter') : sur p3_beta, s0 DOIT inventer et fixer toute la structure de jeu. Résolu en traitant le design d'économie comme design-produit (scope s0), distinct de l'architecture logicielle (s4), mais cette frontière n'est écrite dans aucun contrat.", "root_cause": "le contrat s0-contrat n'a pas de clause pour le mode bras-Libre où s0 est l'auteur de la structure"}

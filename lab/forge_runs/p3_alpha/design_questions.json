@@ -1,0 +1,41 @@
+{
+ "schema_version": 1,
+ "round": 2,
+ "questions": [
+  {
+   "id": "q_art_001",
+   "from": "ART",
+   "to": "GM",
+   "round": 1,
+   "about": "art_bible:character_states",
+   "loop_id": "core_loop",
+   "missing": [
+    "confirmation que les etats visuels d'affordance (grise-non-achetable, possede, verrouille, presse->eclat de clic) et l'ordre de reveal G2/G3/G4/ameliorations refletent exactement les transitions de la boucle canonique du GM, et non des transitions inventees par l'ART"
+   ],
+   "why": "content_requirements.md (carte C.3) n'a pas ete injecte a cette etape ; j'ai ancre les etats d'objet sur structure_imposee_v2_FROZEN + worldscan. Leur fidelite a la boucle reelle du GM (moment du refus observable, feedback de clic, sequence de deblocage) doit etre confirmee cote GM pour que l'art ne represente pas une mecanique que le GM n'a pas posee.",
+   "blocking": false,
+   "answer": {
+    "round": 2,
+    "by": "GM",
+    "ref": "grey_blocks.gate_g2",
+    "text": "Confirme et fixe normativement. Ordre de revelation = seuils CUMULES imposes (structure_imposee dimensioning.seuils_cumules) : S1=100 R revele G2 (grey_blocks.gate_g2), S2=1000 R revele G3 (gate_g3), S3=12000 R revele G4 (gate_g4), S4=150000 R revele les 4 ameliorations x2 prod (prod_upgrades_panel) ; les 2 ameliorations de CLIC sont disponibles des le debut (click_upgrades), jamais deblocables par seuil. Etats d'affordance a montrer : LOCKED (silhouette neutre, seuil non atteint) -> AVAILABLE achetable (carte coloree) vs AVAILABLE non-achetable (grise, refus observable et etat inchange) -> OWNED (possede, scintillement). Le noyau (core_clicker) n'a AUCUN etat verrouille : repos/survol/presse(squish+eclat), le clic n'est jamais refuse. Ces etats et cet ordre vivent maintenant dans mon game_master (grey_blocks + artist_requirements) : l'ART s'y ancre, rien de ce qu'il a represente ne contredit la boucle.",
+    "modification_locus": {
+     "type": "gm_worldscan",
+     "justification": "La reponse fixe l'ordre de revelation et les etats d'affordance dans mon propre bloc game_master (grey_blocks gate_g2/gate_g3/gate_g4/prod_upgrades_panel/core_clicker/click_upgrades et leurs artist_requirements) ; c'est mon artefact qui porte desormais la verite que l'ART questionnait, aucune modification de l'Art Bible n'est requise."
+    }
+   }
+  }
+ ],
+ "declarations": {
+  "ART": {
+   "round": 2,
+   "ready_for_freeze": true,
+   "open_to_gm": 0
+  },
+  "GM": {
+   "round": 2,
+   "ready_for_freeze": true,
+   "open_to_art": 0
+  }
+ }
+}
