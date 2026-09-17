@@ -4,22 +4,17 @@ précédentes : 2026-09-01 Shadow Audit V1→V6 CLOS · 2026-09-01 requalificati
 RUN 1 + paire pilote CLOS. Détail complet archivé :
 `journal/context-archive-2026-09-03-avant-refresh-claudemd.md`.)*
 
-## Session 2026-09-03 — refresh CLAUDE.md (GO Pierre « change », commit + push GO)
-- Analyse confrontée au dépôt : 2 doublons contradictoires dans le routage, chiffres faux (studioV2
-  45 → 89 trackés, ledger 244 → 270), 7 fichiers Forge cités sur 50, régime T0/T-GPU absent,
-  invariant AUTO_ATTESTED absent, section CEO et détail du gel STUDIO = lane gelée, lanes ROCKY/JEUX
-  sans activité depuis juin. Consommateurs actifs vérifiés : autopilot/studioV2/agent_policy = 0 ;
-  `studio_meta_latest.json` lu par /fog /monitor /autoloop /tick date du 2026-06-27.
-- Nouveau CLAUDE.md : règles absolues + AUTO_ATTESTED + GO explicite · délégation · lane Forge avec
-  chemin canonique et T0/T1/T-GPU · lanes dormantes en 1-2 lignes · gates mécaniques réels
-  (hooksPath, pre-commit, forge_guard, git_guard + sentinelle 10 min) · decision-log dans la table mémoire.
-- **Gestes en attente de GO séparé** : (2) archiver hors dépôt `AI_MEMORY/`, `STUDIO_CONTEXT_LIVE.md`,
-  `COWORK_CONTEXT.md`, sentinelle `.claude/HUMAN_GIT_OVERRIDE.json` (2026-08-21, inerte) ·
-  (3) sortir les 8 skills legacy du dossier chargé + retirer la ligne ELO périmée (2026-06-27) du hook
-  de session · passage `consolidate-memory` (130 fiches, index 129 lignes).
-- Constats hors périmètre, non traités : `.claude/rules/godot-scripts.md` scopé sur `assets/godot/**`
-  (dossier absent, projets Godot sous `games/*/`) · `studio_brain/state/` périmé (2026-06-28) ·
-  /gate l.138 cite encore kaizen_loop.py.
+## Session 2026-09-16/17 — jeu `games/guild_manager/` (demande Pierre, branche claude/guild-management-game-21jcqk)
+- Jeu de gestion de guilde livré hors Forge, sur le modèle p3_alpha : 18 fichiers, ~6 100 lignes, zéro dépendance.
+  10 itérations sur retours Pierre (détail : `journal/guild-manager-2026-09-17.md`). Systèmes : combat simulé par
+  vagues avec rejeu animé · multiclasse D&D (maîtrise niv. 6, héritage des compétences, 3 compétences par classe
+  actives ou passives) · 6 races · 14 traits et titres · 6 métiers d'artisanat · 5 bâtiments · escouades 3 × 8
+  hiérarchisées + file d'entraînement solo · chaîne d'éveil, bestiaire, guilde rivale.
+- Oracle `run-oracle.mjs` PASS : 101 tests `node --test` · e2e Playwright 21/21 · solvabilité + déterminisme 60 j.
+  Régisseur : victoires J88–J118.
+- Artefact jouable publié : https://claude.ai/artifact/R58fvm1XGfMekhVa7TqCtY (bundle 1 fichier, hors dépôt).
+- **Non commité** : attente GO Pierre. Conteneur éphémère → sans GO, le travail est perdu.
+- Réserve : l'e2e exige playwright@1.56 installé hors dépôt (build Chromium 1194 du conteneur).
 
 ## État Forge (au 2026-09-01, inchangé)
 - **Shadow Audit V1→V6 CLOS**, aucun patch. Résidu unique : `TRANSITION_INTEGRITY` NOT_FOUND
