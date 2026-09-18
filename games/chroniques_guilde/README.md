@@ -29,7 +29,13 @@ polices système : les polices Google ne se chargent qu'en http(s).
 - V4 (GO Pierre) : dragons de fin de biome (réveil par maîtrise, légendaires, matériaux et recettes de dragon),
   points d'action et journées composées, savoir-faire par l'usage, missions solo, mort et héritier, défaite.
   Bancs : `test/engine_v4_check.mjs` (24), `test/ui_v4_check.mjs` (55), `ui_v3_check` (48), `ui_v2_check` (52).
-- V5 (GO Pierre, à construire) : raid tactique sur grille et lignée de classes — spec dans `design/V5_SPEC.md`.
+- V5 T1 (GO Pierre) : `tactic.js` — grille 9×11, points d'action et de mouvement, portées et lignes de vue,
+  formes de zone, poussées, états, passages entrelacés, riposte télégraphiée, nuit et enrage. Six classes de
+  base dont l'Invocateur. Le dragon de la forêt devient un raid persistant sur plusieurs jours (activité
+  `raid`, action `raid_pass`). Banc `test/tactic_t1_check.mjs` (20). La page ne charge pas encore `tactic.js`
+  (l'écran Raid est la tranche T4) : les bancs d'interface jouent donc `raid_enabled = false` pour rester
+  alignés sur elle, et le dragon de la forêt y reste en combat automatique.
+- V5 T2 à T5 (à construire) : hybrides, spécialisations, écran Raid, calibrage — voir `design/V5_SPEC.md`.
 
 ## État
 software_verdict: OK (19/19 · 13/13 · 24/24 · 55/55 au 2026-09-18) · evidence_verdict: MECHANICAL_VALIDATION_ONLY ·

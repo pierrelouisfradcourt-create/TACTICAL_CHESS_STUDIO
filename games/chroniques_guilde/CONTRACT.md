@@ -212,3 +212,139 @@ Sections de chronique ajoutées : `solo` (« Missions solo »), `deuil` (« Deui
 Réveils : 28/30 graines (un seul biome à chaque fois) ; première attaque J13-J29 ; 54 attaques : 13 vaincus · 31 repoussés ·
 10 ravages ; 8 morts / 157 héros (5,1 %) ; 0 chute ; 953 missions solo (91 % réussies, 108 blessures) ; savoir-faire : 100 % des
 paires (même classe/niveau, graines différentes) divergent en XP, 86 % en niveaux.
+
+## V5 T1 — raid tactique persistant du Sylvain, six classes de base (Invocateur), tactic.js
+Date : 2026-09-18. Source : mission « V5 tranche T1 » (GO Pierre 2026-09-18) d'après V5_SPEC.md §1, §2.1, §3, §7, §8 ; preuves dans
+`test/tactic_t1_check.mjs` (nouveau) et `test/engine_v4_check.mjs` (adapté, en-tête documenté). API publique de sim.js inchangée ;
+`data.json` version 5 ; `data.js` régénéré. Tous les chiffres restent « à calibrer » (T5) : les valeurs retenues et leur écart au spec
+sont listés plus bas.
+
+### Fichiers
+- `tactic.js` — module pur UMD (`module.exports` / `window.GuildeTactic`), aucune dépendance : mêmes primitives entières et même
+  mulberry32 que sim.js (code dupliqué, flux RNG propre au raid sérialisé dans `state.raid.rng_s / rng_count`). Grille 9×11,
+  Manhattan, LdV Bresenham entier **symétrique par construction** (libre dans les deux sens), formes `single · circle · cross · ring ·
+  line · cone · wall3`, Dijkstra entier 4-voisinage (départage coût, y, x), poussée/attirance/collision, états à durée, initiative fixe
+  `H1 · S · B · H2 · S · B · H3 · S · RIPOSTE`, riposte télégraphiée, nuit, enrage, victoire/échec, politique par défaut.
+- `sim.js` charge tactic.js : `require('./tactic.js')` sous node, `window.GuildeTactic` dans la page (**charger tactic.js avant sim.js**).
+- `data.json` : `raid` (constantes §1.14 + `roots_damage`, `summon_cap_guild`, `raid_enabled`), `raids.raid_forest` (fiche Sylvain),
+  `layouts.clairiere` (99 entiers, 4 souches en losange autour du tronc, `boss_cell`, `spawn_cells`), `tactic_spells` (25 sorts :
+  `arme` + 4 par classe), `tactic_passives`, classe `summoner` + 3 compétences d'auto-combat (`presence`, `swarm`, `sacrifice`),
+  `constants.ap_cost.raid = 3`, `activity_deltas.raid`, `death_permille.raid`, `craft_by_class.summoner`, 27 gabarits `raid_*`.
+
+### Activité, action, ordre du jour
+- Activité `raid` (journée entière, 3 PA) : permise quand `state.raid.status === 'active'` et héros apte (blessure 0, fatigue < 100) ;
+  elle **remplace `defend`** (refusé : « le village est en raid ») ; `presets.defense` → `Raid` ; `activity_options` la propose.
+  Plans par défaut (tous profils) : jour de raid, tout héros apte monte sur la grille.
+- Action `raid_pass` `{adventurer_id, actions:[{type:'move', to:{x,y}} | {type:'cast', spell_id, x, y} | {type:'end_turn'} | {type:'end_pass'}]}`
+  (≤ 60 actions). `validateAction` : héros à vous, vivant, apte, raid actif, actions **rejouées sur une copie du raid du matin**
+  (chaque action légale, sinon `action k (cast X) : raison`). `end_turn` est ajouté aux types du §7 (un tour se termine explicitement ;
+  jamais d'avance automatique). Le dernier `raid_pass` reçu pour un héros gagne. Un passage humain est rejoué **à son tour** dans
+  l'ordre des managers (id ASCII) ; s'il devient illégal parce que la grille a changé, il est interrompu là (notice « passage de X
+  interrompu : … »), la riposte a lieu, jamais d'exception. Pas de `seq` : un passage est atomique dans la journée.
+- Ordre du jour : … 7 expédition · 7b menace (auto-combat V4 : mont, marais, ou repli forêt) · **7b' raid** (passages du jour) · 7c solo
+  · … · 11 soir · **11' nuit du raid** · 11b âge · 11c réveil + présage (**startRaid** le soir du présage : la grille est dressée pour le
+  lendemain, `day_start` = jour d'attaque) · 12 derby · 13 bilan.
+- Réveil du Sylvain (V4) → raid ; retour après échec (ravage) à J+3 → nouveau raid au présage. Repli V4 : si aucun héros n'est déclaré
+  `raid` le premier jour, `state.raid = null` et la menace se résout en auto-combat V4 (ligne « raid_fallback »).
+- Passages : managers triés par id ASCII, héros par id ; sans `raid_pass` → `raidDefaults`. KO : `injure(sévérité 1)`, fatigue +15,
+  moral −5, tirage `death_permille.raid` (100 ‰). XP : `div(xp_win, 4)` par passage joué ; victoire : `xp_win × (1 + 10 % × passages)`
+  (moitié pour un KO) + moral +10 ; légendaire au plus gros `damage_total` (invocations comptées pour leur maître).
+- Issue : `won` → sortie V4 `vaincu` (or, matériaux, prestige, trophée, légendaire, `slain`) ; `lost` (4e nuit) → sortie V4 `ravage`
+  (bâtiment, or −20 %, prestige −10, retour J+3, chute possible). Les deux passent par `applyThreatOutcome` / `finalizeThreat`
+  (extraits de phaseThreat, partagés). `threat.outcome` n'est connu **qu'au jour de clôture** ; le raid est archivé dans
+  `state.raid_history[]` puis `state.raid = null`. Un raid encore actif au J30 reste en l'état (non résolu).
+
+### `state.raid` (privé, haché comme le reste)
+```
+{ id:'raid_forest', dragon_id, name, day_start, nights, status:'active'|'won'|'lost', enrage_pct, rng_s, rng_count,
+  grid_w:9, grid_h:11, layout:[99], spawn_cells:[{x,y}], zones:{ "idx": {zone_id, turns_left, owner_kind:'boss'|'hero', source_id, owner_name, value?, power?, level?} },
+  boss:{ id, kind:'boss', side:'boss', name, x,y,w:2,h:2, facing:'S', hp, hp_max, shield, atk, def, mass:3, phase:1|2|3, states:[{id,turns,value,…}],
+         controls_today, last_stun, alive, crit_immune, level, fissures },
+  units:[{ id, kind:'hero'|'summon'|'add', side:'guild'|'boss', owner, master_id, name, gender, class_id, level, x,y, hp,hp_max, shield, shield_turns,
+           atk_eff, def, heal, crit, spd, mass, pa_max, pm_max, range_min, range_max, los, states:[], cooldowns:{}, born_pass, passive, guard_of? }],
+  pass:{ hero_id, manager_id, hero_name, turn, turn_max, pa, pm, seq, ko, done, spawn:{x,y}, last_cell, damage_start, actions }|null,
+  pass_count, riposte_count, next_unit, passes_done:[{day, hero_id, manager_id, hero_name, damage, ko, turns, actions}],
+  damage_total:{hero_id:int}, healing_total:{}, journal:[{day, pass, hero_id, hero_name, lines:[≤8], ko, damage}] (jour courant),
+  events:[] (vidé après chaque appel), won_by, stats:{casts:{spell_id:n}, regen_total, burn_turns, adds_spawned, shield_absorbed, add_heal, night_regen},
+  riposte_next:{kind, label, cells:[{x,y}]}, last_riposte:{kind, cells, by}|null }
+```
+Zones : `roots` (boss, 2 ripostes, entrée = immobilise 1 + 8 dégâts, 8 par tour dedans, coût +1) · `spores` (boss, 1 riposte, poison à
+l'entrée) · `sanctuaire` (héros, +15 PV/tour, bloque racines/spores) · `piege` (héros, persistant, cap 3 : premier rejeton entrant 80 % +
+immobilise) · `glace` (eau gelée) · `mur_glace` (bloque mouvement, LdV et **la ligne du fouet**, 1 riposte). Zones tickées à chaque
+riposte (avant la pose de la nouvelle) ; la nuit efface les zones du boss et décrémente celles des héros.
+États : `immobilise · etourdi · marque(+20 %) · aveugle · entrave · brule (8+2×niv/tour, coupe la sève) · poison (6+niv, ×3) ·
+chancelant (masse 0, DÉF ÷2, +30 %) · reduction · provoque · vol_temps · garde`. Durées en tours du porteur ; boss tické à chaque tour B
+et à la riposte (persistance entre passages : marque, brûlure, provocation). Contrôle du boss : `max(150, 750 − 200 × controls_today)`
+‰, jamais deux étourdissements consécutifs, remis à zéro la nuit.
+
+### API de tactic.js (pures ; `env` = `sim._internal.raidEnvOf(state, raiders|null, day?)` : tables, jour, managers, profils du matin)
+```
+startRaid(state, raid_id, env) -> state'                 raidView(state, managerId, env) -> VM.raid | null
+raidAction(state, {type:'begin_pass', hero_id} | {type:'move'|'cast'|'end_turn'|'end_pass', …}, env) -> {state, ok, reason, log, events}
+raidEndPass(state, env) · raidNight(state, env) -> {state, log, events}      // events : ko | won | lost | phase | stagger
+raidPass(state, hero_id, actions, env) -> {state, ok, reason, log, events}  // un passage complet (begin + actions + end_pass implicite)
+validateRaidPass(state, hero_id, actions, env) -> {ok, reason}            // rejeu strict sur copie
+raidDefaults(state, managerId, env) -> [{adventurer_id, actions:[…]}]     // politique IA d'un passage, simulée séquentiellement
+raidDefaultsFor(state, hero_id, env) -> actions | null
+previewCast(view, spell_id, {x,y}) -> {valid, reason, cells:[{x,y}], targets:[{unit_id,name,dmg_min,dmg_max,dmg_crit_max,heal,effects}], path:null}
+```
+`previewCast` est pur (vue non mutée) et utilise les mêmes helpers de forme/portée/LdV que `raidAction` (banc (7) : validité identique
+sur 8 910 couples sort×case, dégâts réels dans [min, max critique]). Aussi exposé : `sim._internal.previewCast`, `.raidEnvOf`,
+`.raidDefaults`, `.tactic`.
+`raidDefaults` (§7.6, complété) : passage complet (3 tours, 2 si fatigue ≥ 60) ; quitte les zones de boss, ne traverse les racines qu'à
+défaut de chemin propre, quitte la rangée d'entrée (la riposte y laisserait des racines), politique par classe (Guerrier : rempart,
+charge, provocation quand un corps est sur la grille, taillade ; Clerc : soin des blessés, cercle sacré, bénédiction, lumière ;
+Voleur : pas de côté vers le dos, coup de l'ombre, vol de temps, poudre sur rejeton ; Rôdeur : marque, tir précis à 3-7 avec LdV,
+pièges près du tronc, flèche sur rejeton ; Mage : trait de feu dès que la brûlure tombe, tempête T2 et givre T3 sur les rejetons, mur de
+glace T3 ; Invocateur : golem puis nuée, lien vital, sacrifice d'une invocation mourante, arme au contact). Les rejetons collés au tronc
+(ils le soignent) sont visés en priorité par les corps à corps.
+
+### `VM.raid` (§7.5, `lineage: null` en T1) et autres ajouts du modèle de vue
+```
+{ active, id, name, day_start, nights, max_nights, status, phase, phase_label, hp_pct, hp_label:'394 / 893', enrage_pct, regen_pct,
+  boss:{ id,name, x,y,w,h, facing, hp,hp_max, shield, def, atk, mass, phase, crit_immune, states:[{id,label,turns,value}],
+         next_riposte:{kind,label,cells:[{x,y}]} (cellules calculées depuis ma case), last_riposte:{kind,by,cells}|null, heads:null, fissures, controls_today, tenacity_label },
+  grid:{ w,h, cells:[{x,y, kind:'floor'|'wall'|'water'|'pit', zone:{id,label,turns_left,mine,owner_name}|null, safe, boss, spawn}] },
+  units:[{ id, kind, name, owner_name, owner_id, x,y, hp,hp_max, shield, def, level, master_id, states:[{id,label,turns,value}], is_mine, side }],
+  me:{ hero_id|null, can_play, reason|null, cell:{x,y}|null (case d'entrée), atk_eff, heal, hp, hp_max, pm_max, crit, level, class_id, shield,
+       pass:{turn:1, turn_max, pa, pa_max, pm, pm_max, seq}|null,
+       spells:[{ id,name, cost_pa, range_min, range_max, los, line_only, shape, r, power, magic, target, range_label, zone_label, verb, cooldown, cooldown_left, castable, reason, description, crit_bonus, back_power, effect_labels }],
+       reachable:[{x,y,cost}], default_actions:[…] (passage par défaut prêt à soumettre en raid_pass) },
+  passes_today:[{hero_name, manager_name, damage, ko, turns}], waiting_on:[string], journal:[{hero_name, lines:[≤8], ko, damage}],
+  damage_total:[{hero_id,name,damage}], warnings:[string] (« La sève coule sans obstacle » sans Mage), lineage:null }
+VM.threat (raid actif, du présage à l'issue) = { …, phase:'raid', day:day_start, defenders_planned (héros planifiés en raid), raid:{nights,max_nights,hp_pct,status,day_start} }
+VM.roster[].activity_options += { activity:'raid', cost_ap:3 } (defend absent pendant un raid) · VM.raid_history:[{id,dragon_name,day_start,day_end,status,nights,passes,ko}]
+chronicle += raid:{id,name,day_start,nights,status,hp_pct,passes:[{hero_name,manager_name,damage,ko}],won_by}|null ; summary.raid_status ;
+section 'raid' « Raid » (jamais rognée, ≤ 26 lignes : dressage de la grille, entrée sur la grille, un fait marquant ou la trace laissée par
+les copains, bilan de chaque passage, nuit/enrage, victoire ou chute + dépouilles) ; chronicle.threat au jour de clôture seulement.
+```
+
+### Calibrage retenu (banc `tactic_t1_check`, 30 raids forcés au J12, 6 managers × 1 héros, `raidDefaults`) et écarts au spec
+| Paramètre | Spec | Retenu | Motif |
+|---|---|---|---|
+| `hp_base / hp_per_day` (Sylvain) | 900 / 60 | 450 / 20 | 6 passages/jour ≈ 900-1 100 dégâts ; le boss doit tomber en 2-3 jours |
+| `regen_pct` par tour du boss | 4 | 1 | 15 tours de boss par jour : 4 % effaçait toute journée sans brûleur permanent |
+| `shield_p3` (écorce, rechargée à chaque riposte) | 250 | 80 | 250 × 6 passages/jour = +1 500 PV effectifs par jour |
+| rejetons : soin du tronc / PV | 20 / 100 % | 10 / 60 % du monstre V4 | sinon +300 PV/jour non contrés par les plans par défaut |
+| fouet | 100 % | 50 % (deux fouets par tour B) | KO des corps à corps sinon systématiques (ATQ V4 15 + 3/jour) |
+| invocations : ATQ golem / nuée | 60 % / 50 % | 80 % / 70 % | Invocateur à 10 dégâts/passage sinon |
+| `activity_deltas.raid.fatigue` | (defend 20) | 12 | fatigue ≥ 60 dès le 2e jour = passages à 2 tours |
+| `death_permille.raid` | 150 | 100 | §9 (parade « mort en raid trop fréquente ») |
+Mesuré (30 graines, J12) : 25 gagnés / 5 perdus, **20/30 gagnés en ≤ 3 jours (67 %)**, jours par raid 2-4, KO 1/389 passages, 0 mort,
+part de dégâts par classe : Mage 41 % · Rôdeur 20 % · Voleur 14 % · Guerrier 11 % · Clerc 7 % · Invocateur 6 % ; sans Mage : 9/30 gagnés.
+Forcés au J20 : 17/30 en ≤ 3 jours, KO 3 % ; au J26 : 11/30, KO 9 %, 6 morts (fouet 15 + 3×26). Saison naturelle (engine_v4_check, 5
+managers sans Invocateur, 30 graines) : 34 raids, 12 gagnés, 13 perdus, 9 en cours au J30, KO 9 %, morts 5,1 % (V4 : 5,1 %).
+Les 25 sorts sont lancés par la politique par défaut (`ice_wall` 1 fois, `sacrifice` 3, `sidestep` 5 : rares mais présents).
+
+### Décisions et limites T1 (non couvertes par les bancs)
+- Formule de dégâts §1.5 reprise (variance 90-110, critique ×1,5, boss sans variance ni critique) ; pas de jet de toucher, `dodge` ignoré.
+- Poussée du boss non chancelant nulle (masse 3) ; chancelant → masse 0, collision contre une souche = 40 (`stump_collision`).
+- Les unités ne coupent pas la LdV ; le cône de spores ignore les murs ; le fouet s'arrête au premier mur (souche, mur de glace).
+- Rejetons instanciés à `level = div(jour, 2)` sur les cases libres autour du tronc (index croissant) ; cap 4, 2 par entrée en P2.
+- Invocations persistantes (Présence) : cap 2 par héros, 4 par guilde (les plus anciennes se dissipent) ; leurs dégâts sont crédités au
+  maître pour le légendaire ; elles n'agissent que pendant les passages (phases S).
+- `genHero` continue de tirer parmi les 5 classes V4 (`rng.roll(5)`) : l'Invocateur n'apparaît que par `class_id` explicite (IA de la
+  page, `options.managers`) — jamais à la taverne ni chez les fondateurs en T1 (choix : trajectoires V4 préservées).
+- Spec §1.12.1 (passages non joués = 2 tours prudents le soir) : en T1 tout se résout en 7b', `raidDefaults` joue les 3 tours.
+- Non vérifié : jeu sur téléphone, page index.html (T4), hybrides/spés (T2/T3), Drake et Hydre (auto-combat V4 inchangé), rejeu du journal
+  de la page avec des `raid_pass` humains réels (seule la voie moteur est prouvée), raid encore actif au J30 (laissé non résolu).

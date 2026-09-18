@@ -2,6 +2,13 @@
 // savoir-faire, missions solo, mort/héritier, défaite — preuve par exécution, moteur seul. Remplace engine_v3_check.mjs
 // (le dragon n'est plus calendaire). Usage : node test/engine_v4_check.mjs   (code de sortie 1 si un contrôle échoue)
 // 30 graines × 30 jours, 5 managers (un héros chacun), plans par défaut.
+// Adaptation V5 T1 (2026-09-18, mission « V5 tranche T1 ») — SEULS les contrôles devenus faux par conception ont changé :
+// le dragon de la forêt (Sylvain, fiche data.raids) se joue désormais en raid tactique persistant (state.raid, plusieurs jours) :
+//   · VM.threat vaut phase 'raid' tant que le raid est actif (au lieu de 'today' le jour d'attaque puis null) ;
+//   · l'activité `defend` est refusée pendant un raid (« le village est en raid ») et remplacée par `raid` ;
+//   · l'issue de la menace (threat.outcome, chronicle.threat, retour du dragon) n'est connue que le jour où le raid se clôt
+//     (won → 'vaincu', lost → 'ravage' au 4e soir), et la chronique porte une section « Raid » à la place de « Menace ».
+// Les dragons du mont et du marais restent en auto-combat V4 : leurs contrôles sont inchangés.
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -47,6 +54,7 @@ const outcomes = { vaincu: 0, 'repoussé': 0, ravage: 0 };
 const wakesPerSeed = [], firstAttackDays = [], attackDays = [], agesAtEnd = [];
 let hashMismatch = 0, presageOk = 0, presageExpected = 0, defendOk = 0, defendRefused = 0, defendTried = 0;
 let vmOk = 0, vmChecked = 0, chronicleTotals = [], menaceLines = [];
+let raidDays = 0, raidsStarted = 0, raidsWon = 0, raidsLost = 0, raidPasses = 0, raidKo = 0, raidDurations = [], raidLines = [], raidDayChecks = 0, raidDayOk = 0, raidsUnresolved = 0;
 let legendaryPerWin = 0, wins = 0, legendaryDupes = 0, matsBeforeWin = 0, matsBeforeChecks = 0, matsAfterWin = 0;
 let deaths = 0, heroesEver = 0, heirsExpected = 0, heirsOfferNextDay = 0, heirsRecruited = 0, collapses = 0;
 let soloDone = 0, soloOk = 0, soloInjuries = 0, soloLines = 0;
@@ -90,7 +98,8 @@ for (let seed = 1; seed <= SEEDS; seed++) {
       }
       if (m === 'p1') {
         const T = vm.threat;
-        if (threat) { if (!T || T.phase !== 'today' || T.day !== day || T.biome_id !== threat.biome || T.dragon_id !== data.dragons[threat.biome].id || T.name !== data.dragons[threat.biome].name || typeof T.biome_name !== 'string') { ok = false; bad.push(`graine ${seed} j${day} : VM.threat (today) non conforme ${JSON.stringify(T)}`); } }
+        if (state.raid && state.raid.status === 'active') { if (!T || T.phase !== 'raid' || T.dragon_id !== state.raid.dragon_id || !T.raid || T.raid.status !== 'active' || !Number.isInteger(T.raid.hp_pct)) { ok = false; bad.push(`graine ${seed} j${day} : VM.threat (raid) non conforme ${JSON.stringify(T)}`); } if (!vm.raid || !vm.raid.active || !vm.raid.grid || !vm.raid.boss) { ok = false; bad.push(`graine ${seed} j${day} : VM.raid absent pendant le raid`); } }
+        else if (threat) { if (!T || T.phase !== 'today' || T.day !== day || T.biome_id !== threat.biome || T.dragon_id !== data.dragons[threat.biome].id || T.name !== data.dragons[threat.biome].name || typeof T.biome_name !== 'string') { ok = false; bad.push(`graine ${seed} j${day} : VM.threat (today) non conforme ${JSON.stringify(T)}`); } }
         else if (state.threats.some(t => t.presage_day === day && t.outcome === null)) { if (!T || T.phase !== 'presage') { ok = false; bad.push(`graine ${seed} j${day} : VM.threat (presage) non conforme`); } }
         else if (T !== null) { ok = false; bad.push(`graine ${seed} j${day} : VM.threat devrait être null`); }
       }
@@ -100,7 +109,12 @@ for (let seed = 1; seed <= SEEDS; seed++) {
     if (hero) {
       const v = sim.validateAction(state, { manager_id: 'p1', day, type: 'assign', payload: { adventurer_id: hero.id, activity: 'defend' } });
       const can = hero.injury.severity === 0 && hero.fatigue < 100;
-      if (threat) { if (can && v.ok) defendOk++; else if (can) bad.push(`graine ${seed} j${day} : defend refusé le jour d'attaque (${v.reason})`); }
+      if (state.raid && state.raid.status === 'active') {   // V5 : pendant un raid, defend refusé et raid accepté (héros apte)
+        const vr = sim.validateAction(state, { manager_id: 'p1', day, type: 'assign', payload: { adventurer_id: hero.id, activity: 'raid' } });
+        raidDayChecks++;
+        if (!v.ok && /raid/.test(v.reason) && (!can || vr.ok)) raidDayOk++; else bad.push(`graine ${seed} j${day} : defend/raid non conformes pendant le raid (${v.reason} / ${vr.reason})`);
+      }
+      else if (threat) { if (can && v.ok) defendOk++; else if (can) bad.push(`graine ${seed} j${day} : defend refusé le jour d'attaque (${v.reason})`); }
       else { defendTried++; if (!v.ok && /menace/.test(v.reason)) defendRefused++; else bad.push(`graine ${seed} j${day} : defend accepté hors attaque`); }
     }
     // ---- héritier attendu aujourd'hui à la taverne ----
@@ -121,7 +135,36 @@ for (let seed = 1; seed <= SEEDS; seed++) {
     const presT = state.threats.filter(t => t.presage_day === day)[0];
     if (presT && presT.day === day + 1 && presT.outcome === null) { presageExpected++; if (c.summary.presage === data.dragons[presT.biome].name && secs.presage && secs.presage.length) presageOk++; else bad.push(`graine ${seed} j${day} : présage manquant (${c.summary.presage})`); }
     else if (c.summary.presage !== null) bad.push(`graine ${seed} j${day} : présage inattendu`);
-    if (threat) {
+    if (c.raid) {   // V5 : journée de raid (section Raid, issue différée au jour de clôture)
+      raidDays++;
+      if (threat && day === c.raid.day_start) { attackDays.push(day); raidsStarted++; if (day < WAKE_DAY_MIN + 1) bad.push(`graine ${seed} : attaque le jour ${day} (< J${WAKE_DAY_MIN + 1})`); }
+      if (!secs.raid || !secs.raid.length) bad.push(`graine ${seed} j${day} : section Raid absente`); else raidLines.push(secs.raid.length);
+      if (!Array.isArray(c.raid.passes) || !['active', 'won', 'lost'].includes(c.raid.status) || !Number.isInteger(c.raid.hp_pct)) bad.push(`graine ${seed} j${day} : chronicle.raid non conforme`);
+      raidPasses += c.raid.passes.length; raidKo += c.raid.passes.filter(p => p.ko).length;
+      if (c.raid.status !== 'active') {
+        const t = state.threats.filter(x => x.dragon_id === c.raid.id.replace('raid_', 'dragon_') && x.outcome !== null).sort((a, b) => b.day - a.day)[0];
+        const expect = c.raid.status === 'won' ? 'vaincu' : 'ravage';
+        raidDurations.push(day - c.raid.day_start + 1);
+        if (!t || t.outcome !== expect) bad.push(`graine ${seed} j${day} : issue de raid invalide (${t && t.outcome} ≠ ${expect})`); else { outcomes[t.outcome]++; seedOut.push(c.raid.day_start + '-' + day + ':' + t.outcome + '(raid)'); }
+        const CT = c.threat;
+        if (!CT || CT.type !== 'dragon' || CT.outcome !== expect || typeof CT.dragon_name !== 'string' || !Array.isArray(CT.defenders) || !Array.isArray(CT.loot) || !('building_hit' in CT) || !('legendary' in CT)) bad.push(`graine ${seed} j${day} : chronicle.threat (raid) non conforme`);
+        if (!state.raid_history || !state.raid_history.some(r => r.day_end === day && r.status === c.raid.status)) bad.push(`graine ${seed} j${day} : raid non archivé`);
+        if (c.raid.status === 'won') {
+          wins++; seedWins++; raidsWon++;
+          const dr = state.dragons[t ? t.biome : 'forest'];
+          if (dr.state !== 'slain' || !state.trophies.some(x => x.dragon_id === 'dragon_forest' && x.day === day)) bad.push(`graine ${seed} j${day} : raid gagné non marqué slain / sans trophée`);
+          if (CT && CT.legendary) { legendaryPerWin++; if (seenLegendary[CT.legendary]) legendaryDupes++; seenLegendary[CT.legendary] = 1; if (!CT.loot.some(l => l.includes(CT.legendary)) || !c.summary.legendary.includes(CT.legendary)) bad.push(`graine ${seed} j${day} : légendaire absent du butin/summary (raid)`); }
+          else bad.push(`graine ${seed} j${day} : raid gagné sans légendaire`);
+          if (dragonMats(state) < 1) bad.push(`graine ${seed} j${day} : raid gagné sans matériau de dragon`); else matsAfterWin++;
+          if (!sampleWinState) { sampleWinState = state; sampleWinBiome = 'forest'; }
+        } else {
+          raidsLost++;
+          const dr = state.dragons.forest, back = data.constants.dragon_return_ravage;
+          const expectDay = day + back <= state.season_length ? day + back : null;
+          if (dr.next_day !== expectDay || (expectDay && !state.threats.some(x => x.day === expectDay && x.outcome === null && x.biome === 'forest'))) bad.push(`graine ${seed} j${day} : retour du dragon mal planifié après un raid perdu (${dr.next_day}, attendu ${expectDay})`);
+        }
+      }
+    } else if (threat) {
       const t = state.threats.filter(x => x.day === day)[0];
       attackDays.push(day);
       if (day < WAKE_DAY_MIN + 1) bad.push(`graine ${seed} : attaque le jour ${day} (< J${WAKE_DAY_MIN + 1})`);
@@ -179,6 +222,7 @@ for (let seed = 1; seed <= SEEDS; seed++) {
   if (sim.hashState(state) !== A.hashes[state.day - 2] && !state.collapsed) bad.push(`graine ${seed} : hash de la sonde différent du rejeu`);
   // Mort le dernier jour : l'offre d'héritier est dans l'état final (visible « le lendemain », hors saison).
   for (const ph of pendingHeirs.filter(x => x.day === DAYS + 1)) { const o = state.tavern.filter(t => t.heir_for === ph.owner)[0]; if (o && o.cost === 0 && o.hero.traits.includes('heritier')) { heirsOfferNextDay++; heirsRecruited++; } else bad.push(`graine ${seed} : héritier absent de l'état final pour ${ph.owner}`); }
+  if (state.raid && state.raid.status === 'active') raidsUnresolved++;
   const w = Object.keys(state.dragons).filter(b => state.dragons[b].awakenings > 0).length;
   wakesPerSeed.push(w);
   const first = state.threats.slice().sort((a, b) => a.day - b.day)[0];
@@ -282,6 +326,7 @@ console.log('\n--- Distribution mesurée (' + SEEDS + ' graines × ' + DAYS + ' 
 console.log('Réveils par graine : 0→' + wakesPerSeed.filter(w => w === 0).length + ' · 1→' + wakesPerSeed.filter(w => w === 1).length + ' · 2→' + wakeTwo + ' · ≥3→' + wakeThree + ' (au moins un : ' + wakeAny + '/' + SEEDS + ')');
 console.log('Jour de la première attaque : ' + firstAttackDays.slice().sort((a, b) => a - b).join(' '));
 console.log('Attaques : ' + attackDays.length + ' · issues ' + JSON.stringify(outcomes) + ' · lignes Menace min/max ' + Math.min(...menaceLines) + '/' + Math.max(...menaceLines));
+console.log('Raids (Sylvain, V5) : ' + raidsStarted + ' démarrés · ' + raidsWon + ' gagnés · ' + raidsLost + ' perdus · ' + raidsUnresolved + ' en cours au J30 · ' + raidPasses + ' passages, ' + raidKo + ' KO (' + (100 * raidKo / Math.max(1, raidPasses)).toFixed(0) + ' %) · durées ' + raidDurations.join(' ') + ' · lignes Raid min/max ' + (raidLines.length ? Math.min(...raidLines) + '/' + Math.max(...raidLines) : '-'));
 console.log('Légendaires : ' + legendaryPerWin + ' pour ' + wins + ' vaincus, doublons ' + legendaryDupes + ' · matériaux uniquement via dragon : ' + matsBeforeWin + '/' + matsBeforeChecks + ' jours sans dragon à 0');
 console.log('Morts : ' + deaths + ' / ' + heroesEver + ' héros ayant servi (' + (100 * deaths / heroesEver).toFixed(1) + ' %) · héritiers à la taverne le lendemain ' + heirsOfferNextDay + '/' + heirsExpected + ' · recrutés le lendemain ' + heirsRecruited + ' · chutes ' + collapses);
 console.log('Missions solo : ' + soloDone + ' faites, ' + soloOk + ' réussies (' + (100 * soloOk / Math.max(1, soloDone)).toFixed(0) + ' %), lignes de blessure ' + soloInjuries);
@@ -295,7 +340,7 @@ check('aucune menace calendaire : threats vide à la création', !bad.some(x => 
 check('réveils : au moins un sur ≥ 70 % des graines, deux sur ≤ 30 %, trois rare (≤ 2)', wakeAny * 10 >= SEEDS * 7 && wakeTwo * 10 <= SEEDS * 3 && wakeThree <= 2, wakeAny + '/' + SEEDS + ' · deux ' + wakeTwo + ' · trois ' + wakeThree);
 check('jamais d\'attaque avant J' + (WAKE_DAY_MIN + 1) + ' (réveil le soir du J' + WAKE_DAY_MIN + ' au plus tôt)', attackDays.length > 0 && !bad.some(x => /< J/.test(x)), 'min ' + Math.min(...attackDays));
 check('présage le soir du réveil / la veille d\'un retour (summary.presage = nom du dragon + section Présage)', presageOk === presageExpected && presageExpected > 0, presageOk + '/' + presageExpected);
-check('les 3 issues observées ; repoussé revient 5 jours plus tard, ravage 3 jours plus tard (threat planifiée + dragons[].next_day)', outcomes.vaincu > 0 && outcomes['repoussé'] > 0 && outcomes.ravage > 0 && !bad.some(x => /retour du dragon/.test(x)), JSON.stringify(outcomes));
+check('les 3 issues observées (auto-combat V4 et raids V5 confondus) ; repoussé revient 5 jours plus tard, ravage 3 jours plus tard (threat planifiée + dragons[].next_day)', outcomes.vaincu > 0 && outcomes['repoussé'] > 0 && outcomes.ravage > 0 && !bad.some(x => /retour du dragon/.test(x)), JSON.stringify(outcomes));
 check('un légendaire par vaincu, jamais deux fois le même par saison, dragon marqué slain + trophée', wins > 0 && legendaryPerWin === wins && legendaryDupes === 0 && !bad.some(x => /slain|légendaire/.test(x)), legendaryPerWin + '/' + wins);
 check('matériaux de dragon uniquement via un dragon vaincu (0 partout avant, ≥ 1 après ; jamais récoltables)', matsBeforeWin === matsBeforeChecks && matsAfterWin === wins && !bad.some(x => /matériau/.test(x)));
 check('missions solo résolues (section Missions solo) avec blessures possibles', soloDone > 0 && soloLines > 0 && soloInjuries > 0, soloDone + ' missions, ' + soloInjuries + ' blessures');
@@ -303,9 +348,10 @@ check('savoir-faire : deux héros même classe même niveau (graines différente
 check('morts observées ≥ 1 sur 30 graines et ≤ 10 % des héros ; tombe, retrait de l\'effectif, section Deuil', deaths >= 1 && deaths * 10 <= heroesEver && !bad.some(x => /mort|Deuil|tombe/.test(x)), deaths + '/' + heroesEver);
 check('héritier : offre à coût 0 avec trait heritier à la taverne le lendemain de chaque mort, recruté par le plan par défaut (max_heroes = 1 ; une mort du J30 laisse l\'offre dans l\'état final)', heirsExpected > 0 && heirsOfferNextDay === heirsExpected && heirsRecruited === heirsExpected && !bad.some(x => /héritier/.test(x)), heirsOfferNextDay + '/' + heirsExpected + ' offres, ' + heirsRecruited + ' recrutés');
 check('défaite rare : ≤ 2 graines sur 30 (plans par défaut)', collapses <= 2, collapses + '/' + SEEDS);
-check('viewModel V4 conforme et sans undefined pour les 5 managers, chaque jour', vmOk === vmChecked && !bad.some(x => /VM|undefined dans le VM/.test(x)), vmOk + '/' + vmChecked + ' ' + bad.filter(x => /VM/.test(x)).slice(0, 2).join(' | '));
-check('defend accepté le jour d\'attaque, refusé sinon (« pas de menace aujourd\'hui »)', defendOk > 0 && defendRefused === defendTried && !bad.some(x => /defend/.test(x)), defendOk + ' jours d\'attaque · ' + defendRefused + '/' + defendTried);
-check('chronicle.threat / summary / section Menace cohérents ; jamais de menace hors attaque', !bad.some(x => /chronicle\.threat|Menace|menace hors/.test(x)));
+check('viewModel V4 conforme et sans undefined pour les 5 managers, chaque jour (VM.threat phase raid + VM.raid pendant un raid, V5)', vmOk === vmChecked && !bad.some(x => /VM|undefined dans le VM/.test(x)), vmOk + '/' + vmChecked + ' ' + bad.filter(x => /VM/.test(x)).slice(0, 2).join(' | '));
+check('defend accepté le jour d\'attaque (auto-combat), refusé sinon (« pas de menace aujourd\'hui ») ; pendant un raid : defend refusé, raid accepté (V5)', defendOk > 0 && defendRefused === defendTried && raidDayOk === raidDayChecks && raidDayChecks > 0 && !bad.some(x => /defend/.test(x)), defendOk + ' jours d\'attaque · ' + defendRefused + '/' + defendTried + ' · raid ' + raidDayOk + '/' + raidDayChecks);
+check('chronicle.threat / summary / section Menace cohérents ; jamais de menace hors attaque ; raids : section Raid, issue et archive au jour de clôture (V5)', !bad.some(x => /chronicle\.threat|Menace|menace hors|Raid|raid/.test(x)));
+check('raids V5 (Sylvain) : ≥ 1 démarré, ≥ 1 gagné (vaincu, slain, légendaire, trophée), ≥ 1 perdu (ravage, retour à J+3)', raidsStarted > 0 && raidsWon > 0 && raidsLost > 0, raidsStarted + ' démarrés, ' + raidsWon + ' gagnés, ' + raidsLost + ' perdus');
 check('hall ≥ 0, bâtiments ≥ 0, or/bourses/entrepôt/inventaires/maîtrise/savoir-faire jamais négatifs, entiers seulement, âges monotones', !bad.some(x => /bâtiment|caisse|bourse|entrepôt|inventaire|négati|non-entier|âge/.test(x)), bad.filter(x => /négati|non-entier/.test(x)).slice(0, 3).join(' | '));
 check('chronique : jamais plus de 60 lignes', Math.max(...chronicleTotals) <= 60, Math.min(...chronicleTotals) + '-' + Math.max(...chronicleTotals));
 check('aucune autre anomalie', bad.length === 0, bad.slice(0, 6).join(' | '));

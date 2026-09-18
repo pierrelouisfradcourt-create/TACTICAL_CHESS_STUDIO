@@ -17,6 +17,10 @@ const OUT = path.join(HERE, 'out'); fs.mkdirSync(OUT, { recursive: true });
 const URL_FILE = pathToFileURL(path.join(ROOT, 'index.html')).href;
 const sim = require(path.join(ROOT, 'sim.js'));
 const data = JSON.parse(fs.readFileSync(path.join(ROOT, 'data.json'), 'utf8'));
+// V5 T1 : la page ne charge pas encore tactic.js (l'écran Raid est la tranche T4).
+// La prédiction sous node doit donc jouer le même moteur que la page : raids désactivés,
+// le dragon de la forêt reste en combat automatique V4. À retirer quand la page chargera tactic.js.
+if (data.raid) data.raid.raid_enabled = false;
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const MANAGERS = new Function('return [' + /var MANAGERS = \[([\s\S]*?)\];/.exec(html)[1] + '];')();
 const AGE_NAMES = data.village_ages.map(a => a.name);

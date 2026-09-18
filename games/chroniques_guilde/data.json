@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Chroniques de Guilde",
-    "version": 4,
+    "version": 5,
     "date": "2026-09-18",
-    "source": "design_aventuriers.md, design_quetes_donjons.md, design_objets_economie.md (§0-2) ; village, journée, objets, recettes, bâtiments et décorations conçus par le moteur ; V3 (2026-09-18) : âges du village et menace du dragon ; V4 (2026-09-18) : dragons de biome (maîtrise), points d'action et journées composées, savoir-faire, missions solo, mort et héritier, défaite — conçus par le moteur."
+    "source": "design_aventuriers.md, design_quetes_donjons.md, design_objets_economie.md (§0-2) ; village, journée, objets, recettes, bâtiments et décorations conçus par le moteur ; V3 (2026-09-18) : âges du village et menace du dragon ; V4 (2026-09-18) : dragons de biome (maîtrise), points d'action et journées composées, savoir-faire, missions solo, mort et héritier, défaite — conçus par le moteur. ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer)."
   },
   "constants": {
     "season_length": 30,
@@ -199,6 +199,12 @@
         "form": 2,
         "morale": 2,
         "xp": 0
+      },
+      "raid": {
+        "fatigue": 12,
+        "form": 0,
+        "morale": 0,
+        "xp": 0
       }
     },
     "wage_base": 2,
@@ -230,7 +236,8 @@
       "solo": 2,
       "expedition": 3,
       "defend": 3,
-      "rest": 0
+      "rest": 0,
+      "raid": 3
     },
     "slot_divisor": 3,
     "dragon_wake_mastery": 6,
@@ -241,7 +248,8 @@
     "mastery_boss_bonus": 2,
     "death_permille": {
       "dragon": 400,
-      "wounded": 300
+      "wounded": 300,
+      "raid": 100
     },
     "heir_expires_days": 4,
     "solo_per_day": 2,
@@ -287,7 +295,8 @@
       "ranger": "archerie",
       "mage": "erudition",
       "cleric": "herboristerie",
-      "rogue": "discretion"
+      "rogue": "discretion",
+      "summoner": "erudition"
     }
   },
   "attributes": [
@@ -476,6 +485,38 @@
       "craft_attr": "dexterity",
       "craft_affinity": 10,
       "craft_specialty": "none"
+    },
+    {
+      "id": "summoner",
+      "name": "Invocateur",
+      "glyph": "⚚",
+      "primary": "will",
+      "secondary": "vigor",
+      "dump": "strength",
+      "start": {
+        "strength": 6,
+        "dexterity": 8,
+        "mind": 12,
+        "vigor": 11,
+        "will": 16,
+        "luck": 7
+      },
+      "growth": {
+        "strength": 50,
+        "dexterity": 50,
+        "mind": 125,
+        "vigor": 125,
+        "will": 200,
+        "luck": 50
+      },
+      "gather_affinity": {
+        "forest": 10,
+        "mountain": 0,
+        "marsh": 30
+      },
+      "craft_attr": "mind",
+      "craft_affinity": 10,
+      "craft_specialty": "none"
     }
   ],
   "xp_table": [
@@ -651,6 +692,36 @@
       "value": 250,
       "cooldown": 0,
       "description": "Or de butin +25 % pour le groupe."
+    },
+    {
+      "id": "presence",
+      "class_id": "summoner",
+      "name": "Présence",
+      "unlock_level": 1,
+      "type": "passive",
+      "value": 100,
+      "cooldown": 0,
+      "description": "Ses créatures encaissent : dégâts subis -10 %."
+    },
+    {
+      "id": "swarm",
+      "class_id": "summoner",
+      "name": "Nuée",
+      "unlock_level": 5,
+      "type": "active",
+      "value": 50,
+      "cooldown": 3,
+      "description": "Une nuée harcèle tous les ennemis à 50 % de l'attaque."
+    },
+    {
+      "id": "sacrifice",
+      "class_id": "summoner",
+      "name": "Sacrifice",
+      "unlock_level": 10,
+      "type": "active",
+      "value": 150,
+      "cooldown": 4,
+      "description": "Une invocation explose sur l'ennemi le plus fort (x1,5)."
     }
   ],
   "traits": [
@@ -4396,6 +4467,115 @@
     "legendary_grant": [
       "Dans la carcasse, {a} trouve {item} : « {flavor} »",
       "{item} revient à {a}, qui a versé le plus de sang. « {flavor} »"
+    ],
+    "raid_start": [
+      "{Dragon_le} s'enracine dans la clairière : {hp} PV de sève à tarir. Le siège commence.",
+      "La forêt se referme sur la clairière : {dragon_le} attend, {hp} PV de sève dans le tronc."
+    ],
+    "raid_enter": [
+      "{a} entre sur la grille par le sud ({shield} PV de muraille).",
+      "{a} franchit la lisière et pose le pied sur la clairière (bouclier de muraille : {shield}).",
+      "Au tour de {a} : la grille est telle que les copains l'ont laissée ({shield} PV de muraille)."
+    ],
+    "raid_trace": [
+      "Sur la grille : {list}.",
+      "Ce que les autres ont laissé : {list}."
+    ],
+    "raid_spell": [
+      "{a} lance « {spell} » : {n} dégâts à {t}.",
+      "« {spell} » de {a} : {n} dégâts sur {t}.",
+      "{a} : « {spell} » — {t} encaisse {n}."
+    ],
+    "raid_spell_effect": [
+      "{a} lance « {spell} » sur {t}.",
+      "« {spell} » : {a} vise {t}."
+    ],
+    "raid_burn": [
+      "Le feu de {a} a figé la sève : le Sylvain ne régénère plus.",
+      "La sève bouillonne sous le feu de {a} : la régénération est coupée."
+    ],
+    "raid_push": [
+      "{a} bouscule {t} de {n} case(s){collision}.",
+      "{t} recule de {n} case(s) sous la poussée de {a}{collision}."
+    ],
+    "raid_whip": [
+      "Le fouet du Sylvain cingle {t} : {n} dégâts.",
+      "Une branche noire claque sur {t} : {n} dégâts."
+    ],
+    "raid_riposte_roots": [
+      "Riposte : les racines se referment en croix autour de la case de {a} ({n} cases).",
+      "Le sol se fend derrière {a} : une croix de racines ({n} cases) attend le suivant."
+    ],
+    "raid_riposte_spores": [
+      "Riposte : un cône de spores s'abat vers la case de {a} ({n} dégâts).",
+      "Le Sylvain crache ses spores dans la direction de {a} ({n} dégâts) : le sol en reste couvert."
+    ],
+    "raid_phase2": [
+      "Deux rejetons sortent de l'écorce : le Sylvain saigne (phase 2).",
+      "L'écorce se fend et deux sylvains corrompus en tombent : phase 2."
+    ],
+    "raid_phase3": [
+      "L'écorce se durcit en une carapace de {n} : phase 3.",
+      "Phase 3 : le tronc se blinde d'une écorce de {n}."
+    ],
+    "raid_stagger": [
+      "{a} a fendu l'écorce : le Sylvain chancelle !",
+      "L'écorce éclate sous les coups de {a} ; le Sylvain vacille, décollé de ses racines."
+    ],
+    "raid_fall": [
+      "{a} tombe, hors de combat, sous {src}.",
+      "{a} s'effondre (KO) : {src} l'a eu{e}."
+    ],
+    "raid_pass_summary": [
+      "{a} : {dmg} dégâts en {turns} tour(s){ko}. Le Sylvain est à {pct} %.",
+      "Passage de {a} : {dmg} dégâts{ko} ; sève restante {pct} %."
+    ],
+    "raid_night": [
+      "Nuit {n}/{max} : la sève remonte (+{regen} PV). Le Sylvain est à {pct} % après {passes} passage(s).{enrage}",
+      "La nuit tombe ({n}/{max}). Le tronc se referme sur ses plaies (+{regen} PV) : {pct} %.{enrage}"
+    ],
+    "raid_enrage": [
+      " Il s'enrage : dégâts +{n} %.",
+      " La colère monte dans les branches : +{n} % de dégâts."
+    ],
+    "raid_no_burner": [
+      "La sève coule sans obstacle : personne n'a brûlé le Sylvain aujourd'hui.",
+      "Rien n'a brûlé : la sève a tout effacé."
+    ],
+    "raid_victory": [
+      "{a} porte le coup final : {dragon_le} s'effondre dans un craquement de bois mort.",
+      "Le tronc se fend en deux sous le coup de {a} : {dragon_le} est abattu."
+    ],
+    "raid_lost": [
+      "La forêt s'est refermée : après {n} nuits, le Sylvain marche sur le village.",
+      "Quatre nuits ont passé ({n}) : le Sylvain arrache ses racines et vient ravager le village."
+    ],
+    "raid_summon": [
+      "{a} invoque {t}.",
+      "{t} surgit de l'argile aux côtés de {a}."
+    ],
+    "raid_trap_set": [
+      "{a} tend {n} piège(s) près du tronc.",
+      "{a} dissimule {n} piège(s) sous les feuilles."
+    ],
+    "raid_trap": [
+      "{t} marche sur le piège de {a} : {n} dégâts, immobilisé.",
+      "Le piège de {a} se referme sur {t} ({n} dégâts)."
+    ],
+    "raid_zone": [
+      "{a} pose {zone} ({n} cases) pour ceux qui suivront.",
+      "{zone} de {a} recouvre {n} cases : une trace pour le prochain."
+    ],
+    "raid_control": [
+      "Le Sylvain se dégage de « {spell} » (ténacité {n}/3).",
+      "« {spell} » glisse sur l'écorce : le Sylvain tient bon (ténacité {n}/3)."
+    ],
+    "raid_abandon": [
+      "Personne n'est monté sur la grille : le Sylvain a régénéré tranquillement.",
+      "La clairière est restée vide aujourd'hui : la sève a tout repris."
+    ],
+    "raid_fallback": [
+      "Personne n'a osé la clairière : le village se défend à l'ancienne, sous les murs."
     ]
   },
   "quest_names": {
@@ -4991,6 +5171,937 @@
       "item_permille": 340,
       "injury_permille": 210,
       "text": "une chasse aux feux follets"
+    }
+  ],
+  "raid": {
+    "grid_w": 9,
+    "grid_h": 11,
+    "pa_per_turn": 6,
+    "pm_per_turn": 3,
+    "pm_dex_threshold": 30,
+    "pm_max": 5,
+    "pass_turns": 3,
+    "pass_turns_tired": 2,
+    "raid_second_pass": false,
+    "night_regen_pct": 10,
+    "enrage_per_night_pct": 15,
+    "enrage_cap_pct": 45,
+    "raid_max_nights": 4,
+    "control_base_permille": 750,
+    "control_step_permille": 200,
+    "control_min_permille": 150,
+    "collision_base": 6,
+    "collision_per_level": 2,
+    "pit_base": 20,
+    "pit_per_level": 2,
+    "hp_pool_managers_div": 6,
+    "hp_pool_managers_add": 2,
+    "death_permille_raid": 100,
+    "wall_shield_pct_of_defense": 50,
+    "summon_cap": 2,
+    "summon_cap_guild": 4,
+    "trap_cap": 3,
+    "zone_cap_per_hero": 3,
+    "roots_damage": 8,
+    "raid_enabled": true
+  },
+  "layouts": {
+    "clairiere": {
+      "id": "clairiere",
+      "name": "La clairière aux souches",
+      "w": 9,
+      "h": 11,
+      "layout": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "boss_cell": {
+        "x": 4,
+        "y": 3
+      },
+      "spawn_cells": [
+        {
+          "x": 3,
+          "y": 7
+        },
+        {
+          "x": 5,
+          "y": 7
+        },
+        {
+          "x": 2,
+          "y": 7
+        },
+        {
+          "x": 6,
+          "y": 7
+        },
+        {
+          "x": 1,
+          "y": 7
+        },
+        {
+          "x": 7,
+          "y": 7
+        }
+      ]
+    }
+  },
+  "raids": {
+    "raid_forest": {
+      "id": "raid_forest",
+      "dragon_id": "dragon_forest",
+      "hp_base": 450,
+      "hp_per_day": 20,
+      "pm": 0,
+      "pa": 6,
+      "regen_pct": 1,
+      "phases": [
+        60,
+        30
+      ],
+      "layout_id": "clairiere",
+      "adds": {
+        "id": "corrupted_sylvan",
+        "cap": 4,
+        "per_spawn": 2,
+        "heal_boss": 10,
+        "level_div": 2,
+        "hp_pct": 60
+      },
+      "shield_p3": 80,
+      "stagger_turns": 2,
+      "spores_power": 90,
+      "roots_turns": 2,
+      "stump_collision": 40,
+      "crit_immune": false,
+      "attack": {
+        "id": "fouet",
+        "label": "Fouet",
+        "power": 50,
+        "range": 3,
+        "shape": "line",
+        "cost": 3
+      },
+      "needs": [
+        "brûleur (Mage)",
+        "gestion des rejetons (Rôdeur, Voleur, Mage)",
+        "mobilité (Voleur)",
+        "burst en phase 3 (Voleur, Guerrier)"
+      ]
+    }
+  },
+  "tactic_passives": {
+    "warrior": "provocation_innee",
+    "cleric": "onction",
+    "rogue": "chanceux",
+    "ranger": "pistage",
+    "mage": "arcanes",
+    "summoner": "presence"
+  },
+  "tactic_spells": [
+    {
+      "id": "arme",
+      "class_id": null,
+      "name": "Arme",
+      "verb": "frapper",
+      "cost_pa": 3,
+      "range_min": 1,
+      "range_max": 1,
+      "los": true,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 100,
+      "magic": false,
+      "target": "enemy",
+      "cooldown": 0,
+      "effects": [],
+      "description": "Attaque d'arme : portée 1 (1-5 avec ligne de vue pour le Rôdeur et le Mage, magique pour le Mage)."
+    },
+    {
+      "id": "slash",
+      "class_id": "warrior",
+      "name": "Taillade",
+      "verb": "frapper",
+      "cost_pa": 3,
+      "range_min": 1,
+      "range_max": 1,
+      "los": true,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 110,
+      "magic": false,
+      "target": "enemy",
+      "cooldown": 0,
+      "effects": [],
+      "description": "110 % au contact."
+    },
+    {
+      "id": "taunt",
+      "class_id": "warrior",
+      "name": "Provocation",
+      "verb": "attirer l'attention",
+      "cost_pa": 2,
+      "range_min": 1,
+      "range_max": 3,
+      "los": false,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 0,
+      "magic": false,
+      "target": "enemy",
+      "cooldown": 0,
+      "effects": [
+        {
+          "kind": "state",
+          "id": "provoque",
+          "turns": 2,
+          "on": "target"
+        },
+        {
+          "kind": "state",
+          "id": "reduction",
+          "turns": 2,
+          "value": 5,
+          "on": "self",
+          "hostile": false
+        }
+      ],
+      "effect_labels": [
+        "la cible ne vise que le guerrier 2 tours",
+        "réduction 5 sur soi"
+      ],
+      "description": "La cible ne vise que le guerrier 2 tours ; réduction 5 pendant 2 tours."
+    },
+    {
+      "id": "charge",
+      "class_id": "warrior",
+      "name": "Charge",
+      "verb": "bousculer",
+      "cost_pa": 4,
+      "range_min": 2,
+      "range_max": 4,
+      "los": true,
+      "line_only": true,
+      "shape": "single",
+      "r": 0,
+      "power": 130,
+      "magic": false,
+      "target": "enemy",
+      "cooldown": 0,
+      "effects": [
+        {
+          "kind": "push",
+          "value": 1,
+          "adds_only": true
+        }
+      ],
+      "effect_labels": [
+        "se place au contact (0 PM)",
+        "pousse un rejeton de 1"
+      ],
+      "description": "Se déplace au contact (0 PM) et frappe 130 % ; pousse un rejeton de 1 case."
+    },
+    {
+      "id": "bulwark",
+      "class_id": "warrior",
+      "name": "Rempart",
+      "verb": "encaisser",
+      "cost_pa": 3,
+      "range_min": 0,
+      "range_max": 0,
+      "los": false,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 0,
+      "magic": false,
+      "target": "self",
+      "cooldown": 3,
+      "effects": [
+        {
+          "kind": "shield",
+          "value": 30,
+          "per_level": 3,
+          "turns": 2,
+          "on": "self"
+        }
+      ],
+      "effect_labels": [
+        "bouclier 30 + 3×niveau, 2 tours"
+      ],
+      "description": "Bouclier 30 + 3×niveau pendant 2 tours ; relance 3."
+    },
+    {
+      "id": "healing_prayer",
+      "class_id": "cleric",
+      "name": "Prière de soin",
+      "verb": "soigner",
+      "cost_pa": 3,
+      "range_min": 0,
+      "range_max": 5,
+      "los": false,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 0,
+      "magic": false,
+      "target": "ally",
+      "cooldown": 1,
+      "effects": [
+        {
+          "kind": "heal",
+          "power": 200,
+          "flat": 10
+        }
+      ],
+      "effect_labels": [
+        "soin 200 % + 10"
+      ],
+      "description": "Soin 200 % + 10 sur soi, une invocation ou une recrue ; relance 1."
+    },
+    {
+      "id": "blessing",
+      "class_id": "cleric",
+      "name": "Bénédiction",
+      "verb": "protéger",
+      "cost_pa": 2,
+      "range_min": 0,
+      "range_max": 4,
+      "los": false,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 0,
+      "magic": false,
+      "target": "ally",
+      "cooldown": 0,
+      "effects": [
+        {
+          "kind": "shield",
+          "value": 20,
+          "per_level": 2,
+          "turns": 2
+        }
+      ],
+      "effect_labels": [
+        "bouclier 20 + 2×niveau, 2 tours"
+      ],
+      "description": "Bouclier 20 + 2×niveau pendant 2 tours."
+    },
+    {
+      "id": "light",
+      "class_id": "cleric",
+      "name": "Lumière",
+      "verb": "purifier",
+      "cost_pa": 3,
+      "range_min": 1,
+      "range_max": 4,
+      "los": true,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 90,
+      "magic": true,
+      "target": "unit",
+      "cooldown": 0,
+      "effects": [
+        {
+          "kind": "state",
+          "id": "aveugle",
+          "turns": 1,
+          "adds_only": true
+        }
+      ],
+      "effect_labels": [
+        "90 % magique sur un ennemi",
+        "retire poison/brûlure d'un allié",
+        "aveugle un rejeton 1 tour"
+      ],
+      "description": "90 % magique ; retire poison et brûlure d'un allié visé ; aveugle un rejeton 1 tour."
+    },
+    {
+      "id": "sacred_circle",
+      "class_id": "cleric",
+      "name": "Cercle sacré",
+      "verb": "poser une zone de soin",
+      "cost_pa": 4,
+      "range_min": 0,
+      "range_max": 2,
+      "los": false,
+      "line_only": false,
+      "shape": "circle",
+      "r": 1,
+      "power": 0,
+      "magic": false,
+      "target": "any",
+      "cooldown": 0,
+      "effects": [
+        {
+          "kind": "zone",
+          "id": "sanctuaire",
+          "turns": 2
+        }
+      ],
+      "effect_labels": [
+        "sanctuaire 2 ripostes : +15 PV/tour aux alliés, annule spores"
+      ],
+      "description": "Zone sanctuaire (cercle 1) pendant 2 ripostes : +15 PV par tour aux alliés dedans, annule venin et spores."
+    },
+    {
+      "id": "shadow_strike",
+      "class_id": "rogue",
+      "name": "Coup de l'ombre",
+      "verb": "frapper dans le dos",
+      "cost_pa": 4,
+      "range_min": 1,
+      "range_max": 1,
+      "los": true,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 150,
+      "back_power": 220,
+      "magic": false,
+      "target": "enemy",
+      "cooldown": 2,
+      "effects": [],
+      "effect_labels": [
+        "220 % depuis le dos"
+      ],
+      "description": "150 % ; 220 % depuis le dos du boss ; relance 2."
+    },
+    {
+      "id": "sidestep",
+      "class_id": "rogue",
+      "name": "Pas de côté",
+      "verb": "se déplacer",
+      "cost_pa": 2,
+      "range_min": 1,
+      "range_max": 2,
+      "los": false,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 0,
+      "magic": false,
+      "target": "cell",
+      "cooldown": 1,
+      "effects": [
+        {
+          "kind": "teleport"
+        }
+      ],
+      "effect_labels": [
+        "téléportation"
+      ],
+      "description": "Téléportation courte sur une case libre ; relance 1."
+    },
+    {
+      "id": "time_theft",
+      "class_id": "rogue",
+      "name": "Vol de temps",
+      "verb": "voler un tour",
+      "cost_pa": 3,
+      "range_min": 1,
+      "range_max": 2,
+      "los": false,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 0,
+      "magic": false,
+      "target": "enemy",
+      "cooldown": 3,
+      "effects": [
+        {
+          "kind": "state",
+          "id": "vol_temps",
+          "turns": 1,
+          "value": 2,
+          "control": true
+        }
+      ],
+      "effect_labels": [
+        "-2 PA au prochain tour (boss : tirage)"
+      ],
+      "description": "La cible perd 2 PA à son prochain tour (boss : tirage de ténacité) ; relance 3."
+    },
+    {
+      "id": "blinding_powder",
+      "class_id": "rogue",
+      "name": "Poudre aveuglante",
+      "verb": "aveugler",
+      "cost_pa": 3,
+      "range_min": 1,
+      "range_max": 3,
+      "los": true,
+      "line_only": false,
+      "shape": "cross",
+      "r": 1,
+      "power": 0,
+      "magic": false,
+      "target": "any",
+      "cooldown": 0,
+      "effects": [
+        {
+          "kind": "state",
+          "id": "aveugle",
+          "turns": 1,
+          "control": true,
+          "enemy_only": true
+        },
+        {
+          "kind": "state",
+          "id": "etourdi",
+          "turns": 1,
+          "adds_only": true
+        }
+      ],
+      "effect_labels": [
+        "aveugle 1 tour",
+        "rejetons : étourdi 1 tour"
+      ],
+      "description": "Aveugle 1 tour (croix 1) ; les rejetons sont étourdis 1 tour."
+    },
+    {
+      "id": "precise_shot",
+      "class_id": "ranger",
+      "name": "Tir précis",
+      "verb": "frapper de loin",
+      "cost_pa": 3,
+      "range_min": 3,
+      "range_max": 7,
+      "los": true,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 100,
+      "magic": false,
+      "target": "enemy",
+      "cooldown": 0,
+      "crit_bonus": 100,
+      "effects": [],
+      "effect_labels": [
+        "critique +100 ‰"
+      ],
+      "description": "100 % à distance 3-7 ; critique +100 ‰."
+    },
+    {
+      "id": "snare_arrow",
+      "class_id": "ranger",
+      "name": "Flèche entravante",
+      "verb": "entraver",
+      "cost_pa": 3,
+      "range_min": 2,
+      "range_max": 6,
+      "los": true,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 0,
+      "magic": false,
+      "target": "enemy",
+      "cooldown": 2,
+      "effects": [
+        {
+          "kind": "state",
+          "id": "entrave",
+          "turns": 2
+        },
+        {
+          "kind": "state",
+          "id": "immobilise",
+          "turns": 1,
+          "control": true
+        }
+      ],
+      "effect_labels": [
+        "entrave 2 tours",
+        "immobilise 1 tour (boss : tirage)"
+      ],
+      "description": "Entrave 2 tours ; immobilise 1 tour (boss : tirage de ténacité) ; relance 2."
+    },
+    {
+      "id": "trap",
+      "class_id": "ranger",
+      "name": "Piège",
+      "verb": "piéger",
+      "cost_pa": 2,
+      "range_min": 1,
+      "range_max": 3,
+      "los": false,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 0,
+      "magic": false,
+      "target": "cell",
+      "cooldown": 0,
+      "effects": [
+        {
+          "kind": "zone",
+          "id": "piege",
+          "turns": 99,
+          "power": 80
+        }
+      ],
+      "effect_labels": [
+        "premier rejeton qui entre : 80 % + immobilise 1"
+      ],
+      "description": "Piège persistant (3 par héros) : le premier ennemi qui entre subit 80 % et est immobilisé 1 tour."
+    },
+    {
+      "id": "hunters_mark",
+      "class_id": "ranger",
+      "name": "Marque du chasseur",
+      "verb": "marquer",
+      "cost_pa": 2,
+      "range_min": 1,
+      "range_max": 8,
+      "los": false,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 0,
+      "magic": false,
+      "target": "enemy",
+      "cooldown": 0,
+      "effects": [
+        {
+          "kind": "state",
+          "id": "marque",
+          "turns": 3
+        }
+      ],
+      "effect_labels": [
+        "marque 3 tours : dégâts subis +20 %"
+      ],
+      "description": "Marque 3 tours (dégâts subis +20 %) ; persiste entre les passages."
+    },
+    {
+      "id": "fire_bolt",
+      "class_id": "mage",
+      "name": "Trait de feu",
+      "verb": "brûler",
+      "cost_pa": 3,
+      "range_min": 1,
+      "range_max": 6,
+      "los": true,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 120,
+      "magic": true,
+      "target": "enemy",
+      "cooldown": 1,
+      "effects": [
+        {
+          "kind": "state",
+          "id": "brule",
+          "turns": 2
+        }
+      ],
+      "effect_labels": [
+        "brûle 2 tours (coupe la sève)"
+      ],
+      "description": "120 % magique ; brûle 2 tours (coupe la régénération) ; relance 1."
+    },
+    {
+      "id": "frost_hold",
+      "class_id": "mage",
+      "name": "Emprise de givre",
+      "verb": "geler",
+      "cost_pa": 4,
+      "range_min": 1,
+      "range_max": 5,
+      "los": true,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 0,
+      "magic": true,
+      "target": "any",
+      "cooldown": 3,
+      "effects": [
+        {
+          "kind": "state",
+          "id": "etourdi",
+          "turns": 1,
+          "adds_only": true
+        },
+        {
+          "kind": "state",
+          "id": "immobilise",
+          "turns": 2,
+          "boss_only": true,
+          "control": true
+        },
+        {
+          "kind": "freeze"
+        }
+      ],
+      "effect_labels": [
+        "rejeton : étourdi 1 tour",
+        "boss : immobilise 2 tours (tirage)",
+        "eau visée : glace"
+      ],
+      "description": "Rejeton : étourdi 1 tour ; boss : tirage de ténacité, immobilisé 2 tours ; case d'eau : glace ; relance 3."
+    },
+    {
+      "id": "storm",
+      "class_id": "mage",
+      "name": "Tempête",
+      "verb": "frapper en zone",
+      "cost_pa": 5,
+      "range_min": 2,
+      "range_max": 5,
+      "los": false,
+      "line_only": false,
+      "shape": "circle",
+      "r": 2,
+      "power": 70,
+      "magic": true,
+      "target": "any",
+      "cooldown": 2,
+      "effects": [],
+      "effect_labels": [
+        "70 % magique à tous les ennemis (cercle 2)"
+      ],
+      "description": "70 % magique à toutes les unités ennemies dans un cercle 2 ; relance 2."
+    },
+    {
+      "id": "ice_wall",
+      "class_id": "mage",
+      "name": "Mur de glace",
+      "verb": "ériger",
+      "cost_pa": 3,
+      "range_min": 1,
+      "range_max": 4,
+      "los": false,
+      "line_only": false,
+      "shape": "wall3",
+      "r": 3,
+      "power": 0,
+      "magic": false,
+      "target": "any",
+      "cooldown": 0,
+      "effects": [
+        {
+          "kind": "wall",
+          "turns": 1
+        }
+      ],
+      "effect_labels": [
+        "3 cases de mur pendant 1 riposte"
+      ],
+      "description": "Trois cases de mur temporaire (1 riposte, persistent pour le suivant) : bloquent ligne de vue et souffles."
+    },
+    {
+      "id": "clay_golem",
+      "class_id": "summoner",
+      "name": "Golem d'argile",
+      "verb": "invoquer un mur",
+      "cost_pa": 4,
+      "range_min": 1,
+      "range_max": 3,
+      "los": false,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 0,
+      "magic": false,
+      "target": "cell",
+      "cooldown": 3,
+      "effects": [
+        {
+          "kind": "summon",
+          "id": "golem"
+        }
+      ],
+      "effect_labels": [
+        "golem : PV 30 + 4×niveau + 2×Vigueur, ATQ 80 %, garde du maître"
+      ],
+      "description": "Golem 1×1 (PV 30 + 4×niveau + 2×Vigueur, DÉF 10 + niveau, ATQ 80 %, masse 1) qui garde son maître ; relance 3."
+    },
+    {
+      "id": "swarm",
+      "class_id": "summoner",
+      "name": "Nuée",
+      "verb": "invoquer un harceleur",
+      "cost_pa": 3,
+      "range_min": 1,
+      "range_max": 4,
+      "los": false,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 0,
+      "magic": false,
+      "target": "cell",
+      "cooldown": 2,
+      "effects": [
+        {
+          "kind": "summon",
+          "id": "nuee"
+        }
+      ],
+      "effect_labels": [
+        "nuée : PV 12 + 2×niveau, ATQ 70 % à portée 1-3"
+      ],
+      "description": "Nuée 1×1 (PV 12 + 2×niveau, ATQ 70 % à portée 1-3 sans ligne de vue, PM 3) ; relance 2."
+    },
+    {
+      "id": "vital_link",
+      "class_id": "summoner",
+      "name": "Lien vital",
+      "verb": "partager",
+      "cost_pa": 2,
+      "range_min": 0,
+      "range_max": 6,
+      "los": false,
+      "line_only": false,
+      "shape": "single",
+      "r": 0,
+      "power": 0,
+      "magic": false,
+      "target": "summon",
+      "cooldown": 0,
+      "effects": [
+        {
+          "kind": "vital_link"
+        }
+      ],
+      "effect_labels": [
+        "transfère 20 + niveau PV vers l'invocation (ou l'inverse sous 50 %)"
+      ],
+      "description": "Transfère 20 + niveau PV du maître vers l'invocation, ou l'inverse si le maître est sous 50 %."
+    },
+    {
+      "id": "sacrifice",
+      "class_id": "summoner",
+      "name": "Sacrifice",
+      "verb": "sacrifier",
+      "cost_pa": 3,
+      "range_min": 1,
+      "range_max": 4,
+      "los": false,
+      "line_only": false,
+      "shape": "cross",
+      "r": 1,
+      "power": 100,
+      "magic": false,
+      "target": "summon",
+      "cooldown": 0,
+      "effects": [
+        {
+          "kind": "sacrifice"
+        }
+      ],
+      "effect_labels": [
+        "explosion 100 % en croix 1, pousse de 1"
+      ],
+      "description": "L'invocation explose : 100 % du maître en croix 1, poussée de 1 ; libère la case."
     }
   ]
 }

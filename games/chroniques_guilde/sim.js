@@ -4,11 +4,13 @@
  * du jour, un seul flux RNG consommé dans l'ordre des phases du contrat.
  * V4 : dragons de biome réveillés par la maîtrise (plus de calendrier), points d'action et journées composées
  * (action plan), savoir-faire par l'usage, missions solo, mort et héritier, défaite (guilde dispersée).
+ * V5 T1 (2026-09-18) : raid tactique persistant du Sylvain (tactic.js : grille 9×11, six classes de base dont l'Invocateur),
+ * activité `raid`, action `raid_pass`, VM.raid ; seule dépendance : tactic.js (require sous node, window.GuildeTactic dans la page).
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.GuildeSim = factory();
-}(typeof self !== 'undefined' ? self : this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./tactic.js'));
+  else root.GuildeSim = factory(root.GuildeTactic || null);
+}(typeof self !== 'undefined' ? self : this, function (TACTIC) {
   'use strict';
   let GLOBAL_DATA = null;   // dernière table de données vue par newGame (repli pour les états rechargés)
 
@@ -120,7 +122,8 @@
       ages: data.village_ages || [{ id: 'campement', name: 'Campement', prestige_min: 0, levels_min: 0, defense: 0, guards: 0, description: '' }],
       threats: data.threats || null,
       dragons: data.dragons || {}, crafts: byId(data.crafts || []), crafts_list: data.crafts || [],
-      solo: byId(data.solo_missions || []), solo_list: data.solo_missions || []
+      solo: byId(data.solo_missions || []), solo_list: data.solo_missions || [],
+      raid: data.raid || null, raids: data.raids || {}, layouts: data.layouts || {}, tactic_spells: data.tactic_spells || []
     };
     for (const d of data.difficulty) D.difficulty[d.d] = d;
     for (const s of data.skills) (D.skills_by_class[s.class_id] = D.skills_by_class[s.class_id] || []).push(s);
@@ -180,7 +183,25 @@
     return Math.max(D.C.ap_min || 1, ap);
   }
   function apCost(D, activity) { const c = D.C.ap_cost || {}; return c[activity] === undefined ? 1 : c[activity]; }
-  function isFullDay(activity) { return activity === 'expedition' || activity === 'defend' || activity === 'rest'; }
+  function isFullDay(activity) { return activity === 'expedition' || activity === 'defend' || activity === 'rest' || activity === 'raid'; }
+  // ---- V5 : raid tactique persistant (state.raid, module tactic.js) ----
+  function raidActive(state) { return !!(state.raid && state.raid.status === 'active'); }
+  function raidTableFor(D, dragonId) { for (const k of sortedKeys(D.raids)) if (D.raids[k].dragon_id === dragonId) return D.raids[k]; return null; }
+  function raidEnabled(D) { return !!(TACTIC && D.raid && D.raid.raid_enabled !== false); }
+  function canRaid(h) { return h.injury.severity === 0 && h.fatigue < 100; }
+  // Environnement passé au module tactique : tables, jour, managers, profils du matin des héros vivants (jamais stocké dans l'état).
+  function raidEnvOf(D, state, raiders, dayOverride) {
+    const age = villageAge(D, state);
+    const env = { data: D.raw, day: dayOverride === undefined ? state.day : dayOverride, seed: state.seed, season_length: state.season_length,
+      managers: state.managers.map(m => ({ id: m.id, name: m.name })), heroes: {}, raiders: raiders || null,
+      wall_shield_pct: div(age.defense * ((D.raid && D.raid.wall_shield_pct_of_defense) || 50), 100) };
+    for (const h of allHeroes(state)) {
+      const p = combatProfile(D, state, h);
+      env.heroes[h.id] = { id: h.id, name: p.name, owner: h.owner, class_id: h.class_id, level: h.level, gender: h.gender, hp_max: p.hp_max, atk: p.atk, def: p.def, heal: p.heal, crit: p.crit, spd: p.spd,
+        magic: p.magic, morale: h.morale, fatigue: h.fatigue, dexterity: attrEff(D, h, 'dexterity'), vigor: attrEff(D, h, 'vigor'), traits: h.traits.slice(), injury_severity: h.injury.severity };
+    }
+    return env;
+  }
   function slotsCost(D, slots) { let n = 0; for (const s of slots) if (!isFullDay(s.activity)) n += apCost(D, s.activity); return n; }
   function itemStats(D, state, h) {
     const tot = {};
@@ -201,6 +222,7 @@
       case 'warrior': return A.strength * 2 + A.dexterity;
       case 'ranger': case 'rogue': return A.dexterity * 2 + A.strength;
       case 'mage': return A.mind * 2 + A.will;
+      case 'summoner': return A.will + A.mind;
       default: return A.will + A.strength;
     }
   }
@@ -222,6 +244,7 @@
       hit_bonus: craftBonus(D, h, 'archerie'), xp_pct: craftBonus(D, h, 'erudition'),
       fire: it.fire ? 1 : 0, morale: h.morale, fatigue: h.fatigue, traits: h.traits.slice(),
       magic: h.class_id === 'mage' ? 1 : 0, priority: (hasSkill(D, h, 'taunt') ? 100 : 0) + (hasTrait(h, 'brave') ? 50 : 0) - (hasTrait(h, 'coward') ? 50 : 0),
+      presence: hasSkill(D, h, 'presence') ? 1 : 0,
       skills: D.skills_by_class[h.class_id].filter(s => s.type === 'active' && h.level >= s.unlock_level).map(s => s.id),
       potion: null
     };
@@ -440,6 +463,7 @@
       // V4 : maîtrise des biomes, dragons de biome, trophées, tombes, coffre de guilde, tableau solo, chute.
       biome_mastery: {}, dragons: {}, trophies: [], graves: [], guild_chest: [], solo_board: {}, legendary_given: [],
       collapsed: null, hall_hits: 0,
+      raid: null, raid_history: [],   // V5 : raid tactique persistant (tactic.js) et archives des raids clos
       stats: { expeditions: 0, successes: 0, gold_earned: 0, derby_wins: 0, derby_losses: 0, derby_draws: 0, level_ups: 0, injuries: 0, items_found: 0, deaths: 0, dragons_slain: 0, solo_done: 0, solo_success: 0 }
     };
     for (const b of sortedKeys(D.dragons)) { state.biome_mastery[b] = 0; state.dragons[b] = { state: 'dormant', next_day: null, awakenings: 0, slain_day: null, last_outcome: null }; }
@@ -549,7 +573,7 @@
   // ===================================================================================
   // 5. VALIDATION DES ACTIONS (jamais d'exception, raison en français)
   // ===================================================================================
-  const ACTIVITIES = ['gather', 'train', 'craft', 'rest', 'expedition', 'defend', 'solo'];
+  const ACTIVITIES = ['gather', 'train', 'craft', 'rest', 'expedition', 'defend', 'solo', 'raid'];
   function bad(reason) { return { ok: false, reason: reason }; }
   function validateAction(state, action) {
     try { return validateInner(state, action); } catch (e) { return bad('action malformée'); }
@@ -632,13 +656,26 @@
         if (state.purses[a.manager_id] < d.cost_gold) return bad('or insuffisant');
         return { ok: true };
       }
+      case 'raid_pass': {
+        // V5 : passage tactique d'un héros (héros vivant et à vous, raid actif, apte, actions rejouées sur une copie du raid du matin).
+        const h = mine(p.adventurer_id);
+        if (!h) return bad('aventurier inconnu ou pas à vous');
+        if (!raidActive(state) || !TACTIC) return bad('aucun raid en cours');
+        const why = slotWhy(D, state, a, h, { activity: 'raid', target: null });
+        if (why) return bad(why);
+        if (!Array.isArray(p.actions)) return bad('passage sans actions');
+        const v = TACTIC.validateRaidPass(state, h.id, p.actions, raidEnvOf(D, state, null));
+        return v.ok ? { ok: true } : bad(v.reason || 'passage invalide');
+      }
       default: return bad('type d\'action inconnu');
     }
   }
   // Un créneau d'activité (V4). Renvoie null si valide, sinon la raison.
   function slotWhy(D, state, a, h, s) {
     if (!s || typeof s !== 'object' || ACTIVITIES.indexOf(s.activity) < 0) return 'activité inconnue';
+    if (s.activity === 'defend' && raidActive(state)) return 'le village est en raid : rejoignez la grille (activité raid)';
     if (s.activity === 'defend' && !threatToday(state)) return 'pas de menace aujourd\'hui';
+    if (s.activity === 'raid' && !raidActive(state)) return 'aucun raid en cours';
     if (h.fatigue >= 100 && s.activity !== 'rest') return heroName(h) + ' est épuisé' + (h.gender === 'f' ? 'e' : '') + ' : repos obligatoire';
     if (h.injury.severity >= 1 && s.activity !== 'rest' && s.activity !== 'craft') return heroName(h) + ' est blessé' + (h.gender === 'f' ? 'e' : '') + ' : repos ou forge seulement';
     if (s.activity === 'gather' && !D.resources[s.target]) return 'ressource cible inconnue';
@@ -677,7 +714,7 @@
     if (cost > ap) return bad('plan trop chargé pour ' + heroName(h) + ' : ' + cost + ' PA demandés, ' + ap + ' disponible(s)');
     return { ok: true };
   }
-  function activityLabel(act) { return { gather: 'Récolte', train: 'Entraînement', craft: 'Forge', rest: 'Repos', expedition: 'Expédition', defend: 'Défendre le village', solo: 'Mission solo' }[act] || act; }
+  function activityLabel(act) { return { gather: 'Récolte', train: 'Entraînement', craft: 'Forge', rest: 'Repos', expedition: 'Expédition', defend: 'Défendre le village', solo: 'Mission solo', raid: 'Raid' }[act] || act; }
   function slotsOfAssign(D, state, h, activity, target) {
     if (activity === 'rest') return [];
     if (isFullDay(activity)) return [{ activity: activity, target: null }];
@@ -858,10 +895,12 @@
     const threat = threatToday(state);
     const othersAlways = threat && m ? defendersAlways(D, state) - (profileOf(D, m).defend === 'always' ? heroes.filter(canDefend).length : 0) : 0;
     const profile = m && m.kind === 'ai' ? m.profile : 'humain';
+    const raid = raidActive(state);
     for (const h of heroes) {
       const ap = apToday(D, state, h);
       const trainDay = state.day % P.train_every === 0;
-      if (threat && m && defendDecision(D, m, h, othersAlways)) { act('assign', { adventurer_id: h.id, activity: 'defend' }); continue; }
+      if (raid && canRaid(h)) { act('assign', { adventurer_id: h.id, activity: 'raid' }); continue; }      // V5 : jour de raid, tout héros apte monte sur la grille
+      if (threat && !raid && m && defendDecision(D, m, h, othersAlways)) { act('assign', { adventurer_id: h.id, activity: 'defend' }); continue; }
       if (h.fatigue >= 100 || h.fatigue >= P.rest_fatigue || h.morale < 25) { act('assign', { adventurer_id: h.id, activity: 'rest' }); continue; }
       if (h.injury.severity >= 1) { act(craftJobFor(state, h) ? 'plan' : 'assign', craftJobFor(state, h) ? { adventurer_id: h.id, slots: fillSlots(D, state, h, ap, 'craft', needs) } : { adventurer_id: h.id, activity: 'rest' }); continue; }
       const canExp = quest && sent < maxParty && h.fatigue <= P.expedition_fatigue_max && h.level >= rec + P.expedition_min_level_margin && ap >= apCost(D, 'expedition');
@@ -906,7 +945,8 @@
     else add('aventure', 'Aventure', null, h.injury.severity >= 1 ? heroName(h) + ' est blessé' + (h.gender === 'f' ? 'e' : '') : h.fatigue >= 100 ? heroName(h) + ' est épuisé' + (h.gender === 'f' ? 'e' : '') : 'ni expédition ni mission solo possible');
     add('recuperation', 'Récupération', []);
     add('cueillette', 'Cueillette', fillSlots(D, state, h, ap, 'gather', needs));
-    if (threatToday(state)) add('defense', 'Défense', [{ activity: 'defend', target: null }]);
+    if (raidActive(state)) add('defense', 'Raid', [{ activity: 'raid', target: null }]);
+    else if (threatToday(state)) add('defense', 'Défense', [{ activity: 'defend', target: null }]);
     return out;
   }
   function gatherTargetFor(D, h, needs) {
@@ -965,10 +1005,10 @@
   // 7. JOURNÉE — contexte, phases 1 à 6
   // ===================================================================================
   const PHASES = [['matin', 'Matin'], ['paie', 'Trésorerie'], ['recolte', 'Récolte'], ['entrainement', 'Entraînement'],
-    ['forge', 'Forge'], ['infirmerie', 'Infirmerie'], ['expedition', 'Expédition'], ['menace', 'Menace'], ['solo', 'Missions solo'], ['deuil', 'Deuil'],
+    ['forge', 'Forge'], ['infirmerie', 'Infirmerie'], ['expedition', 'Expédition'], ['menace', 'Menace'], ['raid', 'Raid'], ['solo', 'Missions solo'], ['deuil', 'Deuil'],
     ['marche', 'Marché'], ['taverne', 'Taverne'], ['chantier', 'Chantier'], ['soir', 'Soir'], ['village', 'Village'], ['presage', 'Présage'],
     ['derby', 'Derby'], ['bilan', 'Bilan de saison']];
-  const UNTRIMMED = { expedition: 1, menace: 1, deuil: 1, village: 1, presage: 1, derby: 1, bilan: 1 };   // sections jamais rognées par le budget de lignes
+  const UNTRIMMED = { expedition: 1, menace: 1, raid: 1, deuil: 1, village: 1, presage: 1, derby: 1, bilan: 1 };   // sections jamais rognées par le budget de lignes
   function say(ctx, phase, text) { if (text) ctx.sections[phase].lines.push(text); }
   function moment(ctx, score, text) { ctx.moments.push({ score: score, text: text, seq: ctx.moments.length }); }
   function tpl(ctx, kind, salt, vars) { return pickTpl(ctx.D, kind, ctx.state.day + '|' + salt, vars); }
@@ -976,8 +1016,8 @@
 
   function makeCtx(D, state) {
     const ctx = { D: D, state: state, rng: makeRng(fnvU32(state.seed ^ state.day)), sections: {}, moments: [], plans: {},
-      votes_quest: {}, votes_build: {}, queued: { craft: [], buy: [], sell: [], recruit: [] }, effective: {}, forced: {},
-      notices: [], log: [], expedition: null, exp_result: null, quest: null, xp: {}, build_vote: null, threat: null,
+      votes_quest: {}, votes_build: {}, queued: { craft: [], buy: [], sell: [], recruit: [], raid: {} }, effective: {}, forced: {},
+      notices: [], log: [], expedition: null, exp_result: null, quest: null, xp: {}, build_vote: null, threat: null, raid: null,
       deaths: [], solo_results: [], legendary: [],
       summary: { gold_delta: 0, injuries: [], level_ups: [], recruits: [], construction: '', village_age_up: null, presage: null, threat_outcome: null, deaths: [], legendary: [], solo_results: [] }, gold_start: 0 };
     for (const p of PHASES) ctx.sections[p[0]] = { phase: p[0], title: p[1], lines: [] };
@@ -1021,6 +1061,7 @@
       case 'buy': ctx.queued.buy.push(a); break;
       case 'sell': ctx.queued.sell.push(a); break;
       case 'recruit': ctx.queued.recruit.push(a); break;
+      case 'raid_pass': ctx.queued.raid[p.adventurer_id] = { manager: a.manager_id, actions: p.actions.slice() }; break;   // V5 : le dernier passage reçu gagne
       case 'equip': {
         const h = state.heroes[p.adventurer_id], it = findItem(state, a.manager_id, p.item_id);
         h.equipment[D.items[it.item_id].slot] = it.uid;
@@ -1711,7 +1752,7 @@
     return false;
   }
 
-  const SKILL_PRIORITY = ['last_breath', 'healing_prayer', 'bulwark', 'storm', 'volley', 'frost_hold', 'sunder_strike', 'shadow_strike', 'fire_bolt'];
+  const SKILL_PRIORITY = ['last_breath', 'healing_prayer', 'bulwark', 'storm', 'volley', 'swarm', 'frost_hold', 'sunder_strike', 'sacrifice', 'shadow_strike', 'fire_bolt'];
   function lowestAlly(exp) { return conscious(exp).slice().sort((a, b) => div(a.hp * 1000, a.hp_max) - div(b.hp * 1000, b.hp_max) || a.slot - b.slot)[0]; }
   function enemyLowestHp(cb) { return activeMonsters(cb).slice().sort((a, b) => a.hp - b.hp || a.slot - b.slot)[0]; }
   function enemyHighestAtk(cb) { return activeMonsters(cb).slice().sort((a, b) => b.atk - a.atk || a.slot - b.slot)[0]; }
@@ -1725,9 +1766,10 @@
         case 'healing_prayer': if (conscious(exp).some(x => x.hp * 2 < x.hp_max)) return id; break;
         case 'bulwark': if (conscious(exp).some(x => x.hp * 2 < x.hp_max) && ms.length >= 2) return id; break;
         case 'storm': case 'volley': if (ms.length >= (id === 'storm' ? 2 : 3)) return id; break;
+        case 'swarm': if (ms.length >= 2) return id; break;                          // Invocateur (V5) : nuée sur tous les ennemis
         case 'frost_hold': if (ms.some(m => m.boss) || ms.length >= 2) return id; break;
         case 'shadow_strike': if (cb.round === 1) return id; break;
-        case 'sunder_strike': case 'fire_bolt': return id;
+        case 'sunder_strike': case 'fire_bolt': case 'sacrifice': return id;
       }
     }
     return null;
@@ -1746,8 +1788,9 @@
     if (skill === 'bulwark') { cb.shield = 1; f.used_once[skill] = 1; roomLog(exp, f.name + ' dresse le rempart : les coups glissent.'); return; }
     if (skill === 'frost_hold') { const t = enemyHighestAtk(cb); f.cooldowns[skill] = sk.cooldown; if (!t.boss || rng.chance(500)) { t.status.entangled = 1; roomLog(exp, f.name + ' fige ' + t.name + ' dans le givre.'); } else roomLog(exp, t.name + ' secoue le givre de ' + f.name + '.'); return; }
     let targets, power = 100, tags = { magic: f.magic === 1, fire: f.fire === 1, ignore_half: false, stealth: false };
-    if (skill === 'storm' || skill === 'volley') { targets = activeMonsters(cb); power = sk.value; }
+    if (skill === 'storm' || skill === 'volley' || skill === 'swarm') { targets = activeMonsters(cb); power = sk.value; }
     else if (skill === 'sunder_strike') { targets = [enemyHighestAtk(cb)]; power = 150; tags.ignore_half = true; }
+    else if (skill === 'sacrifice') { targets = [enemyHighestAtk(cb)]; power = sk.value; }
     else if (skill === 'shadow_strike') { targets = [enemyLowestHp(cb)]; power = 200; tags.stealth = true; f.used_once[skill] = 1; }
     else if (skill === 'fire_bolt') { targets = [enemyLowestHp(cb)]; power = 130; tags.fire = true; tags.magic = true; }
     else targets = [f.class_id === 'warrior' ? enemyHighestAtk(cb) : enemyLowestHp(cb)];
@@ -1838,6 +1881,7 @@
     if (tgt.special === 'spectral' && !tags.magic) dmg = div(dmg, 2);
     if (tags.breath && (tgt.spd >= src.spd + 2 || cb.shield || cb.wall)) dmg = div(dmg, 2);
     if (tgtAdv && tgt.priority >= 100) dmg = pct(dmg, 90);
+    if (tgtAdv && tgt.presence) dmg = pct(dmg, 90);        // Invocateur (V5) : Présence
     if (tgtAdv && cb.shield) dmg = pct(dmg, 75);
     dmg = Math.max(1, dmg);
     tgt.hp -= dmg;
@@ -2158,6 +2202,12 @@
     if (!threat || !T) return;
     const DR = D.dragons[threat.biome], dr = state.dragons[threat.biome];
     if (!DR || !dr) { threat.outcome = 'annulé'; return; }
+    // V5 : le dragon doté d'une fiche de raid se joue sur la grille (phaseRaid) ; repli V4 si personne ne monte sur la grille le premier jour.
+    if (raidActive(state) && state.raid.dragon_id === DR.id) {
+      if (allHeroes(state).some(h => ctx.effective[h.id].activity === 'raid')) return;
+      say(ctx, 'raid', tpl(ctx, 'raid_fallback', 'f', {}));
+      state.raid = null;
+    }
     const age = villageAge(D, state), day = state.day;
     const heroes = allHeroes(state).filter(h => ctx.effective[h.id].activity === 'defend');
     const roster = allHeroes(state);
@@ -2189,6 +2239,23 @@
       if (outcome === 'vaincu') say(ctx, 'menace', tpl(ctx, 'threat_decisive', 'd', Object.assign({ a: exp.last_killer || fighters[0].name }, vars)));
       else if (outcome === 'repoussé') say(ctx, 'menace', tpl(ctx, 'threat_flee', 'f', vars));
     }
+    const best = fighters.filter(f => !f.guard).slice().sort((a, b) => b.damage - a.damage || a.slot - b.slot)[0] || null;
+    const res = applyThreatOutcome(ctx, threat, outcome, { section: 'menace', best: best ? { name: best.name, owner: best.owner } : null, defenders: fighters.map(f => f.name), vars: vars });
+    applyDefenseToHeroes(ctx, exp, outcome, T);
+    // Mort possible : héros tombé à 0 PV face au dragon (TIRAGE death_permille.dragon).
+    for (const f of exp.party) {
+      if (f.guard || !f.was_ko) continue;
+      const h = state.heroes[f.id];
+      if (h) rollDeath(ctx, h, 'dragon', 'sous les griffes ' + DV.threat_de);
+    }
+    finalizeThreat(ctx, threat, outcome, res, 'menace');
+  }
+  // Issue d'une menace (V4, partagée avec le raid V5) : butin/légendaire/trophée du vaincu, retour du repoussé (+5 j) ou du ravage (+3 j),
+  // bâtiment brûlé et caisse pillée. Renvoie {loot, buildingHit, legendaryName}. opts = {section, best:{name,owner}|null, defenders, vars}.
+  function applyThreatOutcome(ctx, threat, outcome, opts) {
+    const state = ctx.state, D = ctx.D, T = D.threats.dragon, day = state.day;
+    const DR = D.dragons[threat.biome], dr = state.dragons[threat.biome], DV = dragonVars(DR), sec = opts.section;
+    const vars = opts.vars || Object.assign({ biome: D.biomes[threat.biome].name, biome_le: biomeLe(D, threat.biome), biome_de: biomeDe(D, threat.biome), n: (opts.defenders || []).length, guards: '' }, DV);
     const loot = [];
     let buildingHit = null, legendaryName = null;
     if (outcome === 'vaincu') {
@@ -2226,7 +2293,7 @@
       state.guild.prestige += T.prestige_win;
       // Objet légendaire : un seul exemplaire par saison, au défenseur qui a fait le plus de dégâts (à défaut premier manager).
       const pool = DR.legendary_pool.filter(id => D.items[id] && state.legendary_given.indexOf(id) < 0).sort();
-      const best = fighters.filter(f => !f.guard).slice().sort((a, b) => b.damage - a.damage || a.slot - b.slot)[0];
+      const best = opts.best || null;
       const owner = best ? best.owner : state.managers[0].id;
       if (pool.length) {
         const itemId = pool[ctx.rng.roll(pool.length)];
@@ -2235,19 +2302,19 @@
         legendaryName = D.items[itemId].name;
         ctx.summary.legendary.push(legendaryName);
         loot.push(legendaryName + ' (légendaire) → ' + managerName(state, owner));
-        say(ctx, 'menace', tpl(ctx, 'legendary_grant', 'l', { a: best ? best.name : managerName(state, owner), item: legendaryName, flavor: D.items[itemId].flavor || '' }));
+        say(ctx, sec, tpl(ctx, 'legendary_grant', 'l', { a: best ? best.name : managerName(state, owner), item: legendaryName, flavor: D.items[itemId].flavor || '' }));
       }
       state.trophies.push({ dragon_id: DR.id, day: day });
-      say(ctx, 'menace', tpl(ctx, 'threat_victory', 'v', vars));
-      say(ctx, 'menace', tpl(ctx, 'trophy', 't', DV));
-      moment(ctx, 98, DV.Threat_le + ' est vaincu' + DV.e + ' sous les murs du village par ' + joinFr(fighters.filter(f => !f.guard).map(f => f.name)) + ' !');
+      say(ctx, sec, tpl(ctx, 'threat_victory', 'v', vars));
+      say(ctx, sec, tpl(ctx, 'trophy', 't', DV));
+      moment(ctx, 98, DV.Threat_le + ' est vaincu' + DV.e + (sec === 'raid' ? ' dans la clairière' : ' sous les murs du village') + ' par ' + joinFr(opts.defenders || []) + ' !');
     } else if (outcome === 'repoussé') {
       dr.state = 'repelled'; dr.last_outcome = outcome;
       const next = day + (D.C.dragon_return_repelled || 5);
       dr.next_day = next <= state.season_length ? next : null;
       if (dr.next_day) scheduleThreat(state, threat.biome, DR.id, next);
       state.guild.prestige += T.prestige_repel;
-      say(ctx, 'menace', tpl(ctx, 'threat_repel', 'r', vars));
+      say(ctx, sec, tpl(ctx, 'threat_repel', 'r', vars));
       moment(ctx, 70, DV.Threat_le + ' est repoussé' + DV.e + ' : le village tient, la muraille fume.');
     } else {
       dr.state = 'awake'; dr.last_outcome = outcome;
@@ -2258,21 +2325,19 @@
       const lost = pct(state.guild.gold, T.ravage_gold_pct);
       state.guild.gold -= lost;
       state.guild.prestige = Math.max(0, state.guild.prestige + T.prestige_ravage);
-      if (buildingHit) say(ctx, 'menace', tpl(ctx, 'threat_burn', 'b', { b: D.buildings[buildingHit].name }));
-      say(ctx, 'menace', tpl(ctx, 'threat_ravage', 'x', vars) + ' La caisse perd ' + lost + ' or.');
+      if (buildingHit) say(ctx, sec, tpl(ctx, 'threat_burn', 'b', { b: D.buildings[buildingHit].name }));
+      say(ctx, sec, tpl(ctx, 'threat_ravage', 'x', vars) + ' La caisse perd ' + lost + ' or.');
       moment(ctx, 96, 'Jour noir : ' + DV.threat_le + ' ravage le village' + (buildingHit ? ', ' + D.buildings[buildingHit].name + ' brûle' : '') + '.');
     }
-    applyDefenseToHeroes(ctx, exp, outcome, T);
-    // Mort possible : héros tombé à 0 PV face au dragon (TIRAGE death_permille.dragon).
-    for (const f of exp.party) {
-      if (f.guard || !f.was_ko) continue;
-      const h = state.heroes[f.id];
-      if (h) rollDeath(ctx, h, 'dragon', 'sous les griffes ' + DV.threat_de);
-    }
+    return { loot: loot, buildingHit: buildingHit, legendaryName: legendaryName, defenders: opts.defenders || [] };
+  }
+  // Clôture d'une menace : issue inscrite, résumé, chronicle.threat, dépouilles, chute éventuelle de la guilde.
+  function finalizeThreat(ctx, threat, outcome, res, sec) {
+    const state = ctx.state, D = ctx.D, DR = D.dragons[threat.biome], DV = dragonVars(DR);
     threat.outcome = outcome;
     ctx.summary.threat_outcome = outcome;
-    ctx.threat = { type: 'dragon', biome_id: threat.biome, biome_name: biomeName, dragon_id: DR.id, dragon_name: DR.name, outcome: outcome, defenders: fighters.map(f => f.name), building_hit: buildingHit ? D.buildings[buildingHit].name : null, loot: loot, legendary: legendaryName };
-    if (loot.length) say(ctx, 'menace', 'Dépouilles : ' + loot.join(' · ') + '.');
+    ctx.threat = { type: 'dragon', biome_id: threat.biome, biome_name: D.biomes[threat.biome].name, dragon_id: DR.id, dragon_name: DR.name, outcome: outcome, defenders: res.defenders, building_hit: res.buildingHit ? D.buildings[res.buildingHit].name : null, loot: res.loot, legendary: res.legendaryName };
+    if (res.loot.length) say(ctx, sec, 'Dépouilles : ' + res.loot.join(' · ') + '.');
     if (outcome === 'ravage' && bLevel(D, state, 'hall') <= 0) collapseGuild(ctx, 'la maison de guilde a brûlé sous les flammes ' + DV.threat_de);
   }
   // Report sur les héros défenseurs : fatigue/moral du combat, consommables, blessures des KO (comme après une expédition), XP.
@@ -2297,6 +2362,104 @@
       h.morale = clamp(h.morale + dm, 0, 100);
       addXp(ctx, h, f.was_ko ? div(xp, 2) : xp);
     }
+  }
+
+  // ===================================================================================
+  // 10b'. RAID TACTIQUE (V5 T1) — phase 7b quand state.raid est actif : un passage par héros déclaré `raid`,
+  // managers triés par id ASCII (héros par id), riposte du boss après chaque passage, victoire = sortie V4 « vaincu ».
+  // ===================================================================================
+  const RAID_NOTABLE = /phase|chancel|figé|fig[ée]|KO|sacrifi|invoque|piège|Riposte|dos|critique|dégage|collision|gouffre/;
+  function raidThreatOf(state) { return (state.threats || []).filter(t => t.outcome === null && state.raid && t.dragon_id === state.raid.dragon_id)[0] || null; }
+  function archiveRaid(state, R, dayEnd) {
+    if (!state.raid_history) state.raid_history = [];
+    state.raid_history.push({ id: R.id, dragon_id: R.dragon_id, day_start: R.day_start, day_end: dayEnd, status: R.status, nights: R.nights, passes: R.passes_done.length, ko: R.passes_done.filter(p => p.ko).length, damage_total: R.damage_total, won_by: R.won_by || null });
+    state.raid = null;
+  }
+  function raidXpBase(D, state) { const T = D.threats.dragon; return T.xp_win_base + T.xp_win_per_day * state.day; }
+  function phaseRaid(ctx) {
+    const state = ctx.state, D = ctx.D;
+    if (!raidActive(state) || !TACTIC) return;
+    const R0 = state.raid, DR = dragonById(D, R0.dragon_id) || { name: R0.name, biome: 'forest' }, DV = dragonVars(DR);
+    const raiders = allHeroes(state).filter(h => ctx.effective[h.id].activity === 'raid').map(h => h.id);
+    const env = raidEnvOf(D, state, raiders);
+    if (R0.day_start === state.day) say(ctx, 'raid', tpl(ctx, 'raid_start', 's', Object.assign({ hp: R0.boss.hp_max }, DV)));
+    if (!raiders.length) { say(ctx, 'raid', tpl(ctx, 'raid_abandon', 'a', {})); return; }
+    let won = false;
+    const passes = [];
+    for (const mid of state.managers.map(m => m.id).sort()) {
+      for (const h of heroesOf(state, mid)) {
+        if (won || raiders.indexOf(h.id) < 0 || !state.heroes[h.id]) continue;
+        const queued = ctx.queued.raid[h.id];
+        const human = !!(queued && queued.manager === mid);
+        const actions = human ? queued.actions : TACTIC.raidDefaultsFor(state, h.id, env);
+        if (!actions) { say(ctx, 'raid', heroName(h) + ' ne peut pas monter sur la grille aujourd\'hui.'); continue; }
+        const r = TACTIC.raidPass(state, h.id, actions, env);
+        if (!r.ok) {
+          const t = tpl(ctx, 'rejected', 'raid' + h.id, { m: managerName(state, mid), reason: 'passage de ' + heroName(h) + ' interrompu : ' + r.reason });
+          ctx.notices.push(t); ctx.log.push('RAID ' + h.id + ' : ' + r.reason);
+          if (r.state === state) { say(ctx, 'raid', t); continue; }
+        }
+        state.raid = r.state.raid;
+        const P = state.raid.passes_done[state.raid.passes_done.length - 1];
+        // Chronique : entrée sur la grille (premier passage du jour), un fait marquant (sinon la trace laissée par les copains), bilan du passage.
+        if (!passes.length) say(ctx, 'raid', r.log[0]);
+        const notable = r.log.filter(l => RAID_NOTABLE.test(l))[0] || r.log.filter(l => /laissé|Sur la grille/.test(l))[0] || null;
+        if (notable) say(ctx, 'raid', notable);
+        say(ctx, 'raid', r.log[r.log.length - 1]);
+        passes.push({ hero_name: heroName(h), manager_name: managerName(state, mid), damage: P.damage, ko: P.ko });
+        moment(ctx, P.damage >= 150 ? 45 : 22, heroName(h) + ' a joué son passage contre ' + DV.dragon_le + ' : ' + P.damage + ' dégâts.');
+        addXp(ctx, h, div(raidXpBase(D, state), 4));
+        for (const ev of r.events) {
+          if (ev.kind === 'ko') {
+            injure(ctx, h, 1);
+            h.fatigue = clamp(h.fatigue + 15, 0, 100); h.morale = clamp(h.morale - 5, 0, 100);
+            say(ctx, 'raid', tpl(ctx, 'injury', h.id, gv(h, { a: heroName(h), n: h.injury.days_left })));
+            moment(ctx, 60, heroName(h) + ' est tombé' + (h.gender === 'f' ? 'e' : '') + ' sur la grille face ' + (DV.dragon_de.replace(/^de /, 'à ').replace(/^du /, 'au ').replace(/^de la /, 'à la ')) + '.');
+            rollDeath(ctx, h, 'raid', 'sous les fouets ' + DV.threat_de);
+          } else if (ev.kind === 'phase') moment(ctx, 50, DV.Dragon_le + ' passe en phase ' + ev.phase + '.');
+          else if (ev.kind === 'stagger') moment(ctx, 55, heroName(h) + ' a fendu l\'écorce : ' + DV.dragon_le + ' chancelle.');
+          else if (ev.kind === 'won') won = true;
+        }
+      }
+    }
+    const R = state.raid;
+    ctx.raid = { id: R.id, name: R.name, day_start: R.day_start, nights: R.nights, status: R.status, hp_pct: div(R.boss.hp * 100, Math.max(1, R.boss.hp_max)), passes: passes, won_by: R.won_by ? (state.heroes[R.won_by] ? heroName(state.heroes[R.won_by]) : R.won_by) : null };
+    if (!won) return;
+    // Victoire : XP à tous les participants du raid (+10 % par passage joué, moitié pour un KO), butin V4, légendaire au plus gros total de dégâts.
+    const threat = raidThreatOf(state);
+    const byHero = {};
+    for (const p of R.passes_done) { const b = byHero[p.hero_id] = byHero[p.hero_id] || { n: 0, ko: false, name: p.hero_name, owner: p.manager_id }; b.n++; if (p.ko) b.ko = true; }
+    const xp = raidXpBase(D, state);
+    for (const id of sortedKeys(byHero)) { const h = state.heroes[id]; if (!h) continue; addXp(ctx, h, pct(byHero[id].ko ? div(xp, 2) : xp, 100 + 10 * byHero[id].n)); h.morale = clamp(h.morale + 10, 0, 100); }
+    const ranking = sortedKeys(R.damage_total).sort((a, b) => R.damage_total[b] - R.damage_total[a] || (a < b ? -1 : 1));
+    const bestId = ranking[0] || null;
+    const best = bestId ? { name: byHero[bestId] ? byHero[bestId].name : bestId, owner: byHero[bestId] ? byHero[bestId].owner : (state.heroes[bestId] ? state.heroes[bestId].owner : state.managers[0].id) } : null;
+    say(ctx, 'raid', tpl(ctx, 'raid_victory', 'v', Object.assign({ a: ctx.raid.won_by || (best ? best.name : 'la guilde') }, DV)));
+    if (threat) {
+      const res = applyThreatOutcome(ctx, threat, 'vaincu', { section: 'raid', best: best, defenders: sortedKeys(byHero).map(id => byHero[id].name) });
+      finalizeThreat(ctx, threat, 'vaincu', res, 'raid');
+    }
+    archiveRaid(state, R, state.day);
+  }
+  // Phase 11 (V5) : nuit du raid — régénération, expiration des états et zones du boss, enrage, échec au 4e soir (sortie V4 « ravage »).
+  function phaseRaidNight(ctx) {
+    const state = ctx.state, D = ctx.D;
+    if (!raidActive(state) || !TACTIC) return;
+    const r = TACTIC.raidNight(state, raidEnvOf(D, state, null));
+    state.raid = r.state.raid;
+    for (const l of r.log) say(ctx, 'raid', l);
+    const R = state.raid;
+    if (ctx.raid) { ctx.raid.nights = R.nights; ctx.raid.hp_pct = div(R.boss.hp * 100, Math.max(1, R.boss.hp_max)); ctx.raid.status = R.status; }
+    else ctx.raid = { id: R.id, name: R.name, day_start: R.day_start, nights: R.nights, status: R.status, hp_pct: div(R.boss.hp * 100, Math.max(1, R.boss.hp_max)), passes: [], won_by: null };
+    if (!r.events.some(e => e.kind === 'lost')) return;
+    const threat = raidThreatOf(state);
+    const names = {};
+    for (const p of R.passes_done) names[p.hero_id] = p.hero_name;
+    if (threat) {
+      const res = applyThreatOutcome(ctx, threat, 'ravage', { section: 'raid', best: null, defenders: sortedKeys(names).map(id => names[id]) });
+      finalizeThreat(ctx, threat, 'ravage', res, 'raid');
+    }
+    archiveRaid(state, R, state.day);
   }
 
   // ===================================================================================
@@ -2559,6 +2722,12 @@
     else say(ctx, 'presage', tpl(ctx, 'dragon_return', 'r', Object.assign({ presage: presage }, DV)));
     moment(ctx, 75, 'Présage : ' + DV.dragon_le + (woke === t.biome ? ' s\'est réveillé' + DV.e : ' revient') + '. Le village retient son souffle.');
     ctx.summary.presage = DR.name;
+    // V5 : le dragon doté d'une fiche de raid (le Sylvain) se joue en raid persistant dès le lendemain : la grille est dressée le soir du présage.
+    const rt = raidEnabled(D) && !state.raid ? raidTableFor(D, DR.id) : null;
+    if (rt) {
+      state.raid = TACTIC.startRaid(state, rt.id, raidEnvOf(D, state, null, t.day)).raid || null;
+      if (state.raid) say(ctx, 'raid', 'La clairière est dressée : demain, ' + DV.dragon_le + ' se jouera sur la grille (' + state.raid.boss.hp_max + ' PV de sève, ' + (D.raid.raid_max_nights) + ' nuits au plus).');
+    }
   }
   function refreshBoard(ctx) {
     const state = ctx.state, D = ctx.D;
@@ -2629,7 +2798,7 @@
   // ===================================================================================
   // 12. CHRONIQUE : assemblage, budget de lignes, instant du jour
   // ===================================================================================
-  const SECTION_CAP = { matin: 6, paie: 2, recolte: 8, entrainement: 6, forge: 6, infirmerie: 5, expedition: 13, menace: 22, solo: 8, deuil: 4, marche: 6, taverne: 6, chantier: 3, soir: 14, village: 1, presage: 1, derby: 3, bilan: 12 };
+  const SECTION_CAP = { matin: 6, paie: 2, recolte: 8, entrainement: 6, forge: 6, infirmerie: 5, expedition: 13, menace: 22, raid: 26, solo: 8, deuil: 4, marche: 6, taverne: 6, chantier: 3, soir: 14, village: 1, presage: 1, derby: 3, bilan: 12 };
   function ambianceLines(ctx, need) {
     const state = ctx.state, D = ctx.D, out = [];
     const heroes = allHeroes(state).sort((a, b) => (fnvStr(state.day + a.id) % 97) - (fnvStr(state.day + b.id) % 97) || (a.id < b.id ? -1 : 1));
@@ -2664,10 +2833,10 @@
     let headline = 'Une journée sans histoire au village ; on affûte les lames et on compte les sous.';
     if (ctx.moments.length) headline = ctx.moments.slice().sort((a, b) => b.score - a.score || a.seq - b.seq)[0].text;
     const sections = PHASES.map(p => ctx.sections[p[0]]).filter(s => s.lines.length).map(s => ({ phase: s.phase, title: s.title, lines: s.lines }));
-    return { day: state.day, title: title, headline: headline, sections: sections, expedition: ctx.expedition, threat: ctx.threat,
+    return { day: state.day, title: title, headline: headline, sections: sections, expedition: ctx.expedition, threat: ctx.threat, raid: ctx.raid,
       summary: { gold_delta: ctx.summary.gold_delta, injuries: ctx.summary.injuries, level_ups: ctx.summary.level_ups, recruits: ctx.summary.recruits, construction: ctx.summary.construction,
         village_age_up: ctx.summary.village_age_up, presage: ctx.summary.presage, threat_outcome: ctx.summary.threat_outcome,
-        deaths: ctx.summary.deaths, legendary: ctx.summary.legendary, solo_results: ctx.summary.solo_results } };
+        deaths: ctx.summary.deaths, legendary: ctx.summary.legendary, solo_results: ctx.summary.solo_results, raid_status: ctx.raid ? ctx.raid.status : null } };
   }
 
   // ===================================================================================
@@ -2677,8 +2846,8 @@
   function collapsedChronicle(D, state) {
     const line = pickTpl(D, 'collapsed_day', String(state.day), {});
     return { day: state.day, title: 'Jour ' + state.day + ' — la guilde est dispersée', headline: 'La guilde est dispersée.',
-      sections: [{ phase: 'bilan', title: 'Bilan de saison', lines: [line, 'Chute le jour ' + state.collapsed.day + ' : ' + state.collapsed.reason + '.'] }], expedition: null, threat: null,
-      summary: { gold_delta: 0, injuries: [], level_ups: [], recruits: [], construction: '', village_age_up: null, presage: null, threat_outcome: null, deaths: [], legendary: [], solo_results: [] } };
+      sections: [{ phase: 'bilan', title: 'Bilan de saison', lines: [line, 'Chute le jour ' + state.collapsed.day + ' : ' + state.collapsed.reason + '.'] }], expedition: null, threat: null, raid: null,
+      summary: { gold_delta: 0, injuries: [], level_ups: [], recruits: [], construction: '', village_age_up: null, presage: null, threat_outcome: null, deaths: [], legendary: [], solo_results: [], raid_status: null } };
   }
   function resolveDay(input, actions) {
     const data = input.__data || GLOBAL_DATA;
@@ -2693,12 +2862,14 @@
     phaseSlots(ctx);                                                    // 3-5 récolte, entraînement, forge — par créneau (V4)
     phaseInfirmary(ctx);                                                // 6
     phaseExpedition(ctx);                                               // 7
-    phaseThreat(ctx);                                                   // 7b menace (dragon de biome)
+    phaseThreat(ctx);                                                   // 7b menace (dragon de biome, auto-combat V4)
+    phaseRaid(ctx);                                                     // 7b' raid tactique persistant (V5) : passages du jour
     phaseSolo(ctx);                                                     // 7c missions solo (V4)
     phaseMarket(ctx);                                                   // 8
     phaseTavern(ctx);                                                   // 9 (héritiers compris)
     phaseConstruction(ctx);                                             // 10
     phaseEvening(ctx);                                                  // 11
+    phaseRaidNight(ctx);                                                // 11' nuit du raid (V5) : régénération, enrage, échec au 4e soir
     phaseVillageAge(ctx);                                               // 11b âge du village
     phaseDragons(ctx);                                                  // 11c réveil des dragons + présage
     phaseDerby(ctx);                                                    // 12
@@ -2746,7 +2917,8 @@
     const board = soloBoardOf(D, state, h);
     if (board.length && ap >= apCost(D, 'solo')) out.push({ activity: 'solo', label: 'Mission solo', targets: board.map(m => ({ id: m.id, label: m.name + ' (difficulté ' + m.difficulty + ')' })), cost_ap: apCost(D, 'solo') });
     out.push({ activity: 'expedition', label: 'Expédition', targets: [], cost_ap: apCost(D, 'expedition') });
-    if (threatToday(state) && canDefend(h)) out.push({ activity: 'defend', label: 'Défendre le village', targets: [], cost_ap: apCost(D, 'defend') });
+    if (raidActive(state) && canRaid(h)) out.push({ activity: 'raid', label: 'Raid — monter sur la grille', targets: [], cost_ap: apCost(D, 'raid') });
+    else if (threatToday(state) && canDefend(h) && !raidActive(state)) out.push({ activity: 'defend', label: 'Défendre le village', targets: [], cost_ap: apCost(D, 'defend') });
     return out;
   }
   function slotLabel(D, state, s) {
@@ -2784,6 +2956,14 @@
   function threatVm(D, state, plans) {
     const T = D.threats;
     if (!T) return null;
+    if (raidActive(state)) {                     // V5 : menace en cours de raid (phase 'raid'), du présage à l'issue
+      const R = state.raid, DR = dragonById(D, R.dragon_id), age = villageAge(D, state);
+      let planned = 0;
+      for (const m of sortedKeys(plans)) for (const a of plans[m]) if ((a.type === 'assign' && a.payload.activity === 'raid') || (a.type === 'plan' && a.payload.slots.some(s => s.activity === 'raid'))) planned++;
+      return { type: 'dragon', name: DR ? DR.name : R.name, phase: 'raid', day: R.day_start, description: DR ? DR.description : '', defense_estimate: Math.min(100, age.defense + 5 * age.guards), defenders_planned: planned,
+        biome_id: DR ? DR.biome : null, biome_name: DR && D.biomes[DR.biome] ? D.biomes[DR.biome].name : null, dragon_id: R.dragon_id,
+        raid: { nights: R.nights, max_nights: D.raid.raid_max_nights, hp_pct: div(R.boss.hp * 100, Math.max(1, R.boss.hp_max)), status: R.status, day_start: R.day_start } };
+    }
     const today = threatToday(state);
     const t = today || (state.threats || []).filter(x => x.presage_day === state.day && x.outcome === null)[0] || null;
     if (!t || !T[t.type]) return null;
@@ -2868,6 +3048,8 @@
       inventory: inv.items.slice().sort((a, b) => (a.uid < b.uid ? -1 : 1)).map(x => { const it = D.items[x.item_id]; return { item_id: x.uid, name: it.name, slot_name: D.slots[it.slot].name, rarity: it.rarity, stats_label: statsLabel(D, it), equipped_by: equipped[x.uid] ? heroName(state.heroes[equipped[x.uid]]) : null, sell_price: pct(it.price, sellPct) }; }),
       chronicle: state.last_chronicle, history: state.history.slice(),
       village: villageVm(D, state), threat: threatVm(D, state, plans),
+      raid: raidActive(state) && TACTIC ? TACTIC.raidView(state, managerId, raidEnvOf(D, state, null)) : null,
+      raid_history: (state.raid_history || []).map(r => ({ id: r.id, dragon_name: (dragonById(D, r.dragon_id) || { name: r.dragon_id }).name, day_start: r.day_start, day_end: r.day_end, status: r.status, nights: r.nights, passes: r.passes, ko: r.ko })),
       derby: { next_day: nextDerby === undefined ? null : nextDerby, last: state.derby.last },
       season_report: state.season_report, notices: state.notices.slice()
     };
@@ -2889,5 +3071,7 @@
 
   return { newGame: newGame, listManagers: listManagers, planDefaults: planDefaults, validateAction: validateAction, resolveDay: resolveDay, hashState: hashState, viewModel: viewModel,
     _internal: { makeRng: makeRng, fnvStr: fnvStr, fnvU32: fnvU32, canonical: canonical, combatProfile: combatProfile, probeExpedition: probeExpedition,
-      apToday: function (state, h) { return apToday(index(state.__data || GLOBAL_DATA), state, h); }, craftLevel: function (state, xp) { return craftLevel(index(state.__data || GLOBAL_DATA), xp); } } };
+      apToday: function (state, h) { return apToday(index(state.__data || GLOBAL_DATA), state, h); }, craftLevel: function (state, xp) { return craftLevel(index(state.__data || GLOBAL_DATA), xp); },
+      tactic: TACTIC, previewCast: TACTIC ? TACTIC.previewCast : null, raidEnvOf: function (state, raiders, day) { return raidEnvOf(index(state.__data || GLOBAL_DATA), state, raiders || null, day); },
+      raidDefaults: function (state, managerId) { return TACTIC ? TACTIC.raidDefaults(state, managerId, raidEnvOf(index(state.__data || GLOBAL_DATA), state, null)) : []; } } };
 }));
