@@ -1475,24 +1475,1020 @@ function raidTableau() {
   return { active: !!v.active, boss_pct: v.hp_pct, day: app.state ? app.state.day : 0, my_pass_done: !!rd.done,
     spells: (me.spells || []).map(function (s) { return s.id; }), ap: ps ? ps.pa : 0, pm: ps ? ps.pm : 0 };
 }
-/* ---------- scène : géométrie ---------- */
-var LW = 800, LH = 460, HORIZON = 190;
+/* ---------- scène : LE DOMAINE QUI GRANDIT (CHATEAU_SPEC §1 à §8) ----------
+   Un seul tableau sert l'écran, la vignette et le futur fond d'écran. Tout vient du modèle de vue
+   (âge, bâtiments, niveaux, gardes, chantier, trophées, menace) et de l'heure simulée : la page ne
+   calcule aucune règle, ne lit jamais l'état brut et ne tire rien au hasard — les variantes de décor
+   viennent de fnv1a(clé stable), les soldats d'une fonction entière de l'heure et de leur index. */
+var LW = 800, LH = 460, GROUND0 = 300, HORIZON = 190;
+/* §1 — caméra par âge : zoom en centièmes, ligne de sol. Le repère logique historique (sol 300) EST
+   l'âge 0 : la caméra ne fait que reculer et descendre le sol pendant que la silhouette monte. */
+var CAM = [[100, 300], [94, 315], [86, 330], [78, 345], [70, 360]];
+var MAXSIL = [60, 90, 140, 210, 300];                 /* §3 — plafond de silhouette par âge (unités monde) */
+var SCALE = [0.6, 0.8, 0.94, 1, 1];                   /* stature des bâtiments civils selon l'âge (largeur et hauteur) */
+var CAM_MS = 1200, BRIDGE_MS = 1500, NIGHT_HOUR = 23, BRIDGE_DOWN = 8, BRIDGE_UP = 20;
 var ROAD = [[430, 300], [540, 335], [660, 378], [800, 412]];
+var ROAD_TOWN = [[470, 382], [566, 402], [676, 424], [800, 442]];
+var ROAD_FORT = [[430, 404], [520, 422], [650, 438], [800, 452]];
+var ROADS = [ROAD, ROAD, ROAD_TOWN, ROAD_FORT, ROAD_FORT];
+/* §2 — trois ancrages par bâtiment : plaine (âges 0-1), resserré derrière la palissade (âge 2),
+   cour à l'intérieur de l'enceinte (âges 3-4, disposition de la spec : donjon au fond centre, forge
+   à gauche contre la courtine, taverne à droite de la porte, halle le long du mur sud, entrepôt au
+   nord, infirmerie près de la chapelle, chapelle contre la tour est). */
 var BSLOT = { chapel: [560, 232], hall: [400, 278], forge: [245, 285], warehouse: [578, 290], training_ground: [705, 335], infirmary: [118, 345], tavern: [300, 368], market: [470, 392] };
+var BNEAR = { chapel: [500, 250], hall: [400, 272], forge: [268, 300], warehouse: [330, 252], training_ground: [552, 302], infirmary: [262, 352], tavern: [372, 344], market: [486, 346] };
+var BCOURT = { chapel: [612, 232], hall: [400, 244], forge: [196, 264], warehouse: [268, 212], training_ground: [196, 332], infirmary: [538, 256], tavern: [566, 312], market: [288, 322] };
+var ANCHORS = [BSLOT, BSLOT, BNEAR, BCOURT, BCOURT];
 var SPOTS = { idle: { x: 318, y: 314, dx: 44 }, gather: { x: 34, y: 284, dx: 46 }, train: { x: 650, y: 350, dx: 36 }, craft: { x: 180, y: 312, dx: 44 }, rest: { x: 124, y: 392, dx: 46 }, injured: { x: 122, y: 398, dx: 52 }, defend: { x: 568, y: 414, dx: 40 }, solo: { x: 296, y: 268, dx: 30 }, dead: { x: 318, y: 314, dx: 44 } };
-/* Sentier des missions solo : part du parvis du hall vers la forêt (haut-gauche), distinct de la route du donjon. Tombes : à droite de la chapelle, dans l'enceinte. */
-var SOLO_TRAIL = [[396, 302], [330, 278], [268, 254], [212, 240], [184, 232]], GRAVES = { x: 646, y: 242, dx: 11, dy: 12, perRow: 4 };
-/* Enceinte (bourg et au-delà) : deux polylignes autour du village, la porte est le trou entre les deux, sur la route. */
-var WALL_A = [[100, 222], [692, 222], [692, 300], [613, 342]], WALL_B = [[601, 376], [540, 412], [100, 424], [100, 222]], GATE = { x: 607, y: 359 };
+/* Le lieu de vie d'une activité suit le bâtiment qui la porte : la figurine glisse avec lui (affichage seul,
+   les cibles publiées dans __tableau restent les positions logiques du contrat). */
+var ACT_HOME = { craft: 'forge', train: 'training_ground', rest: 'tavern', idle: 'hall', dead: 'hall', injured: 'infirmary' };
+/* Sentier des missions solo : part du parvis vers la forêt ; il sort des murs dès la ville. Tombes : près de la chapelle. */
+var SOLO_TRAIL = [[396, 302], [330, 278], [268, 254], [212, 240], [184, 232]], SOLO_OUT = [-180, 44];
+var GRAVE_SLOT = [[646, 242], [646, 242], [566, 244], [622, 296], [622, 296]], GRAVE_D = { dx: 11, dy: 12, perRow: 4 };
+/* §4 — enceintes : palissade du bourg, courtine de la ville puis du château (même quadrilatère, plus haute). */
+var PALIS = { x0: 192, x1: 624, y0: 232, y1: 380, gx: 470, gw: 22 };
+var COURT = { x0: 112, x1: 688, y0: 172, y1: 372, gx: 430, gw: 36 };
+var ENC = [null, null, PALIS, COURT, COURT];
 var HOUSES = [[252, 232], [332, 230], [478, 232], [652, 234], [200, 236], [392, 230]];
-var TOWERS = [[100, 222], [692, 222], [100, 424], [540, 412]];
-function roadPoint(t) {
-  var n = ROAD.length - 1, f = Math.max(0, Math.min(0.999, t)) * n, i = Math.floor(f), u = f - i, a = ROAD[i], b = ROAD[i + 1];
-  return { x: a[0] + (b[0] - a[0]) * u, y: a[1] + (b[1] - a[1]) * u };
+var FAUBOURG = [[706, 306], [754, 336], [690, 360], [764, 388], [648, 330], [716, 276]];
+/* Deux ou trois teintes par matière, jamais de texture photographique : ce sont les valeurs qui font la lecture. */
+var ROOFS = { hall: '#5d6672', chapel: '#5a6472', forge: '#4a4340', warehouse: '#8a6a3c', infirmary: '#a04a3c', tavern: '#7c4a3a', market: '#bda05f', training_ground: '#7c4a3a' };
+var MAT = { stone: '#b9b3a4', stoneSide: '#948d80', stoneDark: '#6d6860', crest: '#cfc9ba',
+  wood: '#a5875c', woodSide: '#7d6544', woodDark: '#54432e', roof: '#7c4a3a', roofSide: '#5b3527',
+  thatch: '#bda05f', thatchSide: '#8e7442', water: '#3a6b76', waterDark: '#1e3b45' };
+/* §7 — quatre gammes interpolées sur l'heure simulée : aube froide, plein jour, soir doré, nuit bleue. */
+var TONE = [
+  { h: 5, sky: ['#1b2440', '#3c4566'], grass: '#2e3f36', far: '#414a60', night: 1, warm: '#7a86b8' },
+  { h: 8, sky: ['#8fa8c8', '#f0d3ba'], grass: '#7c9e74', far: '#8894a6', night: 0.34, warm: '#ffd9a8' },
+  { h: 11, sky: ['#bcd4e2', '#eef1e4'], grass: '#9cc27d', far: '#9a9aa6', night: 0, warm: '#fff0cf' },
+  { h: 16, sky: ['#b2cfe2', '#f2efdd'], grass: '#9abe76', far: '#9a9aa6', night: 0, warm: '#ffe9bd' },
+  { h: 19, sky: ['#6c5b93', '#f0a86a'], grass: '#7e8f5f', far: '#7d7489', night: 0.42, warm: '#ffc074' },
+  { h: 21, sky: ['#171d2e', '#4a3d5a'], grass: '#33482f', far: '#4a4a55', night: 1, warm: '#ffce7a' },
+  { h: 28, sky: ['#141a2a', '#33304c'], grass: '#26372b', far: '#3f3f4c', night: 1, warm: '#ffce7a' }
+];
+
+/* ---------- petites fonctions ---------- */
+function lerp(a, b, p) { return a + (b - a) * p; }
+function ease(p) { return p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; }
+function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+function r1(v) { return Math.round(v * 10) / 10; }
+function hex2rgb(h) {
+  var m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(h || '');
+  if (m) return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+  var r = /rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(h || '');
+  return r ? [+r[1], +r[2], +r[3]] : [136, 136, 136];
 }
+function rgbStr(c) { return 'rgb(' + Math.round(c[0]) + ',' + Math.round(c[1]) + ',' + Math.round(c[2]) + ')'; }
+function mix(a, b, p) { var x = hex2rgb(a), y = hex2rgb(b); return rgbStr([lerp(x[0], y[0], p), lerp(x[1], y[1], p), lerp(x[2], y[2], p)]); }
+function shade(hex, k) { var c = hex2rgb(hex); return rgbStr([Math.min(255, c[0] * k), Math.min(255, c[1] * k), Math.min(255, c[2] * k)]); }
+function rgba(hex, a) { var c = hex2rgb(hex); return 'rgba(' + Math.round(c[0]) + ',' + Math.round(c[1]) + ',' + Math.round(c[2]) + ',' + a + ')'; }
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r); ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+}
+function quad(ctx, p, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(p[0], p[1]); for (var i = 2; i < p.length; i += 2) ctx.lineTo(p[i], p[i + 1]); ctx.closePath(); ctx.fill(); }
+function tokens() {
+  var cs = getComputedStyle(document.documentElement), out = {};
+  ['bg', 'surface', 'ink', 'muted', 'line', 'accent', 'gold', 'good', 'warn', 'crit', 'raised', 'epic'].forEach(function (k) { out[k] = cs.getPropertyValue('--' + k).trim() || '#888'; });
+  return out;
+}
+function uiFont(px, weight) { return (weight || 600) + ' ' + px + 'px ' + getComputedStyle(document.body).fontFamily; }
+function glyphFont(px) { return px + 'px "Segoe UI Symbol","Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Noto Sans Symbols2",sans-serif'; }
+
+/* ---------- §1 : caméra — glisse en 1 200 ms au passage d'âge, instantanée sous prefers-reduced-motion ---------- */
+var camS = { age: -1, from: -1, t0: 0 };
+function camPair(i) { var c = CAM[Math.max(0, Math.min(4, i | 0))]; return { z: c[0] / 100, g: c[1] }; }
+function camNow(age) {
+  if (camS.age !== age) camS = { age: age, from: camS.age < 0 ? age : camS.age, t0: Date.now() };
+  var p = motionMQ.matches || camS.from === camS.age ? 1 : ease(clamp01((Date.now() - camS.t0) / CAM_MS));
+  var a = camPair(camS.from), b = camPair(camS.age);
+  return { z: lerp(a.z, b.z, p), g: lerp(a.g, b.g, p), p: p, age: camS.age, from: camS.from < 0 ? age : camS.from };
+}
+function camX(cam, x) { return 400 + (x - 400) * cam.z; }
+function camY(cam, y) { return cam.g + (y - GROUND0) * cam.z; }
+function camApply(ctx, cam) { ctx.translate(400, cam.g); ctx.scale(cam.z, cam.z); ctx.translate(-400, -GROUND0); }
+/* §6 — trois niveaux de détail. Les seuils de la spec (220 / 700) supposaient un canvas de bureau ≥ 700 px :
+   dans cette page le canvas du tableau plafonne à 744 px et vaut 584 px sur un écran de 1 280. Le seuil haut est
+   donc posé à 520 px pour que « bureau » reste le niveau fin ; les trois paliers (vignette, mobile, bureau) tiennent. */
+function lodOf(w) { return w < 220 ? 2 : w < 520 ? 1 : 0; }
+/* §2 — ancrage courant : interpolé entre l'ancrage de l'âge quitté et celui de l'âge atteint. */
+function slotOf(id, cam) {
+  var a = ANCHORS[Math.max(0, cam.from)][id] || BSLOT[id], b = ANCHORS[Math.max(0, cam.age)][id] || BSLOT[id];
+  return [lerp(a[0], b[0], cam.p), lerp(a[1], b[1], cam.p)];
+}
+function encNow(cam) {
+  var a = ENC[Math.max(0, cam.from)], b = ENC[Math.max(0, cam.age)];
+  if (!a && !b) return null;
+  var p = cam.p, from = a || b, to = b || a, k = { alpha: !a ? p : !b ? 1 - p : 1, kind: (b || a) === PALIS ? 'palis' : 'stone' };
+  ['x0', 'x1', 'y0', 'y1', 'gx', 'gw'].forEach(function (f) { k[f] = lerp(from[f], to[f], p); });
+  return k;
+}
+function roadNow(cam) {
+  var a = ROADS[Math.max(0, cam.from)], b = ROADS[Math.max(0, cam.age)];
+  return a.map(function (pt, i) { return [lerp(pt[0], b[i][0], cam.p), lerp(pt[1], b[i][1], cam.p)]; });
+}
+function soloShift(cam) {
+  var a = cam.from >= 3 ? SOLO_OUT : [0, 0], b = cam.age >= 3 ? SOLO_OUT : [0, 0];
+  return [lerp(a[0], b[0], cam.p), lerp(a[1], b[1], cam.p)];
+}
+
+/* ---------- §7 : heure simulée, gammes du jour et de la nuit ---------- */
+function sceneHour() { return tb.phase === 'evening' ? NIGHT_HOUR : Math.max(0, Math.min(24, tb.hour)); }
+function toneAt(hour) {
+  var i = 0, h = hour < TONE[0].h ? TONE[0].h : hour;
+  while (i < TONE.length - 2 && TONE[i + 1].h <= h) i++;
+  var a = TONE[i], b = TONE[i + 1], p = clamp01((h - a.h) / (b.h - a.h));
+  return { sky0: mix(a.sky[0], b.sky[0], p), sky1: mix(a.sky[1], b.sky[1], p), grass: mix(a.grass, b.grass, p),
+    far: mix(a.far, b.far, p), warm: mix(a.warm, b.warm, p), night: lerp(a.night, b.night, p), hour: hour };
+}
+function matOf(hex, tone) { return mix(hex, '#141a2a', tone.night * 0.66); }
+function sunK(tone) { var u = clamp01((tone.hour - 8) / 12); return { dx: (0.5 - u) * 2.2, len: 0.45 + 1.05 * Math.abs(2 * u - 1), a: 0.28 * (1 - tone.night) }; }
+function drawShadow(ctx, cx, base, w, tone) {
+  var k = sunK(tone); if (k.a <= 0.02) return;
+  ctx.save(); ctx.fillStyle = 'rgba(32,44,32,' + k.a.toFixed(3) + ')';
+  ctx.beginPath(); ctx.ellipse(cx + k.dx * w * 0.22, base + 1, w * (0.5 + k.len * 0.14), Math.max(3, w * 0.085), 0, 0, 6.2832); ctx.fill(); ctx.restore();
+}
+
+/* ---------- §9 : registre de scène, image fidèle de ce qui est dessiné (lecture seule) ---------- */
+function sceneNew(age, lod, cam, tone) {
+  return { age: age, lod: lod, hour: r1(tone.hour), night: tone.night > 0.55, camera: { zoom: Math.round(cam.z * 100), ground: r1(cam.g) },
+    buildings: [], soldiers: [], wall: null, drawbridge: null, silhouette_h: 0, construction: null, banners: 0, guards: 0 };
+}
+function sceneTop(sc, y) { if (sc) sc.silhouette_h = Math.max(sc.silhouette_h, r1(GROUND0 - y)); }
+function sceneAdd(sc, cam, id, cx, base, w, topY, level) {
+  if (!sc) return;
+  var x0 = camX(cam, cx - w / 2), y0 = camY(cam, topY);
+  sc.buildings.push({ id: id, x: r1(x0), y: r1(y0), w: r1(camX(cam, cx + w / 2) - x0), h: r1(camY(cam, base) - y0), level: level | 0 });
+  sceneTop(sc, topY);
+}
+
+/* ---------- §3 : hauteurs — hauteur = base + niveau × pas, le donjon toujours le point le plus haut ---------- */
+function fortLevel(age, hallLevel) { return Math.max(1, Math.min(4, (age | 0) - 1 + Math.max(0, (hallLevel | 0) - 1))); }
+function bsize(b) { var size = Math.max(1, Math.min(4, Number(b.decor.size) || b.level || 1)); return { size: size, w: 44 + 24 * Math.min(3, size), h: 26 + 13 * Math.min(3, size) }; }
+function bodyH(b, age) {
+  var lvl = Math.max(1, b.level | 0) + (age >= 3 ? 1 : 0);
+  return b.id === 'hall' ? 40 + 26 * Math.max(1, b.level | 0) : b.id === 'forge' ? 18 + 8 * lvl : 16 + 6 * lvl;
+}
+function roofH(b, w) { return b.id === 'warehouse' ? Math.round(w * 0.3) : b.id === 'market' ? Math.round(w * 0.36) : Math.round(w * 0.42); }
+/* Plafonds (§3) : l'âge borne la silhouette, et en cour aucun bâtiment ne dépasse la ligne des créneaux
+   (sauf le donjon) — « un bâtiment qui dépasserait est plafonné », proportions conservées. */
+function fitH(env, base, w, body, rh, id) {
+  var k = SCALE[env.age], want = (body + rh) * k, max = MAXSIL[env.age] - (GROUND0 - base);
+  if (env.crest !== null && env.age >= 3 && id !== 'hall') max = Math.min(max, base - env.crest - 4);
+  var f = Math.min(1, Math.max(16, max) / Math.max(1, want)), big = env.age >= 3 ? 1.14 : 1;
+  return { w: w * (0.78 + 0.22 * k) * big, body: body * k * f * big, rh: rh * k * f * big };
+}
+function cssColor(c, T) { return typeof c === 'string' && /^#[0-9a-f]{3,8}$/i.test(c) ? c : (T[c] || T.accent); }
+function keepDims(b, age, base) {
+  var lvl = Math.max(1, b.level | 0) + Math.max(0, age - 2), w = 98 + 8 * Math.min(3, bsize(b).size);
+  var motte = age >= 4 ? 26 : 9, spire = age >= 4 ? 42 : 30, band = age >= 4 ? 18 : 13, gap = age >= 4 ? 15 : 9, flag = age >= 4 ? 18 : 16;
+  var fixed = motte + gap + band + spire + flag, allowed = MAXSIL[age] - (GROUND0 - base) - fixed;
+  var body = Math.max(34, Math.min(40 + 26 * lvl, allowed));
+  return { w: w, motte: motte, spire: spire, band: band, gap: gap, flag: flag, body: body, total: body + fixed };
+}
+function hallB() { return app.vm.buildings.filter(function (x) { return x.id === 'hall'; })[0] || { id: 'hall', level: 1, decor: { size: 2 } }; }
+
+/* ---------- le tableau ---------- */
+function drawAll() {
+  var moving = stepPositions(motionMQ.matches);
+  drawScene($('scene'), false); drawScene($('widget-canvas'), true);
+  return moving;
+}
+function drawScene(canvas, mini) {
+  if (!canvas || !app.vm) return;
+  var dpr = window.devicePixelRatio || 1, W = canvas.clientWidth || (mini ? 158 : 600), H = mini ? Math.round(W * 0.58) : Math.round(W * (LH / LW));
+  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); canvas.style.height = H + 'px'; }
+  var ctx = canvas.getContext('2d'), s = W / LW, sy = H / LH, T = tokens();
+  var age = Math.max(0, Math.min(4, app.vm.village.age_index | 0)), cam = camNow(age), lod = mini ? 2 : lodOf(W);
+  var tone = toneAt(sceneHour()), night = tone.night > 0.55, t = motionMQ.matches ? 0 : performance.now() / 1000;
+  var sc = mini ? null : sceneNew(age, lod, cam, tone), fs = (mini ? 0.5 : Math.max(0.68, Math.min(1, s))) * (0.74 + 0.26 * cam.z);
+  if (!mini) app.sceneScale = s;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  ctx.save(); ctx.scale(s, sy);
+  drawBackdrop(ctx, cam, tone, t, lod);
+  ctx.save(); camApply(ctx, cam);
+  drawWorld(ctx, cam, tone, t, T, lod, sc, mini);
+  ctx.restore();
+  drawForeground(ctx, tone, lod);        /* le premier plan appartient à la caméra, pas au monde */
+  ctx.restore();
+  if (!app.vm.defeat) drawFigures(ctx, s, sy, fs, T, mini, night, cam);
+  if (!mini) { drawClock(ctx, W, H, night, T); window.__scene = sc; }
+}
+function drawWorld(ctx, cam, tone, t, T, lod, sc, mini) {
+  var v = app.vm.village, age = cam.age, enc = encNow(cam), fl = fortLevel(age, v.hall_level || 1);
+  var crest = enc && enc.kind === 'stone' ? enc.y0 - wallH(enc.kind, fl) - 8 : null;
+  var env = { age: age, fl: fl, enc: enc, crest: crest, lod: lod, mini: mini };
+  if (sc) sc.guards = v.guards | 0;
+  drawGroundDetail(ctx, cam, tone, age, lod);
+  drawRoad(ctx, cam, tone, age, lod);
+  drawTrail(ctx, cam, tone);
+  drawFaubourg(ctx, cam, tone, age, lod, t);
+  if (enc) { drawMoat(ctx, enc, tone, age, lod); drawCourtyard(ctx, enc, tone, env); drawWallBack(ctx, enc, tone, env, sc, cam); }
+  drawSoldiers(ctx, enc, v, tone, env, sc, cam, 'ronde');
+  drawBuildings(ctx, cam, tone, t, T, env, sc);
+  if (enc) drawCourtProps(ctx, enc, tone, env, t);
+  if (enc) drawWallFront(ctx, enc, tone, env, sc, cam, t);
+  drawSoldiers(ctx, enc, v, tone, env, sc, cam, 'faction');
+  drawExtras(ctx, cam, tone, t, T, lod, age);
+  if (app.vm.defeat) drawRuins(ctx, t);
+}
+
+/* Premier plan : trois touffes sombres et un rocher, posés hors du village — ils donnent la profondeur. */
+function drawForeground(ctx, tone, lod) {
+  if (lod === 2) return;
+  var c = mix(tone.grass, '#000000', 0.42);
+  [[36, LH - 6, 32], [148, LH + 6, 24], [706, LH - 2, 28], [792, LH - 12, 22]].forEach(function (b, i) {
+    var x = b[0], y = b[1], w = b[2];
+    ctx.fillStyle = c;
+    ctx.beginPath(); ctx.ellipse(x, y, w, w * 0.42, 0, Math.PI, 0); ctx.fill();
+    for (var k = -2; k <= 2; k++) quad(ctx, [x + k * w * 0.3, y, x + k * w * 0.3 - 3, y - w * 0.3 - (fnv1a('fg' + i + k) % 9), x + k * w * 0.3 + 4, y - w * 0.16], c);
+  });
+  ctx.fillStyle = mix(tone.grass, '#4a4438', 0.55);
+  ctx.beginPath(); ctx.ellipse(608, LH - 4, 20, 9, 0, Math.PI, 0); ctx.fill();
+}
+/* ---------- ciel, sol, lointain ---------- */
+function drawBackdrop(ctx, cam, tone, t, lod) {
+  var th = threatPhase(), out = threatOutcome(), ruin = !!app.vm.defeat, hz = camY(cam, HORIZON);
+  drawSky(ctx, tone, hz, th === 'today', ruin, lod);
+  ctx.fillStyle = ruin ? '#6a6e62' : mix(tone.grass, tone.far, 0.4 * (1 - tone.night * 0.6));
+  ctx.beginPath(); ctx.moveTo(0, hz + 2); ctx.quadraticCurveTo(190, hz - 5, 390, hz + 1); ctx.quadraticCurveTo(600, hz - 4, LW, hz + 2); ctx.lineTo(LW, LH); ctx.lineTo(0, LH); ctx.fill();
+  drawHills(ctx, tone, hz, ruin);
+  if (!ruin) drawTreeLine(ctx, tone, hz);
+  ctx.fillStyle = ruin ? '#6a6e62' : tone.grass;
+  ctx.beginPath(); ctx.moveTo(0, hz + 24); ctx.quadraticCurveTo(220, hz + 8, 430, hz + 22); ctx.quadraticCurveTo(620, hz + 6, LW, hz + 20); ctx.lineTo(LW, LH); ctx.lineTo(0, LH); ctx.fill();
+  if (!ruin) drawMeadow(ctx, tone, hz, lod);
+  if (!ruin) { ctx.font = uiFont(10, 700); ctx.fillStyle = tone.night > 0.5 ? '#cfc7d6' : '#3b3644'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillText('Donjon', 764, hz + 34); }
+  if (!ruin) drawSkyDragon(ctx, tone, t, th, out, hz);
+}
+function drawSky(ctx, tone, hz, red, ruin, lod) {
+  var g = ctx.createLinearGradient(0, 0, 0, hz + 6), u = clamp01((tone.hour - 8) / 12);
+  if (ruin) { g.addColorStop(0, '#585c60'); g.addColorStop(1, '#9a9a96'); }
+  else if (red) { g.addColorStop(0, mix(tone.sky0, '#7e2f2c', 0.6)); g.addColorStop(1, mix(tone.sky1, '#e8b48a', 0.55)); }
+  else { g.addColorStop(0, tone.sky0); g.addColorStop(1, tone.sky1); }
+  ctx.fillStyle = g; ctx.fillRect(0, 0, LW, hz + 6);
+  if (ruin) return;
+  if (tone.night > 0.5) {
+    ctx.fillStyle = 'rgba(255,255,255,' + (0.3 + 0.5 * tone.night).toFixed(2) + ')';
+    for (var i = 0; i < 30; i++) { var h = fnv1a('star' + i); ctx.fillRect(16 + (h % 768), 8 + ((h >>> 8) % Math.max(40, Math.round(hz) - 40)), 1.6, 1.6); }
+    ctx.beginPath(); ctx.arc(694, 56, 15, 0, 6.2832); ctx.fillStyle = '#e8e4c8'; ctx.fill();
+    ctx.beginPath(); ctx.arc(686, 49, 12.5, 0, 6.2832); ctx.fillStyle = mix(tone.sky0, '#000000', 0.12); ctx.fill();
+  } else {
+    var sx = 60 + u * (LW - 120), sy = Math.max(26, hz - 34 - Math.sin(u * Math.PI) * (hz * 0.6));
+    var gl = ctx.createRadialGradient(sx, sy, 6, sx, sy, 80); gl.addColorStop(0, rgba(tone.warm, 0.5)); gl.addColorStop(1, rgba(tone.warm, 0));
+    ctx.fillStyle = gl; ctx.fillRect(sx - 82, sy - 82, 164, 164);
+    ctx.beginPath(); ctx.arc(sx, sy, 16, 0, 6.2832); ctx.fillStyle = red ? '#f0a050' : mix('#f7dd8a', tone.warm, 0.45); ctx.fill();
+  }
+  drawClouds(ctx, tone, hz);
+  if (lod < 2 && tone.night < 0.4) drawBirds(ctx, hz);
+}
+function drawMeadow(ctx, tone, hz, lod) {
+  ctx.save();
+  ctx.fillStyle = rgba(mix(tone.grass, '#ffffff', 0.55), 0.3 * (1 - tone.night));
+  ctx.beginPath(); ctx.moveTo(0, hz + 20); ctx.quadraticCurveTo(400, hz + 6, LW, hz + 18); ctx.lineTo(LW, hz + 46); ctx.quadraticCurveTo(400, hz + 34, 0, hz + 48); ctx.fill();
+  ctx.fillStyle = rgba(mix(tone.grass, '#000000', 0.45), 0.16);
+  [[120, 0.5, 210], [520, 0.74, 260], [700, 0.34, 150]].forEach(function (b) {
+    ctx.beginPath(); ctx.ellipse(b[0], hz + (LH - hz) * b[1], b[2], 26, 0, 0, 6.2832); ctx.fill();
+  });
+  if (lod < 2) { ctx.fillStyle = rgba(mix(tone.grass, '#ffffff', 0.4), 0.5);
+    for (var i = 0; i < 40; i++) { var f = fnv1a('tuft' + i); ctx.fillRect(f % LW, hz + 30 + ((f >>> 9) % Math.max(10, Math.round(LH - hz - 34))), 3, 1.4); } }
+  ctx.restore();
+}
+function drawClouds(ctx, tone, hz) {
+  var a = 0.42 - tone.night * 0.3; if (a <= 0.04) return;
+  [[130, 0.4, 1], [420, 0.26, 0.8], [648, 0.48, 1.15]].forEach(function (c) {
+    var x = c[0], y = hz * c[1], k = c[2] * 24;
+    ctx.fillStyle = 'rgba(255,255,255,' + a.toFixed(2) + ')'; ctx.beginPath();
+    ctx.ellipse(x, y, k * 1.7, k * 0.5, 0, 0, 6.2832); ctx.ellipse(x - k * 0.9, y + k * 0.16, k * 0.85, k * 0.38, 0, 0, 6.2832);
+    ctx.ellipse(x + k, y + k * 0.12, k, k * 0.4, 0, 0, 6.2832); ctx.fill();
+  });
+}
+function drawBirds(ctx, hz) {
+  ctx.strokeStyle = 'rgba(60,66,78,0.5)'; ctx.lineWidth = 1.3;
+  [[248, 0.32, 1], [284, 0.26, 0.8], [316, 0.38, 0.9]].forEach(function (b) {
+    var x = b[0], y = hz * b[1], k = 5 * b[2];
+    ctx.beginPath(); ctx.moveTo(x - k, y); ctx.quadraticCurveTo(x - k * 0.4, y - k * 0.6, x, y); ctx.quadraticCurveTo(x + k * 0.4, y - k * 0.6, x + k, y); ctx.stroke();
+  });
+}
+function drawHills(ctx, tone, hz, ruin) {
+  var far = ruin ? '#7a7d74' : tone.far;
+  ctx.fillStyle = mix(far, tone.sky1, 0.62);
+  ctx.beginPath(); ctx.moveTo(0, hz); ctx.quadraticCurveTo(150, hz - 46, 300, hz - 4); ctx.quadraticCurveTo(470, hz - 38, 640, hz - 8); ctx.quadraticCurveTo(740, hz - 26, LW, hz - 2); ctx.lineTo(LW, hz + 12); ctx.lineTo(0, hz + 12); ctx.fill();
+  drawMountain(ctx, tone, hz, ruin); drawDungeon(ctx, tone, hz);
+}
+function drawMountain(ctx, tone, hz, ruin) {
+  var base = hz + 8, top = base - 92, body = mix(ruin ? '#7a7d74' : mix(tone.far, '#6f6f7c', 0.5), tone.sky1, 0.34);
+  quad(ctx, [44, base, 124, top, 206, base], body);
+  quad(ctx, [124, top, 206, base, 150, base], shade(body, 0.88));
+  quad(ctx, [110, top + 20, 124, top, 140, top + 20, 131, top + 23, 123, top + 17, 115, top + 23], mix(tone.night > 0.5 ? '#8b8b96' : '#f2f2f6', tone.sky1, 0.3));
+  quad(ctx, [112, base, 124, base - 26, 137, base], mix('#2b2622', tone.sky1, 0.35));
+}
+function drawDungeon(ctx, tone, hz) {
+  var base = hz + 10, body = mix(mix(tone.far, '#5d5868', 0.62), tone.sky1, 0.3);
+  quad(ctx, [706, base, 738, base - 66, 772, base - 50, 800, base - 74, 800, base], body);
+  quad(ctx, [738, base - 66, 772, base - 50, 762, base, 730, base], shade(body, 0.9));
+  quad(ctx, [756, base, 756, base - 24, 771, base - 44, 786, base - 24, 786, base], mix('#1a1519', tone.sky1, 0.22));
+  ctx.fillStyle = mix(tone.night > 0.5 ? '#e06b6b' : '#b23a3a', tone.sky1, 0.2); ctx.fillRect(770, base - 50, 2, 18);
+  quad(ctx, [772, base - 50, 786, base - 45, 772, base - 40], mix(tone.night > 0.5 ? '#e06b6b' : '#b23a3a', tone.sky1, 0.2));
+}
+/* Lisière lointaine : une ligne d'arbres pose l'horizon derrière le domaine. */
+function drawTreeLine(ctx, tone, hz) {
+  var c = mix(mix(tone.grass, '#2f4a33', 0.5), tone.sky1, 0.34);
+  for (var i = 0; i < 26; i++) {
+    var f = fnv1a('tl' + i), x = 200 + i * 23 + (f % 17), h = 8 + (f >>> 5) % 13, y = hz + 4 + ((f >>> 11) % 5);
+    quad(ctx, [x, y, x - 6, y + 2, x + 6, y + 2], c);
+    ctx.fillStyle = c; ctx.fillRect(x - 7, y + 1, 14, 3);
+    quad(ctx, [x, y - h, x - 6, y + 2, x + 6, y + 2], c);
+  }
+}
+function drawGroundDetail(ctx, cam, tone, age, lod) {
+  var trees = [[28, 268], [62, 250], [96, 275], [140, 262], [176, 280], [20, 300], [56, 312], [110, 306], [160, 318], [200, 300]];
+  var lim = age >= 3 ? COURT.x0 - 30 : age === 2 ? PALIS.x0 - 20 : 900;
+  trees.forEach(function (p, i) { if (p[0] <= lim) drawTree(ctx, p[0], p[1], 34 + (i % 3) * 8, 20 + (i % 2) * 6, tone, i); });
+  if (lod === 2) return;
+  ctx.strokeStyle = rgba(mix(tone.grass, '#000000', 0.3), 0.3); ctx.lineWidth = 1;
+  for (var k = 0; k < 7; k++) { var y = 340 + k * 15, x = 6 + (fnv1a('fx' + k) % 120), w = 56 + (fnv1a('field' + k) % 90); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y + 4); ctx.stroke(); }
+}
+function drawTree(ctx, x, y, h, w, tone, i) {
+  ctx.fillStyle = matOf('#5b4632', tone); ctx.fillRect(x - 2, y - 8, 4, 9);
+  var a = matOf(i % 2 ? '#3e7a4a' : '#4c8f56', tone);
+  quad(ctx, [x, y - h, x - w / 2, y - 7, x + w / 2, y - 7], a);
+  quad(ctx, [x, y - h, x + w / 2, y - 7, x + w / 6, y - 7], shade(a, 0.78));
+  quad(ctx, [x, y - h * 0.66, x - w * 0.34, y - h * 0.18, x + w * 0.34, y - h * 0.18], mix(a, '#ffffff', 0.09));
+}
+/* Route : sentier au campement, terre au hameau, pavée dès le bourg. Elle s'élargit en venant vers l'œil
+   (bande fuselée, pas un trait) et sort du cadre : c'est elle qui mène le regard jusqu'à la porte. */
+function roadPoly(pts, wFar, wNear) {
+  var left = [], right = [], n = 32, i;
+  for (i = 0; i <= n; i++) {
+    var u = i / n, p = polyPoint(pts, u), a = polyPoint(pts, Math.max(0, u - 0.02)), b = polyPoint(pts, Math.min(1, u + 0.02));
+    var dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1, w = lerp(wFar, wNear, u * u * 0.6 + u * 0.4) / 2;
+    left.push(p.x - dy / L * w, p.y + dx / L * w); right.push(p.x + dy / L * w, p.y - dx / L * w);
+  }
+  var out = left.slice();
+  for (i = right.length - 2; i >= 0; i -= 2) out.push(right[i], right[i + 1]);
+  return out;
+}
+function drawRoad(ctx, cam, tone, age, lod) {
+  var pts = roadNow(cam).concat([]), n = age < 1 ? 0 : age < 2 ? 1 : 2;
+  pts.push([pts[pts.length - 1][0] + 70, pts[pts.length - 1][1] + 16]);
+  var outer = matOf(n === 0 ? '#bdb191' : n === 1 ? '#a89272' : '#a49f92', tone);
+  var inner = n === 0 ? null : matOf(n === 1 ? '#c6b088' : '#c4c0b2', tone);
+  ctx.save();
+  quad(ctx, roadPoly(pts, n === 0 ? 7 : n === 1 ? 13 : 17, n === 0 ? 15 : n === 1 ? 30 : 38), rgba(outer, 0.45));
+  quad(ctx, roadPoly(pts, n === 0 ? 5 : n === 1 ? 9 : 12, n === 0 ? 11 : n === 1 ? 23 : 30), outer);
+  if (inner) quad(ctx, roadPoly(pts, n === 1 ? 5 : 7, n === 1 ? 13 : 18), inner);
+  if (n === 2 && lod === 0) {
+    ctx.fillStyle = rgba('#504b41', 0.22 * (1 - tone.night * 0.5));
+    for (var k = 2; k < 30; k++) { var p = polyPoint(pts, k / 34), h = fnv1a('pave' + k), d = 4 + k * 0.4; ctx.fillRect(p.x - d + (h % Math.round(d * 2)), p.y - 4 + ((h >>> 6) % 9), 3, 2); }
+  }
+  ctx.restore();
+}
+function polyPoint(pts, u) {
+  var n = pts.length - 1, f = clamp01(u) * n, i = Math.min(n - 1, Math.floor(f)), k = f - i;
+  return { x: lerp(pts[i][0], pts[i + 1][0], k), y: lerp(pts[i][1], pts[i + 1][1], k) };
+}
+function roadPoint(t) { return polyPoint(ROAD, t); }
+function drawTrail(ctx, cam, tone) {
+  var d = soloShift(cam);
+  ctx.save(); ctx.strokeStyle = rgba(matOf('#c9bc98', tone), 0.55); ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.setLineDash([8, 9]);
+  ctx.beginPath(); ctx.moveTo(SOLO_TRAIL[0][0] + d[0], SOLO_TRAIL[0][1] + d[1]);
+  for (var i = 1; i < SOLO_TRAIL.length; i++) ctx.lineTo(SOLO_TRAIL[i][0] + d[0], SOLO_TRAIL[i][1] + d[1]);
+  ctx.stroke(); ctx.restore();
+}
+/* §2 — faubourg : les quartiers personnels des amis sortent des murs et longent la route. */
+function drawFaubourg(ctx, cam, tone, age, lod, t) {
+  var list = age >= 3 ? FAUBOURG : HOUSES, n = Math.min(list.length, age === 0 ? 0 : 2 + age);
+  for (var i = 0; i < n; i++) drawCottage(ctx, list[i][0], list[i][1], 22 + (i % 2) * 6, tone, lod);
+  if (age === 0) drawCampfire(ctx, 322, 262, t, tone);
+  if (age >= 2 && lod === 0) drawCart(ctx, age >= 3 ? 700 : 646, age >= 3 ? 430 : 396, tone);
+}
+function drawCottage(ctx, cx, base, w, tone, lod) {
+  var h = 14, x = cx - w / 2, y = base - h;
+  drawShadow(ctx, cx, base, w, tone);
+  ctx.fillStyle = matOf(MAT.wood, tone); ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = matOf(MAT.woodSide, tone); ctx.fillRect(x + w * 0.68, y, w * 0.32, h);
+  quad(ctx, [x - 3, y + 1, cx, y - 11, x + w + 3, y + 1], matOf(MAT.thatch, tone));
+  quad(ctx, [cx, y - 11, x + w + 3, y + 1, cx + w * 0.18, y + 1], matOf(MAT.thatchSide, tone));
+  ctx.fillStyle = tone.night > 0.45 ? rgba(tone.warm, 0.92) : rgba('#dbe7ee', 0.9); ctx.fillRect(cx - 2, y + 5, 4, 4);
+  if (lod === 0 && tone.night > 0.45) { var g = ctx.createRadialGradient(cx, y + 7, 1, cx, y + 7, 13); g.addColorStop(0, rgba(tone.warm, 0.18)); g.addColorStop(1, rgba(tone.warm, 0)); ctx.fillStyle = g; ctx.fillRect(cx - 13, y - 6, 26, 26); }
+}
+function drawCart(ctx, x, y, tone) {
+  ctx.fillStyle = matOf(MAT.woodSide, tone); ctx.fillRect(x - 12, y - 10, 24, 7);
+  ctx.fillStyle = matOf('#8a6a3c', tone); ctx.fillRect(x - 13, y - 13, 26, 4);
+  ctx.strokeStyle = matOf(MAT.woodDark, tone); ctx.lineWidth = 1.6;
+  [-7, 7].forEach(function (d) { ctx.beginPath(); ctx.arc(x + d, y - 2, 4, 0, 6.2832); ctx.stroke(); });
+  ctx.beginPath(); ctx.moveTo(x + 12, y - 8); ctx.lineTo(x + 22, y - 6); ctx.stroke();
+}
+
+/* ---------- §4 : enceinte, chemin de ronde, porte, douve, pont-levis ---------- */
+function wallH(kind, fl) { return kind === 'palis' ? 16 : 22 + 6 * fl; }
+/* La cour : terre battue à l'intérieur des murs, allée de la porte au donjon, ombre portée au pied des courtines.
+   C'est ce qui fait lire « dedans » et « dehors » d'un coup d'œil. */
+function drawCourtyard(ctx, e, tone, env) {
+  var hall = BCOURT.hall, back = matOf('#9d8d6a', tone), front = matOf('#cdbd97', tone);
+  var g = ctx.createLinearGradient(0, e.y0, 0, e.y1);
+  g.addColorStop(0, back); g.addColorStop(0.5, mix(back, front, 0.7)); g.addColorStop(1, front);
+  ctx.save(); ctx.globalAlpha = e.alpha;
+  ctx.fillStyle = g; roundRect(ctx, e.x0 + 4, e.y0, e.x1 - e.x0 - 8, e.y1 - e.y0, 14); ctx.fill();
+  ctx.fillStyle = rgba('#2f2a1f', 0.26); ctx.fillRect(e.x0 + 4, e.y0, e.x1 - e.x0 - 8, 16);
+  ctx.fillStyle = rgba('#2f2a1f', 0.13); ctx.fillRect(e.x0 + 4, e.y0, 9, e.y1 - e.y0); ctx.fillRect(e.x1 - 13, e.y0, 9, e.y1 - e.y0);
+  if (env.age < 3) { ctx.restore(); return; }
+  ctx.strokeStyle = rgba(mix(front, '#ffffff', 0.4), 0.8); ctx.lineWidth = 15; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(e.gx, e.y1 - 2); ctx.quadraticCurveTo(e.gx - 12, hall[1] + 48, hall[0], hall[1] + 6); ctx.stroke();
+  ctx.strokeStyle = rgba(mix(back, '#000000', 0.35), 0.22); ctx.lineWidth = 1.6;
+  for (var k = 0; k < 9; k++) {
+    var y = e.y0 + 14 + k * ((e.y1 - e.y0 - 20) / 9), f = fnv1a('sol' + k), x = e.x0 + 14 + (f % 120);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 60 + (f >>> 7) % 180, y + 2); ctx.stroke();
+  }
+  if (env.lod === 0) {
+    ctx.fillStyle = rgba('#6a5f49', 0.2);
+    for (var i = 0; i < 26; i++) { var h = fnv1a('cour' + i); ctx.fillRect(e.x0 + 12 + (h % Math.max(10, Math.round(e.x1 - e.x0 - 24))), e.y0 + 10 + ((h >>> 8) % Math.max(10, Math.round(e.y1 - e.y0 - 16))), 5 + (h % 4), 2); }
+  }
+  ctx.restore();
+}
+function wallBand(ctx, x0, y0, x1, y1, h, face, side, crest, crenel) {
+  quad(ctx, [x0, y0 - h, x1, y1 - h, x1, y1, x0, y0], face);
+  if (side) quad(ctx, [x0, y0 - h * 0.3, x1, y1 - h * 0.3, x1, y1, x0, y0], side);
+  quad(ctx, [x0, y0 - 6, x1, y1 - 6, x1, y1 + 2, x0, y0 + 2], shade(face, 0.74));
+  quad(ctx, [x0, y0 - h * 0.62, x1, y1 - h * 0.62, x1, y1 - h * 0.52, x0, y0 - h * 0.52], mix(face, '#ffffff', 0.12));
+  quad(ctx, [x0, y0 - h, x1, y1 - h, x1, y1 - h + 3, x0, y0 - h + 3], crest);
+  if (crenel > 0) drawCrenels(ctx, x0, y0 - h, x1, y1 - h, crenel, face, crest);
+}
+function drawCrenels(ctx, x0, y0, x1, y1, h, face, crest) {
+  var d = Math.hypot(x1 - x0, y1 - y0), n = Math.max(2, Math.round(d / 15));
+  for (var i = 0; i < n; i++) {
+    var u = (i + 0.16) / n, v = (i + 0.74) / n, ax = lerp(x0, x1, u), ay = lerp(y0, y1, u), bx = lerp(x0, x1, v), by = lerp(y0, y1, v);
+    quad(ctx, [ax, ay - h, bx, by - h, bx, by + 1, ax, ay + 1], face);
+    quad(ctx, [ax, ay - h, bx, by - h, bx, by - h + 2, ax, ay - h + 2], crest);
+  }
+}
+function palisade(ctx, x0, y0, x1, y1, h, face, dark) {
+  var d = Math.hypot(x1 - x0, y1 - y0), n = Math.max(3, Math.round(d / 8));
+  for (var i = 0; i < n; i++) {
+    var u = i / n, x = lerp(x0, x1, u), y = lerp(y0, y1, u), k = h + (fnv1a('pieu' + i) % 4);
+    ctx.fillStyle = i % 2 ? face : dark; ctx.fillRect(x - 2.4, y - k, 4.8, k + 1);
+    quad(ctx, [x - 2.4, y - k, x, y - k - 4, x + 2.4, y - k], face);
+  }
+}
+function drawWallBack(ctx, e, tone, env, sc, cam) {
+  var h = wallH(e.kind, env.fl), crenel = e.kind === 'palis' ? 0 : 8;
+  var face = matOf(MAT.stone, tone), side = matOf(MAT.stoneSide, tone), crest = matOf(MAT.crest, tone);
+  ctx.save(); ctx.globalAlpha = e.alpha;
+  if (sc) { var x0 = camX(cam, e.x0), y0 = camY(cam, e.y0);
+    sc.wall = { x: r1(x0), y: r1(y0), w: r1(camX(cam, e.x1) - x0), h: r1(camY(cam, e.y1) - y0), crest: r1(camY(cam, e.y0 - h - crenel)) }; }
+  if (e.kind === 'palis') {
+    var pf = matOf('#a8845a', tone), pd = matOf('#8a6a44', tone);
+    palisade(ctx, e.x0, e.y0, e.x1, e.y0, h, pf, pd); palisade(ctx, e.x0, e.y0, e.x0, e.y1, h, pf, pd); palisade(ctx, e.x1, e.y0, e.x1, e.y1, h, pf, pd);
+  } else {
+    wallBand(ctx, e.x0, e.y0, e.x1, e.y0, h, shade(face, 0.82), null, shade(crest, 0.86), crenel);
+    wallBand(ctx, e.x0, e.y0, e.x0, e.y1, h, shade(face, 0.92), side, shade(crest, 0.94), crenel);
+    wallBand(ctx, e.x1, e.y0, e.x1, e.y1, h, shade(face, 0.88), side, shade(crest, 0.9), crenel);
+    if (env.lod === 0) stoneWork(ctx, e, h, tone);
+  }
+  sceneTop(sc, e.y0 - h - crenel);
+  if (env.age >= 3 && e.kind === 'stone') [0.17, 0.83].forEach(function (u) { drawWallTower(ctx, lerp(e.x0, e.x1, u), e.y0, tone, env, sc); });
+  if (env.age >= 4) { drawTower(ctx, e.x0, e.y0, tone, env, sc); drawTower(ctx, e.x1, e.y0, tone, env, sc); }
+  ctx.restore();
+}
+function stoneWork(ctx, e, h, tone) {
+  ctx.fillStyle = rgba(MAT.stoneDark, 0.15 * (1 - tone.night * 0.4));
+  for (var i = 0; i < 46; i++) {
+    var f = fnv1a('stone' + i), u = (f % 1000) / 1000, x = lerp(e.x0, e.x1, u), y = e.y0 - 4 - ((f >>> 7) % Math.max(4, Math.round(h) - 5));
+    ctx.fillRect(x, y, 6 + (f % 5), 2.4);
+  }
+}
+/* Tour d'angle : plafonnée à 70 % de la hauteur du donjon (§3), toit conique, torche la nuit. */
+function drawTower(ctx, x, y, tone, env, sc) {
+  var keep = keepDims(hallB(), env.age, BCOURT.hall[1]), h = Math.min(30 + 18 * env.fl, Math.round(keep.total * 0.7)), w = 26;
+  var face = matOf(MAT.stone, tone), crest = matOf(MAT.crest, tone);
+  quad(ctx, [x - w / 2, y, x - w / 2, y - h, x + w / 2, y - h, x + w / 2, y], face);
+  quad(ctx, [x + w * 0.14, y, x + w * 0.14, y - h, x + w / 2, y - h, x + w / 2, y], matOf(MAT.stoneSide, tone));
+  quad(ctx, [x - w / 2 - 4, y, x - w / 2 - 4, y - 4, x - w / 2, y - 4, x - w / 2, y], mix(face, '#ffffff', 0.12));
+  quad(ctx, [x - w / 2 - 3, y - h, x + w / 2 + 3, y - h, x + w / 2 + 3, y - h - 5, x - w / 2 - 3, y - h - 5], crest);
+  drawCrenels(ctx, x - w / 2 - 3, y - h - 5, x + w / 2 + 3, y - h - 5, 7, face, crest);
+  quad(ctx, [x - w / 2 - 4, y - h - 12, x, y - h - 34, x + w / 2 + 4, y - h - 12], matOf(MAT.roof, tone));
+  quad(ctx, [x, y - h - 34, x + w / 2 + 4, y - h - 12, x + 3, y - h - 12], matOf(MAT.roofSide, tone));
+  if (env.lod === 0) { ctx.fillStyle = rgba('#2a2323', 0.5); ctx.fillRect(x - 1.4, y - h * 0.6, 2.8, 9); }
+  drawPennant(ctx, x, y - h - 34, tone, x);
+  if (tone.night > 0.45) drawTorch(ctx, x, y - h - 8, tone);
+  sceneTop(sc, y - h - 46);
+}
+/* Tour de flanquement : plus basse que les tours d'angle, elle rompt la ligne du mur du fond. */
+function drawWallTower(ctx, x, y, tone, env, sc) {
+  var keep = keepDims(hallB(), env.age, BCOURT.hall[1]), h = Math.round(Math.min(30 + 18 * env.fl, keep.total * 0.7) * 0.62), w = 20;
+  var face = shade(matOf(MAT.stone, tone), 0.88), crest = shade(matOf(MAT.crest, tone), 0.9);
+  quad(ctx, [x - w / 2, y, x - w / 2, y - h, x + w / 2, y - h, x + w / 2, y], face);
+  quad(ctx, [x + w * 0.16, y, x + w * 0.16, y - h, x + w / 2, y - h, x + w / 2, y], shade(face, 0.86));
+  quad(ctx, [x - w / 2 - 2, y - h, x + w / 2 + 2, y - h, x + w / 2 + 2, y - h - 4, x - w / 2 - 2, y - h - 4], crest);
+  drawCrenels(ctx, x - w / 2 - 2, y - h - 4, x + w / 2 + 2, y - h - 4, 6, face, crest);
+  if (env.lod === 0) { ctx.fillStyle = rgba('#2a2323', 0.45); ctx.fillRect(x - 1.2, y - h * 0.55, 2.4, 7); }
+  sceneTop(sc, y - h - 10);
+}
+function drawTorch(ctx, x, y, tone) {
+  var g = ctx.createRadialGradient(x, y, 1, x, y, 22); g.addColorStop(0, rgba(tone.warm, 0.5)); g.addColorStop(1, rgba(tone.warm, 0));
+  ctx.fillStyle = g; ctx.fillRect(x - 22, y - 22, 44, 44);
+  ctx.fillStyle = rgba('#ffcc66', 0.95); ctx.beginPath(); ctx.ellipse(x, y, 2, 3.4, 0, 0, 6.2832); ctx.fill();
+}
+/* Douve : bande d'eau de 26 unités devant l'enceinte, reflets et miroitement au plus haut détail. */
+function drawMoat(ctx, e, tone, age, lod) {
+  if (age < 4) return;
+  var y = e.y1 + 4, h = 26, w = matOf(MAT.water, tone), d = matOf(MAT.waterDark, tone);
+  ctx.save(); ctx.globalAlpha = e.alpha;
+  quad(ctx, [e.x0 - 10, y - 3, e.x1 + 10, y - 3, e.x1 + 16, y + h + 3, e.x0 - 16, y + h + 3], matOf('#8a7c5e', tone));
+  quad(ctx, [e.x0 - 6, y, e.x1 + 6, y, e.x1 + 11, y + h, e.x0 - 11, y + h], d);
+  quad(ctx, [e.x0 - 4, y + 2, e.x1 + 4, y + 2, e.x1 + 8, y + h - 3, e.x0 - 8, y + h - 3], w);
+  quad(ctx, [e.x0 - 4, y + 2, e.x1 + 4, y + 2, e.x1 + 5, y + 7, e.x0 - 5, y + 7], mix(w, '#000000', 0.34));
+  ctx.fillStyle = rgba(mix(w, '#000000', 0.45), 0.55);
+  [e.x0, e.x1, e.gx - e.gw - 12, e.gx + e.gw + 12].forEach(function (rx) { ctx.fillRect(rx - 9, y + 3, 18, h - 6); });
+  if (lod === 0) {
+    ctx.fillStyle = rgba('#ffffff', 0.16 + 0.12 * (1 - tone.night));
+    for (var i = 0; i < 18; i++) { var f = fnv1a('ripple' + i), x = e.x0 + ((f % 1000) / 1000) * (e.x1 - e.x0); ctx.fillRect(x, y + 5 + ((f >>> 9) % 16), 9 + (f % 12), 1.2); }
+    ctx.fillStyle = rgba(tone.night > 0.45 ? tone.warm : '#ffffff', 0.12); ctx.fillRect(e.gx - 24, y + 3, 48, h - 6);
+  }
+  ctx.restore();
+}
+function drawWallFront(ctx, e, tone, env, sc, cam, t) {
+  var h = wallH(e.kind, env.fl), crenel = e.kind === 'palis' ? 0 : 8;
+  var face = matOf(MAT.stone, tone), crest = matOf(MAT.crest, tone);
+  ctx.save(); ctx.globalAlpha = e.alpha;
+  if (e.kind === 'palis') {
+    var pf = matOf('#a8845a', tone), pd = matOf('#8a6a44', tone);
+    palisade(ctx, e.x0, e.y1, e.gx - e.gw, e.y1, h, pf, pd); palisade(ctx, e.gx + e.gw, e.y1, e.x1, e.y1, h, pf, pd);
+    drawGateSimple(ctx, e, tone, h);
+  } else {
+    wallBand(ctx, e.x0, e.y1, e.gx - e.gw, e.y1, h, mix(face, '#ffffff', 0.08), matOf(MAT.stoneSide, tone), crest, crenel);
+    wallBand(ctx, e.gx + e.gw, e.y1, e.x1, e.y1, h, mix(face, '#ffffff', 0.08), matOf(MAT.stoneSide, tone), crest, crenel);
+    if (env.age >= 4) { drawTower(ctx, e.x0, e.y1, tone, env, sc); drawTower(ctx, e.x1, e.y1, tone, env, sc); }
+    drawGatehouse(ctx, e, tone, env, sc, t);
+  }
+  if (env.age >= 4) drawDrawbridge(ctx, e, tone, env, sc, cam);
+  ctx.restore();
+}
+function drawGateSimple(ctx, e, tone, h) {
+  var x = e.gx, w = e.gw;
+  quad(ctx, [x - w - 3, e.y1, x - w - 3, e.y1 - h - 9, x - w + 3, e.y1 - h - 9, x - w + 3, e.y1], matOf('#8a6a44', tone));
+  quad(ctx, [x + w - 3, e.y1, x + w - 3, e.y1 - h - 9, x + w + 3, e.y1 - h - 9, x + w + 3, e.y1], matOf('#8a6a44', tone));
+  ctx.fillStyle = matOf('#6b5030', tone); ctx.fillRect(x - w - 3, e.y1 - h - 12, w * 2 + 6, 4);
+}
+/* Corps de garde : deux tours de porte (26 + 14 × niveau), herse, mâchicoulis, bannières de trophée. */
+function drawGatehouse(ctx, e, tone, env, sc, t) {
+  var h = 34 + 14 * env.fl, w = 28, y = e.y1, face = mix(matOf(MAT.stone, tone), '#ffffff', 0.06), crest = matOf(MAT.crest, tone);
+  ctx.fillStyle = matOf('#3a2e27', tone); ctx.beginPath();
+  ctx.moveTo(e.gx - e.gw, y); ctx.lineTo(e.gx - e.gw, y - 20); ctx.quadraticCurveTo(e.gx, y - 40, e.gx + e.gw, y - 20); ctx.lineTo(e.gx + e.gw, y); ctx.fill();
+  if (env.lod < 2) {
+    ctx.strokeStyle = rgba('#d8d2c4', 0.35); ctx.lineWidth = 1; ctx.beginPath();
+    for (var k = -e.gw + 5; k < e.gw; k += 6) { ctx.moveTo(e.gx + k, y); ctx.lineTo(e.gx + k, y - 28); } ctx.stroke();
+  }
+  [-1, 1].forEach(function (s) {
+    var x = e.gx + s * (e.gw + w / 2 - 3);
+    quad(ctx, [x - w / 2, y, x - w / 2, y - h, x + w / 2, y - h, x + w / 2, y], face);
+    quad(ctx, [x + w * 0.16, y, x + w * 0.16, y - h, x + w / 2, y - h, x + w / 2, y], matOf(MAT.stoneSide, tone));
+    quad(ctx, [x - w / 2 - 3, y - h, x + w / 2 + 3, y - h, x + w / 2 + 3, y - h - 4, x - w / 2 - 3, y - h - 4], crest);
+    drawCrenels(ctx, x - w / 2 - 3, y - h - 4, x + w / 2 + 3, y - h - 4, 7, face, crest);
+    if (env.lod === 0) { ctx.fillStyle = rgba('#2a2323', 0.3); for (var i = 0; i < 4; i++) ctx.fillRect(x - w / 2 + 2 + i * 5, y - h - 3, 2, 3); }
+    ctx.fillStyle = rgba('#2a2323', 0.5); ctx.fillRect(x - 1.5, y - h * 0.6, 3, 9);
+    if (tone.night > 0.45) drawTorch(ctx, x, y - h + 8, tone);
+  });
+  drawTrophyBanners(ctx, e, tone, sc, t);
+  sceneTop(sc, y - h - 11);
+}
+function drawTrophyBanners(ctx, e, tone, sc, t) {
+  var n = Math.min(5, app.vm.village.trophies.length); if (sc) sc.banners = n;
+  for (var i = 0; i < n; i++) {
+    var x = e.gx - e.gw + 5 + i * 11, y = e.y1 - 44, wv = Math.sin(t * 1.7 + i) * 1.6;
+    quad(ctx, [x, y, x + 8, y, x + 8 + wv, y + 17, x + 4 + wv, y + 13, x + wv, y + 17], matOf('#8a2f2f', tone));
+    ctx.fillStyle = rgba('#e8c86a', 0.9); ctx.fillRect(x + 2.6, y + 4, 2.8, 2.8);
+  }
+}
+/* Pont-levis : abaissé de 8 h à 20 h d'heure simulée, relevé la nuit, bascule en 1 500 ms, chaînes au plus fin. */
+var brS = { down: null, t0: 0 };
+function bridgeWanted(hour) { return hour >= BRIDGE_DOWN && hour < BRIDGE_UP; }
+function bridgeState(hour) {
+  var want = bridgeWanted(hour);
+  if (brS.down === null) { brS = { down: want, t0: 0 }; return want ? 1 : 0; }
+  if (want !== brS.down) brS = { down: want, t0: Date.now() };
+  var p = motionMQ.matches || !brS.t0 ? 1 : clamp01((Date.now() - brS.t0) / BRIDGE_MS);
+  return brS.down ? ease(p) : 1 - ease(p);
+}
+function drawDrawbridge(ctx, e, tone, env, sc, cam) {
+  var hour = sceneHour(), a = bridgeState(hour), L = 34, x = e.gx, y = e.y1, w = e.gw - 11;
+  var far = y + L * a - (L + 10) * (1 - a), spread = 1 + 0.18 * a;
+  if (sc) sc.drawbridge = { down: a > 0.5, a: r1(a), hour: r1(hour), x: r1(camX(cam, x)), y: r1(camY(cam, far)) };
+  quad(ctx, [x - w, y, x + w, y, x + w * spread, far, x - w * spread, far], matOf('#a98953', tone));
+  quad(ctx, [x + w * 0.4, y, x + w, y, x + w * spread, far, x + w * 0.4 * spread, far], matOf('#8a6a3c', tone));
+  ctx.strokeStyle = rgba(MAT.woodDark, 0.6); ctx.lineWidth = 1;
+  ctx.beginPath(); for (var i = -2; i <= 2; i++) { ctx.moveTo(x + i * w * 0.42, y); ctx.lineTo(x + i * w * 0.42 * spread, far); } ctx.stroke();
+  ctx.fillStyle = matOf('#6b5030', tone); ctx.fillRect(x - w * spread, far - 2, w * 2 * spread, 3);
+  if (env.lod === 0) {
+    ctx.strokeStyle = rgba('#4a4038', 0.85); ctx.lineWidth = 1.2; ctx.beginPath();
+    [-1, 1].forEach(function (s) { ctx.moveTo(x + s * (e.gw + 10), y - 34); ctx.lineTo(x + s * w * spread, far); }); ctx.stroke();
+  }
+}
+/* La vie de la cour : puits, tonneaux, bûcher, étals. Décor pur, posé par l'âge (hors spec, au service de l'image). */
+function drawCourtProps(ctx, e, tone, env, t) {
+  ctx.save(); ctx.globalAlpha = e.alpha;
+  var cy = lerp(e.y0, e.y1, 0.62);
+  drawWell(ctx, lerp(e.x0, e.x1, 0.17), cy + 4, tone);
+  drawStack(ctx, lerp(e.x0, e.x1, 0.8), cy - 2, tone);
+  if (env.age >= 3) { drawStall(ctx, lerp(e.x0, e.x1, 0.42), e.y1 - 24, tone); drawStall(ctx, lerp(e.x0, e.x1, 0.58), e.y1 - 18, tone); }
+  ctx.restore();
+}
+function drawWell(ctx, x, y, tone) {
+  drawShadow(ctx, x, y, 22, tone);
+  quad(ctx, [x - 9, y, x - 9, y - 9, x + 9, y - 9, x + 9, y], matOf('#9c958a', tone));
+  quad(ctx, [x + 3, y, x + 3, y - 9, x + 9, y - 9, x + 9, y], matOf('#7e7870', tone));
+  ctx.fillStyle = matOf('#5b4632', tone); ctx.fillRect(x - 8, y - 22, 2.4, 14); ctx.fillRect(x + 5.6, y - 22, 2.4, 14);
+  quad(ctx, [x - 12, y - 21, x, y - 30, x + 12, y - 21], matOf(MAT.roof, tone));
+}
+function drawStack(ctx, x, y, tone) {
+  drawShadow(ctx, x, y, 26, tone);
+  [[0, 0], [11, 0], [5.5, -8]].forEach(function (d) {
+    ctx.fillStyle = matOf('#8a6a3c', tone); roundRect(ctx, x + d[0] - 5, y + d[1] - 9, 10, 9, 2); ctx.fill();
+    ctx.fillStyle = rgba(MAT.woodDark, 0.5); ctx.fillRect(x + d[0] - 5, y + d[1] - 6, 10, 1.4);
+  });
+}
+function drawStall(ctx, x, y, tone) {
+  ctx.fillStyle = matOf('#7d6544', tone); ctx.fillRect(x - 13, y - 9, 26, 6);
+  [-12, 11].forEach(function (d) { ctx.fillRect(x + d, y - 9, 2, 9); });
+  var a = matOf('#c8552f', tone), b = matOf('#efe3cb', tone);
+  for (var i = 0; i < 4; i++) quad(ctx, [x - 14 + i * 7, y - 12, x - 7 + i * 7, y - 12, x - 8 + i * 7, y - 18, x - 15 + i * 7, y - 18], i % 2 ? a : b);
+}
+/* §5 — soldats : nombre = gardes de l'âge ; faction à la porte, ronde sur le chemin de ronde,
+   position entière dérivée de l'heure simulée et de l'index (identique sur tous les téléphones). */
+function soldierSpots(e, guards, hour) {
+  var out = [], n = Math.max(0, guards | 0), i;
+  if (!e || !n) return out;
+  var faction = Math.min(2, n), ronde = n - faction, q = Math.round(hour * 4);
+  for (i = 0; i < faction; i++) out.push({ role: 'faction', x: e.gx + (i ? 1 : -1) * (e.gw + 15), y: e.y1 + 5 });
+  for (i = 0; i < ronde; i++) out.push({ role: 'ronde', u: ((q * 3 + i * Math.round(96 / Math.max(1, ronde))) % 96) / 96 });
+  return out;
+}
+function walkPoint(e, u) {
+  var wx = e.x1 - e.x0, wy = e.y1 - e.y0, per = wx + 2 * wy, d = clamp01(u) * per;
+  if (d < wy) return { x: e.x0, y: e.y1 - d };
+  if (d < wy + wx) return { x: e.x0 + (d - wy), y: e.y0 };
+  return { x: e.x1, y: e.y0 + (d - wy - wx) };
+}
+function drawSoldiers(ctx, e, v, tone, env, sc, cam, part) {
+  if (!e || env.lod === 2) return;
+  var h = wallH(e.kind, env.fl) + (e.kind === 'palis' ? 0 : 8);
+  soldierSpots(e, v.guards, sceneHour()).forEach(function (s) {
+    if (s.role !== part) return;
+    var p = s.role === 'ronde' ? walkPoint(e, s.u) : s, y = s.role === 'ronde' ? p.y - h + 3 : p.y;
+    if (sc) sc.soldiers.push({ role: s.role, x: r1(camX(cam, p.x)), y: r1(camY(cam, y)) });
+    if (env.lod === 1) { ctx.fillStyle = matOf('#5a6068', tone); ctx.beginPath(); ctx.arc(p.x, y - 5, 3, 0, 6.2832); ctx.fill(); }
+    else drawGuard(ctx, p.x, y, tone, s.role === 'faction');
+  });
+}
+function drawGuard(ctx, x, y, tone, lance) {
+  var body = matOf('#6f757d', tone), tip = x + 6;
+  ctx.fillStyle = 'rgba(30,40,30,0.22)'; ctx.beginPath(); ctx.ellipse(x, y + 1, 6, 2, 0, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = body; roundRect(ctx, x - 4, y - 12, 8, 11, 2); ctx.fill();
+  ctx.fillStyle = matOf('#3a3232', tone); ctx.fillRect(x - 3.5, y - 2, 3, 3); ctx.fillRect(x + 0.5, y - 2, 3, 3);
+  ctx.fillStyle = matOf('#e7cdb4', tone); ctx.beginPath(); ctx.arc(x, y - 15.5, 3.4, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = body; ctx.beginPath(); ctx.arc(x, y - 16.5, 3.8, Math.PI, 0); ctx.fill();
+  if (!lance) return;
+  ctx.strokeStyle = matOf('#5b4632', tone); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(tip, y); ctx.lineTo(tip, y - 26); ctx.stroke();
+  quad(ctx, [tip, y - 31, tip - 2.5, y - 25, tip + 2.5, y - 25], matOf('#c8c2b4', tone));
+}
+
+/* ---------- §2, §3, §6, §8 : les bâtiments ---------- */
+function drawBuildings(ctx, cam, tone, t, T, env, sc) {
+  var list = app.vm.buildings.map(function (b) { return { b: b, slot: slotOf(b.id, cam) }; });
+  list.sort(function (a, b) { return a.slot[1] - b.slot[1]; });
+  list.forEach(function (o) { drawBuilding(ctx, o.b, o.slot, cam, tone, t, T, env, sc); });
+}
+function drawBuilding(ctx, b, slot, cam, tone, t, T, env, sc) {
+  var dim = bsize(b), cx = slot[0], base = slot[1];
+  if ((b.level | 0) === 0) { drawEmptyLot(ctx, b, cx, base, dim, T, tone, env, t, sc); return; }
+  if (b.id === 'hall' && env.age >= 3) { drawShadow(ctx, cx, base, dim.w * 1.6, tone); drawKeep(ctx, b, cx, base, cam, tone, t, T, env, sc); return; }
+  if (b.id === 'training_ground') { drawShadow(ctx, cx, base, 104, tone); drawYard(ctx, b, cx, base, cam, tone, t, T, env, sc); return; }
+  var fit = fitH(env, base, dim.w, bodyH(b, env.age), roofH(b, dim.w), b.id), body = fit.body, rh = fit.rh;
+  var w = fit.w, x = cx - w / 2, y = base - body;
+  drawShadow(ctx, cx, base, w, tone);
+  var wall = matOf(cssColor(b.decor.color, T), tone), roof = matOf(ROOFS[b.id] || MAT.roof, tone);
+  quad(ctx, [x, y, x + w, y, x + w, base, x, base], wall);
+  quad(ctx, [x + w * 0.74, y, x + w, y, x + w, base, x + w * 0.74, base], shade(wall, 0.8));
+  quad(ctx, [x, y, x + w * 0.09, y, x + w * 0.09, base, x, base], mix(wall, '#ffffff', 0.12));
+  if (b.id === 'market') drawHalle(ctx, x, y, w, base, rh, tone, roof);
+  else {
+    quad(ctx, [x - 5, y + 2, cx, y - rh, x + w + 5, y + 2], roof);
+    quad(ctx, [cx, y - rh, x + w + 5, y + 2, cx + w * 0.15, y + 2], shade(roof, 0.78));
+    quad(ctx, [x - 5, y + 2, cx, y - rh, cx - w * 0.07, y - rh, x - 1, y + 2], mix(roof, '#ffffff', 0.1));
+  }
+  drawFacade(ctx, b, x, y, w, body, base, tone, env.lod);
+  if (b.id === 'forge') drawForgeStack(ctx, b, x, y, w, base, tone, t, env.lod);
+  if (b.id === 'chapel') drawBellTower(ctx, cx, y - rh, tone, T, env.lod);
+  if (env.lod === 0 && !env.mini) drawSign(ctx, b, cx, base, tone);
+  drawWorks(ctx, b, x, y, w, base, T, tone, env, sc, t);
+  if (b.id === 'hall') drawHallMarks(ctx, b, cx, x, y, rh, T, tone, t, env.age);
+  sceneAdd(sc, cam, b.id, cx, base, w, y - rh, b.level);
+}
+function drawFacade(ctx, b, x, y, w, body, base, tone, lod) {
+  var lit = tone.night > 0.4 && b.decor.light, glass = lit ? rgba(tone.warm, 0.95) : rgba('#cfe0ea', 0.85), cx = x + w / 2;
+  var dh = Math.min(16, body * 0.75);
+  ctx.fillStyle = matOf('#3a2e27', tone); roundRect(ctx, cx - 6, base - dh, 12, dh, 3); ctx.fill();
+  var rows = body > 36 ? 2 : 1, cols = w > 86 ? 3 : 2, ww = 8, hh = 8;
+  for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) {
+    var wx = x + 9 + c * ((w - 18 - ww) / Math.max(1, cols - 1)), wy = y + 6 + r * 15;
+    if (wy + hh > base - 3 || (Math.abs(wx + ww / 2 - cx) < 9 && wy + hh > base - dh - 2)) continue;
+    ctx.fillStyle = glass; ctx.fillRect(wx, wy, ww, hh);
+    ctx.strokeStyle = rgba(MAT.woodDark, 0.45); ctx.lineWidth = 0.8; ctx.strokeRect(wx + 0.4, wy + 0.4, ww - 0.8, hh - 0.8);
+  }
+  if (lit && lod === 0) { var g = ctx.createRadialGradient(cx, y + 12, 3, cx, y + 12, w * 0.9); g.addColorStop(0, rgba(tone.warm, 0.24)); g.addColorStop(1, rgba(tone.warm, 0)); ctx.fillStyle = g; ctx.fillRect(x - w * 0.5, y - 16, w * 2, body + 40); }
+  if (lod === 0 && body > 26) { ctx.strokeStyle = rgba(MAT.woodDark, 0.16); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, y + body * 0.52); ctx.lineTo(x + w, y + body * 0.52); ctx.stroke(); }
+}
+function drawHalle(ctx, x, y, w, base, rh, tone, roof) {
+  quad(ctx, [x - 6, y + 2, x + w / 2, y - rh, x + w + 6, y + 2], roof);
+  quad(ctx, [x + w / 2, y - rh, x + w + 6, y + 2, x + w * 0.6, y + 2], shade(roof, 0.78));
+  ctx.fillStyle = matOf(MAT.woodSide, tone);
+  [0.08, 0.5, 0.92].forEach(function (u) { ctx.fillRect(x + w * u - 2.5, y + 2, 5, base - y - 2); });
+  ctx.fillStyle = rgba('#c8552f', 0.7); ctx.fillRect(x + 8, y + 9, w - 16, 5);
+}
+function drawBellTower(ctx, cx, top, tone, T, lod) {
+  var h = 22, x = cx - 5;
+  quad(ctx, [x, top + 5, x, top - h, x + 10, top - h, x + 10, top + 5], matOf(MAT.stone, tone));
+  quad(ctx, [x + 6, top + 5, x + 6, top - h, x + 10, top - h, x + 10, top + 5], matOf(MAT.stoneSide, tone));
+  quad(ctx, [x - 3, top - h, cx, top - h - 12, x + 13, top - h], matOf(MAT.roof, tone));
+  ctx.fillStyle = T.gold; ctx.fillRect(cx - 1, top - h - 21, 2, 9); ctx.fillRect(cx - 4, top - h - 18, 8, 2);
+  if (lod === 0) { ctx.fillStyle = rgba('#2a2323', 0.45); ctx.fillRect(cx - 2.5, top - h + 5, 5, 6); }
+}
+function drawForgeStack(ctx, b, x, y, w, base, tone, t, lod) {
+  var sx = x + w * 0.8, h = 16 + 5 * Math.max(1, b.level | 0);
+  quad(ctx, [sx - 6, y + 4, sx - 6, y - h, sx + 6, y - h, sx + 6, y + 4], matOf(MAT.stoneDark, tone));
+  ctx.fillStyle = matOf(MAT.crest, tone); ctx.fillRect(sx - 7.5, y - h - 3, 15, 3.5);
+  drawSmoke(ctx, sx, y - h - 6, t, tone);
+  var g = ctx.createRadialGradient(x + w * 0.3, base - 9, 2, x + w * 0.3, base - 9, 26);
+  g.addColorStop(0, rgba('#ff7a33', 0.34 + 0.24 * tone.night)); g.addColorStop(1, rgba('#ff7a33', 0));
+  ctx.fillStyle = g; ctx.fillRect(x, base - 36, w, 44);
+  if (lod === 0) for (var i = 0; i < 4; i++) { var ph = (t * 0.9 + i / 4) % 1; ctx.fillStyle = rgba('#ffcf70', 0.9 - ph * 0.9); ctx.fillRect(x + w * 0.3 + Math.sin((ph + i) * 6.28) * 6, base - 12 - ph * 16, 1.6, 1.6); }
+}
+function drawSign(ctx, b, cx, base, tone) {
+  var g = String(b.decor.glyph || ''); if (!g) return;
+  ctx.save(); ctx.fillStyle = matOf('#6b5030', tone); roundRect(ctx, cx + 13, base - 23, 15, 13, 2); ctx.fill();
+  ctx.font = glyphFont(9); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = rgba('#f4e6cc', 0.95); ctx.fillText(g, cx + 20.5, base - 16); ctx.restore();
+}
+/* Donjon (§3) : motte, corps de logis, mâchicoulis, étage, flèche et bannière — toujours le point le plus haut. */
+function drawKeep(ctx, b, cx, base, cam, tone, t, T, env, sc) {
+  var k = keepDims(b, env.age, base), w = k.w, y = base - k.motte - k.body;
+  var face = matOf(mix(MAT.stone, '#d6c9ac', 0.65), tone), side = matOf('#7f7663', tone), crest = matOf('#e6dcc4', tone);
+  var sk = sunK(tone);
+  ctx.fillStyle = rgba('#3a3226', 0.2 * (1 - tone.night));
+  quad(ctx, [cx - w * 0.5, base, cx + w * 0.5, base, cx + w * 0.5 + sk.dx * 40, base + 16, cx - w * 0.5 + sk.dx * 40, base + 16], rgba('#3a3226', 0.16 * (1 - tone.night)));
+  quad(ctx, [cx - w * 0.66, base + 1, cx - w * 0.54, base - k.motte, cx + w * 0.54, base - k.motte, cx + w * 0.66, base + 1], matOf('#8d8163', tone));
+  quad(ctx, [cx + w * 0.2, base + 1, cx + w * 0.54, base - k.motte, cx + w * 0.66, base + 1], matOf('#726851', tone));
+  quad(ctx, [cx - w * 0.56, base - k.motte + 4, cx + w * 0.56, base - k.motte + 4, cx + w * 0.54, base - k.motte, cx - w * 0.54, base - k.motte], matOf('#7d8f64', tone));
+  quad(ctx, [cx - w / 2, base - k.motte, cx - w / 2, y, cx + w / 2, y, cx + w / 2, base - k.motte], face);
+  quad(ctx, [cx + w * 0.18, base - k.motte, cx + w * 0.18, y, cx + w / 2, y, cx + w / 2, base - k.motte], side);
+  quad(ctx, [cx - w / 2, base - k.motte, cx - w / 2, y, cx - w * 0.38, y, cx - w * 0.38, base - k.motte], mix(face, '#ffffff', 0.12));
+  quad(ctx, [cx - w / 2 - 4, base - k.motte + 2, cx + w / 2 + 4, base - k.motte + 2, cx + w / 2, base - k.motte - 9, cx - w / 2, base - k.motte - 9], shade(face, 0.72));
+  quad(ctx, [cx - w / 2 - 5, y, cx + w / 2 + 5, y, cx + w / 2 + 5, y - 6, cx - w / 2 - 5, y - 6], crest);
+  drawCrenels(ctx, cx - w / 2 - 5, y - 6, cx + w / 2 + 5, y - 6, 9, face, crest);
+  var uw = w * 0.5, uy = y - k.gap - k.band;
+  quad(ctx, [cx - uw / 2, y - 6, cx - uw / 2, uy, cx + uw / 2, uy, cx + uw / 2, y - 6], face);
+  quad(ctx, [cx + uw * 0.14, y - 6, cx + uw * 0.14, uy, cx + uw / 2, uy, cx + uw / 2, y - 6], side);
+  quad(ctx, [cx - uw / 2 - 6, uy, cx, uy - k.spire, cx + uw / 2 + 6, uy], matOf(MAT.roof, tone));
+  quad(ctx, [cx, uy - k.spire, cx + uw / 2 + 6, uy, cx + uw * 0.1, uy], matOf(MAT.roofSide, tone));
+  drawKeepDetail(ctx, cx, base, w, y, uy, k, tone, env.lod);
+  drawGuildBanner(ctx, cx, uy - k.spire, T, tone, t);
+  drawWorks(ctx, b, cx - w / 2, y, w, base, T, tone, env, sc, t);
+  sceneAdd(sc, cam, 'hall', cx, base, w, uy - k.spire - k.flag, b.level);
+}
+function drawKeepDetail(ctx, cx, base, w, y, uy, k, tone, lod) {
+  var lit = tone.night > 0.4 ? rgba(tone.warm, 0.95) : rgba('#cfe0ea', 0.8);
+  ctx.fillStyle = matOf('#3a2e27', tone); roundRect(ctx, cx - 8, base - k.motte - 20, 16, 20, 4); ctx.fill();
+  for (var r = 0; r < 2; r++) for (var c = -1; c <= 1; c++) {
+    var wy = y + 14 + r * 24; if (wy + 12 > base - k.motte - 6) continue;
+    ctx.fillStyle = lit; roundRect(ctx, cx + c * w * 0.28 - 3, wy, 6, 11, 3); ctx.fill();
+  }
+  ctx.fillStyle = lit; roundRect(ctx, cx - 2.5, uy + 8, 5, 9, 2.5); ctx.fill();
+  if (lod !== 0) return;
+  ctx.fillStyle = rgba(MAT.stoneDark, 0.2);
+  for (var i = 0; i < 18; i++) { var f = fnv1a('keep' + i); ctx.fillRect(cx - w / 2 + 2 + (f % Math.max(4, Math.round(w) - 10)), y + 5 + ((f >>> 8) % Math.max(4, Math.round(k.body) - 10)), 7, 2.4); }
+  [-1, 1].forEach(function (s) { ctx.fillStyle = matOf(MAT.stoneSide, tone); ctx.fillRect(cx + s * (w / 2 - 3) - 3, y - 6, 6, Math.min(20, k.body)); });
+}
+/* Fanion de tour : petite flamme sur la pointe du toit, orientation stable (aucun aléa). */
+function drawPennant(ctx, x, top, tone, key) {
+  var dir = (fnv1a('pen' + Math.round(key)) % 2) ? 1 : -1;
+  ctx.fillStyle = matOf('#3a2e27', tone); ctx.fillRect(x - 0.7, top - 13, 1.4, 14);
+  quad(ctx, [x, top - 13, x + dir * 11, top - 10, x, top - 6], matOf('#8a2f2f', tone));
+}
+function drawGuildBanner(ctx, cx, top, T, tone, t) {
+  var wv = Math.sin(t * 1.6) * 2.2;
+  ctx.fillStyle = matOf('#3a2e27', tone); ctx.fillRect(cx - 1, top - 30, 2, 32);
+  quad(ctx, [cx + 1, top - 30, cx + 22 + wv, top - 25 + wv, cx + 1, top - 15], T.accent);
+  ctx.fillStyle = T.gold; ctx.beginPath(); ctx.arc(cx + 7, top - 23, 2.2, 0, 6.2832); ctx.fill();
+}
+function drawHallMarks(ctx, b, cx, x, y, rh, T, tone, t, age) {
+  if (age < 3) drawGuildBanner(ctx, cx, y - rh + 4, T, tone, t);
+  if (age < 3 && app.vm.village.trophies.length) drawTrophies(ctx, x, y, Math.min(5, app.vm.village.trophies.length), tone);
+  if (tb.phase === 'evening' && tb.markers && tb.markers.banner) drawBanner(ctx, cx, y - rh, tb.markers.banner, T);
+}
+function drawTrophies(ctx, bx, by, n, tone) {
+  for (var i = 0; i < n; i++) {
+    var x = bx + 10 + i * 13, y = by - 3;
+    ctx.strokeStyle = matOf('#3a2e27', tone); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y + 4); ctx.lineTo(x, y - 8); ctx.stroke();
+    ctx.fillStyle = matOf('#efe6d2', tone); ctx.beginPath(); ctx.arc(x, y - 11, 4.2, 0, 6.2832); ctx.fill(); ctx.fillRect(x - 2.5, y - 9, 5, 2.5);
+    ctx.fillStyle = '#2a2323'; ctx.fillRect(x - 2.4, y - 12.4, 1.6, 1.8); ctx.fillRect(x + 0.8, y - 12.4, 1.6, 1.8);
+  }
+}
+/* §8 — chantier : échafaudage à la hauteur de l'avancement, grue au-delà du niveau 3, ouvriers aux heures ouvrées. */
+function drawWorks(ctx, b, x, y, w, base, T, tone, env, sc, t) {
+  var c = app.vm.construction, mine = c && c.building_id === b.id, mk = tb.markers && tb.markers.scaffold === b.id;
+  if (!mine && !mk) return;
+  var ratio = mine && c.needed ? clamp01((c.progress + 0.4) / c.needed) : 0.6, h = Math.max(16, base - y);
+  if (sc && mine) sc.construction = { id: b.id, ratio: r1(ratio), to_level: c.to_level | 0 };
+  var top = base - h * ratio - 7, pole = matOf('#6d4f2a', tone), plank = matOf('#c9a468', tone);
+  ctx.save();
+  for (var j = 0; j <= 2; j++) { var py = base - (h * ratio + 7) * (j / 2); ctx.fillStyle = plank; ctx.fillRect(x - 6, py - 2.5, w + 12, 3.2); ctx.fillStyle = rgba('#3a2a14', 0.25); ctx.fillRect(x - 6, py + 0.7, w + 12, 1.1); }
+  ctx.fillStyle = pole;
+  for (var i = 0; i <= 3; i++) { var px = x - 5 + i * ((w + 10) / 3); ctx.fillRect(px - 1.3, top, 2.6, base - top); }
+  ctx.strokeStyle = rgba(pole, 0.8); ctx.lineWidth = 1.2; ctx.beginPath();
+  ctx.moveTo(x - 5, base); ctx.lineTo(x + w * 0.45, top); ctx.moveTo(x + w + 5, base); ctx.lineTo(x + w * 0.55, top); ctx.stroke();
+  ctx.restore();
+  if (mine && (c.to_level | 0) > 3) drawCrane(ctx, x + w + 8, base, h + 26, tone);
+  if (env.lod < 2 && tone.night < 0.5) { drawWorker(ctx, x + 7, base - h * ratio - 6, tone); drawWorker(ctx, x + w - 9, base, tone); }
+}
+function drawCrane(ctx, x, base, h, tone) {
+  ctx.strokeStyle = matOf('#8a6a3c', tone); ctx.lineWidth = 2.4;
+  ctx.beginPath(); ctx.moveTo(x, base); ctx.lineTo(x, base - h); ctx.lineTo(x - 26, base - h + 8); ctx.stroke();
+  ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x - 22, base - h + 7); ctx.lineTo(x - 22, base - h + 26); ctx.stroke();
+  ctx.fillStyle = matOf('#6b5030', tone); ctx.fillRect(x - 26, base - h + 26, 9, 6);
+}
+function drawWorker(ctx, x, y, tone) {
+  ctx.fillStyle = matOf('#8a6a4a', tone); roundRect(ctx, x - 2.5, y - 9, 5, 7, 1.5); ctx.fill();
+  ctx.fillStyle = matOf('#e7cdb4', tone); ctx.beginPath(); ctx.arc(x, y - 11, 2.4, 0, 6.2832); ctx.fill();
+}
+function drawEmptyLot(ctx, b, cx, base, dim, T, tone, env, t, sc) {
+  var w = Math.max(dim.w, 98), h = dim.h * 0.8, x = cx - w / 2, y = base - h, camp = env.age === 0;
+  if (camp) drawTent(ctx, cx, base, tone);
+  else drawFoundation(ctx, x, base, w, tone);
+  drawWorks(ctx, b, x, y, w, base, T, tone, env, sc, t);
+  if (tb.phase === 'evening' && tb.markers && tb.markers.burnt === b.id) drawFire(ctx, x + 10, base - 6, w - 20, t || 0);
+  if (env.mini) return;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  var lines = ctx.canvas.clientWidth >= 520 ? wrapName(ctx, b.name, w - 8, uiFont(9, 600)) : [];
+  var ly = base - h - 14;
+  ctx.font = uiFont(9, 600);
+  lines.concat(['à bâtir']).forEach(function (l, i) {
+    var tw = ctx.measureText(l).width;
+    ctx.fillStyle = rgba(tone.night > 0.5 ? '#141a2a' : '#ffffff', 0.55); roundRect(ctx, cx - tw / 2 - 4, ly + i * 11 - 5.5, tw + 8, 11, 5); ctx.fill();
+    ctx.fillStyle = tone.night > 0.5 ? '#c9d1cc' : '#31403a'; ctx.fillText(l, cx, ly + i * 11);
+  });
+}
+/* Parcelle à bâtir dans un village qui a des murs : une assise de pierre et des piquets, pas un pointillé. */
+function drawFoundation(ctx, x, base, w, tone) {
+  var h = 13, y = base - h;
+  ctx.fillStyle = rgba('#6a5f49', 0.3); ctx.fillRect(x, y + 4, w, h - 2);
+  ctx.fillStyle = matOf('#a49a86', tone);
+  for (var i = 0; i < Math.round(w / 11); i++) ctx.fillRect(x + i * 11 + 1, y + (i % 2 ? 5 : 8), 9, 4);
+  ctx.fillStyle = matOf('#8a6a44', tone);
+  [0, w - 3].forEach(function (d) { ctx.fillRect(x + d, y - 6, 3, 12); });
+}
+function wrapName(ctx, name, maxW, font) {
+  ctx.font = font;
+  if (ctx.measureText(name).width <= maxW) return [name];
+  var words = String(name).split(' '), lines = [], cur = '';
+  words.forEach(function (wd) { var t = cur ? cur + ' ' + wd : wd; if (ctx.measureText(t).width <= maxW || !cur) cur = t; else { lines.push(cur); cur = wd; } });
+  if (cur) lines.push(cur);
+  return lines.slice(0, 2).map(function (l) { while (l.length > 2 && ctx.measureText(l).width > maxW) l = l.slice(0, -2) + '…'; return l; });
+}
+function drawTent(ctx, cx, base, tone) {
+  var w = 44, h = 28;
+  drawShadow(ctx, cx, base, w, tone);
+  quad(ctx, [cx - w / 2, base, cx, base - h, cx + w / 2, base], matOf('#cdb78e', tone));
+  quad(ctx, [cx, base - h, cx + w / 2, base, cx + w * 0.14, base], matOf('#a8946c', tone));
+  quad(ctx, [cx - 7, base, cx, base - 13, cx + 7, base], matOf('#5a4632', tone));
+}
+function drawYard(ctx, b, cx, base, cam, tone, t, T, env, sc) {
+  var w = 104, h = 34, x = cx - w / 2, y = base - h;
+  ctx.fillStyle = matOf('#d9c9a0', tone); roundRect(ctx, x, y, w, h, 4); ctx.fill();
+  ctx.strokeStyle = matOf('#7a5c3a', tone); ctx.lineWidth = 2; ctx.beginPath();
+  for (var i = 0; i <= 6; i++) { ctx.moveTo(x + i * (w / 6), y); ctx.lineTo(x + i * (w / 6), y + 10); }
+  ctx.moveTo(x, y + 5); ctx.lineTo(x + w, y + 5); ctx.stroke();
+  ctx.fillStyle = matOf('#7a5c3a', tone); ctx.fillRect(cx + 30, y + 8, 3, 22); ctx.beginPath(); ctx.arc(cx + 31.5, y + 6, 5, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = matOf('#7a5c3a', tone); ctx.fillRect(cx - 36, y - 18, 2.4, 22);
+  quad(ctx, [cx - 34, y - 18, cx - 18, y - 14, cx - 34, y - 10], T.good);
+  drawWorks(ctx, b, x, y, w, base, T, tone, env, sc, t);
+  sceneAdd(sc, cam, 'training_ground', cx, base, w, y - 18, b.level);
+}
+function drawSmoke(ctx, x, y, t, tone) {
+  for (var k = 0; k < 3; k++) {
+    var ph = (t * 0.22 + k / 3) % 1, r = 2.5 + ph * 5, cy = y - ph * 26, cx = x + Math.sin((ph + k) * 6.28) * 4;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.2832);
+    ctx.fillStyle = tone.night > 0.5 ? 'rgba(200,200,210,' + (1 - ph) * 0.5 + ')' : 'rgba(90,100,95,' + (1 - ph) * 0.4 + ')'; ctx.fill();
+  }
+}
+
+/* ---------- décor de journée : tombes, trophées, feu, dragon ---------- */
+function drawExtras(ctx, cam, tone, t, T, lod, age) {
+  var out = threatOutcome(), ev = tb.phase === 'evening';
+  drawGraves(ctx, tone, age);
+  if (ev && tb.markers && tb.markers.trophy) drawTrophy(ctx, polyPoint(roadNow(cam), 0.4), T);
+  if (ev && out === 'vaincu') { drawDragonDown(ctx, 702, 388); drawLootSack(ctx, 632, 404, T); }
+  if (ev && tb.markers && tb.markers.burnt) drawBurnt(ctx, cam, t);
+}
+function drawBurnt(ctx, cam, t) {
+  var b = app.vm.buildings.filter(function (x) { return x.id === tb.markers.burnt; })[0];
+  if (!b || !(b.level | 0)) return;
+  var slot = slotOf(b.id, cam), dim = bsize(b);
+  drawFire(ctx, slot[0] - dim.w / 2, slot[1] - bodyH(b, cam.age) * 0.4, dim.w, t);
+}
+function drawGraves(ctx, tone, age) {
+  var G = GRAVE_SLOT[Math.max(0, Math.min(4, age))];
+  app.vm.village.graves.forEach(function (g, i) {
+    var x = G[0] + (i % GRAVE_D.perRow) * GRAVE_D.dx, y = G[1] + Math.floor(i / GRAVE_D.perRow) * GRAVE_D.dy;
+    ctx.fillStyle = matOf('#5b6b5b', tone); ctx.beginPath(); ctx.ellipse(x, y + 1, 6, 2.5, 0, 0, 6.2832); ctx.fill();
+    ctx.fillStyle = matOf('#c9cfc2', tone); roundRect(ctx, x - 4, y - 12, 8, 12, 3); ctx.fill();
+    ctx.fillStyle = matOf('#2f3531', tone); ctx.fillRect(x - 0.8, y - 10.5, 1.6, 8); ctx.fillRect(x - 3, y - 8.5, 6, 1.6);
+  });
+}
+function drawTrophy(ctx, p, T) {
+  ctx.fillStyle = T.gold; ctx.beginPath(); ctx.ellipse(p.x, p.y - 6, 9, 8, 0, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = '#7a5a12'; ctx.fillRect(p.x - 4, p.y - 16, 8, 3);
+  ctx.font = uiFont(9, 800); ctx.fillStyle = '#4a3400'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('or', p.x, p.y - 5);
+}
+function drawBanner(ctx, cx, top, result, T) {
+  var col = result === 'victoire' ? T.good : result === 'défaite' ? T.crit : T.muted;
+  ctx.fillStyle = '#3a2e27'; ctx.fillRect(cx - 1, top - 34, 2, 36);
+  quad(ctx, [cx + 1, top - 34, cx + 26, top - 27, cx + 1, top - 18], col);
+}
+function drawRuins(ctx, t) {
+  Object.keys(BSLOT).forEach(function (id, i) {
+    var p = BSLOT[id];
+    for (var k = 0; k < 4; k++) { var ph = (t * 0.12 + k / 4 + i * 0.13) % 1, r = 6 + ph * 14; ctx.fillStyle = 'rgba(40,38,42,' + (0.7 - ph * 0.6) + ')'; ctx.beginPath(); ctx.arc(p[0] + Math.sin((ph + k + i) * 6.28) * 12, p[1] - 30 - ph * 70, r, 0, 6.2832); ctx.fill(); }
+  });
+  ctx.fillStyle = 'rgba(52,50,56,0.42)'; ctx.fillRect(-300, -300, LW + 600, LH + 600);
+}
+function drawFlames(ctx, x, y, w, t, k) {
+  var n = Math.max(2, Math.round(w / 12));
+  for (var i = 0; i < n; i++) {
+    var fl = Math.sin(t * 7 + i * 1.7) * 0.5 + 0.5, fx = x + w * ((i + 0.5) / n), h = (12 + 12 * fl) * k;
+    quad(ctx, [fx - 6 * k, y, fx, y - h, fx + 6 * k, y], 'rgba(232,96,40,0.9)');
+    quad(ctx, [fx - 3 * k, y, fx, y - h * 0.55, fx + 3 * k, y], 'rgba(250,204,70,0.92)');
+  }
+}
+function drawFire(ctx, x, y, w, t) {
+  drawFlames(ctx, x, y, w, t, 1.2);
+  for (var j = 0; j < 4; j++) { var ph = (t * 0.18 + j / 4) % 1, r = 5 + ph * 10; ctx.fillStyle = 'rgba(28,28,32,' + (0.75 - ph * 0.6) + ')'; ctx.beginPath(); ctx.arc(x + w * 0.5 + Math.sin((ph + j) * 6.28) * 10, y - 18 - ph * 48, r, 0, 6.2832); ctx.fill(); }
+}
+function drawCampfire(ctx, x, y, t, tone) {
+  if (tone.night > 0.4) { var g = ctx.createRadialGradient(x, y, 2, x, y, 48); g.addColorStop(0, rgba(tone.warm, 0.45)); g.addColorStop(1, rgba(tone.warm, 0)); ctx.fillStyle = g; ctx.fillRect(x - 48, y - 48, 96, 96); }
+  ctx.strokeStyle = matOf('#5b4632', tone); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - 9, y + 3); ctx.lineTo(x + 9, y - 1); ctx.moveTo(x - 9, y - 1); ctx.lineTo(x + 9, y + 3); ctx.stroke();
+  drawFlames(ctx, x - 8, y - 1, 16, t, 0.6);
+}
+var BIOME_SKY = { forest: ['#3d6b4a', '#a8c49a'], mountain: ['#6b5f57', '#d9c7ae'], marsh: ['#40605e', '#a8bfa0'] };
+function raidBiome() { var t = app.vm && app.vm.threat; return t && t.biome_id && BIOME_SKY[t.biome_id] ? t.biome_id : 'forest'; }
+function drawSkyDragon(ctx, tone, t, th, out, hz) {
+  var flap = (Math.sin(t * 5) + 1) / 2, night = tone.night > 0.5, raid = raidToday();
+  if (raid && !night) {
+    var c = BIOME_SKY[raidBiome()], top = Math.max(0, hz - 150), g = ctx.createLinearGradient(0, top, 0, hz + 4);
+    g.addColorStop(0, rgba(c[0], 0)); g.addColorStop(0.55, rgba(c[0], 0.3)); g.addColorStop(1, rgba(c[1], 0.62));
+    ctx.fillStyle = g; ctx.fillRect(0, top, LW, hz + 4 - top);
+  }
+  if (!night && (th === 'today' || raid)) { var a = t * 0.45, x = 430 + Math.cos(a) * 190, y = hz * 0.5 + Math.sin(a) * 28; drawDragon(ctx, x, y, 1.15, flap, 'rgba(60,18,18,0.92)', -Math.sin(a) >= 0 ? 1 : -1); }
+  else if (night && th === 'presage') drawDragon(ctx, 703, hz * 0.34, 0.8, 0.35 + flap * 0.15, '#0f121e', -1);
+  else if (night && out === 'repoussé') drawDragon(ctx, 560 + Math.sin(t * 0.5) * 12, hz * 0.4, 0.72, flap, '#2a1a2a', 1);
+}
+/* Dragon : silhouette en contre-jour — cou tendu, ailes membranées, queue barbelée. */
+function drawDragon(ctx, x, y, sc, flap, color, dir) {
+  var wy = -34 + 26 * flap, dark = shade(color, 0.7);
+  ctx.save(); ctx.translate(x, y); ctx.scale(sc * (dir || 1), sc);
+  ctx.fillStyle = color; ctx.strokeStyle = color; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(-16, 1); ctx.quadraticCurveTo(-38, -4, -52, 12); ctx.stroke();
+  quad(ctx, [-48, 9, -62, 4, -50, 16], color);
+  ctx.fillStyle = color; ctx.beginPath(); ctx.ellipse(0, 0, 21, 8, -0.06, 0, 6.2832); ctx.fill();
+  ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(14, -2); ctx.quadraticCurveTo(26, -9, 31, -17); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(35, -19, 8, 5, -0.5, 0, 6.2832); ctx.fill();
+  quad(ctx, [40, -22, 48, -19, 39, -16], color);
+  quad(ctx, [31, -24, 27, -32, 36, -26], color);
+  quad(ctx, [6, -4, -14, wy, 2, wy + 9, 16, wy + 3, 21, -7], color);
+  ctx.strokeStyle = dark; ctx.lineWidth = 1.2; ctx.beginPath();
+  ctx.moveTo(6, -4); ctx.lineTo(-10, wy + 2); ctx.moveTo(6, -4); ctx.lineTo(4, wy + 8); ctx.moveTo(6, -4); ctx.lineTo(16, wy + 3); ctx.stroke();
+  quad(ctx, [-2, -3, -22, wy + 12, -6, wy + 17, 8, -2], shade(color, 0.82));
+  ctx.lineCap = 'butt'; ctx.restore();
+}
+function drawDragonDown(ctx, x, y) {
+  ctx.save(); ctx.translate(x, y); ctx.fillStyle = '#6e2a2a'; ctx.strokeStyle = '#6e2a2a'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.ellipse(0, 0, 30, 9, 0, 0, 6.2832); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-26, 2); ctx.quadraticCurveTo(-50, -2, -62, 10); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(24, -2); ctx.lineTo(44, 4); ctx.stroke();
+  quad(ctx, [40, -2, 58, 6, 40, 10], '#6e2a2a');
+  quad(ctx, [-6, -6, -30, -18, 10, -14], '#4d1d1d');
+  ctx.strokeStyle = '#f1d3b6'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(46, 1); ctx.lineTo(50, 5); ctx.moveTo(50, 1); ctx.lineTo(46, 5); ctx.stroke();
+  ctx.lineCap = 'butt'; ctx.restore();
+}
+function drawLootSack(ctx, x, y, T) {
+  ctx.fillStyle = '#8a6a3c'; ctx.beginPath(); ctx.ellipse(x, y, 9, 8, 0, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = '#6b5030'; ctx.fillRect(x - 3, y - 12, 6, 5);
+  ctx.fillStyle = T.gold; ctx.beginPath(); ctx.arc(x + 9, y + 4, 3, 0, 6.2832); ctx.fill();
+}
+
+/* ---------- figurines : cibles logiques inchangées, dessinées à travers la caméra ---------- */
 function spotFor(activity, idx) {
   if (activity === 'expedition') { var p = roadPoint(0.5 + idx * 0.09); return { x: p.x, y: p.y + 6 }; }
-  if (activity === 'raid') { var q = roadPoint(0.62 + idx * 0.08); return { x: q.x, y: q.y + 4 }; }   /* V5 : la route du donjon mène à la clairière */
+  if (activity === 'raid') { var q = roadPoint(0.62 + idx * 0.08); return { x: q.x, y: q.y + 4 }; }
   var s = SPOTS[activity] || SPOTS.idle;
   return { x: s.x + idx * s.dx, y: s.y, row: idx % 2 };
 }
@@ -1516,359 +2512,39 @@ function stepPositions(snap) {
   });
   return moving;
 }
-
-/* ---------- scène : dessin ---------- */
-function tokens() {
-  var cs = getComputedStyle(document.documentElement), out = {};
-  ['bg', 'surface', 'ink', 'muted', 'line', 'accent', 'gold', 'good', 'warn', 'crit', 'raised', 'epic'].forEach(function (k) { out[k] = cs.getPropertyValue('--' + k).trim() || '#888'; });
-  return out;
-}
-function rgba(hex, a) {
-  var m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(hex || '');
-  return m ? 'rgba(' + parseInt(m[1], 16) + ',' + parseInt(m[2], 16) + ',' + parseInt(m[3], 16) + ',' + a + ')' : 'rgba(128,128,128,' + a + ')';
-}
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r); ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
-}
-function uiFont(px, weight) { return (weight || 600) + ' ' + px + 'px ' + getComputedStyle(document.body).fontFamily; }
-function glyphFont(px) { return px + 'px "Segoe UI Symbol","Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Noto Sans Symbols2",sans-serif'; }
-function drawAll() {
-  var moving = stepPositions(motionMQ.matches);
-  drawScene($('scene'), false); drawScene($('widget-canvas'), true);
-  return moving;
-}
-function drawScene(canvas, mini) {
-  if (!canvas || !app.vm) return;
-  var dpr = window.devicePixelRatio || 1, W = canvas.clientWidth || (mini ? 158 : 600), H = mini ? Math.round(W * 0.58) : Math.round(W * (LH / LW));
-  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); canvas.style.height = H + 'px'; }
-  var ctx = canvas.getContext('2d'), s = W / LW, sy = H / LH, T = tokens(), evening = tb.phase === 'evening';
-  if (!mini) app.sceneScale = s;
-  var t = motionMQ.matches ? 0 : performance.now() / 1000, fs = mini ? 0.5 : Math.max(0.68, Math.min(1, s));
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
-  ctx.save(); ctx.scale(s, sy);
-  drawBackdrop(ctx, evening, t, T);
-  var order = Object.keys(BSLOT).sort(function (a, b) { return BSLOT[a][1] - BSLOT[b][1]; });
-  order.forEach(function (id) { var b = app.vm.buildings.filter(function (x) { return x.id === id; })[0]; if (b) drawBuilding(ctx, b, BSLOT[id], evening, t, T, mini); });
-  drawSceneExtras(ctx, evening, t, T);
-  if (app.vm.defeat) drawRuins(ctx, t);
-  ctx.restore();
-  if (!app.vm.defeat) drawFigures(ctx, s, sy, fs, T, mini, evening);
-  if (!mini) drawClock(ctx, W, H, evening, T);
-}
-function drawBackdrop(ctx, evening, t, T) {
-  var age = app.vm.village.age_index, th = threatPhase(), out = threatOutcome(), ruin = !!app.vm.defeat;
-  drawSky(ctx, evening, th === 'today', ruin);
-  if (raidToday() && !ruin) drawRaidSky(ctx, evening);
-  ctx.fillStyle = ruin ? '#5c6158' : evening ? '#26372b' : '#7ea86b'; ctx.beginPath(); ctx.moveTo(0, HORIZON + 4); ctx.quadraticCurveTo(200, HORIZON - 40, 420, HORIZON + 2); ctx.quadraticCurveTo(600, HORIZON - 30, LW, HORIZON + 6); ctx.lineTo(LW, HORIZON + 40); ctx.lineTo(0, HORIZON + 40); ctx.fill();
-  ctx.fillStyle = ruin ? '#6a6e62' : evening ? '#33482f' : '#9cc27d'; ctx.fillRect(0, HORIZON + 20, LW, LH - HORIZON - 20);
-  drawMountain(ctx, evening); drawForest(ctx, evening, t); drawRoad(ctx, evening, age); drawTrail(ctx, evening); drawDungeon(ctx, evening);
-  drawEnclosure(ctx, age, evening, T);
-  if (age >= 1) drawHouses(ctx, 2 + age, evening);
-  if (age === 0) drawCampfire(ctx, 322, 262, t, evening);
-  drawSkyDragon(ctx, evening, t, th, out);
-}
-/* Jour de raid : le ciel prend la couleur du biome du dragon (forêt : brume verte sur l'horizon). */
-var BIOME_SKY = { forest: ['#3d6b4a', '#a8c49a'], mountain: ['#6b5f57', '#d9c7ae'], marsh: ['#40605e', '#a8bfa0'] };
-function raidBiome() { var t = app.vm && app.vm.threat; return t && t.biome_id && BIOME_SKY[t.biome_id] ? t.biome_id : 'forest'; }
-function drawRaidSky(ctx, evening) {
-  var c = BIOME_SKY[raidBiome()], g = ctx.createLinearGradient(0, 0, 0, HORIZON);
-  g.addColorStop(0, evening ? '#16221b' : c[0]); g.addColorStop(1, evening ? '#2c3b30' : c[1]);
-  ctx.save(); ctx.globalAlpha = 0.72; ctx.fillStyle = g; ctx.fillRect(0, 0, LW, HORIZON + 4); ctx.restore();
-}
-function drawSky(ctx, evening, red, ruin) {
-  var g = ctx.createLinearGradient(0, 0, 0, HORIZON);
-  if (ruin) { g.addColorStop(0, '#585c60'); g.addColorStop(1, '#9a9a96'); }
-  else if (evening) { g.addColorStop(0, '#171d2e'); g.addColorStop(1, '#4a3d5a'); }
-  else if (red) { g.addColorStop(0, '#b4514a'); g.addColorStop(1, '#efc7a2'); }
-  else { g.addColorStop(0, '#bcd4e2'); g.addColorStop(1, '#eef1e4'); }
-  ctx.fillStyle = g; ctx.fillRect(0, 0, LW, HORIZON + 4);
-  if (ruin) return;
-  if (evening) { ctx.fillStyle = 'rgba(255,255,255,0.75)'; for (var i = 0; i < 26; i++) { var h = fnv1a('star' + i); ctx.fillRect(20 + (h % 760), 10 + ((h >>> 8) % 120), 1.6, 1.6); } }
-  else { var sx = 60 + (tb.hour - DAY_START) / 12 * (LW - 120), syy = HORIZON - 30 - Math.sin((tb.hour - DAY_START) / 12 * Math.PI) * 120; ctx.beginPath(); ctx.arc(sx, syy, 16, 0, 6.2832); ctx.fillStyle = red ? '#f0a050' : '#f2c94c'; ctx.fill(); }
-  if (evening) { ctx.beginPath(); ctx.arc(700, 60, 14, 0, 6.2832); ctx.fillStyle = '#e8e4c8'; ctx.fill(); ctx.beginPath(); ctx.arc(692, 54, 12, 0, 6.2832); ctx.fillStyle = '#2a2f45'; ctx.fill(); }
-}
-/* Ruines (défaite) : fumée sur chaque parcelle bâtie, voile gris sur tout le tableau, aucune figurine. */
-function drawRuins(ctx, t) {
-  Object.keys(BSLOT).forEach(function (id, i) { var p = BSLOT[id]; for (var k = 0; k < 4; k++) { var ph = (t * 0.12 + k / 4 + i * 0.13) % 1, r = 6 + ph * 14; ctx.fillStyle = 'rgba(40,38,42,' + (0.7 - ph * 0.6) + ')'; ctx.beginPath(); ctx.arc(p[0] + Math.sin((ph + k + i) * 6.28) * 12, p[1] - 30 - ph * 70, r, 0, 6.2832); ctx.fill(); } });
-  ctx.fillStyle = 'rgba(52,50,56,0.42)'; ctx.fillRect(0, 0, LW, LH);
-}
-function drawTrail(ctx, evening) {
-  ctx.save(); ctx.strokeStyle = evening ? 'rgba(78,74,60,0.9)' : 'rgba(201,188,152,0.95)'; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.setLineDash([9, 7]);
-  ctx.beginPath(); ctx.moveTo(SOLO_TRAIL[0][0], SOLO_TRAIL[0][1]); for (var i = 1; i < SOLO_TRAIL.length; i++) ctx.lineTo(SOLO_TRAIL[i][0], SOLO_TRAIL[i][1]); ctx.stroke(); ctx.restore();
-}
-function drawGraves(ctx, evening, T) {
-  app.vm.village.graves.forEach(function (g, i) {
-    var x = GRAVES.x + (i % GRAVES.perRow) * GRAVES.dx, y = GRAVES.y + Math.floor(i / GRAVES.perRow) * GRAVES.dy;
-    ctx.fillStyle = evening ? '#3f4a44' : '#5b6b5b'; ctx.beginPath(); ctx.ellipse(x, y + 1, 6, 2.5, 0, 0, 6.2832); ctx.fill();
-    ctx.fillStyle = evening ? '#9aa39c' : '#c9cfc2'; roundRect(ctx, x - 4, y - 12, 8, 12, 3); ctx.fill();
-    ctx.strokeStyle = evening ? '#3f4a44' : '#5D6B63'; ctx.lineWidth = 0.8; ctx.stroke();
-    ctx.fillStyle = evening ? '#1d2521' : '#2f3531'; ctx.fillRect(x - 0.8, y - 10.5, 1.6, 8); ctx.fillRect(x - 3, y - 8.5, 6, 1.6);
-  });
-}
-function drawTrophies(ctx, bx, by, dim, n) {
-  for (var i = 0; i < Math.min(n, 5); i++) {
-    var x = bx + 10 + i * 13, y = by - 3;
-    ctx.strokeStyle = '#3a2e27'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y + 4); ctx.lineTo(x, y - 8); ctx.stroke();
-    ctx.fillStyle = '#efe6d2'; ctx.beginPath(); ctx.arc(x, y - 11, 4.2, 0, 6.2832); ctx.fill(); ctx.fillRect(x - 2.5, y - 9, 5, 2.5);
-    ctx.fillStyle = '#2a2323'; ctx.fillRect(x - 2.4, y - 12.4, 1.6, 1.8); ctx.fillRect(x + 0.8, y - 12.4, 1.6, 1.8);
+/* La figurine suit le lieu de son activité : quand le bâtiment entre dans les murs, elle entre avec lui. */
+function figurePos(act, p, cam) {
+  var home = ACT_HOME[act], e;
+  if (home) { var d = slotOf(home, cam); return { x: p.x + d[0] - BSLOT[home][0], y: p.y + d[1] - BSLOT[home][1] }; }
+  if (act === 'solo') { var s = soloShift(cam); return { x: p.x + s[0], y: p.y + s[1] }; }
+  if (act === 'defend') { e = encNow(cam); return e ? { x: p.x + e.gx + 40 - 568, y: p.y + e.y1 + 34 - 414 } : p; }
+  if (act === 'expedition' || act === 'raid') {
+    var u = 0.55, a = polyPoint(ROAD, u), b = polyPoint(roadNow(cam), u);
+    return { x: p.x + b.x - a.x, y: p.y + b.y - a.y };
   }
+  return p;
 }
-function drawSkyDragon(ctx, evening, t, th, out) {
-  var flap = (Math.sin(t * 5) + 1) / 2;
-  if (!evening && th === 'today') { var a = t * 0.45, x = 430 + Math.cos(a) * 190, y = 95 + Math.sin(a) * 28; drawDragon(ctx, x, y, 1.15, flap, 'rgba(60,18,18,0.92)', -Math.sin(a) >= 0 ? 1 : -1); }
-  else if (evening && th === 'presage') drawDragon(ctx, 703, 64, 0.8, 0.35 + flap * 0.15, '#0f121e', -1);
-  else if (evening && out === 'repoussé') drawDragon(ctx, 560 + Math.sin(t * 0.5) * 12, 78 - Math.sin(t * 0.3) * 6, 0.72, flap, '#2a1a2a', 1);
-}
-function drawDragon(ctx, x, y, sc, flap, color, dir) {
-  var wy = -30 + 22 * flap;
-  ctx.save(); ctx.translate(x, y); ctx.scale(sc * (dir || 1), sc); ctx.fillStyle = color; ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.ellipse(0, 0, 22, 7, 0, 0, 6.2832); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(-18, 0); ctx.quadraticCurveTo(-36, -8, -50, 8); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(16, -2); ctx.lineTo(30, -14); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(26, -18); ctx.lineTo(42, -12); ctx.lineTo(28, -8); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(4, -4); ctx.lineTo(-16, wy); ctx.lineTo(-2, wy + 6); ctx.lineTo(12, wy + 2); ctx.lineTo(22, -6); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(-2, -3); ctx.lineTo(-22, wy + 10); ctx.lineTo(-8, wy + 14); ctx.lineTo(8, -2); ctx.closePath(); ctx.fill();
-  ctx.lineCap = 'butt'; ctx.restore();
-}
-function drawDragonDown(ctx, x, y) {
-  ctx.save(); ctx.translate(x, y); ctx.fillStyle = '#6e2a2a'; ctx.strokeStyle = '#6e2a2a'; ctx.lineWidth = 4; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.ellipse(0, 0, 30, 9, 0, 0, 6.2832); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(-26, 2); ctx.quadraticCurveTo(-50, -2, -62, 10); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(24, -2); ctx.lineTo(44, 4); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(40, -2); ctx.lineTo(58, 6); ctx.lineTo(40, 10); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#4d1d1d'; ctx.beginPath(); ctx.moveTo(-6, -6); ctx.lineTo(-30, -18); ctx.lineTo(10, -14); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = '#f1d3b6'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(46, 1); ctx.lineTo(50, 5); ctx.moveTo(50, 1); ctx.lineTo(46, 5); ctx.stroke();
-  ctx.lineCap = 'butt'; ctx.restore();
-}
-function drawLootSack(ctx, x, y, T) {
-  ctx.fillStyle = '#8a6a3c'; ctx.beginPath(); ctx.ellipse(x, y, 9, 8, 0, 0, 6.2832); ctx.fill();
-  ctx.fillStyle = '#6b5030'; ctx.fillRect(x - 3, y - 12, 6, 5);
-  ctx.fillStyle = T.gold; ctx.beginPath(); ctx.arc(x + 9, y + 4, 3, 0, 6.2832); ctx.fill();
-}
-function drawFlames(ctx, x, y, w, t, k) {
-  var n = Math.max(2, Math.round(w / 12));
-  for (var i = 0; i < n; i++) {
-    var fl = Math.sin(t * 7 + i * 1.7) * 0.5 + 0.5, fx = x + w * ((i + 0.5) / n), h = (12 + 12 * fl) * k;
-    ctx.fillStyle = 'rgba(232,96,40,0.9)'; ctx.beginPath(); ctx.moveTo(fx - 6 * k, y); ctx.lineTo(fx, y - h); ctx.lineTo(fx + 6 * k, y); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = 'rgba(250,204,70,0.92)'; ctx.beginPath(); ctx.moveTo(fx - 3 * k, y); ctx.lineTo(fx, y - h * 0.55); ctx.lineTo(fx + 3 * k, y); ctx.closePath(); ctx.fill();
-  }
-}
-function drawFire(ctx, x, y, w, t) {
-  drawFlames(ctx, x, y, w, t, 1.2);
-  for (var j = 0; j < 4; j++) { var ph = (t * 0.18 + j / 4) % 1, r = 5 + ph * 10; ctx.fillStyle = 'rgba(28,28,32,' + (0.75 - ph * 0.6) + ')'; ctx.beginPath(); ctx.arc(x + w * 0.5 + Math.sin((ph + j) * 6.28) * 10, y - 18 - ph * 48, r, 0, 6.2832); ctx.fill(); }
-}
-function drawCampfire(ctx, x, y, t, evening) {
-  if (evening) { var g = ctx.createRadialGradient(x, y, 2, x, y, 44); g.addColorStop(0, 'rgba(255,170,60,0.45)'); g.addColorStop(1, 'rgba(255,170,60,0)'); ctx.fillStyle = g; ctx.fillRect(x - 44, y - 44, 88, 88); }
-  ctx.strokeStyle = '#5b4632'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - 9, y + 3); ctx.lineTo(x + 9, y - 1); ctx.moveTo(x - 9, y - 1); ctx.lineTo(x + 9, y + 3); ctx.stroke();
-  drawFlames(ctx, x - 8, y - 1, 16, t, 0.6);
-}
-function drawTent(ctx, cx, base, evening) {
-  var w = 44, h = 28;
-  ctx.fillStyle = evening ? '#5a5040' : '#cdb78e'; ctx.beginPath(); ctx.moveTo(cx - w / 2, base); ctx.lineTo(cx, base - h); ctx.lineTo(cx + w / 2, base); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = evening ? '#3d3528' : '#8a744e'; ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.fillStyle = evening ? '#221d18' : '#5a4632'; ctx.beginPath(); ctx.moveTo(cx - 7, base); ctx.lineTo(cx, base - 13); ctx.lineTo(cx + 7, base); ctx.closePath(); ctx.fill();
-}
-function drawHouses(ctx, n, evening) {
-  HOUSES.slice(0, n).forEach(function (p, i) {
-    var w = 22 + (i % 2) * 6, h = 14, x = p[0] - w / 2, y = p[1] - h;
-    ctx.fillStyle = evening ? '#4a3d2c' : '#a5875c'; ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = evening ? '#2a2323' : '#5a4632'; ctx.beginPath(); ctx.moveTo(x - 2, y); ctx.lineTo(p[0], y - 9); ctx.lineTo(x + w + 2, y); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = evening ? '#ffd778' : '#e8e0c8'; ctx.fillRect(p[0] - 2, y + 5, 4, 4);
-  });
-}
-/* Enceinte : palissade au bourg, muraille crénelée en ville, douve + pont-levis + tours au château. */
-function wallSegments() { var s = []; [WALL_A, WALL_B].forEach(function (poly) { for (var i = 1; i < poly.length; i++) s.push([poly[i - 1], poly[i]]); }); return s; }
-function wallLength() { return wallSegments().reduce(function (a, s) { return a + Math.hypot(s[1][0] - s[0][0], s[1][1] - s[0][1]); }, 0); }
-function wallWalk(d) {
-  var segs = wallSegments(), acc = 0;
-  for (var i = 0; i < segs.length; i++) {
-    var s = segs[i], l = Math.hypot(s[1][0] - s[0][0], s[1][1] - s[0][1]);
-    if (d <= acc + l) { var u = l ? (d - acc) / l : 0; return { x: s[0][0] + (s[1][0] - s[0][0]) * u, y: s[0][1] + (s[1][1] - s[0][1]) * u }; }
-    acc += l;
-  }
-  return { x: segs[0][0][0], y: segs[0][0][1] };
-}
-function strokeWall(ctx, color, width) {
-  ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
-  [WALL_A, WALL_B].forEach(function (poly) { ctx.moveTo(poly[0][0], poly[0][1]); for (var i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]); });
-  ctx.stroke(); ctx.lineCap = 'butt';
-}
-function drawEnclosure(ctx, age, evening, T) {
-  if (age < 2) return;
-  var L = wallLength(), d;
-  if (age >= 4) strokeWall(ctx, evening ? 'rgba(58,96,150,0.75)' : 'rgba(92,152,214,0.8)', 26);
-  if (age === 2) {
-    strokeWall(ctx, evening ? '#5c4b34' : '#7a5c3a', 5); ctx.fillStyle = evening ? '#8c7654' : '#a8845a';
-    for (d = 0; d < L; d += 9) { var p = wallWalk(d); ctx.fillRect(p.x - 1.5, p.y - 11, 3, 12); ctx.beginPath(); ctx.moveTo(p.x - 1.5, p.y - 11); ctx.lineTo(p.x, p.y - 15); ctx.lineTo(p.x + 1.5, p.y - 11); ctx.fill(); }
-  } else {
-    strokeWall(ctx, evening ? '#4e4c48' : '#8e8a80', 9); ctx.fillStyle = evening ? '#66635c' : '#b3ada0';
-    for (d = 0; d < L; d += 12) { var q = wallWalk(d); ctx.fillRect(q.x - 2.5, q.y - 9, 5, 5); }
-    drawTower(ctx, 613, 342, evening, T, false); drawTower(ctx, 601, 376, evening, T, false);
-  }
-  if (age >= 4) { drawDrawbridge(ctx, evening); TOWERS.forEach(function (p) { drawTower(ctx, p[0], p[1], evening, T, true); }); }
-}
-function drawTower(ctx, x, y, evening, T, big) {
-  var w = big ? 16 : 12, h = big ? 34 : 24;
-  ctx.fillStyle = evening ? '#5a5751' : '#9c978a'; ctx.fillRect(x - w / 2, y - h, w, h);
-  ctx.fillStyle = evening ? '#2a2323' : '#4a3a31'; ctx.beginPath(); ctx.moveTo(x - w / 2 - 2, y - h); ctx.lineTo(x, y - h - (big ? 14 : 10)); ctx.lineTo(x + w / 2 + 2, y - h); ctx.closePath(); ctx.fill();
-  if (big) { ctx.fillStyle = T.accent; ctx.fillRect(x - 0.5, y - h - 24, 1, 12); ctx.beginPath(); ctx.moveTo(x, y - h - 24); ctx.lineTo(x + 8, y - h - 21); ctx.lineTo(x, y - h - 18); ctx.closePath(); ctx.fill(); }
-}
-function drawDrawbridge(ctx, evening) {
-  ctx.save(); ctx.translate(GATE.x, GATE.y); ctx.rotate(Math.atan2(43, 120)); ctx.fillStyle = evening ? '#5a4630' : '#8a6a3c'; ctx.fillRect(-20, -13, 40, 26);
-  ctx.strokeStyle = evening ? '#3d2f20' : '#6b5030'; ctx.lineWidth = 1; ctx.beginPath(); for (var i = -14; i <= 14; i += 7) { ctx.moveTo(i, -13); ctx.lineTo(i, 13); } ctx.stroke(); ctx.restore();
-}
-function drawGuildBanner(ctx, x, y, T) {
-  ctx.fillStyle = '#3a2e27'; ctx.fillRect(x, y - 30, 2, 32);
-  ctx.fillStyle = T.accent; ctx.beginPath(); ctx.moveTo(x + 2, y - 30); ctx.lineTo(x + 22, y - 25); ctx.lineTo(x + 2, y - 16); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = T.gold; ctx.beginPath(); ctx.arc(x + 8, y - 24, 2.2, 0, 6.2832); ctx.fill();
-}
-/* Gardes : 2 à la porte au bourg, patrouille sur l'enceinte ensuite (position = heure simulée, déterministe). En alerte, tous à la porte, armes levées. */
-function drawGuards(ctx, age, guards, evening, alert) {
-  if (age < 2 || !guards) return;
-  var n = Math.min(guards, 6), k;
-  if (alert) { for (k = 0; k < n; k++) drawGuard(ctx, 596 - k * 14, 380 + k * 8, evening, true); return; }
-  if (age === 2) { drawGuard(ctx, 592, 388, evening, false); if (n > 1) drawGuard(ctx, 624, 350, evening, false); return; }
-  var L = wallLength(), frac = ((tb.hour - DAY_START) / 12) * 0.5;
-  for (k = 0; k < n; k++) { var p = wallWalk((((frac + k / n) % 1) + 1) % 1 * L); drawGuard(ctx, p.x, p.y - 3, evening, false); }
-}
-function drawGuard(ctx, x, y, evening, raised) {
-  var body = evening ? '#6a6f74' : '#8a8f94', tip = x + 6 + (raised ? 6 : 0);
-  ctx.fillStyle = body; roundRect(ctx, x - 4, y - 12, 8, 11, 2); ctx.fill();
-  ctx.fillStyle = '#3a3232'; ctx.fillRect(x - 3.5, y - 2, 3, 3); ctx.fillRect(x + 0.5, y - 2, 3, 3);
-  ctx.fillStyle = evening ? '#c9b8a6' : '#e7cdb4'; ctx.beginPath(); ctx.arc(x, y - 15.5, 3.5, 0, 6.2832); ctx.fill();
-  ctx.fillStyle = body; ctx.beginPath(); ctx.arc(x, y - 16.5, 3.8, Math.PI, 0); ctx.fill();
-  ctx.strokeStyle = '#5b4632'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x + 6, y); ctx.lineTo(tip, y - 26); ctx.stroke();
-  ctx.fillStyle = '#c8c2b4'; ctx.beginPath(); ctx.moveTo(tip, y - 31); ctx.lineTo(tip - 2.5, y - 25); ctx.lineTo(tip + 2.5, y - 25); ctx.closePath(); ctx.fill();
-}
-function drawSceneExtras(ctx, evening, t, T) {
-  var v = app.vm.village, out = threatOutcome(), th = threatPhase();
-  drawGraves(ctx, evening, T);
-  if (evening && tb.markers && tb.markers.trophy) drawTrophy(ctx, roadPoint(0.4), T);
-  if (evening && out === 'vaincu') { drawDragonDown(ctx, 702, 388); drawLootSack(ctx, 632, 404, T); }
-  drawGuards(ctx, v.age_index, v.guards, evening, th === 'today' || !!out);
-}
-function drawMountain(ctx, evening) {
-  ctx.fillStyle = evening ? '#4a4a55' : '#9a9aa6'; ctx.beginPath(); ctx.moveTo(30, 215); ctx.lineTo(120, 100); ctx.lineTo(215, 215); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = evening ? '#8b8b96' : '#f2f2f6'; ctx.beginPath(); ctx.moveTo(100, 126); ctx.lineTo(120, 100); ctx.lineTo(140, 126); ctx.lineTo(128, 130); ctx.lineTo(118, 122); ctx.lineTo(108, 130); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#2b2622'; ctx.beginPath(); ctx.moveTo(105, 215); ctx.quadraticCurveTo(120, 180, 137, 215); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = evening ? '#6b5a3a' : '#8a6d3b'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(98, 216); ctx.lineTo(146, 216); ctx.stroke();
-}
-function drawForest(ctx, evening, t) {
-  var trees = [[28, 268], [62, 250], [96, 275], [140, 262], [176, 280], [20, 300], [56, 312], [110, 306], [160, 318], [200, 300]];
-  trees.forEach(function (p, i) {
-    var h = 34 + (i % 3) * 8, w = 20 + (i % 2) * 6, sway = Math.sin(t * 1.3 + i) * 1.2;
-    ctx.fillStyle = '#5b4632'; ctx.fillRect(p[0] - 2, p[1] - 8, 4, 8);
-    ctx.fillStyle = evening ? (i % 2 ? '#1f3a2a' : '#25452f') : (i % 2 ? '#3e7a4a' : '#4c8f56');
-    ctx.beginPath(); ctx.moveTo(p[0] + sway, p[1] - h); ctx.lineTo(p[0] - w / 2, p[1] - 8); ctx.lineTo(p[0] + w / 2, p[1] - 8); ctx.closePath(); ctx.fill();
-  });
-}
-/* Route : sentier au campement, terre au hameau, pavée à partir du bourg. */
-function drawRoad(ctx, evening, age) {
-  var outer = age === 0 ? (evening ? '#4e4a3c' : '#c9bc98') : age === 1 ? (evening ? '#4f3f2c' : '#b8925e') : (evening ? '#4b4a46' : '#aaa596');
-  var inner = age === 0 ? null : age === 1 ? (evening ? '#5d4c36' : '#cfa974') : (evening ? '#5a5955' : '#c5c0b1');
-  ctx.strokeStyle = outer; ctx.lineWidth = age === 0 ? 10 : age === 1 ? 22 : 26; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.beginPath(); ctx.moveTo(ROAD[0][0], ROAD[0][1]); for (var i = 1; i < ROAD.length; i++) ctx.lineTo(ROAD[i][0], ROAD[i][1]); ctx.stroke();
-  if (inner) { ctx.strokeStyle = inner; ctx.lineWidth = age === 1 ? 12 : 14; ctx.stroke(); }
-  if (age >= 2) { ctx.fillStyle = evening ? 'rgba(0,0,0,0.25)' : 'rgba(80,75,65,0.28)'; for (var k = 0; k < 28; k++) { var p = roadPoint(k / 28), h = fnv1a('pave' + k); ctx.fillRect(p.x - 8 + (h % 14), p.y - 5 + ((h >>> 6) % 9), 3, 2); } }
-  ctx.lineCap = 'butt';
-}
-function drawDungeon(ctx, evening) {
-  ctx.fillStyle = evening ? '#3a3540' : '#6f6a78'; ctx.beginPath(); ctx.moveTo(700, 215); ctx.lineTo(735, 130); ctx.lineTo(775, 150); ctx.lineTo(800, 120); ctx.lineTo(800, 215); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#1a1519'; ctx.beginPath(); ctx.moveTo(752, 215); ctx.lineTo(752, 185); ctx.quadraticCurveTo(770, 160, 788, 185); ctx.lineTo(788, 215); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = evening ? '#e06b6b' : '#b23a3a'; ctx.fillRect(768, 150, 2, 22); ctx.beginPath(); ctx.moveTo(770, 150); ctx.lineTo(786, 156); ctx.lineTo(770, 162); ctx.closePath(); ctx.fill();
-  ctx.font = uiFont(10, 700); ctx.fillStyle = evening ? '#cfc7d6' : '#3b3644'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillText('Donjon', 770, 232);
-}
-function bsize(b) { var size = Math.max(1, Math.min(3, Number(b.decor.size) || b.level || 1)); return { size: size, w: 44 + 24 * size, h: 26 + 13 * size }; }
-function cssColor(c, T) { return typeof c === 'string' && /^#[0-9a-f]{3,8}$/i.test(c) ? c : (T[c] || T.accent); }
-function drawBuilding(ctx, b, slot, evening, t, T, mini) {
-  var d = b.decor, dim = bsize(b), cx = slot[0], base = slot[1], bx = cx - dim.w / 2, by = base - dim.h;
-  if ((b.level | 0) === 0) { drawEmptyLot(ctx, b, cx, base, dim, T, evening, mini, t); return; }
-  if (b.id === 'training_ground') { drawYard(ctx, cx, base, dim, evening, t, T); return; }
-  var color = cssColor(d.color, T);
-  ctx.fillStyle = evening ? shade(color, 0.55) : color; roundRect(ctx, bx, by, dim.w, dim.h, 3); ctx.fill();
-  ctx.fillStyle = evening ? '#2a2323' : '#4a3a31'; ctx.beginPath(); ctx.moveTo(bx - 4, by + 1); ctx.lineTo(cx, by - dim.h * 0.55); ctx.lineTo(bx + dim.w + 4, by + 1); ctx.closePath(); ctx.fill();
-  if (b.id === 'chapel') { ctx.fillStyle = evening ? '#2a2323' : '#4a3a31'; ctx.fillRect(cx - 5, by - dim.h * 0.55 - 22, 10, 24); ctx.fillStyle = T.gold; ctx.fillRect(cx - 1, by - dim.h * 0.55 - 32, 2, 10); ctx.fillRect(cx - 4, by - dim.h * 0.55 - 29, 8, 2); }
-  ctx.fillStyle = evening ? '#1d1a18' : '#3a2e27'; ctx.fillRect(cx - 6, base - 16, 12, 16);
-  var lit = evening && d.light; ctx.fillStyle = lit ? '#ffd778' : (evening ? '#2a2a33' : '#dbe7ee');
-  ctx.fillRect(bx + 8, by + dim.h * 0.35, 9, 9); ctx.fillRect(bx + dim.w - 17, by + dim.h * 0.35, 9, 9);
-  if (lit) { var g = ctx.createRadialGradient(cx, base - 10, 4, cx, base - 10, dim.w * 0.7); g.addColorStop(0, 'rgba(255,200,90,0.35)'); g.addColorStop(1, 'rgba(255,200,90,0)'); ctx.fillStyle = g; ctx.fillRect(bx - 30, by - 20, dim.w + 60, dim.h + 50); }
-  if (d.smoke) drawSmoke(ctx, bx + dim.w * 0.78, by - dim.h * 0.4, t, evening);
-  if (!mini) { ctx.font = glyphFont(9 + 3 * dim.size); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fillText(String(d.glyph || ''), cx, by + dim.h * 0.32); }
-  if (evening && tb.markers && tb.markers.scaffold === b.id) drawScaffold(ctx, bx, by, dim, T);
-  if (evening && b.id === 'hall' && tb.markers && tb.markers.banner) drawBanner(ctx, cx, by - dim.h * 0.55, tb.markers.banner, T);
-  if (b.id === 'hall' && app.vm.village.age_index >= 4) drawGuildBanner(ctx, bx + 8, by + 2, T);
-  if (b.id === 'hall' && app.vm.village.trophies.length) drawTrophies(ctx, bx, by, dim, app.vm.village.trophies.length);
-  if (evening && tb.markers && tb.markers.burnt === b.id) drawFire(ctx, bx, by - dim.h * 0.15, dim.w, t);
-}
-function shade(hex, k) { var m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(hex); if (!m) return hex; return 'rgb(' + Math.round(parseInt(m[1], 16) * k) + ',' + Math.round(parseInt(m[2], 16) * k) + ',' + Math.round(parseInt(m[3], 16) * k) + ')'; }
-function drawEmptyLot(ctx, b, cx, base, dim, T, evening, mini, t) {
-  var w = Math.max(dim.w, 98), h = dim.h * 0.8, x = cx - w / 2, y = base - h, camp = app.vm.village.age_index === 0;
-  if (camp) drawTent(ctx, cx, base, evening);
-  else { ctx.save(); ctx.setLineDash([4, 3]); ctx.strokeStyle = evening ? '#9aa79f' : '#5D6B63'; ctx.lineWidth = 1.2; roundRect(ctx, x, y, w, h, 4); ctx.stroke(); ctx.restore(); }
-  if (evening && tb.markers && tb.markers.scaffold === b.id) drawScaffold(ctx, x, y, { w: w, h: h }, T);
-  if (evening && tb.markers && tb.markers.burnt === b.id) drawFire(ctx, x + 10, base - 6, w - 20, t || 0);
-  if (mini) return;
-  ctx.fillStyle = evening ? '#c9d1cc' : '#3d4a42'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  var lines = ctx.canvas.clientWidth >= 520 ? wrapName(ctx, b.name, w - 8, uiFont(9, 600)) : [];
-  if (camp) { lines.forEach(function (l, i) { ctx.font = uiFont(8, 600); ctx.fillText(l, cx, base + 7 + i * 9); }); return; }
-  lines.forEach(function (l, i) { ctx.font = uiFont(9, 600); ctx.fillText(l, cx, y + 8 + i * 10); });
-  ctx.font = uiFont(lines.length ? 8 : 9, 500); ctx.fillText('à bâtir', cx, base - 8);
-}
-function wrapName(ctx, name, maxW, font) {
-  ctx.font = font;
-  if (ctx.measureText(name).width <= maxW) return [name];
-  var words = String(name).split(' '), lines = [], cur = '';
-  words.forEach(function (wd) { var t = cur ? cur + ' ' + wd : wd; if (ctx.measureText(t).width <= maxW || !cur) cur = t; else { lines.push(cur); cur = wd; } });
-  if (cur) lines.push(cur);
-  return lines.slice(0, 2).map(function (l) { while (l.length > 2 && ctx.measureText(l).width > maxW) l = l.slice(0, -2) + '…'; return l; });
-}
-function drawYard(ctx, cx, base, dim, evening, t, T) {
-  var w = 104, h = 34, x = cx - w / 2, y = base - h;
-  ctx.fillStyle = evening ? '#5a5240' : '#d9c9a0'; roundRect(ctx, x, y, w, h, 4); ctx.fill();
-  ctx.strokeStyle = evening ? '#8a7a55' : '#7a5c3a'; ctx.lineWidth = 2; ctx.beginPath();
-  for (var i = 0; i <= 6; i++) { ctx.moveTo(x + i * (w / 6), y); ctx.lineTo(x + i * (w / 6), y + 10); }
-  ctx.moveTo(x, y + 5); ctx.lineTo(x + w, y + 5); ctx.stroke();
-  ctx.fillStyle = evening ? '#8a7a55' : '#7a5c3a'; ctx.fillRect(cx + 30, y + 8, 3, 22); ctx.beginPath(); ctx.arc(cx + 31.5, y + 6, 5, 0, 6.2832); ctx.fill();
-  if (evening && tb.markers && tb.markers.scaffold === 'training_ground') drawScaffold(ctx, x, y, { w: w, h: h }, T);
-}
-function drawSmoke(ctx, x, y, t, evening) {
-  for (var k = 0; k < 3; k++) {
-    var ph = (t * 0.22 + k / 3) % 1, r = 2.5 + ph * 5, cy = y - ph * 26, cx = x + Math.sin((ph + k) * 6.28) * 4;
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.2832); ctx.fillStyle = evening ? 'rgba(200,200,210,' + (1 - ph) * 0.5 + ')' : 'rgba(90,100,95,' + (1 - ph) * 0.4 + ')'; ctx.fill();
-  }
-}
-function drawScaffold(ctx, bx, by, dim, T) {
-  ctx.save(); ctx.strokeStyle = T.gold; ctx.lineWidth = 1.5; ctx.beginPath();
-  for (var i = 0; i <= 3; i++) { var x = bx - 4 + i * ((dim.w + 8) / 3); ctx.moveTo(x, by - 6); ctx.lineTo(x, by + dim.h); }
-  for (var j = 0; j <= 2; j++) { var y = by - 6 + j * ((dim.h + 6) / 2); ctx.moveTo(bx - 4, y); ctx.lineTo(bx + dim.w + 4, y); }
-  ctx.stroke(); ctx.restore();
-}
-function drawBanner(ctx, cx, top, result, T) {
-  var col = result === 'victoire' ? T.good : result === 'défaite' ? T.crit : T.muted;
-  ctx.fillStyle = '#3a2e27'; ctx.fillRect(cx - 1, top - 34, 2, 36);
-  ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(cx + 1, top - 34); ctx.lineTo(cx + 26, top - 27); ctx.lineTo(cx + 1, top - 18); ctx.closePath(); ctx.fill();
-}
-function drawTrophy(ctx, p, T) {
-  ctx.fillStyle = T.gold; ctx.beginPath(); ctx.ellipse(p.x, p.y - 6, 9, 8, 0, 0, 6.2832); ctx.fill();
-  ctx.fillStyle = '#7a5a12'; ctx.fillRect(p.x - 4, p.y - 16, 8, 3);
-  ctx.font = uiFont(9, 800); ctx.fillStyle = '#4a3400'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('or', p.x, p.y - 5);
-}
-function drawFigures(ctx, s, sy, fs, T, mini, evening) {
+function drawFigures(ctx, s, sy, fs, T, mini, evening, cam) {
   var order = app.managers.slice().sort(function (a, b) { return (tb.pos[a.id] || { y: 0 }).y - (tb.pos[b.id] || { y: 0 }).y; });
   order.forEach(function (m) {
-    var p = tb.pos[m.id]; if (!p) return;
+    var p0 = tb.pos[m.id]; if (!p0) return;
     var h = heroOf(m.id), act = h ? tb.placed[m.id] : 'dead', mk = tb.markers || { injured: {}, levelUp: {}, limping: {} };
-    drawFigure(ctx, { x: p.x * s, y: p.y * sy, fs: fs, color: CLASS_COLOR[h ? h.class_id : ''] || T.accent, initial: m.name.charAt(0).toUpperCase(), name: mini ? '' : m.name, row: p.row || 0,
+    var p = figurePos(act, p0, cam);
+    drawFigure(ctx, { x: camX(cam, p.x) * s, y: camY(cam, p.y) * sy, fs: fs, color: CLASS_COLOR[h ? h.class_id : ''] || T.accent, initial: m.name.charAt(0).toUpperCase(), name: mini ? '' : m.name, row: p0.row || 0,
       ghost: !act || act === 'dead', dead: !h, seated: act === 'rest', lying: act === 'injured', limping: !!mk.limping[m.id], star: !!mk.levelUp[m.id], cross: act === 'injured', mine: m.id === ME, armed: act === 'defend' || act === 'raid', solo: act === 'solo', aura: act === 'raid' }, T, evening);
   });
-  if (mini || evening) return;
-  tb.bubbles.filter(function (b) { return b.until > tb.hour; }).slice(-2).forEach(function (b) { var p = tb.pos[b.id]; if (p) drawBubble(ctx, p.x * s, p.y * sy - 46 * fs, b.text, T, s * LW); });
+  if (mini || tb.phase === 'evening') return;
+  tb.bubbles.filter(function (b) { return b.until > tb.hour; }).slice(-2).forEach(function (b) {
+    var p = tb.pos[b.id]; if (!p) return;
+    var q = figurePos(tb.placed[b.id] || 'idle', p, cam);
+    drawBubble(ctx, camX(cam, q.x) * s, camY(cam, q.y) * sy - 46 * fs, b.text, T, s * LW);
+  });
 }
 function drawFigure(ctx, f, T, evening) {
   var u = f.fs, hr = 5.5 * u, bw = 13 * u, bh = 15 * u, lg = 8 * u;
   ctx.save(); ctx.translate(f.x, f.y);
   if (f.aura) { var g = ctx.createRadialGradient(0, -14 * u, 2 * u, 0, -14 * u, 22 * u); g.addColorStop(0, rgba(T.crit, 0.55)); g.addColorStop(1, rgba(T.crit, 0)); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, -14 * u, 22 * u, 0, 6.2832); ctx.fill(); }
+  ctx.fillStyle = 'rgba(30,40,30,0.2)'; ctx.beginPath(); ctx.ellipse(0, 0, bw * 0.66, 2.3 * u, 0, 0, 6.2832); ctx.fill();
   if (f.lying) { ctx.rotate(-Math.PI / 2); ctx.translate(-4 * u, 0); }
   else if (f.limping) ctx.rotate(0.22);
   ctx.lineWidth = 1.5;
@@ -1882,16 +2558,16 @@ function drawFigure(ctx, f, T, evening) {
   ctx.font = uiFont(Math.max(8, 9 * u), 800); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = f.ghost ? (evening ? '#c9d1cc' : '#5D6B63') : '#fff';
   ctx.fillText(f.ghost ? '?' : f.initial, 0, -lg - (f.seated ? bh * 0.35 : bh * 0.5));
   if (f.limping) { ctx.strokeStyle = '#5b4632'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bw / 2 + 2 * u, -lg - bh * 0.6); ctx.lineTo(bw / 2 + 6 * u, 0); ctx.stroke(); }
-  if (f.armed) { var tx = bw / 2 + 9 * u, ty = -lg - bh - hr * 2 - 8 * u; ctx.strokeStyle = '#5b4632'; ctx.lineWidth = 2 * u; ctx.beginPath(); ctx.moveTo(bw / 2, -lg - bh * 0.7); ctx.lineTo(tx, ty); ctx.stroke(); ctx.fillStyle = '#d6d0c2'; ctx.beginPath(); ctx.moveTo(tx + 1.5 * u, ty - 7 * u); ctx.lineTo(tx - 3 * u, ty + 1 * u); ctx.lineTo(tx + 3.5 * u, ty + 2 * u); ctx.closePath(); ctx.fill(); }
+  if (f.armed) { var tx = bw / 2 + 9 * u, ty = -lg - bh - hr * 2 - 8 * u; ctx.strokeStyle = '#5b4632'; ctx.lineWidth = 2 * u; ctx.beginPath(); ctx.moveTo(bw / 2, -lg - bh * 0.7); ctx.lineTo(tx, ty); ctx.stroke(); quad(ctx, [tx + 1.5 * u, ty - 7 * u, tx - 3 * u, ty + 1 * u, tx + 3.5 * u, ty + 2 * u], '#d6d0c2'); }
   if (f.dead) { ctx.fillStyle = '#111'; ctx.fillRect(-bw / 2 - 1, -lg - bh * 0.72, bw + 2, 3.2 * u); }
-  if (f.solo) { var sx = bw / 2 + 4 * u, sy0 = -lg - bh - 10 * u; ctx.strokeStyle = '#5b4632'; ctx.lineWidth = 1.5 * u; ctx.beginPath(); ctx.moveTo(sx, -lg - bh * 0.6); ctx.lineTo(sx, sy0); ctx.stroke(); ctx.fillStyle = T.accent; ctx.beginPath(); ctx.moveTo(sx, sy0); ctx.lineTo(sx + 9 * u, sy0 + 3 * u); ctx.lineTo(sx, sy0 + 6 * u); ctx.closePath(); ctx.fill(); }
+  if (f.solo) { var sx = bw / 2 + 4 * u, sy0 = -lg - bh - 10 * u; ctx.strokeStyle = '#5b4632'; ctx.lineWidth = 1.5 * u; ctx.beginPath(); ctx.moveTo(sx, -lg - bh * 0.6); ctx.lineTo(sx, sy0); ctx.stroke(); quad(ctx, [sx, sy0, sx + 9 * u, sy0 + 3 * u, sx, sy0 + 6 * u], T.accent); }
   ctx.restore();
   drawFigureMarks(ctx, f, u, hr + bh + lg + 2, T, evening);
 }
 function drawFigureMarks(ctx, f, u, top, T, evening) {
   if (f.cross) { ctx.fillStyle = T.crit; ctx.fillRect(f.x + 14 * u, f.y - 30 * u, 4 * u, 14 * u); ctx.fillRect(f.x + 9 * u, f.y - 25 * u, 14 * u, 4 * u); }
   if (f.star) drawStar(ctx, f.x, f.y - top - 10 * u, 6 * u, T.gold);
-  if (f.mine && !f.ghost) { ctx.fillStyle = T.accent; ctx.beginPath(); ctx.moveTo(f.x, f.y - top - 4 * u); ctx.lineTo(f.x - 4 * u, f.y - top - 10 * u); ctx.lineTo(f.x + 4 * u, f.y - top - 10 * u); ctx.closePath(); ctx.fill(); }
+  if (f.mine && !f.ghost) quad(ctx, [f.x, f.y - top - 4 * u, f.x - 4 * u, f.y - top - 10 * u, f.x + 4 * u, f.y - top - 10 * u], T.accent);
   if (!f.name) return;
   var fy = f.y + (f.lying ? 10 : 12) * u + f.row * (app.sceneScale < 0.6 ? 9.5 : 11) * u;
   ctx.font = uiFont(app.sceneScale < 0.6 ? 8.5 : Math.max(9, 10 * u), 600); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
@@ -1906,14 +2582,14 @@ function drawStar(ctx, cx, cy, r, color) {
 function drawBubble(ctx, x, y, text, T, W) {
   ctx.font = uiFont(11, 600); var w = ctx.measureText(text).width + 16, h = 22, bx = Math.max(4, Math.min(W - w - 4, x - w / 2)), by = y - h;
   ctx.fillStyle = T.surface; ctx.strokeStyle = T.line; ctx.lineWidth = 1; roundRect(ctx, bx, by, w, h, 6); ctx.fill(); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x - 4, by + h); ctx.lineTo(x, by + h + 5); ctx.lineTo(x + 4, by + h); ctx.closePath(); ctx.fillStyle = T.surface; ctx.fill();
+  quad(ctx, [x - 4, by + h, x, by + h + 5, x + 4, by + h], T.surface);
   ctx.fillStyle = T.ink; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(text, bx + 8, by + h / 2 + 0.5);
 }
-function drawClock(ctx, W, H, evening, T) {
-  var label = evening ? 'Soir' : Math.floor(tb.hour) + 'h';
+function drawClock(ctx, W, H, night, T) {
+  var label = tb.phase === 'evening' ? 'Soir' : Math.floor(tb.hour) + 'h';
   ctx.font = uiFont(12, 700); var w = ctx.measureText(label).width + 16;
-  ctx.fillStyle = evening ? 'rgba(20,26,23,0.6)' : 'rgba(255,255,255,0.7)'; roundRect(ctx, W - w - 8, 8, w, 22, 11); ctx.fill();
-  ctx.fillStyle = evening ? '#e8ece7' : '#1B2620'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, W - w / 2 - 8, 19);
+  ctx.fillStyle = night ? 'rgba(20,26,23,0.6)' : 'rgba(255,255,255,0.7)'; roundRect(ctx, W - w - 8, 8, w, 22, 11); ctx.fill();
+  ctx.fillStyle = night ? '#e8ece7' : '#1B2620'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, W - w / 2 - 8, 19);
 }
 function sceneLoop(now) {
   app.raf = 0;
