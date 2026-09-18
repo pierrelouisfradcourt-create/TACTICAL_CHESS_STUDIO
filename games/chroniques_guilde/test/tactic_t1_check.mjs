@@ -395,6 +395,116 @@ check('(4a) les 25 sorts (arme + 4 par classe) sont lancés au moins une fois pa
   check('(7) previewCast : pur (mêmes entrées → même sortie, vue non mutée) et cohérent avec raidAction sur ' + (agree + disagree) + ' (sort, case) : validité identique, dégâts réels dans [min, max critique] (' + dmgOk + ' coups)', pureBad === 0 && disagree === 0 && dmgBad === 0 && dmgOk > 20, (disagree + dmgBad + pureBad) + ' écart(s) ' + samples.join(' | '));
 }
 
+
+// ---- (8) V5 T2b §B1 : les passages humains sont rejoués dans l'ordre de RÉCEPTION, donc sur la grille du matin ----
+// Avant la tranche : 40 passages sur 56 interrompus (71 %), 3,09 action jouée par passage. Attendu : ≤ 10 %.
+{
+  const B1 = MANAGERS.slice(0, 5);
+  let raidDays = 0, cutDays = 0, played = 0, plannedActs = 0;
+  const cutWhy = [];
+  for (let seed = 1; seed <= 12; seed++) {
+    let s = sim.newGame(seed, data, { managers: B1 });
+    for (let d = 0; d < DAYS; d++) {
+      const vm = sim.viewModel(s, 'p1');
+      let a = acts(s), human = null;
+      if (vm.raid && vm.raid.active && vm.raid.me && vm.raid.me.can_play && vm.raid.me.default_actions.length) {
+        human = { manager_id: 'p1', day: s.day, type: 'raid_pass', payload: { adventurer_id: vm.raid.me.hero_id, actions: vm.raid.me.default_actions } };
+        a = a.filter(x => !(x.manager_id === 'p1' && x.type === 'raid_pass')).concat([human]);
+        plannedActs += vm.raid.me.default_actions.length; raidDays++;
+      }
+      const r = sim.resolveDay(s, a);
+      if (human) {
+        const P = (r.state.raid ? r.state.raid.passes_done : []).filter(p => p.day === s.day && p.hero_id === human.payload.adventurer_id)[0];
+        played += P ? P.actions : 0;
+        const n = (r.state.notices || []).filter(t => /passage de .* interrompu/.test(t));
+        if (n.length) { cutDays++; if (cutWhy.length < 3) cutWhy.push(n[0]); }
+      }
+      s = r.state;
+    }
+  }
+  const pctCut = raidDays ? Math.round(cutDays * 1000 / raidDays) / 10 : 0;
+  const perPass = raidDays ? Math.round(played * 100 / raidDays) / 100 : 0;
+  check('(8) §B1 ordre de réception : passages humains interrompus ≤ 10 % sur 12 graines × 30 jours, et > 1 action jouée par passage',
+    raidDays >= 20 && pctCut <= 10 && perPass > 1,
+    raidDays + ' jours de raid humains · ' + cutDays + ' interrompus (' + pctCut + ' %) · ' + perPass + ' action(s) jouée(s) par passage (planifiées ' + plannedActs + ') ' + cutWhy.join(' | '));
+  // Rejeu : même journal (dont les raid_pass humains) → même hachage, sur 30 graines.
+  let replayBad = 0;
+  for (let seed = 1; seed <= 30; seed++) {
+    const journal = [];
+    let s = sim.newGame(seed, data, { managers: B1 });
+    for (let d = 0; d < 14; d++) {
+      const vm = sim.viewModel(s, 'p1');
+      let a = acts(s);
+      if (vm.raid && vm.raid.active && vm.raid.me && vm.raid.me.can_play && vm.raid.me.default_actions.length)
+        a = a.concat([{ manager_id: 'p1', day: s.day, type: 'raid_pass', payload: { adventurer_id: vm.raid.me.hero_id, actions: vm.raid.me.default_actions } }]);
+      journal.push(a); s = sim.resolveDay(s, a).state;
+    }
+    let t = sim.newGame(seed, data, { managers: B1 });
+    for (const a of journal) t = sim.resolveDay(t, a).state;
+    if (sim.hashState(s) !== sim.hashState(t)) replayBad++;
+  }
+  check('(8b) §B1 rejeu : 30 graines × 14 jours avec raid_pass humains, hachages identiques', replayBad === 0, replayBad + ' divergence(s)');
+}
+// ---- (8c) §B1 : c'est bien le RANG DE RÉCEPTION qui ordonne, pas l'identifiant du manager ----
+{
+  let ok = 0, tried = 0; const notes = [];
+  for (let seed = 1; seed <= 8; seed++) {
+    const s0 = forcedRaid(seed, MANAGERS, RAID_DAY);
+    if (!s0.raid || s0.raid.status !== 'active') continue;
+    const base = acts(s0);
+    const mids = sim.listManagers(s0);
+    const passes = [];
+    for (const mid of mids) {
+      const d = sim._internal.raidDefaults(s0, mid);
+      if (d.length && passes.length < 2) passes.push({ manager_id: mid, day: s0.day, type: 'raid_pass', payload: { adventurer_id: d[0].adventurer_id, actions: d[0].actions } });
+    }
+    if (passes.length < 2) continue;
+    tried++;
+    const seqOf = st => (st.raid ? st.raid.passes_done : []).filter(p => p.day === s0.day).map(p => p.hero_id);
+    const r1 = seqOf(sim.resolveDay(s0, base.concat([passes[0], passes[1]])).state);
+    const r2 = seqOf(sim.resolveDay(s0, base.concat([passes[1], passes[0]])).state);
+    const first1 = r1.indexOf(passes[0].payload.adventurer_id), firstB1 = r1.indexOf(passes[1].payload.adventurer_id);
+    const first2 = r2.indexOf(passes[1].payload.adventurer_id), firstA2 = r2.indexOf(passes[0].payload.adventurer_id);
+    if (first1 >= 0 && firstB1 >= 0 && first1 < firstB1 && first2 >= 0 && firstA2 >= 0 && first2 < firstA2) ok++;
+    else if (notes.length < 3) notes.push('graine ' + seed + ' : ' + r1.join('>') + ' vs ' + r2.join('>'));
+  }
+  check('(8c) §B1 : deux passages humains soumis dans l\'ordre inverse sont rejoués dans l\'ordre inverse (rang de réception, pas tri d\'identifiant)', tried > 0 && ok === tried, ok + '/' + tried + ' ' + notes.join(' | '));
+}
+// ---- (9) Garde G1 : les deux mulberry32 (sim.js et tactic.js) restent jumeaux ----
+{
+  let diff = 0;
+  for (let seed = 1; seed <= 100; seed++) {
+    const a = sim._internal.makeRng(seed), b = TI.makeRng(seed);
+    for (let i = 0; i < 100; i++) if (a.roll(1000000) !== b.roll(1000000)) { diff++; break; }
+  }
+  check('(9) G1 : makeRng de sim.js et de tactic.js identiques sur 100 graines × 100 tirages', diff === 0, diff + ' graine(s) divergente(s)');
+}
+// ---- (10) Garde G2 : aucun nombre non entier dans state.raid après des raids réels ----
+{
+  const bads = [];
+  for (let seed = 1; seed <= 12; seed++) {
+    let s = sim.newGame(seed, data, { managers: MANAGERS });
+    for (let d = 0; d < DAYS; d++) {
+      s = sim.resolveDay(s, acts(s)).state;
+      if (s.raid) { const out = []; walkNumbers(s.raid, 'raid', out); if (out.length && bads.length < 5) bads.push('graine ' + seed + ' j' + s.day + ' ' + out[0]); }
+    }
+  }
+  check('(10) G2 : state.raid en profondeur — aucun nombre non entier sur 12 graines × 30 jours', bads.length === 0, bads.join(' | '));
+}
+// ---- (11) Garde G3 : vocabulaire d'effets — tout effects[].kind des données est servi par le moteur ----
+{
+  const r = T.checkEffects(data);
+  const forged = JSON.parse(JSON.stringify(data));
+  forged.tactic_spells.push({ id: 'sort_inconnu_t2', name: 'Sort inconnu', class_id: 'mage', cost_pa: 2, range_min: 1, range_max: 3, target: 'enemy', effects: [{ kind: 'ferveur' }] });
+  const rf = T.checkEffects(forged);
+  const reused = JSON.parse(JSON.stringify(data));
+  reused.tactic_spells.push({ id: 'saut_t2', name: 'Saut', class_id: 'rogue', cost_pa: 2, range_min: 1, range_max: 3, target: 'cell', effects: [{ kind: 'teleport' }] });
+  const rr = T.checkEffects(reused);
+  check('(11) G3 : vocabulaire d\'effets — data.json accepté, un kind inconnu refusé, un kind réservé à un sort refusé pour un autre sort',
+    r.ok && !rf.ok && !rr.ok && /ferveur/.test(rf.reason || '') && /teleport/.test(rr.reason || ''),
+    (r.reason || 'données réelles : OK') + ' · ' + (rf.reason || '') + ' · ' + (rr.reason || ''));
+}
+
 check('aucune autre anomalie', bad.length === 0, bad.slice(0, 5).join(' | '));
 const fails = results.filter(r => !r.ok);
 console.log(`\n${results.length - fails.length}/${results.length} contrôles passés`);

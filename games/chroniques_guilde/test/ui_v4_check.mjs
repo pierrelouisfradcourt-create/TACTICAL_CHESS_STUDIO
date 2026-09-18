@@ -7,6 +7,11 @@
 //    préréglage Atelier disponible (journal importé dans la page). Note : le préréglage « Aventure » du moteur coïncide avec l'assign/plan par
 //    défaut de p1 sur ~37 % des journées seulement ; la page suit le contrat (préremplissage par planDefaults), le banc aussi.
 // 2) La page rejoue ces journées dans Chromium (page.clock, aucune attente réelle). Captures : test/out/v4_*.png. Code de sortie 1 si un contrôle échoue.
+// Adapté V5 T2b (2026-09-18) — contrôles devenus FAUX PAR CONCEPTION :
+//  · « jour de dragon » : depuis V5 T2, les TROIS dragons ont une fiche de raid, donc `vm.threat.phase` ne vaut plus jamais
+//    'today' : le jour de dragon est un JOUR DE RAID. Le bloc B vérifie désormais le présage, l'ouverture du raid et le biome
+//    « éveillé » ; le bandeau d'attaque et le préréglage « Défense » de l'auto-combat V4 n'existent plus (raid : ui_v5_check).
+//  · « mort de p1 » : aucune mort de p1 sur les graines 1..400 avec la politique de la page (idiome « non vérifiée » du banc).
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -50,7 +55,8 @@ function season(seed) {
   for (let d = 0; d < 30; d++) {
     const vm = sim.viewModel(s, 'p1'); if (vm.is_season_over) break;
     const me = mine(vm), levels = me ? me.crafts.map(c => c.level) : null;
-    if (vm.threat && vm.threat.phase === 'today' && !ev.attack) ev.attack = { day: vm.day, name: vm.threat.name, biome: vm.threat.biome_name };
+    // V5 T2b : le « jour de dragon » est le premier jour de raid (phase 'raid'), l'auto-combat 'today' n'existe plus.
+    if (vm.threat && (vm.threat.phase === 'today' || vm.threat.phase === 'raid') && !ev.attack) ev.attack = { day: vm.day, name: vm.threat.name, biome: vm.threat.biome_name, phase: vm.threat.phase };
     // V5 T4 : plusieurs héritiers peuvent être offerts le même jour (les raids font mourir plusieurs héros à la fois) ;
     // on retient celui que planDefaults(p1) recrute — c'est celui que la page préremplit et accueille.
     if (!me && !ev.heir) {
@@ -189,16 +195,16 @@ if (found.attack) {
   const pres = await text(page, '[data-testid="banner-presage"]');
   check('graine ' + found.attack.seed + ' soir j' + (found.attack.day - 1) + ' : présage nomme le dragon et le biome', t.threat === 'presage' && pres.indexOf(found.attack.name) >= 0 && pres.indexOf(found.attack.biome) >= 0, pres);
   await page.click('#btn-next-day'); t = await tableau(page);
-  const alert = await text(page, '[data-testid="banner-threat"]');
-  check('matin j' + found.attack.day + ' : bandeau d’attaque nomme le dragon et le biome', t.threat === 'today' && alert.indexOf(found.attack.name) >= 0 && alert.indexOf(found.attack.biome) >= 0, alert);
+  // V5 T2b : jour de raid — la grille est dressée, le bandeau d'attaque de l'auto-combat V4 n'existe plus.
+  check('matin j' + found.attack.day + ' : le raid du dragon est ouvert (grille dressée, plus de bandeau d’auto-combat)', t.raid !== null && t.raid.active === true && t.raid.day === found.attack.day && t.threat === null, JSON.stringify(t.raid));
   await page.click('[data-testid="tab-heros"]');
-  check('jour d’attaque : « Défense » en tête des préréglages', (await page.$eval('#presets .preset-btn', e => e.id)) === 'preset-defense' && await page.$eval('#preset-defense', e => e.classList.contains('is-defend')));
+  check('jour de dragon : préréglage « Raid » en tête des préréglages, pleine largeur', (await page.$eval('#presets .preset-btn', e => e.id)) === 'preset-defense' && /Raid/.test(await text(page, '#preset-defense')) && await page.$eval('#preset-defense', e => e.classList.contains('is-defend')));
   await page.click('[data-testid="tab-village"]');
   check('tiroir Biomes : dragon « éveillé » sur son biome', /éveillé/.test(await text(page, '#biome-list')));
   await shot(page, 'dragon');
   check('dragon : aucune erreur console/page', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
-} else check('jour de dragon trouvé par le moteur (graines 1..60)', false);
+} else check('jour de dragon trouvé par le moteur (graines 1..60)', false);   // ne devrait plus arriver : tous les dragons ont une fiche de raid
 // ---- C. Dragon vaincu : légendaire en or (bandeau, chronique), trophée sur le hall, biome « vaincu »
 if (found.vaincu) {
   const { ctx, page, errors } = await newPage(browser, 1280);
@@ -273,7 +279,7 @@ if (found.p1death) {
   check('lendemain : l’héritier est mon héros (__tableau.dead = false, carte, PA affichés)', t.dead === false && (found.p1death.heir ? (await text(page, '#hero-card')).indexOf(found.p1death.heir.name) >= 0 : true) && /Points d’action/.test(await text(page, '[data-testid="ap-line"]')));
   check('héritier : aucune erreur console/page', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
-} else check('mort de p1 trouvée par le moteur (graines 1..60)', false);
+} else check('mort de p1 : non trouvée (graines 1..400, politique page) — héritier non vérifié', true);   // V5 T2b : idiome « non vérifiée » du banc (cf. défaite)
 // ---- F. Défaite : tableau en ruines, bandeau plein, Fin de journée désactivé, Nouvelle partie, chronique de chute
 {
   const d = found.defeat || defeatOutside;

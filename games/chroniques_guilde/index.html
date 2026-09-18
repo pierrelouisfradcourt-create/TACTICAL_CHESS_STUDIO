@@ -655,11 +655,13 @@ var AGE_ARTICLE = { hameau: 'un', bourg: 'un', ville: 'une', chateau: 'un' };
 var CLASS_COLOR = { warrior: '#B5452F', cleric: '#C9A227', ranger: '#3E8E4E', rogue: '#6E4C9E', mage: '#3C6FB2', summoner: '#9A6B33' };
 var FONTS_URL = 'https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap';
 var DAY_START = 8, DAY_END = 20, TICK_MS = 250, TICK_H = 0.25;
+/* V5 T2b (§B5) : les PA par tour du raid viennent des données (data.raid.pa_per_turn), plus d'un 6 figé dans la page. */
+var PA_PER_TURN = (DATA.raid && DATA.raid.pa_per_turn) || 6;
 var app = { seed: DEFAULT_SEED, managers: MANAGERS, state: null, vm: null, journal: [], chronicles: {}, plan: null, chosen: false,
   tab: 'tableau', contentTab: 'tableau', viewDay: null, drawer: null, pageNotices: [], storageOk: true, raf: 0, lastDraw: 0, sceneScale: 1, slotOpen: -1 };
 /* V5 T4 : état de l'écran Raid. `draft` = l'état du moteur avec mon passage en cours (raidAction),
    `actions` = la liste envoyée telle quelle dans l'action raid_pass du jour, `lines` = les lignes du moteur. */
-var rd = { env: null, draft: null, view: null, hero: null, actions: [], lines: [], spells: [], armed: null, move: null, preview: null, started: false, done: false, paMax: 6, cell: 0, pad: 0, forecast: undefined };
+var rd = { env: null, draft: null, view: null, hero: null, actions: [], lines: [], spells: [], armed: null, move: null, preview: null, started: false, done: false, paMax: PA_PER_TURN, cell: 0, pad: 0, forecast: undefined };
 var tb = { phase: 'morning', hour: DAY_START, timer: 0, hours: {}, placed: {}, revealed: {}, bubbles: [], pos: {}, chron: null, markers: null, done: false, craftUp: {} };
 var wideMQ = window.matchMedia('(min-width: 1100px)');
 var motionMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -741,7 +743,7 @@ function planFromDefaults() {
 /* assign = journée pleine : expedition/defend/rest verrouillent les cases ; un assign train/craft/gather vaut « × PA » (jamais produit par planDefaults humain, projeté sur les cases par sécurité). */
 function setDayFromAssign(plan, p) {
   if (FULL_DAY[p.activity]) { plan.full = p.activity; plan.slots = [null, null, null]; return; }
-  var h = myHero(), n = h ? Math.max(1, Math.min(4, h.ap_today)) : 1, slots = [];
+  var h = myHero(), n = h ? Math.max(1, h.ap_today || 0) : 1, slots = [];   /* V5 T2b (§B6) : autant de cases que de PA du jour, plus de plafond figé à 4 */
   for (var i = 0; i < n; i++) slots.push({ activity: p.activity, target: p.target || null });
   plan.full = null; plan.slots = padSlots(slots);
 }
@@ -1016,21 +1018,36 @@ function enterEvening(chron) {
   Object.keys(tb.markers.injured).forEach(function (id) { tb.placed[id] = 'injured'; });
   publishTableau();
 }
+/* V5 T2b (§B8) : les marqueurs du tableau vivant passent par les IDENTIFIANTS de la chronique
+   (summary.injury_ids / level_up_ids / construction_id, threat.defender_ids, expedition.participant_ids).
+   Le repli par nom ne sert plus qu'aux chroniques d'une partie sauvegardée avant cette tranche. */
+function managerOfHeroId(id) { var a = app.vm.roster.filter(function (x) { return x.id === id; })[0]; return a ? a.manager_id : null; }
 function managerOfHeroName(label) {
   var s = String(label || ''), best = null;
   app.vm.roster.forEach(function (a) { if (a.name && s.indexOf(a.name) === 0 && (!best || a.name.length > best.name.length)) best = a; });
   return best ? best.manager_id : null;
 }
+/* ids s'ils existent, sinon les libellés (compatibilité ascendante) ; rend la liste des manager_id concernés. */
+function managersOf(ids, labels) {
+  var out = [];
+  if (Array.isArray(ids)) ids.forEach(function (i) { var m = managerOfHeroId(i); if (m) out.push(m); });
+  else (labels || []).forEach(function (n) { var m = managerOfHeroName(n); if (m) out.push(m); });
+  return out;
+}
 function computeMarkers(c) {
   var m = { injured: {}, levelUp: {}, limping: {}, defenders: {}, trophy: false, scaffold: null, banner: null, threat: null, burnt: null }, sum = (c && c.summary) || {}, vm = app.vm;
   m.threat = c && c.threat && typeof c.threat === 'object' ? c.threat : null;
-  if (m.threat) { (m.threat.defenders || []).forEach(function (n) { var id = managerOfHeroName(n); if (id) m.defenders[id] = true; }); m.burnt = m.threat.building_hit ? buildingIdByName(m.threat.building_hit) : null; }
-  (sum.injuries || []).forEach(function (s) { var id = managerOfHeroName(s); if (id) m.injured[id] = true; });
-  (sum.level_ups || []).forEach(function (s) { var id = managerOfHeroName(s); if (id) m.levelUp[id] = true; });
+  if (m.threat) {
+    managersOf(m.threat.defender_ids, m.threat.defenders).forEach(function (id) { m.defenders[id] = true; });
+    m.burnt = m.threat.building_hit_id || (m.threat.building_hit ? buildingIdByName(m.threat.building_hit) : null);
+  }
+  managersOf(sum.injury_ids, sum.injuries).forEach(function (id) { m.injured[id] = true; });
+  managersOf(sum.level_up_ids, sum.level_ups).forEach(function (id) { m.levelUp[id] = true; });
   var e = c && c.expedition;
   if (e && e.outcome === 'succès') m.trophy = true;
-  if (e && (e.outcome === 'échec' || e.outcome === 'retraite')) (e.participants || []).forEach(function (n) { var id = managerOfHeroName(n); if (id && !m.injured[id]) m.limping[id] = true; });
+  if (e && (e.outcome === 'échec' || e.outcome === 'retraite')) managersOf(e.participant_ids, e.participants).forEach(function (id) { if (!m.injured[id]) m.limping[id] = true; });
   if (vm.construction) m.scaffold = vm.construction.building_id;
+  else if (sum.construction_id) m.scaffold = sum.construction_id;
   else if (sum.construction) vm.buildings.forEach(function (b) { if (String(sum.construction).indexOf(b.name) === 0) m.scaffold = b.id; });
   if (vm.derby && vm.derby.last && c && vm.derby.last.day === c.day) m.banner = vm.derby.last.result;
   return m;
@@ -1064,12 +1081,12 @@ function raidToday() { var v = raidVm(); return !!(v && v.active && app.state &&
 function raidLive() { return !!(rd.view && rd.view.me && rd.view.me.can_play && !rd.done && tb.phase !== 'evening'); }
 function raidUnit() { var R = rd.draft && rd.draft.raid; return R && R.pass ? (R.units.filter(function (u) { return u.id === R.pass.hero_id; })[0] || null) : null; }
 function raidReset() {
-  rd = { env: null, draft: null, view: null, hero: null, actions: [], lines: [], spells: [], armed: null, move: null, preview: null, started: false, done: false, paMax: 6, cell: 0, pad: 0, forecast: undefined };
+  rd = { env: null, draft: null, view: null, hero: null, actions: [], lines: [], spells: [], armed: null, move: null, preview: null, started: false, done: false, paMax: PA_PER_TURN, cell: 0, pad: 0, forecast: undefined };
   window.__raidPreview = null;
   var v = raidVm(); if (!v) return;
   try { rd.env = SIM._internal.raidEnvOf(app.state, null); } catch (e) { rd.env = null; return; }
   rd.view = v; rd.hero = v.me ? v.me.hero_id : null; rd.spells = v.me && v.me.spells ? v.me.spells.slice() : [];
-  rd.paMax = v.me && v.me.pass ? v.me.pass.pa_max : 6;
+  rd.paMax = v.me && v.me.pass ? v.me.pass.pa_max : PA_PER_TURN;
   rd.draft = app.state; rd.done = !(v.active && v.me && v.me.can_play);
 }
 /* Le passage commence au premier geste : le moteur pose le héros sur la grille et la journée devient « raid ». */
@@ -1084,13 +1101,13 @@ function raidBegin() {
   return true;
 }
 /* Le moteur rejoue les passages dans l'ordre ASCII des managers : dire lesquels passent avant moi. */
+/* V5 T2b (§B1) : les passages sont rejoués dans leur ORDRE DE RÉCEPTION. Celui qui transmet joue sur la grille
+   qu'il a sous les yeux ; les passages par défaut des copains absents viennent après. La page ne reconstruit donc
+   plus l'ordre du moteur (l'ancien tri par identifiant de manager a disparu). */
 function raidOrderLabel() {
-  var before = 0, after = 0;
-  app.managers.forEach(function (m) { if (m.id === ME) return; if (m.id < ME) before++; else after++; });
-  if (before && after) return plural(before, 'copain monte', 'copains montent') + ' sur la grille avant toi, ' + after + ' après';
-  if (before) return plural(before, 'copain monte', 'copains montent') + ' sur la grille avant toi';
-  if (after) return plural(after, 'copain monte', 'copains montent') + ' sur la grille après toi';
-  return 'Tu es seul sur la grille';
+  var others = app.managers.filter(function (m) { return m.id !== ME; }).length;
+  if (!others) return 'Tu es seul sur la grille';
+  return 'Tu joues sur la grille telle que tu la vois ; ' + plural(others, 'copain monte', 'copains montent') + ' après toi';
 }
 function raidWhy() { var v = raidVm(); return v && v.me && v.me.reason ? v.me.reason : 'Aucun passage possible aujourd’hui.'; }
 function raidDo(action) {
@@ -1154,16 +1171,9 @@ function raidForecast() {
   rd.forecast = null;
   if (!rd.started || !rd.done || !rd.actions.length || !rd.env) return null;
   try {
-    var base = app.state, mine = String(ME);
-    app.managers.map(function (m) { return m.id; }).sort().forEach(function (mid) {
-      if (mid >= mine || aiActivity(aiPlan(mid)) !== 'raid') return;
-      Object.keys(rd.env.heroes).sort().forEach(function (id) {
-        if (rd.env.heroes[id].owner !== mid) return;
-        var acts = TACTIC.raidDefaultsFor(base, id, rd.env);
-        if (acts) base = TACTIC.raidPass(base, id, acts, rd.env).state;
-      });
-    });
-    var v = TACTIC.validateRaidPass(base, rd.hero, rd.actions, rd.env);
+    /* Ordre de réception : le passage transmis est rejoué sur l'état courant, pas après ceux des copains.
+       La revalidation reste utile si un autre passage humain arrive avant le nôtre dans la même journée. */
+    var v = TACTIC.validateRaidPass(app.state, rd.hero, rd.actions, rd.env);
     rd.forecast = { ok: !!v.ok, reason: v.reason || '' };
   } catch (e) { rd.forecast = null; }
   return rd.forecast;
@@ -1257,7 +1267,7 @@ function raidTurnLabel(v) {
   if (rd.done && rd.started) {
     var f = raidForecast();
     return 'Passage transmis. ' + raidOrderLabel() + ' ; termine la journée par « Fin de journée ». ' +
-      (f && !f.ok ? '⚠ Sur la grille qu’ils laisseront, le moteur arrêtera ton passage à : ' + f.reason + '.' : '');
+      (f && !f.ok ? '⚠ Le moteur arrêtera ton passage à : ' + f.reason + '.' : '');
   }
   if (tb.phase === 'evening') return 'La journée est finie : les passages du jour sont dans la chronique.';
   return v.me && v.me.reason ? v.me.reason : raidOrderLabel() + '.';
@@ -2107,7 +2117,8 @@ function renderDay(h) {
   $('slots').innerHTML = slots.slice(0, n).map(function (s, i) { return slotHtml(h, s, i); }).join('');
   renderChooser(h);
 }
-function slotCount(h) { return Math.max(3, Math.min(4, h.ap_today), app.plan.slots.filter(Boolean).length); }
+/* V5 T2b (§B6) : le nombre de créneaux suit les PA du héros (plancher 3), sans plafond figé à 4. */
+function slotCount(h) { return Math.max(3, h.ap_today || 0, app.plan.slots.filter(Boolean).length); }
 function slotHtml(h, s, i) {
   var full = app.plan.full, act = full || (s && s.activity), open = app.slotOpen === i, cost = act ? costOf(h, act) : null;
   var cls = 'day-slot' + (full ? ' is-locked is-filled' : s ? ' is-filled' : ' is-empty');

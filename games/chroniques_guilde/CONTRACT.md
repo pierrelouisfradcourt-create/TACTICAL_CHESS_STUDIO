@@ -19,15 +19,18 @@ Ce contrat PRIME sur les documents de conception en cas de conflit. Les document
 ## API du moteur (sim.js) — signatures exactes
 ```
 newGame(seed:int, data:object, options?:{}) -> state
+attach(state, data) -> state               // V5 T2b : ré-attache la table de données à un état RELU (JSON.parse) —
+                                           // `state.__data` est non énumérable et ne survit pas à JSON.stringify
 listManagers(state) -> string[]            // ['p1','ai_prudent','ai_audacieux'] — p1 = humain, toujours premier
-planDefaults(state, managerId) -> Action[] // plan complet par défaut pour state.day (profil IA pour les IA,
-                                           // plan raisonnable pour l'humain : chaque aventurier reçoit une activité)
-validateAction(state, action) -> {ok:boolean, reason?:string}   // reason en français, jamais d'exception
-resolveDay(state, actions:Action[]) -> {state, chronicle, log:string[]}
+planDefaults(state, managerId, data?) -> Action[] // plan complet par défaut pour state.day (profil IA pour les IA,
+                                           // plan raisonnable pour l'humain : chaque aventurier reçoit une activité) ; [] si la table manque
+validateAction(state, action, data?) -> {ok:boolean, reason?:string}   // reason en français, jamais d'exception
+resolveDay(state, actions:Action[], data?) -> {state, chronicle, log:string[]}
    // PURE : même (state, actions) => même résultat, ne mute pas l'entrée.
    // Manager sans action => planDefaults appliqué. Action invalide => ignorée, raison dans log et notices.
+   // Table de données absente => {state (inchangé), chronicle:null, log, error:'…'} — jamais d'exception.
 hashState(state) -> string   // FNV-1a 32 bits en hex sur JSON canonique (clés triées récursivement)
-viewModel(state, managerId) -> VM   // seul point d'accès de l'UI à l'état (voir plus bas)
+viewModel(state, managerId, data?) -> VM | {error:string}   // seul point d'accès de l'UI à l'état (voir plus bas)
 ```
 state : objet JSON pur (sérialisable, sans fonctions, sans undefined). Champs publics garantis :
 `state.seed:int`, `state.day:int` (1 au début, la journée résolue incrémente), `state.season_length:int` (30),
@@ -55,14 +58,20 @@ départage des votes à égalité : le building_id / quest_id le plus petit en o
 · 11 fin de jour (fatigue/moral/blessures, XP, montées de niveau, expiration des quêtes, nouveau tableau)
 · 12 derby si day ∈ {7,14,21,28} · 13 bilan de saison si day == 30.
 RNG : mulberry32 sur entiers ; graine du jour = fnv1a(seed ^ day). Un seul flux, consommé dans l'ordre ci-dessus.
+V5 T2b : dans la phase de raid, les passages **réellement reçus** sont rejoués d'abord, dans leur **ordre de réception**
+(champ `rank` de l'action `raid_pass`), puis les passages par défaut des managers absents, par identifiant de manager.
 
 ## Chronicle (retour de resolveDay et champ VM.chronicle)
 ```
 { day:int, title:string, headline:string,          // headline = « l'instant du jour »
   sections:[{phase:string, title:string, lines:string[]}],   // dans l'ordre de résolution, phases vides omises
-  expedition:{quest_name, biome_name, participants:string[], outcome:'succès'|'échec'|'retraite'|'aucune',
+  expedition:{quest_name, biome_name, participants:string[], participant_ids:string[],
+              outcome:'succès'|'échec'|'retraite'|'aucune',
               rooms:[{name, lines:string[]}], loot:string[], xp:int} | null,
-  summary:{gold_delta:int, injuries:string[], level_ups:string[], recruits:string[], construction:string} }
+  summary:{gold_delta:int, injuries:string[], injury_ids:string[], level_ups:string[], level_up_ids:string[],
+           recruits:string[], construction:string, construction_id:string|null} }
+  // V5 T2b : les *_ids doublent les libellés français, dans le même ordre, pour que la page n'ait plus à
+  // reconnaître un préfixe de texte. threat porte de même defender_ids[] et building_hit_id.
 ```
 Cible : 25-60 lignes par jour, français, gabarits variés (>= 30), traits de personnalité visibles.
 
@@ -238,15 +247,16 @@ sont listés plus bas.
 - Action `raid_pass` `{adventurer_id, actions:[{type:'move', to:{x,y}} | {type:'cast', spell_id, x, y} | {type:'end_turn'} | {type:'end_pass'}]}`
   (≤ 60 actions). `validateAction` : héros à vous, vivant, apte, raid actif, actions **rejouées sur une copie du raid du matin**
   (chaque action légale, sinon `action k (cast X) : raison`). `end_turn` est ajouté aux types du §7 (un tour se termine explicitement ;
-  jamais d'avance automatique). Le dernier `raid_pass` reçu pour un héros gagne. Un passage humain est rejoué **à son tour** dans
-  l'ordre des managers (id ASCII) ; s'il devient illégal parce que la grille a changé, il est interrompu là (notice « passage de X
+  jamais d'avance automatique). Le dernier `raid_pass` reçu pour un héros gagne. ~~Un passage humain est rejoué **à son tour** dans
+  l'ordre des managers (id ASCII)~~ **→ REMPLACÉ par V5 T2b : ordre de RÉCEPTION (`rank`), voir la section V5 T2b.**
+  S'il devient illégal parce que la grille a changé, il est interrompu là (notice « passage de X
   interrompu : … »), la riposte a lieu, jamais d'exception. Pas de `seq` : un passage est atomique dans la journée.
 - Ordre du jour : … 7 expédition · 7b menace (auto-combat V4 : mont, marais, ou repli forêt) · **7b' raid** (passages du jour) · 7c solo
   · … · 11 soir · **11' nuit du raid** · 11b âge · 11c réveil + présage (**startRaid** le soir du présage : la grille est dressée pour le
   lendemain, `day_start` = jour d'attaque) · 12 derby · 13 bilan.
 - Réveil du Sylvain (V4) → raid ; retour après échec (ravage) à J+3 → nouveau raid au présage. Repli V4 : si aucun héros n'est déclaré
   `raid` le premier jour, `state.raid = null` et la menace se résout en auto-combat V4 (ligne « raid_fallback »).
-- Passages : managers triés par id ASCII, héros par id ; sans `raid_pass` → `raidDefaults`. KO : `injure(sévérité 1)`, fatigue +15,
+- Passages : ~~managers triés par id ASCII, héros par id~~ **→ V5 T2b : passages reçus par rang de réception, puis défauts par id de manager** ; sans `raid_pass` → `raidDefaults`. KO : `injure(sévérité 1)`, fatigue +15,
   moral −5, tirage `death_permille.raid` (100 ‰). XP : `div(xp_win, 4)` par passage joué ; victoire : `xp_win × (1 + 10 % × passages)`
   (moitié pour un KO) + moral +10 ; légendaire au plus gros `damage_total` (invocations comptées pour leur maître).
 - Issue : `won` → sortie V4 `vaincu` (or, matériaux, prestige, trophée, légendaire, `slain`) ; `lost` (4e nuit) → sortie V4 `ravage`
@@ -461,3 +471,138 @@ déterminisme 30 graines × 30 jours ; `VM.choice`, `VM.roster[].hybrid`, `VM.gr
 - Le `taken` de complémentarité regarde toute la guilde (les héros des autres managers compris) : c'est « la table des copains ».
 - Non vérifié : la page (T4), les 26 spécialisations et la reconversion (T3), le Derby des Lames (§2.5), le gate fun, l'équilibre d'une
   saison complète à 5 managers avec des voies choisies à la main, la lisibilité des cartes de choix sur téléphone.
+
+---
+
+## V5 T2b — ordre de réception des passages, correctifs et nettoyage
+
+Date : 2026-09-18. Source : mission « corriger le défaut du raid asynchrone, les bugs et retirer le code mort »,
+pilotée par `AUDIT_ARCHI.md` (audit architectural du 2026-09-18). Fichiers touchés : `sim.js`, `tactic.js`,
+`index.html`, `data.json`, `data.js`, bancs sous `test/`. `harness.mjs` non modifié.
+
+### B1 — les passages du raid sont rejoués dans l'ORDRE DE RÉCEPTION (décision de conception)
+
+Constat de l'audit : `phaseRaid` rejouait les managers triés par identifiant ASCII, donc `p1` en dernier ; le joueur
+composait son passage sur la grille du matin et le moteur le rejouait sur celle que les amis avaient laissée.
+
+**Règle retenue** : chacun joue sur la grille que les précédents ont laissée, dans l'ordre où les passages sont
+**arrivés**. Concrètement :
+
+* l'action `raid_pass` porte un **rang de réception** : `applyOrQueue(ctx, a, rank)` inscrit `rank` (l'index de
+  l'action dans la liste reçue, avant le tri par manager de `phaseValidation`) dans `ctx.queued.raid[hero_id]`.
+  Le journal conserve l'ordre, donc le rang est reproductible ; il rend le rejeu indépendant du parcours de
+  `ctx.queued.raid`, qui est un objet non ordonné.
+* `phaseRaid` rejoue d'abord les **passages réellement reçus**, triés par `rank` (départage par identifiant de héros),
+  puis les **passages par défaut des managers absents**, dans l'ordre d'identifiant de manager.
+* Le déterminisme est entier : même journal → même état, même hachage, même flux de tirages (le flux du raid reste
+  séparé, `rng_s` / `rng_count`).
+* Un passage qui devient illégal reste **interrompu avec sa notice française** et le héros garde ce qu'il a joué.
+
+Côté page : `raidForecast` ne rejoue plus les passages des amis avant le sien (il revalide le passage sur l'état
+courant) et `raidOrderLabel` ne trie plus par identifiant de manager — la page ne reconstruit plus l'ordre du moteur.
+
+Mesure (12 graines × 30 jours, 5 managers, passage humain = `VM.raid.me.default_actions` du matin) :
+
+| | avant | après |
+|---|---|---|
+| jours de raid humains | 56 | 39 |
+| passages interrompus | **40 (71,4 %)** | **0 (0 %)** |
+| actions jouées par passage | 3,09 | **6,00** |
+
+Contrôles : `tactic_t1_check` (8) interruptions ≤ 10 %, (8b) rejeu identique sur 30 graines × 14 jours avec des
+`raid_pass` humains, (8c) deux passages humains soumis dans l'ordre inverse sont rejoués dans l'ordre inverse.
+
+### B2 — le derby ne vole plus « l'instant du jour »
+
+`phaseDerby` simule l'expédition de la guilde **rivale** avec le `ctx` de la journée : ses « moments » entraient dans
+le tirage du titre. La pile est désormais tronquée autour de l'appel (`ctx.moments.length` mémorisée puis restaurée).
+Mesure (30 graines × 30 jours, 3 managers, 120 jours de derby) : titres nommant un héros absent de l'effectif
+**14 → 0**. Contrôle : `engine_v4_check` « §B2 derby ».
+
+### B3 — une classe sans compétence ne fait plus planter le moteur
+
+`(D.skills_by_class[h.class_id] || [])` aux trois sites (`combatProfile`, montées de niveau, `rosterVm`).
+Contrôle : `engine_v4_check` « §B3 / G4 » — classe nue ajoutée à `data.classes`, `newGame`, 5 journées, `viewModel`.
+
+### B4 — un état sérialisé se relit hors de la page : `attach`
+
+`state.__data` est posée **non énumérable** : elle ne survit pas à `JSON.stringify`. Ajout à l'API publique :
+
+```
+attach(state, data) -> state      // ré-attache la table de données et renseigne le repli de module
+viewModel(state, managerId, data?) -> VM | {error:string}
+resolveDay(state, actions, data?) -> {state, chronicle, log} | {state, chronicle:null, log, error:string}
+validateAction(state, action, data?) -> {ok, reason?}      // reason = la raison française si la table manque
+planDefaults(state, managerId, data?) -> Action[]          // [] si la table manque
+```
+
+Sans table de données, **aucune entrée ne jette** : chacune rend la raison
+« table de données absente : appelez SIM.attach(état, data)… ». Contrôles : `engine_extra` « §B4 » (état écrit,
+relu dans un **processus neuf**, raison sans attach puis VM et journée résolue après attach, hachage identique).
+
+### B5 à B8
+
+* **B5** — la page lit `data.raid.pa_per_turn` (`PA_PER_TURN`) au lieu d'un `6` figé.
+* **B6** — `slotCount` et `setDayFromAssign` ne plafonnent plus l'affichage à 4 créneaux : le nombre de cases suit
+  `ap_today` (plancher 3 pour `slotCount`).
+* **B7** — vocabulaire d'effets explicite dans `tactic.js` et **refus au chargement** :
+  `TACTIC.checkEffects(data) -> {ok, unknown:string[], reason}`. Trois familles : `state|heal|shield|purify|push`
+  (appliqués par `applyEffectOn`), `zone|wall|summon|freeze` (appliqués par `castSpell` sur la case), et
+  `teleport|vital_link|sacrifice`, **réservés** aux sorts `sidestep`, `vital_link`, `sacrifice` dont le comportement
+  est porté par l'identifiant. Un `kind` inconnu — ou un `kind` réservé réutilisé par un autre sort — est refusé :
+  `index(data)` le mémorise, `raidEnabled` devient faux et le dragon retombe sur l'affrontement V4 avec une notice
+  française (« Raid tactique indisponible : … »). Plus de sort écrit en données qui ne fait rien en silence.
+* **B8** — la chronique porte des **identifiants** à côté de ses libellés français :
+  `summary.injury_ids`, `summary.level_up_ids`, `summary.construction_id`, `threat.defender_ids`,
+  `threat.building_hit_id`, `expedition.participant_ids`. La page s'en sert pour les marqueurs du tableau vivant
+  (`managersOf(ids, labels)`), avec repli par nom pour les chroniques d'une partie antérieure.
+
+### Gardes mécaniques ajoutées
+
+* **G1** (`tactic_t1_check` 9) : les deux `makeRng` (sim.js / tactic.js) rendent la même suite sur 100 graines × 100 tirages.
+* **G2** (`tactic_t1_check` 10) : `state.raid` parcouru en profondeur — aucun nombre non entier, 12 graines × 30 jours.
+* **G3** (`tactic_t1_check` 11) : vocabulaire d'effets — `data.json` accepté, `kind` inconnu refusé, `kind` réservé refusé
+  pour un autre sort. (La garde échouait avant B7 ; B7 est implémenté, elle passe.)
+* **G4** (`engine_v4_check`) : classe sans compétence (B3).
+
+### Code mort retiré
+
+`bEffect` (sim.js) · `sum`, `isEnemyOf` (tactic.js) · gabarits `templates.greedy_theft` et `templates.empty_guild`
+(data.json, `data.js` régénéré) · bancs et doublures périmés `test/index_stub.html`, `test/stub_sim.js`,
+`test/ui_check.mjs`, `test/index_real.html`, `test/data_real.js`, `test/real_check.mjs` · sauvegardes
+`test/index_v1..v4_backup.html`, `test/sim_v1_backup.js`, `test/sim_v3_backup.js`, `test/data_v3_backup.json`
+(≈ 1,12 Mo). **Non retiré** : `clamp` de `tactic.js`, que la tranche T2 a remis en service (2 appels).
+
+### Contrôles adaptés (devenus faux par conception en V5 T2, en-têtes documentés dans les bancs)
+
+Depuis V5 T2 les **trois** dragons ont une fiche de raid : `vm.threat.phase` ne vaut plus jamais `'today'` et la
+journée d'auto-combat V4 (bandeau d'attaque, préréglage « Défense », issue le soir même) n'existe plus.
+`ui_v3_check` et `ui_v4_check` échouaient déjà pour cette raison **avant cette tranche** ; ils vérifient désormais la
+disparition de la journée d'auto-combat et mesurent le jour de dragon comme un **jour de raid** (présage, grille
+dressée, préréglage « Raid », biome « éveillé »). Le sous-bloc d'auto-combat de `ui_v3_check` reste écrit, conditionné
+à l'existence d'une journée `'today'`, pour le jour où un dragon sans fiche de raid reviendrait.
+`ui_v4_check` : la mort de p1 n'apparaît sur aucune graine 1..400 avec la politique de la page — contrôle marqué
+« non vérifié » (idiome déjà utilisé pour la défaite).
+
+### Preuves d'exécution (2026-09-18, après la tranche)
+
+| Banc | Résultat |
+|---|---|
+| `ENGINE_ONLY=1 node test/harness.mjs` | 10/10 |
+| `node test/engine_extra.mjs` | 16/16 |
+| `node test/engine_v4_check.mjs` | 27/27 |
+| `node test/tactic_t1_check.mjs` | 26/26 |
+| `node test/tactic_t2_check.mjs` | 14/14 |
+| `node test/harness.mjs` | 19/19 |
+| `node test/ui_v2_check.mjs` | 52/52 |
+| `node test/ui_v3_check.mjs` | 35/35 |
+| `node test/ui_v4_check.mjs` | 47/47 |
+| `node test/ui_v5_check.mjs` | 43/43 |
+
+### Non vérifié
+
+Le comportement à **deux passages humains le même jour** n'existe pas dans le prototype (un seul manager humain) :
+il est prouvé par le contrôle (8c) sur des passages fabriqués, pas par une partie réelle. Les `kind` `teleport`,
+`vital_link` et `sacrifice` restent portés par l'identifiant du sort : ils sont **gardés**, pas généralisés — écrire un
+nouveau sort avec l'un d'eux est refusé au chargement plutôt qu'implémenté. La mort de p1 et la défaite de la guilde
+restent non observées avec la politique de la page. Rien n'a été mesuré sur téléphone réel.

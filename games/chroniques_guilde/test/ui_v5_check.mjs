@@ -59,6 +59,21 @@ console.log('moteur : graine ' + target.seed + ', raid le jour ' + target.day + 
   ' · phase ' + R0.phase + ' · riposte « ' + R0.boss.next_riposte.label + ' » · ' +
   R0.me.spells.length + ' sorts · ' + R0.me.reachable.length + ' cases atteignables · classe ' + R0.me.class_id);
 
+/* ---- 1b. V5 T2b (§B5, §B6, §B8) : ce que la page ne doit plus figer dans son code ---- */
+{
+  const src = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  check('§B5 : les PA par tour du raid viennent des données (PA_PER_TURN = DATA.raid.pa_per_turn), plus de « 6 » figé',
+    /var PA_PER_TURN = \(DATA\.raid && DATA\.raid\.pa_per_turn\)/.test(src) && !/paMax: 6/.test(src) && !/pass\.pa_max : 6/.test(src),
+    (src.match(/paMax[^,;]*/g) || []).join(' | '));
+  check('§B6 : le nombre de créneaux n’est plus plafonné à 4 (Math.min(4, h.ap_today) a disparu)',
+    !/Math\.min\(4, h\.ap_today\)/.test(src) && /function slotCount\(h\) \{ return Math\.max\(3, h\.ap_today \|\| 0,/.test(src),
+    (src.match(/function slotCount[^\n]*/) || [''])[0]);
+  check('§B8 : les marqueurs du tableau vivant passent par les identifiants de la chronique (summary.injury_ids / level_up_ids / construction_id, threat.defender_ids, expedition.participant_ids)',
+    /managersOf\(sum\.injury_ids, sum\.injuries\)/.test(src) && /managersOf\(sum\.level_up_ids, sum\.level_ups\)/.test(src) && /managersOf\(m\.threat\.defender_ids, m\.threat\.defenders\)/.test(src) && /managersOf\(e\.participant_ids, e\.participants\)/.test(src) && /sum\.construction_id/.test(src) && /m\.threat\.building_hit_id/.test(src));
+  check('§B1 : la page ne reconstruit plus l’ordre de passage du moteur (plus de tri par identifiant de manager dans raidForecast)',
+    !/mid >= mine/.test(src) && /validateRaidPass\(app\.state, rd\.hero, rd\.actions, rd\.env\)/.test(src));
+}
+
 /* ---- 2. Page ---- */
 async function newPage(browser, width, colorScheme = 'light', ctxOpts = {}) {
   const ctx = await browser.newContext({ viewport: { width, height: 900 }, colorScheme, ...ctxOpts });

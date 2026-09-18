@@ -361,6 +361,49 @@ check('chronicle.threat / summary / section Menace cohérents ; jamais de menace
 check('raids V5 (Sylvain) : ≥ 1 démarré, ≥ 1 gagné (vaincu, slain, légendaire, trophée), ≥ 1 perdu (ravage, retour à J+3)', raidsStarted > 0 && raidsWon > 0 && raidsLost > 0, raidsStarted + ' démarrés, ' + raidsWon + ' gagnés, ' + raidsLost + ' perdus');
 check('hall ≥ 0, bâtiments ≥ 0, or/bourses/entrepôt/inventaires/maîtrise/savoir-faire jamais négatifs, entiers seulement, âges monotones', !bad.some(x => /bâtiment|caisse|bourse|entrepôt|inventaire|négati|non-entier|âge/.test(x)), bad.filter(x => /négati|non-entier/.test(x)).slice(0, 3).join(' | '));
 check('chronique : jamais plus de 60 lignes', Math.max(...chronicleTotals) <= 60, Math.min(...chronicleTotals) + '-' + Math.max(...chronicleTotals));
+
+// ---- V5 T2b §B2 : un jour de derby ne titre jamais sur des héros qui n'existent pas ----
+// Avant la tranche : 14 titres fantômes sur 120 jours de derby (30 graines × 30 jours, 3 managers). Attendu : 0.
+{
+  const M3 = MANAGERS.slice(0, 3);
+  const DERBY = data.constants.derby_days;
+  const PAT = /est vaincu par|accomplit un exploit|est tombé|est mis|abat |terrasse/;
+  let derbyDays = 0, ghosts = 0; const samples = [];
+  for (let seed = 1; seed <= SEEDS; seed++) {
+    let st = sim.newGame(seed, data, { managers: M3 });
+    const known = {};
+    const note = x => { for (const r of sim.viewModel(x, 'p1').roster) known[r.name] = 1; for (const g of (x.graves || [])) known[g.name] = 1; };
+    note(st);
+    for (let d = 0; d < DAYS; d++) {
+      const day = st.day, r = sim.resolveDay(st, defaultActions(st));
+      note(r.state);
+      if (DERBY.indexOf(day) >= 0) {
+        derbyDays++;
+        const head = r.chronicle.headline || '';
+        if (PAT.test(head) && !Object.keys(known).some(n => head.indexOf(n) >= 0)) { ghosts++; if (samples.length < 3) samples.push('graine ' + seed + ' J' + day + ' : ' + head); }
+      }
+      st = r.state;
+    }
+  }
+  check('§B2 derby : aucun titre d\'un jour de derby ne nomme un héros absent de l\'effectif (30 graines)', derbyDays > 50 && ghosts === 0, ghosts + '/' + derbyDays + ' ' + samples.join(' | '));
+}
+// ---- V5 T2b §B3 / garde G4 : une classe sans compétence ne fait plus planter le moteur ----
+{
+  let err = null, dayReached = 0;
+  try {
+    const d2 = JSON.parse(JSON.stringify(data));
+    const nue = JSON.parse(JSON.stringify(d2.classes[0]));
+    nue.id = 'paladin'; nue.name = 'Paladin'; nue.glyph = 'P';
+    d2.classes.push(nue);
+    const M2 = [{ id: 'p1', name: 'Vous', kind: 'human', profile: 'humain', class_id: 'paladin' },
+                { id: 'f_a', name: 'Anselme', kind: 'ai', profile: 'prudent', class_id: 'paladin' }];
+    let st = sim.newGame(7, d2, { managers: M2 });
+    for (let d = 0; d < 5; d++) { st = sim.resolveDay(st, defaultActions(st)).state; sim.viewModel(st, 'p1'); }
+    dayReached = st.day;
+  } catch (e) { err = e.message; }
+  check('§B3 / G4 : une classe sans entrée data.skills — newGame, 5 journées et viewModel sans exception', err === null && dayReached === 6, err || ('jour ' + dayReached));
+}
+
 check('aucune autre anomalie', bad.length === 0, bad.slice(0, 6).join(' | '));
 
 const fails = results.filter(r => !r.ok);

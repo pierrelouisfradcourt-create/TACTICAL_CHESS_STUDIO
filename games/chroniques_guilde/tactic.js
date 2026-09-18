@@ -23,7 +23,6 @@
   function pct(x, p) { return div(x * p, 100); }
   function clone(v) { return JSON.parse(JSON.stringify(v)); }
   function sortedKeys(o) { return Object.keys(o).sort(); }
-  function sum(a) { let s = 0; for (const x of a) s += x; return s; }
   function utf8Bytes(str) {
     const out = [];
     for (let i = 0; i < str.length; i++) {
@@ -167,7 +166,6 @@
     u.states = keep;
     if (u.shield_turns > 0) { u.shield_turns -= 1; if (u.shield_turns === 0) u.shield = 0; }
   }
-  function isEnemyOf(u, v) { return (u.side === 'boss') !== (v.side === 'boss'); }
   function unitsSorted(R) { return R.units.slice().sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)); }
   function guildUnits(R) { return unitsSorted(R).filter(u => u.side === 'guild'); }
   function addUnits(R) { return unitsSorted(R).filter(u => u.side === 'boss'); }
@@ -953,6 +951,27 @@
     }
     out.sort((a, b) => b.d - a.d || cidx(G, a.x, a.y) - cidx(G, b.x, b.y));
     return out;
+  }
+  // ---- V5 T2b (§B7 / garde G3) : vocabulaire d'effets RÉELLEMENT servi par le moteur ----
+  // Un `effects[].kind` écrit dans data.json ne fait quelque chose que s'il figure ici. Trois `kind` historiques
+  // (teleport, vital_link, sacrifice) ne sont PAS génériques : leur comportement est porté par l'identifiant du sort
+  // dans castSpell. Ils restent donc déclarés, mais RÉSERVÉS à ces sorts-là : un nouveau sort qui les réutiliserait
+  // ne ferait rien, alors `checkEffects` le refuse au chargement au lieu de le laisser passer en silence.
+  const EFFECT_KINDS_UNIT = ['state', 'heal', 'shield', 'purify', 'push'];        // appliqués par applyEffectOn sur une unité
+  const EFFECT_KINDS_CELL = ['zone', 'wall', 'summon', 'freeze'];                 // appliqués par castSpell sur la case visée
+  const EFFECT_KINDS_BY_SPELL = { teleport: ['sidestep'], vital_link: ['vital_link'], sacrifice: ['sacrifice'] };
+  function checkEffects(data) {
+    const bad = [];
+    const spells = (data && data.tactic_spells) || [];
+    for (const sp of spells) for (const e of (sp.effects || [])) {
+      const k = e && e.kind;
+      if (EFFECT_KINDS_UNIT.indexOf(k) >= 0 || EFFECT_KINDS_CELL.indexOf(k) >= 0) continue;
+      if (EFFECT_KINDS_BY_SPELL[k] && EFFECT_KINDS_BY_SPELL[k].indexOf(sp.id) >= 0) continue;
+      bad.push(EFFECT_KINDS_BY_SPELL[k]
+        ? 'sort « ' + sp.id + ' » : l\'effet « ' + k + ' » est porté par l\'identifiant du sort et réservé à ' + EFFECT_KINDS_BY_SPELL[k].join(', ')
+        : 'sort « ' + sp.id + ' » : effet « ' + String(k) + ' » inconnu du moteur');
+    }
+    return { ok: bad.length === 0, unknown: bad, reason: bad.length ? 'vocabulaire d\'effets refusé — ' + bad.join(' · ') : null };
   }
   function applyEffectOn(R, env, u, v, s, e, log) {
     const on = e.on || 'target';
@@ -2261,6 +2280,6 @@
   }
 
   return { startRaid: startRaid, raidView: raidView, raidAction: raidAction, raidEndPass: raidEndPass, raidNight: raidNight, raidDefaults: raidDefaults, raidDefaultsFor: raidDefaultsFor,
-    validateRaidPass: validateRaidPass, raidPass: raidPass, previewCast: previewCast,
-    _internal: { shapeCells: shapeCells, hasLos: hasLos, bresClear: bresClear, dirOf: dirOf, manhattan: manhattan, dijkstra: dijkstra, pathTo: pathTo, makeRng: makeRng, fnvStr: fnvStr, fnvU32: fnvU32, rawOf: rawOf, dmgOf: dmgOf, controlPermille: controlPermille, ripostePlan: ripostePlan, classSpells: classSpells, spellFor: spellFor, powerOf: powerOf, bossNearestCell: bossNearestCell } };
+    validateRaidPass: validateRaidPass, raidPass: raidPass, previewCast: previewCast, checkEffects: checkEffects,
+    _internal: { shapeCells: shapeCells, hasLos: hasLos, bresClear: bresClear, dirOf: dirOf, manhattan: manhattan, dijkstra: dijkstra, pathTo: pathTo, makeRng: makeRng, fnvStr: fnvStr, fnvU32: fnvU32, rawOf: rawOf, dmgOf: dmgOf, controlPermille: controlPermille, ripostePlan: ripostePlan, classSpells: classSpells, spellFor: spellFor, powerOf: powerOf, bossNearestCell: bossNearestCell, effectKinds: { unit: EFFECT_KINDS_UNIT, cell: EFFECT_KINDS_CELL, by_spell: EFFECT_KINDS_BY_SPELL } } };
 }));

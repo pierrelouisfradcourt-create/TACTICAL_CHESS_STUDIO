@@ -5,6 +5,10 @@
 // Adapté V4 (2026-09-18) : (1) la page transmet désormais TOUT planDefaults(p1) (types gérés préremplis + types non gérés tels quels, point 8 de la
 // mission V4), la prédiction sous node ne filtre donc plus les types ; (2) le bouton « Défendre le village » est devenu le préréglage #preset-defense
 // en tête des préréglages, les 5 boutons d'activité sont remplacés par 3 cases. Les contrôles touchés sont marqués « V4 : ».
+// Adapté V5 T2b (2026-09-18) — contrôle devenu FAUX PAR CONCEPTION : depuis V5 T2, les TROIS dragons ont une fiche de raid,
+// donc `vm.threat.phase` ne vaut plus jamais 'today' et la journée d'auto-combat V4 (bandeau d'attaque, préréglage
+// « Défense », issue le soir même) n'existe plus — elle est remplacée par le raid tactique, mesuré par ui_v5_check.mjs.
+// Le banc vérifie désormais mécaniquement cette disparition, garde le présage et poursuit sur les âges du village.
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -49,7 +53,9 @@ function season(seed) {
 }
 const S = season(4242);
 const attack = S.filter(d => d.threat === 'today')[0], presage = S.filter(d => d.presage)[0];
-check('moteur 4242 : présage la veille du premier jour d’attaque', attack && presage && presage.day === attack.day - 1, `présage j${presage && presage.day}, attaque j${attack && attack.day}, issue ${attack && attack.outcome}`);
+const raidDays = S.filter(d => d.threat === 'raid');
+check('moteur 4242 : présage la veille du premier jour de dragon (V5 : le lendemain du présage, le raid est dressé)', !!presage && raidDays.length > 0 && raidDays[0].day === presage.day + 1, `présage j${presage && presage.day}, premier jour de raid j${raidDays[0] && raidDays[0].day}, jours de raid ${raidDays.length}`);
+check('V5 T2 : plus aucune journée d’auto-combat (threat.phase « today ») sur la graine 4242 — le dragon se joue en raid', attack === undefined && raidDays.length > 0, attack ? 'journée d’attaque j' + attack.day : raidDays.length + ' jour(s) de raid');
 let ravage = null, chateau = null, repousse = null;
 for (let seed = 1; seed <= 80 && !(ravage && chateau && repousse); seed++) {
   const d = season(seed);
@@ -104,7 +110,8 @@ const browser = await pw.chromium.launch();
   check('soir du présage : bandeau présage visible', await visible(page, '[data-testid="banner-presage"]') && /Présage/.test(await text(page, '[data-testid="banner-presage"]')), await text(page, '[data-testid="banner-presage"]'));
   check('soir du présage : section Présage dans la chronique', (await page.$$('[data-testid="chronicle"] .chron-section.is-presage')).length === 1);
   await shot(page, 'presage_soir');
-  // matin de l'attaque
+  // matin de l'attaque (V4) — n'existe plus depuis V5 T2 : sous-bloc conservé pour le jour où un dragon SANS fiche de raid reviendrait.
+  if (attack) {
   await page.click('#btn-next-day');
   t = await tableau(page);
   check('matin de l’attaque : __tableau.threat = today', t.threat === 'today' && t.day === attack.day, JSON.stringify({ day: t.day, threat: t.threat }));
@@ -135,6 +142,7 @@ const browser = await pw.chromium.launch();
   check('soir de l’attaque : « Qui a joué » toujours là (5 / 5)', /5 \/ 5 ont joué/.test(await text(page, '[data-testid="played-count"]')));
   const outcomeShot = t.threat_outcome === 'repoussé' ? 'repousse' : t.threat_outcome;
   await shot(page, 'soir_' + outcomeShot);
+  } else check('V5 T2 : journée d’auto-combat absente de la page (le raid tactique la remplace, mesuré par ui_v5_check)', await visible(page, '[data-testid="banner-presage"]'));
   // jusqu'au jour 30 : âge monotone, titre = nom de l'âge
   let ages = [t.age], titles = true, ageUpSeen = false, chateauShot = false;
   for (let guard = 0; guard < 40; guard++) {
@@ -224,15 +232,16 @@ if (chateau && !chateau4242) {
   await playToEvening(page, presage.day);
   await page.click('#btn-next-day');
   const t = await tableau(page);
-  check('mobile : matin de l’attaque (threat = today)', t.threat === 'today');
-  check('mobile : pas de défilement horizontal avec le bandeau d’alerte', await noHScroll(page));
+  // V5 T2b : le lendemain du présage est un JOUR DE RAID (plus d'auto-combat) ; le sujet du bloc reste le rendu 400 px.
+  check('mobile : lendemain du présage — jour de dragon (raid actif, plus de journée d’auto-combat)', t.raid !== null && t.raid.active === true && t.threat === null, JSON.stringify(t.raid));
+  check('mobile : pas de défilement horizontal le jour du dragon', await noHScroll(page));
   await shot(page, 'mobile_attaque');
   await page.click('[data-testid="tab-heros"]');
-  check('mobile : préréglage Défense pleine largeur, pas de défilement horizontal', await visible(page, '#preset-defense') && await noHScroll(page)); // V4
+  check('mobile : préréglage du jour de dragon pleine largeur, pas de défilement horizontal', await visible(page, '#preset-defense') && /Raid/.test(await text(page, '#preset-defense')) && await noHScroll(page)); // V5 T2b : le préréglage `defense` porte le libellé « Raid » pendant un raid (presetsFor, sim.js)
   await page.click('#preset-defense');
   await page.click('[data-testid="tab-tableau"]');
   await page.click('[data-testid="btn-launch"]');
-  check('mobile : soir de l’attaque, pas de défilement horizontal', OUTCOMES.includes((await tableau(page)).threat_outcome) && await noHScroll(page));
+  check('mobile : soir du jour de dragon, pas de défilement horizontal', (await tableau(page)).evening === true && await noHScroll(page));
   await page.click('[data-testid="tab-village"]');
   check('mobile : carte d’âge dans le tiroir', (await page.$$('#age-gauges .age-gauge')).length === 2 && await noHScroll(page));
   check('mobile : aucune erreur console/page', errors.length === 0, errors.slice(0, 3).join(' | '));
@@ -244,10 +253,10 @@ if (chateau && !chateau4242) {
   await playToEvening(page, presage.day);
   await page.click('#btn-next-day');
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  check('sombre : fond du body sombre, matin de l’attaque', bg === 'rgb(20, 26, 23)' && (await tableau(page)).threat === 'today', bg);
+  check('sombre : fond du body sombre, matin du jour de dragon', bg === 'rgb(20, 26, 23)' && (await tableau(page)).raid !== null, bg);
   await shot(page, 'sombre');
   await page.click('[data-testid="btn-launch"]');
-  check('sombre : soir de l’attaque rendu, aucune erreur console/page', OUTCOMES.includes((await tableau(page)).threat_outcome) && errors.length === 0, errors.slice(0, 3).join(' | '));
+  check('sombre : soir du jour de dragon rendu, aucune erreur console/page', (await tableau(page)).evening === true && errors.length === 0, errors.slice(0, 3).join(' | '));
   await shot(page, 'sombre_soir');
   await ctx.close();
 }
@@ -257,7 +266,7 @@ if (chateau && !chateau4242) {
   await playToEvening(page, presage.day);
   await page.click('#btn-next-day');
   await page.clock.runFor(1200);
-  check('reduced-motion : matin de l’attaque rendu sans erreur', (await tableau(page)).threat === 'today' && errors.length === 0, errors.slice(0, 3).join(' | '));
+  check('reduced-motion : matin du jour de dragon rendu sans erreur', (await tableau(page)).raid !== null && errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
 await browser.close();

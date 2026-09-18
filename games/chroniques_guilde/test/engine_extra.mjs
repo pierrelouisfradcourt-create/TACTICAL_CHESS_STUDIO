@@ -120,6 +120,80 @@ check('viewModel : forme exacte du contrat pour les 3 managers (aucun champ manq
 check('listManagers : p1 en premier puis les deux IA', JSON.stringify(sim.listManagers(st)) === JSON.stringify(['p1', 'ai_prudent', 'ai_audacieux']));
 check('hashState : hexadécimal 8 caractères', /^[0-9a-f]{8}$/.test(sim.hashState(st)));
 
+// ---- V5 T2b §B8 : la chronique porte des IDENTIFIANTS à côté de ses libellés français ----
+{
+  const wrong = [];
+  let seen = { inj: 0, lvl: 0, cons: 0, def: 0, part: 0 };
+  for (let seed = 1; seed <= 8; seed++) {
+    let st = sim.newGame(seed, data, {});
+    const known = {};
+    for (let d = 0; d < 30; d++) {
+      for (const r of sim.viewModel(st, 'p1').roster) known[r.id] = r.name;
+      const r = stepDay(st); const c = r.chronicle, sum = c.summary;
+      const pair = (ids, labels, tag) => {
+        if (!Array.isArray(ids)) { wrong.push(tag + ' : identifiants absents'); return; }
+        if (ids.length !== labels.length) wrong.push(tag + ' : ' + ids.length + ' id pour ' + labels.length + ' libellé(s)');
+        ids.forEach((id, i) => { if (known[id] && labels[i].indexOf(known[id]) !== 0) wrong.push(tag + ' : ' + id + ' (' + known[id] + ') ≠ « ' + labels[i] + ' »'); });
+      };
+      pair(sum.injury_ids, sum.injuries, 'summary.injury_ids');
+      pair(sum.level_up_ids, sum.level_ups, 'summary.level_up_ids');
+      seen.inj += sum.injury_ids.length; seen.lvl += sum.level_up_ids.length;
+      if (sum.construction) { if (!sum.construction_id) wrong.push('summary.construction_id absent'); else seen.cons++; }
+      if (c.threat) { pair(c.threat.defender_ids, c.threat.defenders, 'threat.defender_ids'); seen.def += (c.threat.defender_ids || []).length; }
+      if (c.expedition) { pair(c.expedition.participant_ids, c.expedition.participants, 'expedition.participant_ids'); seen.part += c.expedition.participant_ids.length; }
+      st = r.state;
+    }
+  }
+  check('§B8 : chronique — injury_ids / level_up_ids / construction_id / threat.defender_ids / expedition.participant_ids présents et alignés sur les libellés (8 graines × 30 jours)',
+    wrong.length === 0 && seen.inj > 0 && seen.lvl > 0 && seen.cons > 0 && seen.part > 0,
+    wrong.length ? wrong.slice(0, 4).join(' | ') : JSON.stringify(seen));
+}
+
+// ---- V5 T2b §B4 : un état sérialisé se relit dans un PROCESSUS NEUF via sim.attach ----
+// `state.__data` est non énumérable : elle ne survit pas à JSON.stringify. Sans attach, les entrées publiques
+// doivent rendre une raison en français ; avec attach, viewModel et resolveDay doivent fonctionner.
+{
+  const { execFileSync } = await import('node:child_process');
+  const os = await import('node:os');
+  let st = sim.newGame(3, data, {});
+  for (let i = 0; i < 3; i++) st = stepDay(st).state;
+  const tmp = path.join(ROOT, 'test', '.b4_state.json');
+  fs.writeFileSync(tmp, JSON.stringify(st), 'utf8');
+  const script = `
+const fs = require('fs'), path = require('path');
+const sim = require(process.argv[2]);
+const data = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+const s = JSON.parse(fs.readFileSync(process.argv[4], 'utf8'));
+const out = { has__data: Object.prototype.hasOwnProperty.call(s, '__data'), jete: null };
+try {
+  const vm0 = sim.viewModel(s, 'p1'), rd0 = sim.resolveDay(s, []), va0 = sim.validateAction(s, { manager_id: 'p1', type: 'plan', payload: {} });
+  out.vm_sans_attach = vm0 && vm0.error ? 'raison' : 'VM';
+  out.rd_sans_attach = rd0 && rd0.error ? 'raison' : 'journée résolue';
+  out.rd_etat_inchange = rd0.state === s;
+  out.va_sans_attach = va0 && va0.ok === false && /attach/.test(va0.reason || '') ? 'raison' : 'autre';
+  out.raison_fr = (vm0 && vm0.error) || '';
+  out.attach_rend_etat = sim.attach(s, data) === s;
+  const vm = sim.viewModel(s, 'p1');
+  const rd = sim.resolveDay(s, []);
+  out.vm_apres = !!(vm && !vm.error && vm.roster && vm.roster.length && vm.day === s.day);
+  out.rd_apres = !!(rd && !rd.error && rd.chronicle && rd.state.day === s.day + 1);
+  out.hash = sim.hashState(s);
+} catch (e) { out.jete = e.message; }
+process.stdout.write(JSON.stringify(out));
+`;
+  const scriptPath = path.join(ROOT, 'test', '.b4_child.cjs');
+  fs.writeFileSync(scriptPath, script, 'utf8');
+  const raw = execFileSync(process.execPath, [scriptPath, path.join(ROOT, 'sim.js'), path.join(ROOT, 'data.json'), tmp], { encoding: 'utf8' });
+  fs.unlinkSync(scriptPath); fs.unlinkSync(tmp);
+  const o = JSON.parse(raw);
+  check('§B4 : état sérialisé relu dans un processus neuf — sans attach, viewModel/resolveDay/validateAction rendent une raison en français et ne jettent pas',
+    o.jete === null && o.has__data === false && o.vm_sans_attach === 'raison' && o.rd_sans_attach === 'raison' && o.rd_etat_inchange === true && o.va_sans_attach === 'raison' && /données absente/.test(o.raison_fr),
+    o.jete ? 'JETÉ ' + o.jete : o.raison_fr);
+  check('§B4 : après sim.attach(état, data) dans le processus neuf — viewModel rend un VM et resolveDay résout la journée',
+    o.jete === null && o.attach_rend_etat === true && o.vm_apres === true && o.rd_apres === true && /^[0-9a-f]{8}$/.test(o.hash || ''),
+    'hash relu ' + o.hash + (o.hash === sim.hashState(st) ? ' (identique au processus d\'origine)' : ' (DIFFÉRENT)'));
+}
+
 const fails = results.filter(r => !r.ok);
 console.log(`\n${results.length - fails.length}/${results.length} contrôles passés`);
 process.exit(fails.length ? 1 : 0);

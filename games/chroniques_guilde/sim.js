@@ -130,6 +130,10 @@
     };
     for (const d of data.difficulty) D.difficulty[d.d] = d;
     for (const s of data.skills) (D.skills_by_class[s.class_id] = D.skills_by_class[s.class_id] || []).push(s);
+    // V5 T2b (§B7 / garde G3) : refus AU CHARGEMENT d'un `effects[].kind` que le moteur tactique n'applique pas.
+    // Le raid tactique est alors désactivé (repli V4 sur le dragon) avec une raison en français, plutôt que de laisser
+    // un sort écrit en données ne rien faire en silence.
+    D.tactic_effects = TACTIC && TACTIC.checkEffects ? TACTIC.checkEffects(data) : { ok: true, unknown: [], reason: null };
     Object.defineProperty(data, '__idx', { value: D, enumerable: false });
     return D;
   }
@@ -190,7 +194,8 @@
   // ---- V5 : raid tactique persistant (state.raid, module tactic.js) ----
   function raidActive(state) { return !!(state.raid && state.raid.status === 'active'); }
   function raidTableFor(D, dragonId) { for (const k of sortedKeys(D.raids)) if (D.raids[k].dragon_id === dragonId) return D.raids[k]; return null; }
-  function raidEnabled(D) { return !!(TACTIC && D.raid && D.raid.raid_enabled !== false); }
+  function raidEnabled(D) { return !!(TACTIC && D.raid && D.raid.raid_enabled !== false && (!D.tactic_effects || D.tactic_effects.ok)); }
+  function raidDisabledWhy(D) { return !TACTIC ? 'moteur tactique absent (tactic.js n\'est pas chargé)' : (D.tactic_effects && !D.tactic_effects.ok ? D.tactic_effects.reason : null); }
   function canRaid(h) { return h.injury.severity === 0 && h.fatigue < 100; }
   // Environnement passé au module tactique : tables, jour, managers, profils du matin des héros vivants (jamais stocké dans l'état).
   function raidEnvOf(D, state, raiders, dayOverride) {
@@ -324,7 +329,7 @@
       fire: it.fire ? 1 : 0, morale: h.morale, fatigue: h.fatigue, traits: h.traits.slice(),
       magic: h.class_id === 'mage' ? 1 : 0, priority: (hasSkill(D, h, 'taunt') ? 100 : 0) + (hasTrait(h, 'brave') ? 50 : 0) - (hasTrait(h, 'coward') ? 50 : 0),
       presence: hasSkill(D, h, 'presence') ? 1 : 0,
-      skills: D.skills_by_class[h.class_id].filter(s => s.type === 'active' && h.level >= s.unlock_level).map(s => s.id),
+      skills: (D.skills_by_class[h.class_id] || []).filter(s => s.type === 'active' && h.level >= s.unlock_level).map(s => s.id),
       potion: null
     };
     if (h.equipment.potion && state.inventories[h.owner]) {
@@ -371,7 +376,7 @@
       h.form = clamp(h.form + 5, 0, 100);
       h.history.level_ups += 1;
       ev.push({ kind: 'level_up', hero: h, level: h.level });
-      for (const s of D.skills_by_class[h.class_id]) if (s.unlock_level === h.level) ev.push({ kind: 'skill', hero: h, skill: s });
+      for (const s of (D.skills_by_class[h.class_id] || [])) if (s.unlock_level === h.level) ev.push({ kind: 'skill', hero: h, skill: s });
     }
     if (h.level >= D.C.level_max) h.xp = D.raw.xp_table[D.C.level_max];
     return ev;
@@ -445,11 +450,6 @@
   function allHeroes(state) { return sortedKeys(state.heroes).map(id => state.heroes[id]); }
   function rosterCap(D, state) { if (state.max_heroes) return state.max_heroes; return D.C.roster_cap_base + state.buildings.hall; }
   function bLevel(D, state, id) { return state.buildings[id] || 0; }
-  function bEffect(D, state, id, key, fallback) {
-    const lv = bLevel(D, state, id);
-    if (lv <= 0) return fallback;
-    return D.buildings[id].levels[lv - 1].effect[key];
-  }
   function guildLevel(D, state) { return clamp(1 + div(state.guild.prestige, D.C.guild_level_prestige_step), 1, 10); }
 
   // ===================================================================================
@@ -623,7 +623,7 @@
     state.inventories[owner].items.push({ uid: uid, item_id: itemId });
     return uid;
   }
-  function listManagers(state) { return state.managers.map(m => m.id); }
+  function listManagers(state) { return state && Array.isArray(state.managers) ? state.managers.map(m => m.id) : []; }
   function managerOf(state, id) { return state.managers.filter(m => m.id === id)[0] || null; }
   function findItem(state, owner, ref) {   // ref = uid, sinon premier objet du catalogue non équipé
     const inv = state.inventories[owner];
@@ -655,7 +655,9 @@
   // ===================================================================================
   const ACTIVITIES = ['gather', 'train', 'craft', 'rest', 'expedition', 'defend', 'solo', 'raid'];
   function bad(reason) { return { ok: false, reason: reason }; }
-  function validateAction(state, action) {
+  function validateAction(state, action, dataArg) {
+    if (!dataOf(state, dataArg)) return bad(NO_DATA);
+    remember(dataArg);
     try { return validateInner(state, action); } catch (e) { return bad('action malformée'); }
   }
   function validateInner(state, a) {
@@ -836,8 +838,11 @@
     for (const m of state.managers) for (const h of heroesOf(state, m.id)) if (defendDecision(D, m, h, always)) n++;
     return n;
   }
-  function planDefaults(state, managerId) {
-    const D = index(state.__data || GLOBAL_DATA);
+  function planDefaults(state, managerId, dataArg) {
+    const data = dataOf(state, dataArg);
+    if (!data) return [];
+    remember(dataArg);
+    const D = index(data);
     const m = managerOf(state, managerId);
     if (!m) return [];
     const prof = m.kind === 'ai' ? D.profiles[m.profile] : D.profiles.prudent;
@@ -1106,7 +1111,7 @@
       votes_quest: {}, votes_build: {}, queued: { craft: [], buy: [], sell: [], recruit: [], raid: {} }, effective: {}, forced: {},
       notices: [], log: [], expedition: null, exp_result: null, quest: null, xp: {}, build_vote: null, threat: null, raid: null,
       deaths: [], solo_results: [], legendary: [],
-      summary: { gold_delta: 0, injuries: [], level_ups: [], recruits: [], construction: '', village_age_up: null, presage: null, threat_outcome: null, deaths: [], legendary: [], solo_results: [], hybrids: [] }, gold_start: 0 };
+      summary: { gold_delta: 0, injuries: [], injury_ids: [], level_ups: [], level_up_ids: [], recruits: [], construction: '', construction_id: null, village_age_up: null, presage: null, threat_outcome: null, deaths: [], legendary: [], solo_results: [], hybrids: [] }, gold_start: 0 };
     for (const p of PHASES) ctx.sections[p[0]] = { phase: p[0], title: p[1], lines: [] };
     return ctx;
   }
@@ -1132,12 +1137,12 @@
         say(ctx, 'matin', txt);
         continue;
       }
-      applyOrQueue(ctx, a);
+      applyOrQueue(ctx, a, r.i);
     }
     resolveVotes(ctx);
     resolveEffective(ctx);
   }
-  function applyOrQueue(ctx, a) {
+  function applyOrQueue(ctx, a, rank) {
     const state = ctx.state, D = ctx.D, p = a.payload;
     switch (a.type) {
       case 'assign': ctx.plans[p.adventurer_id] = { slots: slotsOfAssign(D, state, state.heroes[p.adventurer_id], p.activity, p.target || null), manager: a.manager_id }; break;
@@ -1148,7 +1153,7 @@
       case 'buy': ctx.queued.buy.push(a); break;
       case 'sell': ctx.queued.sell.push(a); break;
       case 'recruit': ctx.queued.recruit.push(a); break;
-      case 'raid_pass': ctx.queued.raid[p.adventurer_id] = { manager: a.manager_id, actions: p.actions.slice() }; break;   // V5 : le dernier passage reçu gagne
+      case 'raid_pass': ctx.queued.raid[p.adventurer_id] = { manager: a.manager_id, actions: p.actions.slice(), rank: typeof rank === 'number' ? rank : 0 }; break;   // V5 : le dernier passage reçu gagne ; `rank` = rang de réception (V5 T2b, §B1)
       case 'choose_hybrid': { const h = state.heroes[p.adventurer_id], H = hybridById(D, p.hybrid_id); if (h && H && !h.hybrid) applyHybrid(ctx, h, H, 'choice'); break; }   // V5 T2
       case 'equip': {
         const h = state.heroes[p.adventurer_id], it = findItem(state, a.manager_id, p.item_id);
@@ -1350,6 +1355,7 @@
     h.history.injuries += 1;
     ctx.state.stats.injuries += 1;
     ctx.summary.injuries.push(heroName(h) + ' (' + h.injury.days_left + ' j)');
+    ctx.summary.injury_ids.push(h.id);   // V5 T2b (§B8) : identifiant, pour que la page n'ait plus à reconnaître un préfixe de texte français
     return days;
   }
 
@@ -2194,7 +2200,7 @@
     moment(ctx, exp.outcome === 'success' ? 50 : exp.outcome === 'wiped' ? 85 : 40, '« ' + quest.name + ' » : ' + outcomeLabel(exp.outcome) + ' pour ' + joinFr(exp.party.map(f => f.name)) + ' (' + rw.gold + ' or).');
     ctx.exp_result = { quest: quest, score: score, outcome: exp.outcome, avg_level: div(sum(party.map(h => h.level)), party.length) };
     ctx.exp_floors = exp.floors;
-    ctx.expedition = { quest_name: quest.name, biome_name: D.biomes[quest.biome].name, participants: fighters.map(f => f.name), outcome: outcomeVm(exp.outcome),
+    ctx.expedition = { quest_name: quest.name, biome_name: D.biomes[quest.biome].name, participants: fighters.map(f => f.name), participant_ids: fighters.map(f => f.id), outcome: outcomeVm(exp.outcome),
       rooms: exp.rooms.map(r => ({ name: r.name, lines: r.lines })), loot: loot, xp: xpTotal };
     ctx.summary.gold_delta += rw.gold;
   }
@@ -2331,7 +2337,7 @@
       else if (outcome === 'repoussé') say(ctx, 'menace', tpl(ctx, 'threat_flee', 'f', vars));
     }
     const best = fighters.filter(f => !f.guard).slice().sort((a, b) => b.damage - a.damage || a.slot - b.slot)[0] || null;
-    const res = applyThreatOutcome(ctx, threat, outcome, { section: 'menace', best: best ? { name: best.name, owner: best.owner } : null, defenders: fighters.map(f => f.name), vars: vars });
+    const res = applyThreatOutcome(ctx, threat, outcome, { section: 'menace', best: best ? { name: best.name, owner: best.owner } : null, defenders: fighters.map(f => f.name), defender_ids: fighters.map(f => f.id), vars: vars });
     applyDefenseToHeroes(ctx, exp, outcome, T);
     // Mort possible : héros tombé à 0 PV face au dragon (TIRAGE death_permille.dragon).
     for (const f of exp.party) {
@@ -2420,14 +2426,14 @@
       say(ctx, sec, tpl(ctx, 'threat_ravage', 'x', vars) + ' La caisse perd ' + lost + ' or.');
       moment(ctx, 96, 'Jour noir : ' + DV.threat_le + ' ravage le village' + (buildingHit ? ', ' + D.buildings[buildingHit].name + ' brûle' : '') + '.');
     }
-    return { loot: loot, buildingHit: buildingHit, legendaryName: legendaryName, defenders: opts.defenders || [] };
+    return { loot: loot, buildingHit: buildingHit, legendaryName: legendaryName, defenders: opts.defenders || [], defender_ids: opts.defender_ids || [] };
   }
   // Clôture d'une menace : issue inscrite, résumé, chronicle.threat, dépouilles, chute éventuelle de la guilde.
   function finalizeThreat(ctx, threat, outcome, res, sec) {
     const state = ctx.state, D = ctx.D, DR = D.dragons[threat.biome], DV = dragonVars(DR);
     threat.outcome = outcome;
     ctx.summary.threat_outcome = outcome;
-    ctx.threat = { type: 'dragon', biome_id: threat.biome, biome_name: D.biomes[threat.biome].name, dragon_id: DR.id, dragon_name: DR.name, outcome: outcome, defenders: res.defenders, building_hit: res.buildingHit ? D.buildings[res.buildingHit].name : null, loot: res.loot, legendary: res.legendaryName };
+    ctx.threat = { type: 'dragon', biome_id: threat.biome, biome_name: D.biomes[threat.biome].name, dragon_id: DR.id, dragon_name: DR.name, outcome: outcome, defenders: res.defenders, defender_ids: res.defender_ids, building_hit: res.buildingHit ? D.buildings[res.buildingHit].name : null, building_hit_id: res.buildingHit || null, loot: res.loot, legendary: res.legendaryName };
     if (res.loot.length) say(ctx, sec, 'Dépouilles : ' + res.loot.join(' · ') + '.');
     if (outcome === 'ravage' && bLevel(D, state, 'hall') <= 0) collapseGuild(ctx, 'la maison de guilde a brûlé sous les flammes ' + DV.threat_de);
   }
@@ -2478,40 +2484,55 @@
     if (!raiders.length) { say(ctx, 'raid', tpl(ctx, 'raid_abandon', 'a', {})); return; }
     let won = false;
     const passes = [];
-    for (const mid of state.managers.map(m => m.id).sort()) {
+    // V5 T2b (§B1) : les passages RÉELLEMENT REÇUS sont rejoués dans leur ordre de réception (`rank`, posé par applyOrQueue),
+    // puis les passages par défaut des managers absents, dans l'ordre d'identifiant. Le joueur joue donc sur la grille
+    // qu'il a vue le matin, et non sur celle que les amis triés avant lui ont laissée. `rank` rend le rejeu indépendant
+    // de l'ordre de parcours de ctx.queued.raid (objet non ordonné).
+    const order = [], taken = {};
+    const received = [];
+    for (const hid of sortedKeys(ctx.queued.raid)) {
+      const q = ctx.queued.raid[hid], hh = state.heroes[hid];
+      if (!hh || raiders.indexOf(hid) < 0 || hh.owner !== q.manager) continue;
+      received.push({ hero_id: hid, mid: q.manager, rank: q.rank, human: true });
+    }
+    received.sort((a, b) => (a.rank - b.rank) || (a.hero_id < b.hero_id ? -1 : 1));
+    for (const e of received) { order.push(e); taken[e.hero_id] = 1; }
+    for (const mid of state.managers.map(m => m.id).sort())
       for (const h of heroesOf(state, mid)) {
-        if (won || raiders.indexOf(h.id) < 0 || !state.heroes[h.id]) continue;
-        const queued = ctx.queued.raid[h.id];
-        const human = !!(queued && queued.manager === mid);
-        const actions = human ? queued.actions : TACTIC.raidDefaultsFor(state, h.id, env);
-        if (!actions) { say(ctx, 'raid', heroName(h) + ' ne peut pas monter sur la grille aujourd\'hui.'); continue; }
-        const r = TACTIC.raidPass(state, h.id, actions, env);
-        if (!r.ok) {
-          const t = tpl(ctx, 'rejected', 'raid' + h.id, { m: managerName(state, mid), reason: 'passage de ' + heroName(h) + ' interrompu : ' + r.reason });
-          ctx.notices.push(t); ctx.log.push('RAID ' + h.id + ' : ' + r.reason);
-          if (r.state === state) { say(ctx, 'raid', t); continue; }
-        }
-        state.raid = r.state.raid;
-        const P = state.raid.passes_done[state.raid.passes_done.length - 1];
-        // Chronique : entrée sur la grille (premier passage du jour), un fait marquant (sinon la trace laissée par les copains), bilan du passage.
-        if (!passes.length) say(ctx, 'raid', r.log[0]);
-        const notable = r.log.filter(l => RAID_NOTABLE.test(l))[0] || r.log.filter(l => /laissé|Sur la grille/.test(l))[0] || null;
-        if (notable) say(ctx, 'raid', notable);
-        say(ctx, 'raid', r.log[r.log.length - 1]);
-        passes.push({ hero_name: heroName(h), manager_name: managerName(state, mid), damage: P.damage, ko: P.ko });
-        moment(ctx, P.damage >= 150 ? 45 : 22, heroName(h) + ' a joué son passage contre ' + DV.dragon_le + ' : ' + P.damage + ' dégâts.');
-        addXp(ctx, h, div(raidXpBase(D, state), 4));
-        for (const ev of r.events) {
-          if (ev.kind === 'ko') {
-            injure(ctx, h, 1);
-            h.fatigue = clamp(h.fatigue + 15, 0, 100); h.morale = clamp(h.morale - 5, 0, 100);
-            say(ctx, 'raid', tpl(ctx, 'injury', h.id, gv(h, { a: heroName(h), n: h.injury.days_left })));
-            moment(ctx, 60, heroName(h) + ' est tombé' + (h.gender === 'f' ? 'e' : '') + ' sur la grille face ' + (DV.dragon_de.replace(/^de /, 'à ').replace(/^du /, 'au ').replace(/^de la /, 'à la ')) + '.');
-            rollDeath(ctx, h, 'raid', 'sous les fouets ' + DV.threat_de);
-          } else if (ev.kind === 'phase') moment(ctx, 50, DV.Dragon_le + ' passe en phase ' + ev.phase + '.');
-          else if (ev.kind === 'stagger') moment(ctx, 55, heroName(h) + ' a fendu l\'écorce : ' + DV.dragon_le + ' chancelle.');
-          else if (ev.kind === 'won') won = true;
-        }
+        if (taken[h.id] || raiders.indexOf(h.id) < 0 || !state.heroes[h.id]) continue;
+        order.push({ hero_id: h.id, mid: mid, rank: -1, human: false });
+      }
+    for (const e of order) {
+      const h = state.heroes[e.hero_id], mid = e.mid;
+      if (won || !h || raiders.indexOf(h.id) < 0) continue;
+      const actions = e.human ? ctx.queued.raid[h.id].actions : TACTIC.raidDefaultsFor(state, h.id, env);
+      if (!actions) { say(ctx, 'raid', heroName(h) + ' ne peut pas monter sur la grille aujourd\'hui.'); continue; }
+      const r = TACTIC.raidPass(state, h.id, actions, env);
+      if (!r.ok) {
+        const t = tpl(ctx, 'rejected', 'raid' + h.id, { m: managerName(state, mid), reason: 'passage de ' + heroName(h) + ' interrompu : ' + r.reason });
+        ctx.notices.push(t); ctx.log.push('RAID ' + h.id + ' : ' + r.reason);
+        if (r.state === state) { say(ctx, 'raid', t); continue; }
+      }
+      state.raid = r.state.raid;
+      const P = state.raid.passes_done[state.raid.passes_done.length - 1];
+      // Chronique : entrée sur la grille (premier passage du jour), un fait marquant (sinon la trace laissée par les copains), bilan du passage.
+      if (!passes.length) say(ctx, 'raid', r.log[0]);
+      const notable = r.log.filter(l => RAID_NOTABLE.test(l))[0] || r.log.filter(l => /laissé|Sur la grille/.test(l))[0] || null;
+      if (notable) say(ctx, 'raid', notable);
+      say(ctx, 'raid', r.log[r.log.length - 1]);
+      passes.push({ hero_name: heroName(h), manager_name: managerName(state, mid), damage: P.damage, ko: P.ko });
+      moment(ctx, P.damage >= 150 ? 45 : 22, heroName(h) + ' a joué son passage contre ' + DV.dragon_le + ' : ' + P.damage + ' dégâts.');
+      addXp(ctx, h, div(raidXpBase(D, state), 4));
+      for (const ev of r.events) {
+        if (ev.kind === 'ko') {
+          injure(ctx, h, 1);
+          h.fatigue = clamp(h.fatigue + 15, 0, 100); h.morale = clamp(h.morale - 5, 0, 100);
+          say(ctx, 'raid', tpl(ctx, 'injury', h.id, gv(h, { a: heroName(h), n: h.injury.days_left })));
+          moment(ctx, 60, heroName(h) + ' est tombé' + (h.gender === 'f' ? 'e' : '') + ' sur la grille face ' + (DV.dragon_de.replace(/^de /, 'à ').replace(/^du /, 'au ').replace(/^de la /, 'à la ')) + '.');
+          rollDeath(ctx, h, 'raid', 'sous les fouets ' + DV.threat_de);
+        } else if (ev.kind === 'phase') moment(ctx, 50, DV.Dragon_le + ' passe en phase ' + ev.phase + '.');
+        else if (ev.kind === 'stagger') moment(ctx, 55, heroName(h) + ' a fendu l\'écorce : ' + DV.dragon_le + ' chancelle.');
+        else if (ev.kind === 'won') won = true;
       }
     }
     const R = state.raid;
@@ -2528,7 +2549,7 @@
     const best = bestId ? { name: byHero[bestId] ? byHero[bestId].name : bestId, owner: byHero[bestId] ? byHero[bestId].owner : (state.heroes[bestId] ? state.heroes[bestId].owner : state.managers[0].id) } : null;
     say(ctx, 'raid', tpl(ctx, 'raid_victory', 'v', Object.assign({ a: ctx.raid.won_by || (best ? best.name : 'la guilde') }, DV)));
     if (threat) {
-      const res = applyThreatOutcome(ctx, threat, 'vaincu', { section: 'raid', best: best, defenders: sortedKeys(byHero).map(id => byHero[id].name) });
+      const res = applyThreatOutcome(ctx, threat, 'vaincu', { section: 'raid', best: best, defenders: sortedKeys(byHero).map(id => byHero[id].name), defender_ids: sortedKeys(byHero) });
       finalizeThreat(ctx, threat, 'vaincu', res, 'raid');
     }
     archiveRaid(state, R, state.day);
@@ -2548,7 +2569,7 @@
     const names = {};
     for (const p of R.passes_done) names[p.hero_id] = p.hero_name;
     if (threat) {
-      const res = applyThreatOutcome(ctx, threat, 'ravage', { section: 'raid', best: null, defenders: sortedKeys(names).map(id => names[id]) });
+      const res = applyThreatOutcome(ctx, threat, 'ravage', { section: 'raid', best: null, defenders: sortedKeys(names).map(id => names[id]), defender_ids: sortedKeys(names) });
       finalizeThreat(ctx, threat, 'ravage', res, 'raid');
     }
     archiveRaid(state, R, state.day);
@@ -2710,22 +2731,22 @@
         const eff = b.levels[c.to_level - 1].effect_label;
         say(ctx, 'chantier', tpl(ctx, 'construction_done', c.building_id, { b: b.name, n: c.to_level, effect: eff }));
         moment(ctx, 45, b.name + ' passe au niveau ' + c.to_level + ' : ' + eff.toLowerCase() + '.');
-        ctx.summary.construction = b.name + ' niveau ' + c.to_level + ' achevé';
+        ctx.summary.construction = b.name + ' niveau ' + c.to_level + ' achevé'; ctx.summary.construction_id = c.building_id;   // V5 T2b (§B8)
         state.construction = null;
-      } else { say(ctx, 'chantier', tpl(ctx, 'construction_progress', c.building_id, { b: b.name, p: c.progress, needed: c.needed })); ctx.summary.construction = b.name + ' ' + c.progress + '/' + c.needed; }
+      } else { say(ctx, 'chantier', tpl(ctx, 'construction_progress', c.building_id, { b: b.name, p: c.progress, needed: c.needed })); ctx.summary.construction = b.name + ' ' + c.progress + '/' + c.needed; ctx.summary.construction_id = c.building_id; }   // V5 T2b (§B8)
       return;
     }
     if (!ctx.build_vote) return;
     const id = ctx.build_vote, b = D.buildings[id], lv = bLevel(D, state, id);
     if (lv >= 4) return;
     const why = canFundBuilding(D, state, id);
-    if (why) { const t = tpl(ctx, 'construction_blocked', id, { b: b.name, reason: why }); ctx.notices.push(t); say(ctx, 'chantier', t); ctx.summary.construction = b.name + ' bloqué'; return; }
+    if (why) { const t = tpl(ctx, 'construction_blocked', id, { b: b.name, reason: why }); ctx.notices.push(t); say(ctx, 'chantier', t); ctx.summary.construction = b.name + ' bloqué'; ctx.summary.construction_id = id; return; }
     const L = b.levels[lv];
     for (const r of sortedKeys(L.cost)) state.warehouse[r] -= L.cost[r];
     state.guild.gold -= L.gold;
     state.construction = { building_id: id, to_level: lv + 1, progress: 0, needed: L.days };
     say(ctx, 'chantier', tpl(ctx, 'construction_start', id, { b: b.name, n: lv + 1, days: L.days }));
-    ctx.summary.construction = b.name + ' niveau ' + (lv + 1) + ' lancé';
+    ctx.summary.construction = b.name + ' niveau ' + (lv + 1) + ' lancé'; ctx.summary.construction_id = id;
   }
 
   // ---- Phase 11 : fin de jour (état des héros, XP, niveaux, tableau des quêtes) ----
@@ -2758,7 +2779,7 @@
       const erud = craftBonus(D, h, 'erudition');
       if (erud && dayXp) dayXp = pct(dayXp, 100 + erud);
       for (const ev of applyXp(D, h, dayXp)) {
-        if (ev.kind === 'level_up') { state.stats.level_ups++; ctx.summary.level_ups.push(heroName(h) + ' → ' + ev.level); say(ctx, 'soir', tpl(ctx, 'level_up', h.id, { a: heroName(h), n: ev.level })); moment(ctx, 50 + ev.level, heroName(h) + ' passe niveau ' + ev.level + ' !'); }
+        if (ev.kind === 'level_up') { state.stats.level_ups++; ctx.summary.level_ups.push(heroName(h) + ' → ' + ev.level); ctx.summary.level_up_ids.push(h.id);   /* V5 T2b (§B8) */ say(ctx, 'soir', tpl(ctx, 'level_up', h.id, { a: heroName(h), n: ev.level })); moment(ctx, 50 + ev.level, heroName(h) + ' passe niveau ' + ev.level + ' !'); }
         else say(ctx, 'soir', tpl(ctx, 'skill_unlocked', h.id + ev.skill.id, { a: heroName(h), skill: ev.skill.name }));
       }
     }
@@ -2844,6 +2865,12 @@
     ctx.summary.presage = DR.name;
     // V5 : le dragon doté d'une fiche de raid (le Sylvain) se joue en raid persistant dès le lendemain : la grille est dressée le soir du présage.
     const rt = raidEnabled(D) && !state.raid ? raidTableFor(D, DR.id) : null;
+    // V5 T2b (§B7) : si le raid tactique est refusé (vocabulaire d'effets, tactic.js absent), le dragon retombe sur
+    // l'affrontement V4 et la raison est dite en clair — jamais une désactivation silencieuse.
+    if (!rt && !state.raid && raidTableFor(D, DR.id)) {
+      const why = raidDisabledWhy(D);
+      if (why) { const t2 = 'Raid tactique indisponible : ' + why + ' — ' + DV.dragon_le + ' sera affronté à l\'ancienne.'; ctx.notices.push(t2); say(ctx, 'presage', t2); }
+    }
     if (rt) {
       state.raid = TACTIC.startRaid(state, rt.id, raidEnvOf(D, state, null, t.day)).raid || null;
       if (state.raid) say(ctx, 'raid', 'La clairière est dressée : demain, ' + DV.dragon_le + ' se jouera sur la grille (' + state.raid.boss.hp_max + ' PV de sève, ' + (D.raid.raid_max_nights) + ' nuits au plus).');
@@ -2875,8 +2902,12 @@
         h.id = 'rival_' + i; h.owner = 'rival'; h.fatigue = 20;
         return makeFighter(D, combatProfile(D, state, h), i);
       });
+      // V5 T2b (§B2) : l'expédition de la guilde RIVALE ne doit pas peupler les « moments » du jour — sinon le titre
+      // de la chronique nomme des héros qui n'existent pas dans l'effectif. On tronque la pile autour de l'appel.
+      const momentsBefore = ctx.moments.length;
       const exp = runExpedition(ctx, quest, fighters, rng);
       their = expeditionScore(D, exp, computeRewards(ctx, exp, rng));
+      ctx.moments.length = momentsBefore;
     }
     const our = ctx.exp_result ? ctx.exp_result.score : 0;
     const result = our > their ? 'victoire' : our < their ? 'défaite' : 'nul';
@@ -2954,7 +2985,7 @@
     if (ctx.moments.length) headline = ctx.moments.slice().sort((a, b) => b.score - a.score || a.seq - b.seq)[0].text;
     const sections = PHASES.map(p => ctx.sections[p[0]]).filter(s => s.lines.length).map(s => ({ phase: s.phase, title: s.title, lines: s.lines }));
     return { day: state.day, title: title, headline: headline, sections: sections, expedition: ctx.expedition, threat: ctx.threat, raid: ctx.raid,
-      summary: { gold_delta: ctx.summary.gold_delta, injuries: ctx.summary.injuries, level_ups: ctx.summary.level_ups, recruits: ctx.summary.recruits, construction: ctx.summary.construction,
+      summary: { gold_delta: ctx.summary.gold_delta, injuries: ctx.summary.injuries, injury_ids: ctx.summary.injury_ids, level_ups: ctx.summary.level_ups, level_up_ids: ctx.summary.level_up_ids, recruits: ctx.summary.recruits, construction: ctx.summary.construction, construction_id: ctx.summary.construction_id,
         village_age_up: ctx.summary.village_age_up, presage: ctx.summary.presage, threat_outcome: ctx.summary.threat_outcome,
         deaths: ctx.summary.deaths, legendary: ctx.summary.legendary, solo_results: ctx.summary.solo_results, raid_status: ctx.raid ? ctx.raid.status : null,
         hybrids: ctx.summary.hybrids } };
@@ -2964,14 +2995,34 @@
   // 13. RÉSOLUTION D'UNE JOURNÉE (pure : clone profond de l'entrée, jamais de mutation)
   // ===================================================================================
   function attachData(state, data) { Object.defineProperty(state, '__data', { value: data, enumerable: false, configurable: true }); return state; }
+  // V5 T2b (§B4) : `state.__data` est posée NON ÉNUMÉRABLE, donc perdue par JSON.stringify. Un état relu dans un
+  // processus neuf (widget, fond d'écran, portage) doit être ré-attaché à sa table de données AVANT tout appel.
+  // `attach(état, data)` le fait et renseigne aussi le repli de module, comme `newGame`. Sans elle, les entrées
+  // publiques rendent une raison en français au lieu de jeter.
+  const NO_DATA = 'table de données absente : appelez SIM.attach(état, data) avant SIM.viewModel / SIM.resolveDay (la propriété __data ne survit pas à JSON.stringify).';
+  function dataUsable(d) { return !!(d && typeof d === 'object' && Array.isArray(d.classes) && d.classes.length && d.constants); }
+  function dataOf(state, data) {
+    if (dataUsable(data)) return data;
+    const d = (state && typeof state === 'object' && state.__data) || GLOBAL_DATA;
+    return dataUsable(d) ? d : null;
+  }
+  function remember(data) { if (dataUsable(data)) GLOBAL_DATA = data; }   // repli de module seul : n'écrit rien sur l'état
+  function attach(state, data) {
+    if (!state || typeof state !== 'object') return state;
+    if (!dataUsable(data)) return state;
+    GLOBAL_DATA = data;
+    return attachData(state, data);
+  }
   function collapsedChronicle(D, state) {
     const line = pickTpl(D, 'collapsed_day', String(state.day), {});
     return { day: state.day, title: 'Jour ' + state.day + ' — la guilde est dispersée', headline: 'La guilde est dispersée.',
       sections: [{ phase: 'bilan', title: 'Bilan de saison', lines: [line, 'Chute le jour ' + state.collapsed.day + ' : ' + state.collapsed.reason + '.'] }], expedition: null, threat: null, raid: null,
-      summary: { gold_delta: 0, injuries: [], level_ups: [], recruits: [], construction: '', village_age_up: null, presage: null, threat_outcome: null, deaths: [], legendary: [], solo_results: [], raid_status: null, hybrids: [] } };
+      summary: { gold_delta: 0, injuries: [], injury_ids: [], level_ups: [], level_up_ids: [], recruits: [], construction: '', construction_id: null, village_age_up: null, presage: null, threat_outcome: null, deaths: [], legendary: [], solo_results: [], raid_status: null, hybrids: [] } };   /* V5 T2b (§B8) : même forme de résumé que buildChronicle */
   }
-  function resolveDay(input, actions) {
-    const data = input.__data || GLOBAL_DATA;
+  function resolveDay(input, actions, dataArg) {
+    const data = dataOf(input, dataArg);
+    if (!data) return { state: input, chronicle: null, log: [NO_DATA], error: NO_DATA };
+    remember(dataArg);   // resolveDay reste PURE : on ne pose rien sur l'entrée
     const D = index(data);
     const state = attachData(clone(input), data);
     // Guilde dispersée (V4) : l'état ne change plus, la chronique le dit.
@@ -3154,7 +3205,7 @@
         form: h.form, fatigue: h.fatigue, morale: h.morale,
         injury: h.injury.severity > 0 ? { days: h.injury.days_left, label: ['', 'Blessure légère', 'Blessure moyenne', 'Blessure grave'][h.injury.severity] } : null,
         traits: h.traits.map(t => ({ id: t, name: D.traits[t].name })),
-        skills: D.skills_by_class[h.class_id].map(s => ({ id: s.id, name: s.name, level_req: s.unlock_level, unlocked: h.level >= s.unlock_level })),
+        skills: (D.skills_by_class[h.class_id] || []).map(s => ({ id: s.id, name: s.name, level_req: s.unlock_level, unlocked: h.level >= s.unlock_level })),
         equipment: D.raw.slots.map(s => { const uid = h.equipment[s.id]; const it = uid ? inv.items.filter(x => x.uid === uid)[0] : null; return { slot: s.id, slot_name: s.name, item_name: it ? D.items[it.item_id].name : null, rarity: it ? D.items[it.item_id].rarity : null }; }),
         activity_options: activityOptions(D, state, h),
         planned: planned[h.id] || null, status_label: statusLabel(h), is_available: h.injury.severity < 2 && h.fatigue < 100, is_mine: h.owner === managerId,
@@ -3166,8 +3217,11 @@
       };
     });
   }
-  function viewModel(state, managerId) {
-    const D = index(state.__data || GLOBAL_DATA);
+  function viewModel(state, managerId, dataArg) {
+    const data = dataOf(state, dataArg);
+    if (!data) return { error: NO_DATA };
+    remember(dataArg);
+    const D = index(data);
     const me = managerOf(state, managerId) || state.managers[0];
     managerId = me.id;
     const plans = {}, voteQ = {}, voteB = {}, mineQ = {}, mineB = {}, planned = {}, plannedSlots = {};
@@ -3237,7 +3291,7 @@
     return { outcome: exp.outcome, party: exp.party.map(f => ({ id: f.id, hp: f.hp, hp_max: f.hp_max, fatigue: f.fatigue, morale: f.morale, ko: f.ko })), counters: exp.counters, rooms: exp.rooms.length };
   }
 
-  return { newGame: newGame, listManagers: listManagers, planDefaults: planDefaults, validateAction: validateAction, resolveDay: resolveDay, hashState: hashState, viewModel: viewModel,
+  return { newGame: newGame, attach: attach, listManagers: listManagers, planDefaults: planDefaults, validateAction: validateAction, resolveDay: resolveDay, hashState: hashState, viewModel: viewModel,
     _internal: { makeRng: makeRng, fnvStr: fnvStr, fnvU32: fnvU32, canonical: canonical, combatProfile: combatProfile, probeExpedition: probeExpedition,
       apToday: function (state, h) { return apToday(index(state.__data || GLOBAL_DATA), state, h); }, craftLevel: function (state, xp) { return craftLevel(index(state.__data || GLOBAL_DATA), xp); },
       tactic: TACTIC, previewCast: TACTIC ? TACTIC.previewCast : null, raidEnvOf: function (state, raiders, day) { return raidEnvOf(index(state.__data || GLOBAL_DATA), state, raiders || null, day); },
