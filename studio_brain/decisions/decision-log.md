@@ -1492,3 +1492,27 @@ comparaison causale L/D.
 **Critères de révision** : futur sas moteur/protocole (findings 7-8 : check_charter bloquant,
 bloc unique, tick de mesure gardé) ; toute inférence L/D exige ≥2 paires valides — il n'en
 existe encore AUCUNE (D2 seul bras valide).
+
+## 2026-09-18 — Chroniques de Guilde : GO V4, GO V5 et trois HumanGates sur la lignée de classes
+
+**Décision** (Pierre, en conversation, session claude/game-ideas-app-store-9dvk6p) : prototype
+« Chroniques de Guilde » entré au dépôt (`games/chroniques_guilde/`, commits 65bd940 et 97780da).
+GO V4 (dragons de fin de biome, points d'action, savoir-faire, missions solo, mort, défaite) — livré.
+GO V5 (raid tactique sur grille à la Dofus, asynchrone, boss persistant, lignée de classes
+base → hybride → une de deux spécialisations) — tranche T1 en construction.
+Trois HumanGates accordés sur les recommandations de `design/V5_SPEC.md` :
+1. **Fusion des quatre branches** qui échouent au test de branche (Lame de feu, Lame de givre, Charmeur,
+   Montreur) : la paire Guerrier+Mage mène au Chasseur de monstres, la paire Voleur+Invocateur à
+   l'Illusionniste — 26 spécialisations retenues.
+2. **Deuxième choix libre avec affinité** (option B) : le vécu du héros met un hybride en avant, ne l'impose jamais.
+3. **Une reconversion de spécialisation par saison** (option B) : coût en or de guilde + une journée du héros,
+   jamais pendant un raid.
+Intention ratifiée : « utiliser son personnage avec ses copains contre un gros vilain » ; la tactique est
+réservée aux moments forts, les quêtes ordinaires restent automatiques.
+
+**Alternatives rejetées** : garder les 30 spécialisations telles quelles ; deuxième choix contraint par le
+vécu (option C) ; reconversion libre entre deux raids (option C) ; combat tactique généralisé.
+
+**Critères de révision** : gate fun de Pierre sur T1 (grille + 6 bases + Sylvain) ; banc de branche mécanisé
+de T3 ; taux de morts et de chutes mesurés en T5. software_verdict par tranche : voir rapports ;
+evidence_verdict : MECHANICAL_VALIDATION_ONLY ; claim_verdict : NO_CLAIM_ALLOWED.
