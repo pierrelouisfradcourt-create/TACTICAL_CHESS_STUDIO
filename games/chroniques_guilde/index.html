@@ -1488,30 +1488,49 @@ var MAXSIL = [60, 90, 140, 210, 300];                 /* §3 — plafond de silh
 var SCALE = [0.6, 0.8, 0.94, 1, 1];                   /* stature des bâtiments civils selon l'âge (largeur et hauteur) */
 var CAM_MS = 1200, BRIDGE_MS = 1500, NIGHT_HOUR = 23, BRIDGE_DOWN = 8, BRIDGE_UP = 20;
 var ROAD = [[430, 300], [540, 335], [660, 378], [800, 412]];
-var ROAD_TOWN = [[470, 382], [566, 402], [676, 424], [800, 442]];
-var ROAD_FORT = [[430, 404], [520, 422], [650, 438], [800, 452]];
-var ROADS = [ROAD, ROAD, ROAD_TOWN, ROAD_FORT, ROAD_FORT];
+var ROAD_TOWN = [[456, 382], [548, 402], [668, 422], [800, 440]];
+/* Ville : la route part de la porte. Château : elle part du pied du pont-levis, au-delà de la douve. */
+var ROAD_CITY = [[400, 378], [508, 404], [656, 428], [800, 448]];
+var ROAD_FORT = [[400, 421], [524, 435], [664, 449], [800, 462]];
+var ROADS = [ROAD, ROAD, ROAD_TOWN, ROAD_CITY, ROAD_FORT];
 /* §2 — trois ancrages par bâtiment : plaine (âges 0-1), resserré derrière la palissade (âge 2),
    cour à l'intérieur de l'enceinte (âges 3-4, disposition de la spec : donjon au fond centre, forge
    à gauche contre la courtine, taverne à droite de la porte, halle le long du mur sud, entrepôt au
    nord, infirmerie près de la chapelle, chapelle contre la tour est). */
 var BSLOT = { chapel: [560, 232], hall: [400, 278], forge: [245, 285], warehouse: [578, 290], training_ground: [705, 335], infirmary: [118, 345], tavern: [300, 368], market: [470, 392] };
-var BNEAR = { chapel: [500, 250], hall: [400, 272], forge: [268, 300], warehouse: [330, 252], training_ground: [552, 302], infirmary: [262, 352], tavern: [372, 344], market: [486, 346] };
-var BCOURT = { chapel: [612, 232], hall: [400, 244], forge: [196, 264], warehouse: [268, 212], training_ground: [196, 332], infirmary: [538, 256], tavern: [566, 312], market: [288, 322] };
+var BNEAR = { chapel: [512, 248], hall: [400, 272], forge: [238, 296], warehouse: [322, 242], training_ground: [556, 294], infirmary: [206, 364], tavern: [360, 368], market: [542, 366] };
+/* Cour du château : donjon au fond centre · entrepot adosse au mur nord · chapelle contre la tour est ·
+   forge contre la courtine ouest · infirmerie a l'est · terrain d'entrainement au centre · halle et
+   taverne en premiere rangee, DERRIERE le mur de face qui leur mange le bas. */
+var BCOURT = { chapel: [576, 212], hall: [400, 246], forge: [196, 286], warehouse: [232, 212], training_ground: [196, 352], infirmary: [604, 288], tavern: [560, 356], market: [300, 300] };
 var ANCHORS = [BSLOT, BSLOT, BNEAR, BCOURT, BCOURT];
 var SPOTS = { idle: { x: 318, y: 314, dx: 44 }, gather: { x: 34, y: 284, dx: 46 }, train: { x: 650, y: 350, dx: 36 }, craft: { x: 180, y: 312, dx: 44 }, rest: { x: 124, y: 392, dx: 46 }, injured: { x: 122, y: 398, dx: 52 }, defend: { x: 568, y: 414, dx: 40 }, solo: { x: 296, y: 268, dx: 30 }, dead: { x: 318, y: 314, dx: 44 } };
-/* Le lieu de vie d'une activité suit le bâtiment qui la porte : la figurine glisse avec lui (affichage seul,
-   les cibles publiées dans __tableau restent les positions logiques du contrat). */
-var ACT_HOME = { craft: 'forge', train: 'training_ground', rest: 'tavern', idle: 'hall', dead: 'hall', injured: 'infirmary' };
+/* Le lieu de vie d'une activité suit l'âge du domaine : en plaine tant qu'il n'y a pas de murs, DANS LA COUR
+   dès que l'enceinte se referme (affichage seul — les cibles publiées dans __tableau restent les positions
+   logiques du contrat, et l'écart d'index entre deux héros de même activité est conservé tel quel).
+   Les activités qui font sortir (expédition, raid) passent la porte et le pont-levis : voir EXIT_PATH. */
+var FNEAR = { idle: [400, 334], gather: [328, 288], train: [556, 330], craft: [266, 324], rest: [430, 330], injured: [272, 338], defend: [456, 350], dead: [400, 334] };
+var FCOURT = { idle: [398, 328], gather: [270, 250], train: [196, 330], craft: [256, 326], rest: [500, 328], injured: [600, 316], defend: [400, 330], dead: [398, 328] };
+var FANCHOR = [null, null, FNEAR, FCOURT, FCOURT];
+/* Dans la cour les figurines se serrent : l'écart d'index est comprimé pour tenir entre les murs. */
+var FK = [1, 1, 0.85, 0.78, 0.78];
+var OUT_ACTS = { expedition: 1, raid: 1, solo: 1 };
+var VILLAGE_ACTS = { idle: 1, gather: 1, train: 1, craft: 1, rest: 1, injured: 1, dead: 1, defend: 1 };
+/* Sortie du domaine fortifié : la porte, le tablier du pont-levis, puis la berge. */
+var EXIT_PATH = [[400, 378], [404, 392], [414, 410], [434, 424], [462, 434]];
 /* Sentier des missions solo : part du parvis vers la forêt ; il sort des murs dès la ville. Tombes : près de la chapelle. */
-var SOLO_TRAIL = [[396, 302], [330, 278], [268, 254], [212, 240], [184, 232]], SOLO_OUT = [-180, 44];
-var GRAVE_SLOT = [[646, 242], [646, 242], [566, 244], [622, 296], [622, 296]], GRAVE_D = { dx: 11, dy: 12, perRow: 4 };
-/* §4 — enceintes : palissade du bourg, courtine de la ville puis du château (même quadrilatère, plus haute). */
-var PALIS = { x0: 192, x1: 624, y0: 232, y1: 380, gx: 470, gw: 22 };
-var COURT = { x0: 112, x1: 688, y0: 172, y1: 372, gx: 430, gw: 36 };
+var SOLO_TRAIL = [[396, 302], [330, 278], [268, 254], [212, 240], [184, 232]], SOLO_OUT = [-244, 26];
+var GRAVE_SLOT = [[646, 242], [646, 242], [566, 244], [492, 232], [492, 232]], GRAVE_D = { dx: 11, dy: 12, perRow: 4 };
+/* §4 — enceintes : la palissade du bourg puis la courtine de la ville et du château. Ce n'est plus un mur
+   de fond mais un QUADRILATÈRE EN LÉGÈRE PLONGÉE : arête de fond (bx0..bx1 sur y0), arête de face (x0..x1
+   sur y1, plus large et plus basse, percée de la porte), et deux murs latéraux en fuite qui les relient.
+   Les bâtiments de cour tiennent entre les quatre murs ; le mur de face leur mange le bas. */
+var PALIS = { bx0: 196, bx1: 616, x0: 162, x1: 650, y0: 236, y1: 376, gx: 456, gw: 20 };
+var COURT = { bx0: 146, bx1: 654, x0: 100, x1: 700, y0: 176, y1: 372, gx: 400, gw: 34 };
 var ENC = [null, null, PALIS, COURT, COURT];
+var ENC_F = ['bx0', 'bx1', 'x0', 'x1', 'y0', 'y1', 'gx', 'gw'];
 var HOUSES = [[252, 232], [332, 230], [478, 232], [652, 234], [200, 236], [392, 230]];
-var FAUBOURG = [[706, 306], [754, 336], [690, 360], [764, 388], [648, 330], [716, 276]];
+var FAUBOURG = [[742, 300], [788, 318], [720, 322], [774, 342], [806, 336], [736, 276]];
 /* Deux ou trois teintes par matière, jamais de texture photographique : ce sont les valeurs qui font la lecture. */
 var ROOFS = { hall: '#5d6672', chapel: '#5a6472', forge: '#4a4340', warehouse: '#8a6a3c', infirmary: '#a04a3c', tavern: '#7c4a3a', market: '#bda05f', training_ground: '#7c4a3a' };
 var MAT = { stone: '#b9b3a4', stoneSide: '#948d80', stoneDark: '#6d6860', crest: '#cfc9ba',
@@ -1581,9 +1600,15 @@ function encNow(cam) {
   var a = ENC[Math.max(0, cam.from)], b = ENC[Math.max(0, cam.age)];
   if (!a && !b) return null;
   var p = cam.p, from = a || b, to = b || a, k = { alpha: !a ? p : !b ? 1 - p : 1, kind: (b || a) === PALIS ? 'palis' : 'stone' };
-  ['x0', 'x1', 'y0', 'y1', 'gx', 'gw'].forEach(function (f) { k[f] = lerp(from[f], to[f], p); });
+  ENC_F.forEach(function (f) { k[f] = lerp(from[f], to[f], p); });
   return k;
 }
+/* Géométrie de l'enceinte : profondeur 0 au fond, 1 à la face ; les murs latéraux fuient entre les deux. */
+function encU(e, y) { return clamp01((y - e.y0) / Math.max(1, e.y1 - e.y0)); }
+function encLeft(e, y) { return lerp(e.bx0, e.x0, encU(e, y)); }
+function encRight(e, y) { return lerp(e.bx1, e.x1, encU(e, y)); }
+function encPoly(e) { return [[e.bx0, e.y0], [e.bx1, e.y0], [e.x1, e.y1], [e.x0, e.y1]]; }
+function encIn(e, x, y, pad) { var m = pad || 0; return y >= e.y0 - m && y <= e.y1 + m && x >= encLeft(e, y) - m && x <= encRight(e, y) + m; }
 function roadNow(cam) {
   var a = ROADS[Math.max(0, cam.from)], b = ROADS[Math.max(0, cam.age)];
   return a.map(function (pt, i) { return [lerp(pt[0], b[i][0], cam.p), lerp(pt[1], b[i][1], cam.p)]; });
@@ -1591,6 +1616,24 @@ function roadNow(cam) {
 function soloShift(cam) {
   var a = cam.from >= 3 ? SOLO_OUT : [0, 0], b = cam.age >= 3 ? SOLO_OUT : [0, 0];
   return [lerp(a[0], b[0], cam.p), lerp(a[1], b[1], cam.p)];
+}
+/* Ancrage d'affichage d'une activité à l'âge courant : plaine, bourg resserré, ou cour du château.
+   Renvoie le décalage à appliquer à la position logique (le contrat, lui, ne bouge pas). */
+function figPlace(act, p, cam) {
+  var a = FANCHOR[Math.max(0, cam.from)], b = FANCHOR[Math.max(0, cam.age)], s0 = SPOTS[act];
+  if (!s0 || (!a && !b)) return p;
+  var pa = (a && a[act]) || [s0.x, s0.y], pb = (b && b[act]) || [s0.x, s0.y];
+  var ax = lerp(pa[0], pb[0], cam.p), ay = lerp(pa[1], pb[1], cam.p);
+  var k = lerp(a ? FK[Math.max(0, cam.from)] : 1, b ? FK[Math.max(0, cam.age)] : 1, cam.p);
+  return { x: ax + (p.x - s0.x) * k, y: ay + (p.y - s0.y) * k };
+}
+/* Sortie du domaine fortifié : on vise la porte puis le tablier du pont-levis. */
+function exitAnchor(cam) {
+  var e = encNow(cam), out = polyPoint(roadNow(cam), 0.55);
+  if (!e) return out;
+  var w = lerp(cam.from >= 3 ? 1 : 0, cam.age >= 3 ? 1 : 0, cam.p);
+  var g = { x: e.gx + 5, y: e.y1 + (cam.age >= 4 ? 28 : 21) };
+  return { x: lerp(out.x, g.x, w), y: lerp(out.y, g.y, w) };
 }
 
 /* ---------- §7 : heure simulée, gammes du jour et de la nuit ---------- */
@@ -1613,7 +1656,10 @@ function drawShadow(ctx, cx, base, w, tone) {
 /* ---------- §9 : registre de scène, image fidèle de ce qui est dessiné (lecture seule) ---------- */
 function sceneNew(age, lod, cam, tone) {
   return { age: age, lod: lod, hour: r1(tone.hour), night: tone.night > 0.55, camera: { zoom: Math.round(cam.z * 100), ground: r1(cam.g) },
-    buildings: [], soldiers: [], wall: null, drawbridge: null, silhouette_h: 0, construction: null, banners: 0, guards: 0 };
+    buildings: [], soldiers: [], wall: null, drawbridge: null, silhouette_h: 0, construction: null, banners: 0, guards: 0,
+    courtyard: null, moat: null, labels: [], figures: [], canvas: { w: 0, h: 0 },
+    /* les teintes réellement posées : le banc compare le sol de cour à la prairie sans deviner */
+    palette: { grass: tone.grass, court_back: matOf('#8f7f5e', tone), court_front: matOf('#d0c09a', tone), water: matOf(MAT.water, tone) } };
 }
 function sceneTop(sc, y) { if (sc) sc.silhouette_h = Math.max(sc.silhouette_h, r1(GROUND0 - y)); }
 function sceneAdd(sc, cam, id, cx, base, w, topY, level) {
@@ -1663,7 +1709,9 @@ function drawScene(canvas, mini) {
   var age = Math.max(0, Math.min(4, app.vm.village.age_index | 0)), cam = camNow(age), lod = mini ? 2 : lodOf(W);
   var tone = toneAt(sceneHour()), night = tone.night > 0.55, t = motionMQ.matches ? 0 : performance.now() / 1000;
   var sc = mini ? null : sceneNew(age, lod, cam, tone), fs = (mini ? 0.5 : Math.max(0.68, Math.min(1, s))) * (0.74 + 0.26 * cam.z);
-  if (!mini) app.sceneScale = s;
+  if (!mini) { app.sceneScale = s; app.sceneSy = sy; }
+  if (sc) { sc.canvas = { w: r1(W), h: r1(H) }; }
+  LAB.length = 0;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
   ctx.save(); ctx.scale(s, sy);
   drawBackdrop(ctx, cam, tone, t, lod);
@@ -1672,19 +1720,19 @@ function drawScene(canvas, mini) {
   ctx.restore();
   drawForeground(ctx, tone, lod);        /* le premier plan appartient à la caméra, pas au monde */
   ctx.restore();
-  if (!app.vm.defeat) drawFigures(ctx, s, sy, fs, T, mini, night, cam);
-  if (!mini) { drawClock(ctx, W, H, night, T); window.__scene = sc; }
+  if (!app.vm.defeat) drawFigures(ctx, s, sy, fs, T, mini, night, cam, sc);
+  if (!mini) { drawLabels(ctx, W, H, T, night, sc); drawClock(ctx, W, H, night, T); window.__scene = sc; }
 }
 function drawWorld(ctx, cam, tone, t, T, lod, sc, mini) {
   var v = app.vm.village, age = cam.age, enc = encNow(cam), fl = fortLevel(age, v.hall_level || 1);
   var crest = enc && enc.kind === 'stone' ? enc.y0 - wallH(enc.kind, fl) - 8 : null;
-  var env = { age: age, fl: fl, enc: enc, crest: crest, lod: lod, mini: mini };
+  var env = { age: age, fl: fl, enc: enc, crest: crest, lod: lod, mini: mini, cam: cam };
   if (sc) sc.guards = v.guards | 0;
   drawGroundDetail(ctx, cam, tone, age, lod);
   drawRoad(ctx, cam, tone, age, lod);
   drawTrail(ctx, cam, tone);
   drawFaubourg(ctx, cam, tone, age, lod, t);
-  if (enc) { drawMoat(ctx, enc, tone, age, lod); drawCourtyard(ctx, enc, tone, env); drawWallBack(ctx, enc, tone, env, sc, cam); }
+  if (enc) { drawMoat(ctx, enc, tone, age, lod, sc, cam); drawCourtyard(ctx, enc, tone, env, sc, cam); drawWallBack(ctx, enc, tone, env, sc, cam); }
   drawSoldiers(ctx, enc, v, tone, env, sc, cam, 'ronde');
   drawBuildings(ctx, cam, tone, t, T, env, sc);
   if (enc) drawCourtProps(ctx, enc, tone, env, t);
@@ -1882,91 +1930,157 @@ function drawCart(ctx, x, y, tone) {
 }
 
 /* ---------- §4 : enceinte, chemin de ronde, porte, douve, pont-levis ---------- */
-function wallH(kind, fl) { return kind === 'palis' ? 16 : 22 + 6 * fl; }
-/* La cour : terre battue à l'intérieur des murs, allée de la porte au donjon, ombre portée au pied des courtines.
-   C'est ce qui fait lire « dedans » et « dehors » d'un coup d'œil. */
-function drawCourtyard(ctx, e, tone, env) {
-  var hall = BCOURT.hall, back = matOf('#9d8d6a', tone), front = matOf('#cdbd97', tone);
+function wallH(kind, fl) { return kind === 'palis' ? 30 : 22 + 6 * fl; }
+/* Mur de face : nettement PLUS BAS que le mur du fond, pour qu'on voie la cour par-dessus. */
+function wallHF(kind, fl) { return kind === 'palis' ? 24 : Math.round((22 + 6 * fl) * 0.68); }
+function crenelH(kind, where) { return kind === 'palis' ? 0 : where === 'front' ? 6 : 8; }
+function wallHAt(e, fl, y) { return lerp(wallH(e.kind, fl), wallHF(e.kind, fl), encU(e, y)); }
+/* La cour : terre battue et pavés à l'intérieur des quatre murs, allée de la porte au donjon, ombres des
+   courtines portées sur le sol. C'est ce qui fait lire « dedans » et « dehors » d'un coup d'œil. */
+function courtPoly(e) {
+  var m = 3;
+  return [[e.bx0 + m, e.y0], [e.bx1 - m, e.y0], [e.x1 - m, e.y1], [e.x0 + m, e.y1]];
+}
+function drawCourtyard(ctx, e, tone, env, sc, cam) {
+  var hall = ANCHORS[Math.max(0, env.age)].hall || BCOURT.hall, back = matOf('#8f7f5e', tone), front = matOf('#d0c09a', tone);
+  var poly = courtPoly(e), flat = [];
+  poly.forEach(function (pt) { flat.push(pt[0], pt[1]); });
   var g = ctx.createLinearGradient(0, e.y0, 0, e.y1);
-  g.addColorStop(0, back); g.addColorStop(0.5, mix(back, front, 0.7)); g.addColorStop(1, front);
+  g.addColorStop(0, back); g.addColorStop(0.46, mix(back, front, 0.62)); g.addColorStop(1, front);
   ctx.save(); ctx.globalAlpha = e.alpha;
-  ctx.fillStyle = g; roundRect(ctx, e.x0 + 4, e.y0, e.x1 - e.x0 - 8, e.y1 - e.y0, 14); ctx.fill();
-  ctx.fillStyle = rgba('#2f2a1f', 0.26); ctx.fillRect(e.x0 + 4, e.y0, e.x1 - e.x0 - 8, 16);
-  ctx.fillStyle = rgba('#2f2a1f', 0.13); ctx.fillRect(e.x0 + 4, e.y0, 9, e.y1 - e.y0); ctx.fillRect(e.x1 - 13, e.y0, 9, e.y1 - e.y0);
-  if (env.age < 3) { ctx.restore(); return; }
-  ctx.strokeStyle = rgba(mix(front, '#ffffff', 0.4), 0.8); ctx.lineWidth = 15; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(e.gx, e.y1 - 2); ctx.quadraticCurveTo(e.gx - 12, hall[1] + 48, hall[0], hall[1] + 6); ctx.stroke();
-  ctx.strokeStyle = rgba(mix(back, '#000000', 0.35), 0.22); ctx.lineWidth = 1.6;
-  for (var k = 0; k < 9; k++) {
-    var y = e.y0 + 14 + k * ((e.y1 - e.y0 - 20) / 9), f = fnv1a('sol' + k), x = e.x0 + 14 + (f % 120);
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 60 + (f >>> 7) % 180, y + 2); ctx.stroke();
+  quad(ctx, flat, g);
+  if (sc) sc.courtyard = { poly: poly.map(function (pt) { return [r1(camX(cam, pt[0])), r1(camY(cam, pt[1]))]; }), back: sc.palette.court_back, front: sc.palette.court_front };
+  ctx.save();                                   /* tout le décor de sol reste dans la cour */
+  ctx.beginPath(); ctx.moveTo(poly[0][0], poly[0][1]);
+  for (var q = 1; q < poly.length; q++) ctx.lineTo(poly[q][0], poly[q][1]);
+  ctx.closePath(); ctx.clip();
+  var k = sunK(tone), sh = 0.1 + 0.16 * (1 - tone.night);
+  ctx.fillStyle = rgba('#2f2a1f', sh + 0.1); ctx.fillRect(e.bx0 - 10, e.y0, e.bx1 - e.bx0 + 20, 15);   /* ombre du mur du fond */
+  quad(ctx, [e.bx0, e.y0, e.x0, e.y1, e.x0 + 26, e.y1, e.bx0 + 22, e.y0], rgba('#2f2a1f', k.dx > 0 ? sh : sh * 0.5));
+  quad(ctx, [e.bx1, e.y0, e.x1, e.y1, e.x1 - 26, e.y1, e.bx1 - 22, e.y0], rgba('#2f2a1f', k.dx > 0 ? sh * 0.5 : sh));
+  ctx.fillStyle = rgba('#2f2a1f', sh * 0.8); ctx.fillRect(e.x0 - 10, e.y1 - 13, e.x1 - e.x0 + 20, 16);  /* ombre du mur de face */
+  if (env.age >= 3) {
+    ctx.strokeStyle = rgba(mix(back, '#000000', 0.4), 0.16); ctx.lineWidth = 26; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(e.gx, e.y1 + 2); ctx.quadraticCurveTo(e.gx - 6, hall[1] + 46, hall[0], hall[1] + 8); ctx.stroke();
+    ctx.strokeStyle = rgba(mix(front, '#ffffff', 0.5), 0.9); ctx.lineWidth = 21;
+    ctx.beginPath(); ctx.moveTo(e.gx, e.y1 + 2); ctx.quadraticCurveTo(e.gx - 6, hall[1] + 46, hall[0], hall[1] + 8); ctx.stroke();
+    ctx.strokeStyle = rgba(mix(front, '#ffffff', 0.78), 0.55); ctx.lineWidth = 2.4;
+    [-11, 11].forEach(function (dd) {
+      ctx.beginPath(); ctx.moveTo(e.gx + dd, e.y1); ctx.quadraticCurveTo(e.gx - 6 + dd, hall[1] + 46, hall[0] + dd, hall[1] + 8); ctx.stroke();
+    });
+    ctx.fillStyle = rgba(mix(front, '#ffffff', 0.62), 0.9);     /* seuil pavé juste derrière la porte */
+    for (var sx = -2; sx <= 2; sx++) ctx.fillRect(e.gx + sx * 9 - 3.6, e.y1 - 9, 7.2, 7);
+  }
+  ctx.strokeStyle = rgba(mix(back, '#000000', 0.4), 0.2); ctx.lineWidth = 1.6;
+  for (var i = 0; i < 10; i++) {
+    var y = e.y0 + 12 + i * ((e.y1 - e.y0 - 16) / 10), f = fnv1a('sol' + i), x = encLeft(e, y) + 12 + (f % 130);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 54 + (f >>> 7) % 190, y + 2); ctx.stroke();
   }
   if (env.lod === 0) {
-    ctx.fillStyle = rgba('#6a5f49', 0.2);
-    for (var i = 0; i < 26; i++) { var h = fnv1a('cour' + i); ctx.fillRect(e.x0 + 12 + (h % Math.max(10, Math.round(e.x1 - e.x0 - 24))), e.y0 + 10 + ((h >>> 8) % Math.max(10, Math.round(e.y1 - e.y0 - 16))), 5 + (h % 4), 2); }
+    ctx.fillStyle = rgba('#6a5f49', 0.22);
+    for (var j = 0; j < 40; j++) {
+      var h = fnv1a('cour' + j), cy = e.y0 + 8 + ((h >>> 8) % Math.max(10, Math.round(e.y1 - e.y0 - 12)));
+      ctx.fillRect(encLeft(e, cy) + 10 + (h % Math.max(10, Math.round(encRight(e, cy) - encLeft(e, cy) - 20))), cy, 5 + (h % 4), 2);
+    }
   }
-  ctx.restore();
+  ctx.restore(); ctx.restore();
 }
-function wallBand(ctx, x0, y0, x1, y1, h, face, side, crest, crenel) {
-  quad(ctx, [x0, y0 - h, x1, y1 - h, x1, y1, x0, y0], face);
-  if (side) quad(ctx, [x0, y0 - h * 0.3, x1, y1 - h * 0.3, x1, y1, x0, y0], side);
+/* Pan de mur : hauteur interpolée d'un bout à l'autre, ce qui donne la fuite des murs latéraux. */
+function wallBand(ctx, x0, y0, x1, y1, h0, h1, face, side, crest, cr0, cr1) {
+  quad(ctx, [x0, y0 - h0, x1, y1 - h1, x1, y1, x0, y0], face);
+  if (side) quad(ctx, [x0, y0 - h0 * 0.3, x1, y1 - h1 * 0.3, x1, y1, x0, y0], side);
   quad(ctx, [x0, y0 - 6, x1, y1 - 6, x1, y1 + 2, x0, y0 + 2], shade(face, 0.74));
-  quad(ctx, [x0, y0 - h * 0.62, x1, y1 - h * 0.62, x1, y1 - h * 0.52, x0, y0 - h * 0.52], mix(face, '#ffffff', 0.12));
-  quad(ctx, [x0, y0 - h, x1, y1 - h, x1, y1 - h + 3, x0, y0 - h + 3], crest);
-  if (crenel > 0) drawCrenels(ctx, x0, y0 - h, x1, y1 - h, crenel, face, crest);
+  quad(ctx, [x0, y0 - h0 * 0.62, x1, y1 - h1 * 0.62, x1, y1 - h1 * 0.52, x0, y0 - h0 * 0.52], mix(face, '#ffffff', 0.12));
+  quad(ctx, [x0, y0 - h0, x1, y1 - h1, x1, y1 - h1 + 3, x0, y0 - h0 + 3], crest);
+  if (cr0 > 0 || cr1 > 0) drawCrenels(ctx, x0, y0 - h0, x1, y1 - h1, cr0, cr1, face, crest);
 }
-function drawCrenels(ctx, x0, y0, x1, y1, h, face, crest) {
-  var d = Math.hypot(x1 - x0, y1 - y0), n = Math.max(2, Math.round(d / 15));
+function drawCrenels(ctx, x0, y0, x1, y1, h0, h1, face, crest) {
+  var d = Math.hypot(x1 - x0, y1 - y0), n = Math.max(2, Math.round(d / 15)), hb = h1 === undefined ? h0 : h1;
   for (var i = 0; i < n; i++) {
     var u = (i + 0.16) / n, v = (i + 0.74) / n, ax = lerp(x0, x1, u), ay = lerp(y0, y1, u), bx = lerp(x0, x1, v), by = lerp(y0, y1, v);
-    quad(ctx, [ax, ay - h, bx, by - h, bx, by + 1, ax, ay + 1], face);
-    quad(ctx, [ax, ay - h, bx, by - h, bx, by - h + 2, ax, ay - h + 2], crest);
+    var ha = lerp(h0, hb, u), hbv = lerp(h0, hb, v);
+    quad(ctx, [ax, ay - ha, bx, by - hbv, bx, by + 1, ax, ay + 1], face);
+    quad(ctx, [ax, ay - ha, bx, by - hbv, bx, by - hbv + 2, ax, ay - ha + 2], crest);
   }
 }
-function palisade(ctx, x0, y0, x1, y1, h, face, dark) {
-  var d = Math.hypot(x1 - x0, y1 - y0), n = Math.max(3, Math.round(d / 8));
+function palisade(ctx, x0, y0, x1, y1, h, face, dark, h1) {
+  var d = Math.hypot(x1 - x0, y1 - y0), n = Math.max(3, Math.round(d / 8)), hb = h1 === undefined ? h : h1;
   for (var i = 0; i < n; i++) {
-    var u = i / n, x = lerp(x0, x1, u), y = lerp(y0, y1, u), k = h + (fnv1a('pieu' + i) % 4);
+    var u = i / n, x = lerp(x0, x1, u), y = lerp(y0, y1, u), k = lerp(h, hb, u) + (fnv1a('pieu' + i) % 4);
     ctx.fillStyle = i % 2 ? face : dark; ctx.fillRect(x - 2.4, y - k, 4.8, k + 1);
     quad(ctx, [x - 2.4, y - k, x, y - k - 4, x + 2.4, y - k], face);
   }
 }
+/* Le fond et les deux murs latéraux en fuite. L'enceinte publiée dans __scene décrit les quatre murs :
+   arête de fond, arête de face, et la boîte englobante que les bancs utilisent depuis la tranche précédente. */
 function drawWallBack(ctx, e, tone, env, sc, cam) {
-  var h = wallH(e.kind, env.fl), crenel = e.kind === 'palis' ? 0 : 8;
+  var hb = wallH(e.kind, env.fl), hf = wallHF(e.kind, env.fl), cb = crenelH(e.kind, 'back'), cf = crenelH(e.kind, 'front');
   var face = matOf(MAT.stone, tone), side = matOf(MAT.stoneSide, tone), crest = matOf(MAT.crest, tone);
   ctx.save(); ctx.globalAlpha = e.alpha;
-  if (sc) { var x0 = camX(cam, e.x0), y0 = camY(cam, e.y0);
-    sc.wall = { x: r1(x0), y: r1(y0), w: r1(camX(cam, e.x1) - x0), h: r1(camY(cam, e.y1) - y0), crest: r1(camY(cam, e.y0 - h - crenel)) }; }
+  if (sc) {
+    var xs = [e.bx0, e.bx1, e.x0, e.x1].map(function (x) { return camX(cam, x); });
+    var bx = Math.min.apply(null, xs), by = camY(cam, e.y0);
+    sc.wall = { x: r1(bx), y: r1(by), w: r1(Math.max.apply(null, xs) - bx), h: r1(camY(cam, e.y1) - by), crest: r1(camY(cam, e.y0 - hb - cb)),
+      kind: e.kind, alpha: r1(e.alpha),
+      poly: encPoly(e).map(function (pt) { return [r1(camX(cam, pt[0])), r1(camY(cam, pt[1]))]; }),
+      back: { x0: r1(camX(cam, e.bx0)), x1: r1(camX(cam, e.bx1)), y: r1(camY(cam, e.y0)), crest: r1(camY(cam, e.y0 - hb - cb)), h: r1(hb + cb) },
+      front: { x0: r1(camX(cam, e.x0)), x1: r1(camX(cam, e.x1)), y: r1(camY(cam, e.y1)), crest: r1(camY(cam, e.y1 - hf - cf)), h: r1(hf + cf),
+        segs: [[r1(camX(cam, e.x0)), r1(camX(cam, e.gx - e.gw))], [r1(camX(cam, e.gx + e.gw)), r1(camX(cam, e.x1))]] },
+      gate: { x0: r1(camX(cam, e.gx - e.gw)), x1: r1(camX(cam, e.gx + e.gw)), y: r1(camY(cam, e.y1)), top: r1(camY(cam, e.y1 - 40)) } };
+  }
   if (e.kind === 'palis') {
     var pf = matOf('#a8845a', tone), pd = matOf('#8a6a44', tone);
-    palisade(ctx, e.x0, e.y0, e.x1, e.y0, h, pf, pd); palisade(ctx, e.x0, e.y0, e.x0, e.y1, h, pf, pd); palisade(ctx, e.x1, e.y0, e.x1, e.y1, h, pf, pd);
+    palisade(ctx, e.bx0, e.y0, e.bx1, e.y0, hb, pf, pd);
+    palisade(ctx, e.bx0, e.y0, e.x0, e.y1, hb, pf, pd, hf);
+    palisade(ctx, e.bx1, e.y0, e.x1, e.y1, hb, pf, pd, hf);
   } else {
-    wallBand(ctx, e.x0, e.y0, e.x1, e.y0, h, shade(face, 0.82), null, shade(crest, 0.86), crenel);
-    wallBand(ctx, e.x0, e.y0, e.x0, e.y1, h, shade(face, 0.92), side, shade(crest, 0.94), crenel);
-    wallBand(ctx, e.x1, e.y0, e.x1, e.y1, h, shade(face, 0.88), side, shade(crest, 0.9), crenel);
-    if (env.lod === 0) stoneWork(ctx, e, h, tone);
+    wallBand(ctx, e.bx0, e.y0, e.bx1, e.y0, hb, hb, shade(face, 0.82), null, shade(crest, 0.86), cb, cb);
+    wallBand(ctx, e.bx0, e.y0, e.x0, e.y1, hb, hf, shade(face, 0.93), side, shade(crest, 0.95), cb, cf);
+    wallBand(ctx, e.bx1, e.y0, e.x1, e.y1, hb, hf, shade(face, 0.87), side, shade(crest, 0.89), cb, cf);
+    goldWash(ctx, [e.bx0, e.y0, e.bx0, e.y0 - hb, e.bx1, e.y0 - hb, e.bx1, e.y0], tone);
+    goldWash(ctx, [e.bx0, e.y0, e.x0, e.y1, e.x0, e.y1 - hf, e.bx0, e.y0 - hb], tone);
+    goldWash(ctx, [e.bx1, e.y0, e.x1, e.y1, e.x1, e.y1 - hf, e.bx1, e.y0 - hb], tone);
+    /* liseré de chemin de ronde côté cour : c'est lui qui empêche les courtines de se lire comme des rampes */
+    [[e.bx0, e.x0, 5], [e.bx1, e.x1, -5]].forEach(function (q) {
+      quad(ctx, [q[0] + q[2], e.y0 - hb, q[1] + q[2], e.y1 - hf, q[1] + q[2] * 2.2, e.y1 - hf + 4, q[0] + q[2] * 2.2, e.y0 - hb + 4], shade(crest, 0.8));
+    });
+    if (env.lod === 0) stoneWork(ctx, e, hb, tone);
   }
-  sceneTop(sc, e.y0 - h - crenel);
-  if (env.age >= 3 && e.kind === 'stone') [0.17, 0.83].forEach(function (u) { drawWallTower(ctx, lerp(e.x0, e.x1, u), e.y0, tone, env, sc); });
-  if (env.age >= 4) { drawTower(ctx, e.x0, e.y0, tone, env, sc); drawTower(ctx, e.x1, e.y0, tone, env, sc); }
+  sceneTop(sc, e.y0 - hb - cb);
+  if (env.age >= 3 && e.kind === 'stone') [0.2, 0.8].forEach(function (u) { drawWallTower(ctx, lerp(e.bx0, e.bx1, u), e.y0, tone, env, sc); });
+  if (env.age >= 4) { drawTower(ctx, e.bx0, e.y0, tone, env, sc, 0.86); drawTower(ctx, e.bx1, e.y0, tone, env, sc, 0.86); }
   ctx.restore();
 }
 function stoneWork(ctx, e, h, tone) {
   ctx.fillStyle = rgba(MAT.stoneDark, 0.15 * (1 - tone.night * 0.4));
   for (var i = 0; i < 46; i++) {
-    var f = fnv1a('stone' + i), u = (f % 1000) / 1000, x = lerp(e.x0, e.x1, u), y = e.y0 - 4 - ((f >>> 7) % Math.max(4, Math.round(h) - 5));
+    var f = fnv1a('stone' + i), u = (f % 1000) / 1000, x = lerp(e.bx0, e.bx1, u), y = e.y0 - 4 - ((f >>> 7) % Math.max(4, Math.round(h) - 5));
     ctx.fillRect(x, y, 6 + (f % 5), 2.4);
   }
+  for (var j = 0; j < 22; j++) {
+    var g = fnv1a('stoneL' + j), v = (g % 1000) / 1000, lx = lerp(e.bx0, e.x0, v), ly = lerp(e.y0, e.y1, v);
+    ctx.fillRect(lx, ly - 4 - ((g >>> 7) % 14), 6, 2.4);
+    ctx.fillRect(lerp(e.bx1, e.x1, v) - 6, ly - 4 - ((g >>> 11) % 14), 6, 2.4);
+  }
 }
-/* Tour d'angle : plafonnée à 70 % de la hauteur du donjon (§3), toit conique, torche la nuit. */
-function drawTower(ctx, x, y, tone, env, sc) {
-  var keep = keepDims(hallB(), env.age, BCOURT.hall[1]), h = Math.min(30 + 18 * env.fl, Math.round(keep.total * 0.7)), w = 26;
+/* §7 — lumière rasante : entre 16 h et 20 h le soleil dore la face des tours et des courtines. */
+function goldK(tone) { var u = clamp01((tone.hour - 15.2) / 3) * clamp01((20.6 - tone.hour) / 1.8); return u * 0.58; }
+function goldWash(ctx, poly, tone) {
+  var g = goldK(tone); if (g <= 0.02) return;
+  quad(ctx, poly, rgba(tone.warm, g));
+}
+/* Tour d'angle : plafonnée à 70 % de la hauteur du donjon (§3), toit conique, torche la nuit.
+   `k` abaisse les tours de face pour qu'elles n'écrasent pas la vue sur la cour. */
+function drawTower(ctx, x, y, tone, env, sc, k) {
+  var keep = keepDims(hallB(), env.age, BCOURT.hall[1]), kk = k || 1;
+  var h = Math.round(Math.min(30 + 18 * env.fl, keep.total * 0.7) * kk), w = Math.round(26 * (0.82 + 0.18 * kk));
   var face = matOf(MAT.stone, tone), crest = matOf(MAT.crest, tone);
   quad(ctx, [x - w / 2, y, x - w / 2, y - h, x + w / 2, y - h, x + w / 2, y], face);
   quad(ctx, [x + w * 0.14, y, x + w * 0.14, y - h, x + w / 2, y - h, x + w / 2, y], matOf(MAT.stoneSide, tone));
   quad(ctx, [x - w / 2 - 4, y, x - w / 2 - 4, y - 4, x - w / 2, y - 4, x - w / 2, y], mix(face, '#ffffff', 0.12));
+  goldWash(ctx, [x - w / 2, y, x - w / 2, y - h, x + w * 0.14, y - h, x + w * 0.14, y], tone);
   quad(ctx, [x - w / 2 - 3, y - h, x + w / 2 + 3, y - h, x + w / 2 + 3, y - h - 5, x - w / 2 - 3, y - h - 5], crest);
-  drawCrenels(ctx, x - w / 2 - 3, y - h - 5, x + w / 2 + 3, y - h - 5, 7, face, crest);
+  drawCrenels(ctx, x - w / 2 - 3, y - h - 5, x + w / 2 + 3, y - h - 5, 7, 7, face, crest);
   quad(ctx, [x - w / 2 - 4, y - h - 12, x, y - h - 34, x + w / 2 + 4, y - h - 12], matOf(MAT.roof, tone));
   quad(ctx, [x, y - h - 34, x + w / 2 + 4, y - h - 12, x + 3, y - h - 12], matOf(MAT.roofSide, tone));
   if (env.lod === 0) { ctx.fillStyle = rgba('#2a2323', 0.5); ctx.fillRect(x - 1.4, y - h * 0.6, 2.8, 9); }
@@ -1980,8 +2094,9 @@ function drawWallTower(ctx, x, y, tone, env, sc) {
   var face = shade(matOf(MAT.stone, tone), 0.88), crest = shade(matOf(MAT.crest, tone), 0.9);
   quad(ctx, [x - w / 2, y, x - w / 2, y - h, x + w / 2, y - h, x + w / 2, y], face);
   quad(ctx, [x + w * 0.16, y, x + w * 0.16, y - h, x + w / 2, y - h, x + w / 2, y], shade(face, 0.86));
+  goldWash(ctx, [x - w / 2, y, x - w / 2, y - h, x + w * 0.16, y - h, x + w * 0.16, y], tone);
   quad(ctx, [x - w / 2 - 2, y - h, x + w / 2 + 2, y - h, x + w / 2 + 2, y - h - 4, x - w / 2 - 2, y - h - 4], crest);
-  drawCrenels(ctx, x - w / 2 - 2, y - h - 4, x + w / 2 + 2, y - h - 4, 6, face, crest);
+  drawCrenels(ctx, x - w / 2 - 2, y - h - 4, x + w / 2 + 2, y - h - 4, 6, 6, face, crest);
   if (env.lod === 0) { ctx.fillStyle = rgba('#2a2323', 0.45); ctx.fillRect(x - 1.2, y - h * 0.55, 2.4, 7); }
   sceneTop(sc, y - h - 10);
 }
@@ -1990,26 +2105,85 @@ function drawTorch(ctx, x, y, tone) {
   ctx.fillStyle = g; ctx.fillRect(x - 22, y - 22, 44, 44);
   ctx.fillStyle = rgba('#ffcc66', 0.95); ctx.beginPath(); ctx.ellipse(x, y, 2, 3.4, 0, 0, 6.2832); ctx.fill();
 }
-/* Douve : bande d'eau de 26 unités devant l'enceinte, reflets et miroitement au plus haut détail. */
-function drawMoat(ctx, e, tone, age, lod) {
+/* Douve : elle ENTOURE le château. Ruban d'eau qui longe le pied du mur de face, remonte le long des deux
+   murs latéraux et sort du cadre par les bords gauche et droit — jamais tranché par le bas de l'image.
+   Points : [x, y de la berge intérieure, largeur vers l'extérieur]. */
+function moatPath(e) {
+  var y = e.y1;
+  return [
+    [-340, y - 30, 13], [-140, y - 22, 16], [e.x0 - 96, y - 10, 20], [e.x0 - 44, y + 2, 24], [e.x0 - 12, y + 11, 26],
+    [lerp(e.x0, e.gx, 0.5), y + 16, 27], [e.gx, y + 18, 27], [lerp(e.gx, e.x1, 0.5), y + 16, 27],
+    [e.x1 + 12, y + 11, 26], [e.x1 + 44, y + 2, 24], [e.x1 + 96, y - 10, 20], [1140, y - 22, 16], [1340, y - 30, 13]
+  ];
+}
+/* Les deux langues d'eau qui remontent le long des murs latéraux : c'est elles qui font lire « ça entoure ». */
+function moatSide(e, sgn) {
+  var xf = sgn < 0 ? e.x0 : e.x1, xb = sgn < 0 ? e.bx0 : e.bx1;
+  return [
+    [xf + sgn * 12, e.y1 + 8, 25],
+    [lerp(xf, xb, 0.3) + sgn * 12, lerp(e.y1, e.y0, 0.3) + 3, 20],
+    [lerp(xf, xb, 0.62) + sgn * 11, lerp(e.y1, e.y0, 0.62), 13],
+    [lerp(xf, xb, 0.84) + sgn * 10, lerp(e.y1, e.y0, 0.84) - 2, 7]
+  ];
+}
+/* Le ruban : berge intérieure telle quelle, berge extérieure poussée radialement depuis le centre de la cour. */
+function moatBand(pts, cx, cy, grow) {
+  var inner = [], outer = [];
+  pts.forEach(function (p) {
+    var dx = p[0] - cx, dy = p[1] - cy, L = Math.hypot(dx, dy) || 1, k = p[2] + (grow || 0);
+    inner.push(p[0], p[1]); outer.push(p[0] + dx / L * k, p[1] + dy / L * k);
+  });
+  var out = inner.slice();
+  for (var i = outer.length - 2; i >= 0; i -= 2) out.push(outer[i], outer[i + 1]);
+  return out;
+}
+function drawMoat(ctx, e, tone, age, lod, sc, cam) {
   if (age < 4) return;
-  var y = e.y1 + 4, h = 26, w = matOf(MAT.water, tone), d = matOf(MAT.waterDark, tone);
+  var pts = moatPath(e), cx = e.gx, cy = (e.y0 + e.y1) / 2;
+  var w = matOf(MAT.water, tone), d = matOf(MAT.waterDark, tone);
   ctx.save(); ctx.globalAlpha = e.alpha;
-  quad(ctx, [e.x0 - 10, y - 3, e.x1 + 10, y - 3, e.x1 + 16, y + h + 3, e.x0 - 16, y + h + 3], matOf('#8a7c5e', tone));
-  quad(ctx, [e.x0 - 6, y, e.x1 + 6, y, e.x1 + 11, y + h, e.x0 - 11, y + h], d);
-  quad(ctx, [e.x0 - 4, y + 2, e.x1 + 4, y + 2, e.x1 + 8, y + h - 3, e.x0 - 8, y + h - 3], w);
-  quad(ctx, [e.x0 - 4, y + 2, e.x1 + 4, y + 2, e.x1 + 5, y + 7, e.x0 - 5, y + 7], mix(w, '#000000', 0.34));
-  ctx.fillStyle = rgba(mix(w, '#000000', 0.45), 0.55);
-  [e.x0, e.x1, e.gx - e.gw - 12, e.gx + e.gw + 12].forEach(function (rx) { ctx.fillRect(rx - 9, y + 3, 18, h - 6); });
+  [moatSide(e, -1), moatSide(e, 1)].forEach(function (sp) {
+    quad(ctx, moatBand(sp.map(function (p) { return [p[0], p[1] - 3, p[2] + 3]; }), cx, cy, 4), matOf('#8a7c5e', tone));
+    quad(ctx, moatBand(sp, cx, cy, 0), d);
+    quad(ctx, moatBand(sp.map(function (p) { return [p[0], p[1] + 1, p[2] - 4]; }), cx, cy, 0), w);
+  });
+  quad(ctx, moatBand(pts.map(function (p) { return [p[0], p[1] - 4, p[2] + 4]; }), cx, cy, 5), matOf('#8a7c5e', tone));
+  quad(ctx, moatBand(pts, cx, cy, 0), d);
+  quad(ctx, moatBand(pts.map(function (p) { return [p[0], p[1] + 2, p[2] - 4]; }), cx, cy, 0), w);
+  quad(ctx, moatBand(pts.map(function (p) { return [p[0], p[1] + 2, p[2] * 0.3]; }), cx, cy, 0), mix(w, '#000000', 0.32));
+  if (lod < 2) {                                   /* reflets des courtines sur l'eau */
+    ctx.fillStyle = rgba(mix(w, '#000000', 0.42), 0.5);
+    [e.x0, e.x1, e.gx - e.gw - 22, e.gx + e.gw + 22].forEach(function (rx) { ctx.fillRect(rx - 8, e.y1 + 16, 16, 18); });
+  }
   if (lod === 0) {
-    ctx.fillStyle = rgba('#ffffff', 0.16 + 0.12 * (1 - tone.night));
-    for (var i = 0; i < 18; i++) { var f = fnv1a('ripple' + i), x = e.x0 + ((f % 1000) / 1000) * (e.x1 - e.x0); ctx.fillRect(x, y + 5 + ((f >>> 9) % 16), 9 + (f % 12), 1.2); }
-    ctx.fillStyle = rgba(tone.night > 0.45 ? tone.warm : '#ffffff', 0.12); ctx.fillRect(e.gx - 24, y + 3, 48, h - 6);
+    ctx.fillStyle = rgba('#ffffff', 0.15 + 0.12 * (1 - tone.night));
+    for (var i = 0; i < 22; i++) { var f = fnv1a('ripple' + i), u = (f % 1000) / 1000, x = lerp(e.x0 - 30, e.x1 + 30, u); ctx.fillRect(x, e.y1 + 16 + ((f >>> 9) % 20), 9 + (f % 12), 1.2); }
+    ctx.fillStyle = rgba(tone.night > 0.45 ? tone.warm : '#ffffff', 0.13); ctx.fillRect(e.gx - 26, e.y1 + 16, 52, 22);
+  }
+  if (tone.night > 0.4 && lod < 2) {          /* la nuit, les torches de la porte et la lune se posent sur l'eau */
+    [[e.gx - e.gw - 22, 0.26], [e.gx + e.gw + 22, 0.26], [e.x0 + 30, 0.16], [e.x1 - 30, 0.16]].forEach(function (r) {
+      var g = ctx.createLinearGradient(0, e.y1 + 12, 0, e.y1 + 40);
+      g.addColorStop(0, rgba(tone.warm, r[1] * tone.night)); g.addColorStop(1, rgba(tone.warm, 0));
+      ctx.fillStyle = g; ctx.fillRect(r[0] - 7, e.y1 + 12, 14, 28);
+    });
+    ctx.fillStyle = rgba('#cfd8ee', 0.16 * tone.night);
+    for (var m = 0; m < 14; m++) { var q = fnv1a('moon' + m), mx = lerp(e.x0 - 40, e.x1 + 40, (q % 1000) / 1000); ctx.fillRect(mx, e.y1 + 18 + ((q >>> 9) % 18), 11 + (q % 9), 1.1); }
+  }
+  if (sc) {
+    var xs = [], ys = [], sides = [];
+    [moatBand(pts, cx, cy, 5), moatBand(moatSide(e, -1), cx, cy, 4), moatBand(moatSide(e, 1), cx, cy, 4)].forEach(function (poly, n) {
+      var sx = [], sy = [];
+      for (var k = 0; k < poly.length; k += 2) { sx.push(camX(cam, poly[k])); sy.push(camY(cam, poly[k + 1])); }
+      xs = xs.concat(sx); ys = ys.concat(sy);
+      if (n) sides.push({ top: r1(Math.min.apply(null, sy)), bottom: r1(Math.max.apply(null, sy)), left: r1(Math.min.apply(null, sx)), right: r1(Math.max.apply(null, sx)) });
+    });
+    sc.moat = { top: r1(Math.min.apply(null, ys)), bottom: r1(Math.max.apply(null, ys)), left: r1(Math.min.apply(null, xs)), right: r1(Math.max.apply(null, xs)), sides: sides };
   }
   ctx.restore();
 }
+/* Le mur de FACE : il referme la cour et porte la porte. Plus bas que le fond, pour qu'on voie par-dessus. */
 function drawWallFront(ctx, e, tone, env, sc, cam, t) {
-  var h = wallH(e.kind, env.fl), crenel = e.kind === 'palis' ? 0 : 8;
+  var h = wallHF(e.kind, env.fl), crenel = crenelH(e.kind, 'front');
   var face = matOf(MAT.stone, tone), crest = matOf(MAT.crest, tone);
   ctx.save(); ctx.globalAlpha = e.alpha;
   if (e.kind === 'palis') {
@@ -2017,9 +2191,20 @@ function drawWallFront(ctx, e, tone, env, sc, cam, t) {
     palisade(ctx, e.x0, e.y1, e.gx - e.gw, e.y1, h, pf, pd); palisade(ctx, e.gx + e.gw, e.y1, e.x1, e.y1, h, pf, pd);
     drawGateSimple(ctx, e, tone, h);
   } else {
-    wallBand(ctx, e.x0, e.y1, e.gx - e.gw, e.y1, h, mix(face, '#ffffff', 0.08), matOf(MAT.stoneSide, tone), crest, crenel);
-    wallBand(ctx, e.gx + e.gw, e.y1, e.x1, e.y1, h, mix(face, '#ffffff', 0.08), matOf(MAT.stoneSide, tone), crest, crenel);
-    if (env.age >= 4) { drawTower(ctx, e.x0, e.y1, tone, env, sc); drawTower(ctx, e.x1, e.y1, tone, env, sc); }
+    var lit = mix(face, '#ffffff', 0.1);
+    wallBand(ctx, e.x0, e.y1, e.gx - e.gw, e.y1, h, h, lit, matOf(MAT.stoneSide, tone), crest, crenel, crenel);
+    wallBand(ctx, e.gx + e.gw, e.y1, e.x1, e.y1, h, h, lit, matOf(MAT.stoneSide, tone), crest, crenel, crenel);
+    goldWash(ctx, [e.x0, e.y1, e.x0, e.y1 - h, e.gx - e.gw, e.y1 - h, e.gx - e.gw, e.y1], tone);
+    goldWash(ctx, [e.gx + e.gw, e.y1, e.gx + e.gw, e.y1 - h, e.x1, e.y1 - h, e.x1, e.y1], tone);
+    if (env.lod === 0) {
+      ctx.fillStyle = rgba(MAT.stoneDark, 0.14 * (1 - tone.night * 0.4));
+      for (var i = 0; i < 34; i++) {
+        var f = fnv1a('front' + i), x = lerp(e.x0, e.x1, (f % 1000) / 1000);
+        if (x > e.gx - e.gw - 6 && x < e.gx + e.gw + 6) continue;
+        ctx.fillRect(x, e.y1 - 5 - ((f >>> 7) % Math.max(4, Math.round(h) - 6)), 6 + (f % 5), 2.4);
+      }
+    }
+    if (env.age >= 4) { drawTower(ctx, e.x0, e.y1, tone, env, sc, 0.72); drawTower(ctx, e.x1, e.y1, tone, env, sc, 0.72); }
     drawGatehouse(ctx, e, tone, env, sc, t);
   }
   if (env.age >= 4) drawDrawbridge(ctx, e, tone, env, sc, cam);
@@ -2027,36 +2212,42 @@ function drawWallFront(ctx, e, tone, env, sc, cam, t) {
 }
 function drawGateSimple(ctx, e, tone, h) {
   var x = e.gx, w = e.gw;
-  quad(ctx, [x - w - 3, e.y1, x - w - 3, e.y1 - h - 9, x - w + 3, e.y1 - h - 9, x - w + 3, e.y1], matOf('#8a6a44', tone));
-  quad(ctx, [x + w - 3, e.y1, x + w - 3, e.y1 - h - 9, x + w + 3, e.y1 - h - 9, x + w + 3, e.y1], matOf('#8a6a44', tone));
-  ctx.fillStyle = matOf('#6b5030', tone); ctx.fillRect(x - w - 3, e.y1 - h - 12, w * 2 + 6, 4);
+  ctx.fillStyle = matOf('#3a2e27', tone); ctx.beginPath();
+  ctx.moveTo(x - w, e.y1); ctx.lineTo(x - w, e.y1 - h); ctx.lineTo(x + w, e.y1 - h); ctx.lineTo(x + w, e.y1); ctx.fill();
+  quad(ctx, [x - w - 4, e.y1, x - w - 4, e.y1 - h - 11, x - w + 4, e.y1 - h - 11, x - w + 4, e.y1], matOf('#8a6a44', tone));
+  quad(ctx, [x + w - 4, e.y1, x + w - 4, e.y1 - h - 11, x + w + 4, e.y1 - h - 11, x + w + 4, e.y1], matOf('#8a6a44', tone));
+  ctx.fillStyle = matOf('#6b5030', tone); ctx.fillRect(x - w - 4, e.y1 - h - 14, w * 2 + 8, 4.5);
 }
 /* Corps de garde : deux tours de porte (26 + 14 × niveau), herse, mâchicoulis, bannières de trophée. */
 function drawGatehouse(ctx, e, tone, env, sc, t) {
-  var h = 34 + 14 * env.fl, w = 28, y = e.y1, face = mix(matOf(MAT.stone, tone), '#ffffff', 0.06), crest = matOf(MAT.crest, tone);
-  ctx.fillStyle = matOf('#3a2e27', tone); ctx.beginPath();
-  ctx.moveTo(e.gx - e.gw, y); ctx.lineTo(e.gx - e.gw, y - 20); ctx.quadraticCurveTo(e.gx, y - 40, e.gx + e.gw, y - 20); ctx.lineTo(e.gx + e.gw, y); ctx.fill();
+  var hf = wallHF(e.kind, env.fl), h = Math.round(hf * 1.7) + 8 + 3 * env.fl, w = 24, y = e.y1;
+  var face = mix(matOf(MAT.stone, tone), '#ffffff', 0.08), crest = matOf(MAT.crest, tone);
+  ctx.fillStyle = matOf('#2e241d', tone); ctx.beginPath();
+  ctx.moveTo(e.gx - e.gw, y); ctx.lineTo(e.gx - e.gw, y - hf - 4); ctx.quadraticCurveTo(e.gx, y - hf - 24, e.gx + e.gw, y - hf - 4); ctx.lineTo(e.gx + e.gw, y); ctx.fill();
   if (env.lod < 2) {
-    ctx.strokeStyle = rgba('#d8d2c4', 0.35); ctx.lineWidth = 1; ctx.beginPath();
-    for (var k = -e.gw + 5; k < e.gw; k += 6) { ctx.moveTo(e.gx + k, y); ctx.lineTo(e.gx + k, y - 28); } ctx.stroke();
+    ctx.strokeStyle = rgba('#d8d2c4', 0.32); ctx.lineWidth = 1; ctx.beginPath();
+    for (var k = -e.gw + 5; k < e.gw; k += 6) { ctx.moveTo(e.gx + k, y); ctx.lineTo(e.gx + k, y - hf - 10); } ctx.stroke();
+    ctx.strokeStyle = rgba('#d8d2c4', 0.22);
+    ctx.beginPath(); for (var kk = 6; kk < hf + 10; kk += 6) { ctx.moveTo(e.gx - e.gw + 3, y - kk); ctx.lineTo(e.gx + e.gw - 3, y - kk); } ctx.stroke();
   }
   [-1, 1].forEach(function (s) {
-    var x = e.gx + s * (e.gw + w / 2 - 3);
+    var x = e.gx + s * (e.gw + w / 2 - 2);
     quad(ctx, [x - w / 2, y, x - w / 2, y - h, x + w / 2, y - h, x + w / 2, y], face);
     quad(ctx, [x + w * 0.16, y, x + w * 0.16, y - h, x + w / 2, y - h, x + w / 2, y], matOf(MAT.stoneSide, tone));
+    goldWash(ctx, [x - w / 2, y, x - w / 2, y - h, x + w * 0.16, y - h, x + w * 0.16, y], tone);
     quad(ctx, [x - w / 2 - 3, y - h, x + w / 2 + 3, y - h, x + w / 2 + 3, y - h - 4, x - w / 2 - 3, y - h - 4], crest);
-    drawCrenels(ctx, x - w / 2 - 3, y - h - 4, x + w / 2 + 3, y - h - 4, 7, face, crest);
+    drawCrenels(ctx, x - w / 2 - 3, y - h - 4, x + w / 2 + 3, y - h - 4, 7, 7, face, crest);
     if (env.lod === 0) { ctx.fillStyle = rgba('#2a2323', 0.3); for (var i = 0; i < 4; i++) ctx.fillRect(x - w / 2 + 2 + i * 5, y - h - 3, 2, 3); }
-    ctx.fillStyle = rgba('#2a2323', 0.5); ctx.fillRect(x - 1.5, y - h * 0.6, 3, 9);
+    ctx.fillStyle = rgba('#2a2323', 0.5); ctx.fillRect(x - 1.5, y - h * 0.58, 3, 9);
     if (tone.night > 0.45) drawTorch(ctx, x, y - h + 8, tone);
   });
-  drawTrophyBanners(ctx, e, tone, sc, t);
+  drawTrophyBanners(ctx, e, tone, sc, t, h);
   sceneTop(sc, y - h - 11);
 }
-function drawTrophyBanners(ctx, e, tone, sc, t) {
+function drawTrophyBanners(ctx, e, tone, sc, t, gh) {
   var n = Math.min(5, app.vm.village.trophies.length); if (sc) sc.banners = n;
   for (var i = 0; i < n; i++) {
-    var x = e.gx - e.gw + 5 + i * 11, y = e.y1 - 44, wv = Math.sin(t * 1.7 + i) * 1.6;
+    var x = e.gx - e.gw + 5 + i * 11, y = e.y1 - Math.max(30, (gh || 44) - 16), wv = Math.sin(t * 1.7 + i) * 1.6;
     quad(ctx, [x, y, x + 8, y, x + 8 + wv, y + 17, x + 4 + wv, y + 13, x + wv, y + 17], matOf('#8a2f2f', tone));
     ctx.fillStyle = rgba('#e8c86a', 0.9); ctx.fillRect(x + 2.6, y + 4, 2.8, 2.8);
   }
@@ -2072,7 +2263,7 @@ function bridgeState(hour) {
   return brS.down ? ease(p) : 1 - ease(p);
 }
 function drawDrawbridge(ctx, e, tone, env, sc, cam) {
-  var hour = sceneHour(), a = bridgeState(hour), L = 34, x = e.gx, y = e.y1, w = e.gw - 11;
+  var hour = sceneHour(), a = bridgeState(hour), L = 46, x = e.gx, y = e.y1, w = e.gw - 11;
   var far = y + L * a - (L + 10) * (1 - a), spread = 1 + 0.18 * a;
   if (sc) sc.drawbridge = { down: a > 0.5, a: r1(a), hour: r1(hour), x: r1(camX(cam, x)), y: r1(camY(cam, far)) };
   quad(ctx, [x - w, y, x + w, y, x + w * spread, far, x - w * spread, far], matOf('#a98953', tone));
@@ -2088,11 +2279,47 @@ function drawDrawbridge(ctx, e, tone, env, sc, cam) {
 /* La vie de la cour : puits, tonneaux, bûcher, étals. Décor pur, posé par l'âge (hors spec, au service de l'image). */
 function drawCourtProps(ctx, e, tone, env, t) {
   ctx.save(); ctx.globalAlpha = e.alpha;
-  var cy = lerp(e.y0, e.y1, 0.62);
-  drawWell(ctx, lerp(e.x0, e.x1, 0.17), cy + 4, tone);
-  drawStack(ctx, lerp(e.x0, e.x1, 0.8), cy - 2, tone);
-  if (env.age >= 3) { drawStall(ctx, lerp(e.x0, e.x1, 0.42), e.y1 - 24, tone); drawStall(ctx, lerp(e.x0, e.x1, 0.58), e.y1 - 18, tone); }
+  var hf = wallHF(e.kind, env.fl) + crenelH(e.kind, 'front'), fy = e.y1 - hf - 4;
+  var inX = function (u, y) { return lerp(encLeft(e, y) + 18, encRight(e, y) - 18, u); };
+  drawWell(ctx, inX(0.5, fy - 26), fy - 26, tone);
+  drawStack(ctx, inX(0.9, fy - 34), fy - 34, tone);
+  if (env.age >= 3) {
+    drawStall(ctx, inX(0.26, fy - 2), fy - 2, tone);
+    drawStall(ctx, inX(0.63, fy + 3), fy + 3, tone);
+    drawStack(ctx, inX(0.44, fy + 4), fy + 4, tone);
+    if (env.lod < 2) { drawCart(ctx, inX(0.8, fy + 2), fy + 2, tone); drawHay(ctx, inX(0.9, fy - 8), fy - 8, tone); }
+    if (env.lod === 0) {
+      drawBrazier(ctx, inX(0.13, fy + 1), fy + 1, tone, t);
+      drawCrates(ctx, inX(0.36, fy + 5), fy + 5, tone);
+      drawCrates(ctx, inX(0.72, fy - 6), fy - 6, tone);
+    }
+  }
   ctx.restore();
+}
+/* Meule de foin et caisses : le petit mobilier qui remplit la cour sans l'encombrer. */
+function drawHay(ctx, x, y, tone) {
+  drawShadow(ctx, x, y, 24, tone);
+  var c = matOf('#c9a95f', tone);
+  ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(x, y, 12, 9, 0, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = shade(c, 0.84); ctx.beginPath(); ctx.ellipse(x + 4, y, 8, 8, 0, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = matOf('#5b4632', tone); ctx.fillRect(x - 1, y - 16, 2, 8);
+}
+function drawCrates(ctx, x, y, tone) {
+  drawShadow(ctx, x, y, 22, tone);
+  [[0, 0, 11], [11, 0, 9], [4, -10, 9]].forEach(function (d) {
+    ctx.fillStyle = matOf('#9b7a4c', tone); ctx.fillRect(x + d[0] - d[2] / 2, y + d[1] - d[2], d[2], d[2]);
+    ctx.fillStyle = rgba(MAT.woodDark, 0.45); ctx.fillRect(x + d[0] - d[2] / 2, y + d[1] - d[2] * 0.58, d[2], 1.6);
+    ctx.fillStyle = rgba('#ffffff', 0.1); ctx.fillRect(x + d[0] - d[2] / 2, y + d[1] - d[2], 1.6, d[2]);
+  });
+}
+/* Brasero de cour : un point chaud qui vit le soir et la nuit. */
+function drawBrazier(ctx, x, y, tone, t) {
+  ctx.fillStyle = matOf('#4a4340', tone); ctx.fillRect(x - 1.6, y - 9, 3.2, 9);
+  quad(ctx, [x - 7, y - 13, x + 7, y - 13, x + 5, y - 8, x - 5, y - 8], matOf('#5a5048', tone));
+  var f = 0.55 + 0.45 * Math.sin(t * 3.1), g = ctx.createRadialGradient(x, y - 16, 1, x, y - 16, 16 + 4 * f);
+  g.addColorStop(0, rgba('#ffb04a', 0.5 + 0.3 * tone.night)); g.addColorStop(1, rgba('#ffb04a', 0));
+  ctx.fillStyle = g; ctx.fillRect(x - 22, y - 38, 44, 44);
+  quad(ctx, [x, y - 20 - 4 * f, x - 4, y - 13, x + 4, y - 13], rgba('#ffcf70', 0.92));
 }
 function drawWell(ctx, x, y, tone) {
   drawShadow(ctx, x, y, 22, tone);
@@ -2120,22 +2347,25 @@ function soldierSpots(e, guards, hour) {
   var out = [], n = Math.max(0, guards | 0), i;
   if (!e || !n) return out;
   var faction = Math.min(2, n), ronde = n - faction, q = Math.round(hour * 4);
-  for (i = 0; i < faction; i++) out.push({ role: 'faction', x: e.gx + (i ? 1 : -1) * (e.gw + 15), y: e.y1 + 5 });
+  for (i = 0; i < faction; i++) out.push({ role: 'faction', x: e.gx + (i ? 1 : -1) * (e.gw + 26), y: e.y1 + 5 });
   for (i = 0; i < ronde; i++) out.push({ role: 'ronde', u: ((q * 3 + i * Math.round(96 / Math.max(1, ronde))) % 96) / 96 });
   return out;
 }
+/* Chemin de ronde : mur latéral gauche (de la face vers le fond), mur du fond, mur latéral droit. */
 function walkPoint(e, u) {
-  var wx = e.x1 - e.x0, wy = e.y1 - e.y0, per = wx + 2 * wy, d = clamp01(u) * per;
-  if (d < wy) return { x: e.x0, y: e.y1 - d };
-  if (d < wy + wx) return { x: e.x0 + (d - wy), y: e.y0 };
-  return { x: e.x1, y: e.y0 + (d - wy - wx) };
+  var sl = Math.hypot(e.x0 - e.bx0, e.y1 - e.y0), sr = Math.hypot(e.x1 - e.bx1, e.y1 - e.y0), bw = e.bx1 - e.bx0;
+  var per = sl + bw + sr, d = clamp01(u) * per;
+  if (d < sl) { var k = d / sl; return { x: lerp(e.x0, e.bx0, k), y: lerp(e.y1, e.y0, k) }; }
+  if (d < sl + bw) return { x: e.bx0 + (d - sl), y: e.y0 };
+  var k2 = (d - sl - bw) / Math.max(1, sr); return { x: lerp(e.bx1, e.x1, k2), y: lerp(e.y0, e.y1, k2) };
 }
 function drawSoldiers(ctx, e, v, tone, env, sc, cam, part) {
   if (!e || env.lod === 2) return;
-  var h = wallH(e.kind, env.fl) + (e.kind === 'palis' ? 0 : 8);
   soldierSpots(e, v.guards, sceneHour()).forEach(function (s) {
     if (s.role !== part) return;
-    var p = s.role === 'ronde' ? walkPoint(e, s.u) : s, y = s.role === 'ronde' ? p.y - h + 3 : p.y;
+    var p = s.role === 'ronde' ? walkPoint(e, s.u) : s;
+    var h = wallHAt(e, env.fl, p.y) + (e.kind === 'palis' ? 0 : 8);
+    var y = s.role === 'ronde' ? p.y - h + 3 : p.y;
     if (sc) sc.soldiers.push({ role: s.role, x: r1(camX(cam, p.x)), y: r1(camY(cam, y)) });
     if (env.lod === 1) { ctx.fillStyle = matOf('#5a6068', tone); ctx.beginPath(); ctx.arc(p.x, y - 5, 3, 0, 6.2832); ctx.fill(); }
     else drawGuard(ctx, p.x, y, tone, s.role === 'faction');
@@ -2236,18 +2466,23 @@ function drawKeep(ctx, b, cx, base, cam, tone, t, T, env, sc) {
   var sk = sunK(tone);
   ctx.fillStyle = rgba('#3a3226', 0.2 * (1 - tone.night));
   quad(ctx, [cx - w * 0.5, base, cx + w * 0.5, base, cx + w * 0.5 + sk.dx * 40, base + 16, cx - w * 0.5 + sk.dx * 40, base + 16], rgba('#3a3226', 0.16 * (1 - tone.night)));
-  quad(ctx, [cx - w * 0.66, base + 1, cx - w * 0.54, base - k.motte, cx + w * 0.54, base - k.motte, cx + w * 0.66, base + 1], matOf('#8d8163', tone));
-  quad(ctx, [cx + w * 0.2, base + 1, cx + w * 0.54, base - k.motte, cx + w * 0.66, base + 1], matOf('#726851', tone));
-  quad(ctx, [cx - w * 0.56, base - k.motte + 4, cx + w * 0.56, base - k.motte + 4, cx + w * 0.54, base - k.motte, cx - w * 0.54, base - k.motte], matOf('#7d8f64', tone));
+  quad(ctx, [cx - w * 0.58, base + 1, cx - w * 0.5, base - k.motte, cx + w * 0.5, base - k.motte, cx + w * 0.58, base + 1], matOf('#9a927e', tone));
+  quad(ctx, [cx + w * 0.24, base + 1, cx + w * 0.5, base - k.motte, cx + w * 0.58, base + 1], matOf('#7c7565', tone));
+  goldWash(ctx, [cx - w * 0.58, base + 1, cx - w * 0.5, base - k.motte, cx + w * 0.24, base - k.motte, cx + w * 0.24, base + 1], tone);
+  quad(ctx, [cx - w * 0.52, base - k.motte + 3, cx + w * 0.52, base - k.motte + 3, cx + w * 0.5, base - k.motte, cx - w * 0.5, base - k.motte], matOf('#c4bca6', tone));
+  if (env.lod === 0) { ctx.fillStyle = rgba(MAT.stoneDark, 0.16);
+    for (var mi = 0; mi < 9; mi++) ctx.fillRect(cx - w * 0.5 + mi * (w / 9.4), base - k.motte + 6 + (mi % 2 ? 7 : 0), w / 13, 2.4); }
   quad(ctx, [cx - w / 2, base - k.motte, cx - w / 2, y, cx + w / 2, y, cx + w / 2, base - k.motte], face);
   quad(ctx, [cx + w * 0.18, base - k.motte, cx + w * 0.18, y, cx + w / 2, y, cx + w / 2, base - k.motte], side);
   quad(ctx, [cx - w / 2, base - k.motte, cx - w / 2, y, cx - w * 0.38, y, cx - w * 0.38, base - k.motte], mix(face, '#ffffff', 0.12));
+  goldWash(ctx, [cx - w / 2, base - k.motte, cx - w / 2, y, cx + w * 0.18, y, cx + w * 0.18, base - k.motte], tone);
   quad(ctx, [cx - w / 2 - 4, base - k.motte + 2, cx + w / 2 + 4, base - k.motte + 2, cx + w / 2, base - k.motte - 9, cx - w / 2, base - k.motte - 9], shade(face, 0.72));
   quad(ctx, [cx - w / 2 - 5, y, cx + w / 2 + 5, y, cx + w / 2 + 5, y - 6, cx - w / 2 - 5, y - 6], crest);
   drawCrenels(ctx, cx - w / 2 - 5, y - 6, cx + w / 2 + 5, y - 6, 9, face, crest);
   var uw = w * 0.5, uy = y - k.gap - k.band;
   quad(ctx, [cx - uw / 2, y - 6, cx - uw / 2, uy, cx + uw / 2, uy, cx + uw / 2, y - 6], face);
   quad(ctx, [cx + uw * 0.14, y - 6, cx + uw * 0.14, uy, cx + uw / 2, uy, cx + uw / 2, y - 6], side);
+  goldWash(ctx, [cx - uw / 2, y - 6, cx - uw / 2, uy, cx + uw * 0.14, uy, cx + uw * 0.14, y - 6], tone);
   quad(ctx, [cx - uw / 2 - 6, uy, cx, uy - k.spire, cx + uw / 2 + 6, uy], matOf(MAT.roof, tone));
   quad(ctx, [cx, uy - k.spire, cx + uw / 2 + 6, uy, cx + uw * 0.1, uy], matOf(MAT.roofSide, tone));
   drawKeepDetail(ctx, cx, base, w, y, uy, k, tone, env.lod);
@@ -2327,15 +2562,11 @@ function drawEmptyLot(ctx, b, cx, base, dim, T, tone, env, t, sc) {
   drawWorks(ctx, b, x, y, w, base, T, tone, env, sc, t);
   if (tb.phase === 'evening' && tb.markers && tb.markers.burnt === b.id) drawFire(ctx, x + 10, base - 6, w - 20, t || 0);
   if (env.mini) return;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  var lines = ctx.canvas.clientWidth >= 520 ? wrapName(ctx, b.name, w - 8, uiFont(9, 600)) : [];
-  var ly = base - h - 14;
-  ctx.font = uiFont(9, 600);
-  lines.concat(['à bâtir']).forEach(function (l, i) {
-    var tw = ctx.measureText(l).width;
-    ctx.fillStyle = rgba(tone.night > 0.5 ? '#141a2a' : '#ffffff', 0.55); roundRect(ctx, cx - tw / 2 - 4, ly + i * 11 - 5.5, tw + 8, 11, 5); ctx.fill();
-    ctx.fillStyle = tone.night > 0.5 ? '#c9d1cc' : '#31403a'; ctx.fillText(l, cx, ly + i * 11);
-  });
+  /* La plaque part au placeur d'étiquettes : elle ne peut plus recouvrir un toit ni une autre plaque. */
+  var lines = ctx.canvas.clientWidth >= 520 ? wrapName(ctx, b.name, 92, uiFont(9, 600)) : [];
+  var cm = env.cam;
+  labelAdd({ id: 'lot:' + b.id, kind: 'plaque', lines: lines.concat(['à bâtir']), size: 9, lh: 11, padX: 5, padY: 4,
+    x: camX(cm, cx) * (app.sceneScale || 1), y: camY(cm, base - h - 2) * (app.sceneSy || 1) });
 }
 /* Parcelle à bâtir dans un village qui a des murs : une assise de pierre et des piquets, pas un pointillé. */
 function drawFoundation(ctx, x, base, w, tone) {
@@ -2512,32 +2743,34 @@ function stepPositions(snap) {
   });
   return moving;
 }
-/* La figurine suit le lieu de son activité : quand le bâtiment entre dans les murs, elle entre avec lui. */
+/* La figurine suit le lieu de son activité : dès que l'enceinte se referme, un héros au village se tient
+   DANS la cour devant son bâtiment ; celui qui part passe la porte et le tablier du pont-levis. */
 function figurePos(act, p, cam) {
-  var home = ACT_HOME[act], e;
-  if (home) { var d = slotOf(home, cam); return { x: p.x + d[0] - BSLOT[home][0], y: p.y + d[1] - BSLOT[home][1] }; }
-  if (act === 'solo') { var s = soloShift(cam); return { x: p.x + s[0], y: p.y + s[1] }; }
-  if (act === 'defend') { e = encNow(cam); return e ? { x: p.x + e.gx + 40 - 568, y: p.y + e.y1 + 34 - 414 } : p; }
-  if (act === 'expedition' || act === 'raid') {
-    var u = 0.55, a = polyPoint(ROAD, u), b = polyPoint(roadNow(cam), u);
-    return { x: p.x + b.x - a.x, y: p.y + b.y - a.y };
+  var a = act || 'idle';
+  if (a === 'solo') { var s = soloShift(cam); return { x: p.x + s[0], y: p.y + s[1] }; }
+  if (a === 'expedition' || a === 'raid') {
+    var g = exitAnchor(cam), o = spotFor(a, 0);          /* la référence est la case logique du premier parti */
+    return { x: p.x + g.x - o.x, y: p.y + g.y - o.y };
   }
-  return p;
+  return figPlace(a, p, cam);
 }
-function drawFigures(ctx, s, sy, fs, T, mini, evening, cam) {
+function drawFigures(ctx, s, sy, fs, T, mini, evening, cam, sc) {
   var order = app.managers.slice().sort(function (a, b) { return (tb.pos[a.id] || { y: 0 }).y - (tb.pos[b.id] || { y: 0 }).y; });
   order.forEach(function (m) {
     var p0 = tb.pos[m.id]; if (!p0) return;
     var h = heroOf(m.id), act = h ? tb.placed[m.id] : 'dead', mk = tb.markers || { injured: {}, levelUp: {}, limping: {} };
-    var p = figurePos(act, p0, cam);
-    drawFigure(ctx, { x: camX(cam, p.x) * s, y: camY(cam, p.y) * sy, fs: fs, color: CLASS_COLOR[h ? h.class_id : ''] || T.accent, initial: m.name.charAt(0).toUpperCase(), name: mini ? '' : m.name, row: p0.row || 0,
+    var pact = h ? (tb.placed[m.id] || 'idle') : 'dead';
+    var p = figurePos(pact, p0, cam), fx = camX(cam, p.x) * s, fy = camY(cam, p.y) * sy;
+    if (sc) sc.figures.push({ id: m.id, act: pact, out: !!OUT_ACTS[pact], x: r1(fx), y: r1(fy) });
+    drawFigure(ctx, { x: fx, y: fy, fs: fs, color: CLASS_COLOR[h ? h.class_id : ''] || T.accent, initial: m.name.charAt(0).toUpperCase(), name: mini ? '' : m.name, row: p0.row || 0, id: m.id,
       ghost: !act || act === 'dead', dead: !h, seated: act === 'rest', lying: act === 'injured', limping: !!mk.limping[m.id], star: !!mk.levelUp[m.id], cross: act === 'injured', mine: m.id === ME, armed: act === 'defend' || act === 'raid', solo: act === 'solo', aura: act === 'raid' }, T, evening);
   });
   if (mini || tb.phase === 'evening') return;
   tb.bubbles.filter(function (b) { return b.until > tb.hour; }).slice(-2).forEach(function (b) {
     var p = tb.pos[b.id]; if (!p) return;
     var q = figurePos(tb.placed[b.id] || 'idle', p, cam);
-    drawBubble(ctx, camX(cam, q.x) * s, camY(cam, q.y) * sy - 46 * fs, b.text, T, s * LW);
+    labelAdd({ id: 'bulle:' + b.id, kind: 'bubble', lines: [b.text], size: 10, lh: 12, padX: 7, padY: 4,
+      x: camX(cam, q.x) * s, y: camY(cam, q.y) * sy - 42 * fs });
   });
 }
 function drawFigure(ctx, f, T, evening) {
@@ -2569,21 +2802,114 @@ function drawFigureMarks(ctx, f, u, top, T, evening) {
   if (f.star) drawStar(ctx, f.x, f.y - top - 10 * u, 6 * u, T.gold);
   if (f.mine && !f.ghost) quad(ctx, [f.x, f.y - top - 4 * u, f.x - 4 * u, f.y - top - 10 * u, f.x + 4 * u, f.y - top - 10 * u], T.accent);
   if (!f.name) return;
-  var fy = f.y + (f.lying ? 10 : 12) * u + f.row * (app.sceneScale < 0.6 ? 9.5 : 11) * u;
-  ctx.font = uiFont(app.sceneScale < 0.6 ? 8.5 : Math.max(9, 10 * u), 600); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  ctx.lineWidth = 3; ctx.strokeStyle = evening ? 'rgba(20,26,23,0.75)' : 'rgba(243,244,240,0.85)'; ctx.lineJoin = 'round'; ctx.strokeText(f.name, f.x, fy);
-  ctx.fillStyle = evening ? '#e8ece7' : '#1B2620'; ctx.fillText(f.name, f.x, fy);
+  var sz = app.sceneScale < 0.6 ? 8.5 : Math.max(9, 10 * u);
+  labelAdd({ id: 'nom:' + f.id, kind: 'name', lines: [f.name], size: sz, lh: sz + 2, padX: 4, padY: 3,
+    x: f.x, y: Math.round(f.y + (f.lying ? 7 : 9) * u), top: Math.round(f.y - top - 13 * u) });
 }
 function drawStar(ctx, cx, cy, r, color) {
   ctx.beginPath();
   for (var i = 0; i < 10; i++) { var rr = i % 2 ? r * 0.45 : r, a = -Math.PI / 2 + i * Math.PI / 5; ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
   ctx.closePath(); ctx.fillStyle = color; ctx.fill();
 }
-function drawBubble(ctx, x, y, text, T, W) {
-  ctx.font = uiFont(11, 600); var w = ctx.measureText(text).width + 16, h = 22, bx = Math.max(4, Math.min(W - w - 4, x - w / 2)), by = y - h;
-  ctx.fillStyle = T.surface; ctx.strokeStyle = T.line; ctx.lineWidth = 1; roundRect(ctx, bx, by, w, h, 6); ctx.fill(); ctx.stroke();
-  quad(ctx, [x - 4, by + h, x, by + h + 5, x + 4, by + h], T.surface);
-  ctx.fillStyle = T.ink; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(text, bx + 8, by + h / 2 + 0.5);
+/* ---------- étiquettes : un seul placeur, déterministe, sans collision et sans débordement ----------
+   Tout ce qui porte du texte sur le tableau (noms des héros, plaques « à bâtir », bulles de révélation)
+   est empilé pendant le dessin puis posé ici. Chaque étiquette essaie ses positions candidates dans un
+   ordre fixe — dessous, quinconce, au-dessus — et prend la première libre : jamais deux étiquettes l'une
+   sur l'autre, jamais un débordement du cadre, et de préférence jamais sur un toit. Publié dans
+   __scene.labels, boîtes en pixels canvas, telles qu'elles sont dessinées. */
+var LAB = [];
+function labelAdd(o) { LAB.push(o); }
+function boxHit(a, b, pad) { var m = pad || 0; return a.x < b.x + b.w + m && a.x + a.w + m > b.x && a.y < b.y + b.h + m && a.y + a.h + m > b.y; }
+/* Positions candidates, de la plus proche à la plus lointaine : dessous, quinconce, puis au-dessus.
+   Le tri par coût garde l'étiquette PRÈS de ce qu'elle désigne au lieu de l'expédier à l'autre bout. */
+function labCands(l) {
+  var out = [], name = l.kind === 'name', i, j;
+  var dxs = [0, -10, 10, -20, 20, -32, 32, -46, 46, -62, 62, -80, 80, -100, 100, -124, 124];
+  var dys = name ? [0, 7, 14, 21, 28, 36, 44, 53, -1, -10, -19, -28, -38, -50] : [0, -10, 10, -20, 20, -32, 32, -46, 46, -62, -80, -102, -126];
+  for (i = 0; i < dys.length; i++) for (j = 0; j < dxs.length; j++) {
+    var up = name && dys[i] < 0, base = name ? (up ? l.top - l.h : l.y) : l.y - l.h;
+    var cost = Math.abs(dxs[j]) * 1.15 + Math.abs(dys[i]) * (dys[i] < 0 ? 1.5 : 1) + (up ? 10 : 0);
+    out.push({ x: l.x + dxs[j] - l.w / 2, y: base + dys[i], c: cost });
+  }
+  out.sort(function (a, b) { return (a.c - b.c) || (a.y - b.y) || (a.x - b.x); });
+  return out;
+}
+function labFit(box, W, H) { return box.x >= 3 && box.y >= 3 && box.x + box.w <= W - 3 && box.y + box.h <= H - 3; }
+function labFree(box, placed, pad) { for (var i = 0; i < placed.length; i++) if (boxHit(box, placed[i], pad)) return false; return true; }
+/* Part de l'étiquette qui mord sur un bâtiment : sert de pénalité, pas d'interdit. */
+function labCover(box, blocks) {
+  var a = 0, area = Math.max(1, box.w * box.h);
+  for (var i = 0; i < blocks.length; i++) {
+    var b = blocks[i], ox = Math.min(box.x + box.w, b.x + b.w) - Math.max(box.x, b.x), oy = Math.min(box.y + box.h, b.y + b.h) - Math.max(box.y, b.y);
+    if (ox > 0 && oy > 0) a += ox * oy;
+  }
+  return Math.min(1, a / area);
+}
+function labelLayout(ctx, W, H, sc) {
+  var placed = [], blocks = [], kx = W / LW, ky = H / LH;      /* __scene est en repère logique, les étiquettes en pixels */
+  if (sc) sc.buildings.forEach(function (b) { blocks.push({ x: b.x * kx, y: b.y * ky, w: b.w * kx, h: b.h * ky }); });
+  blocks.push({ x: W - 72, y: 4, w: 68, h: 28 });                 /* la pastille d'heure */
+  LAB.forEach(function (l) {
+    ctx.font = uiFont(l.size, l.kind === 'name' ? 600 : 600);
+    var w = 0; l.lines.forEach(function (s) { w = Math.max(w, ctx.measureText(s).width); });
+    l.w = Math.round(w + l.padX * 2); l.h = Math.round(l.lines.length * l.lh + l.padY * 2);
+    if (l.top === undefined) l.top = l.y;
+  });
+  var rank = { bubble: 0, plaque: 1, name: 2 };
+  LAB.slice().sort(function (a, b) { return (rank[a.kind] - rank[b.kind]) || (a.y - b.y) || (a.x - b.x) || (a.id < b.id ? -1 : 1); })
+    .forEach(function (l) {
+      var cands = labCands(l), k, box = null, bestScore = Infinity;
+      for (k = 0; k < cands.length; k++) {
+        var c = { x: Math.round(cands[k].x), y: Math.round(cands[k].y), w: l.w, h: l.h };
+        if (!labFit(c, W, H) || !labFree(c, placed, 2)) continue;
+        var sc2 = cands[k].c + 320 * labCover(c, blocks);      /* proche d'abord, sans toit dessous si possible */
+        if (sc2 < bestScore) { bestScore = sc2; box = c; }
+        if (bestScore <= cands[k].c) break;                   /* aucune candidate suivante ne peut faire mieux */
+      }
+      if (!box) {                                                  /* dernier recours : balayage régulier du cadre */
+        var best = null, bd = Infinity;
+        for (var ty = 3; ty + l.h <= H - 3; ty += 6) for (var tx = 3; tx + l.w <= W - 3; tx += 10) {
+          var c2 = { x: tx, y: ty, w: l.w, h: l.h };
+          if (!labFree(c2, placed, 2)) continue;
+          var d = Math.abs(tx + l.w / 2 - l.x) + Math.abs(ty - l.y) * 1.4;
+          if (d < bd) { bd = d; best = c2; }
+        }
+        box = best || { x: 3, y: 3, w: l.w, h: l.h };
+      }
+      l.box = box; placed.push(box);
+    });
+  if (sc) sc.labels = LAB.map(function (l) {
+    return { id: l.id, kind: l.kind, text: l.lines.join(' '), x: r1(l.box.x), y: r1(l.box.y), w: r1(l.box.w), h: r1(l.box.h) };
+  });
+}
+function drawLabels(ctx, W, H, T, night, sc) {
+  if (sc) sc.labels = [];
+  if (!LAB.length) return;
+  labelLayout(ctx, W, H, sc);
+  ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.lineJoin = 'round';
+  LAB.forEach(function (l) {
+    var b = l.box, cx = b.x + b.w / 2;
+    ctx.font = uiFont(l.size, 600);
+    if (l.kind === 'bubble') {
+      ctx.fillStyle = T.surface; ctx.strokeStyle = T.line; ctx.lineWidth = 1; roundRect(ctx, b.x, b.y, b.w, b.h, 6); ctx.fill(); ctx.stroke();
+      var tx = Math.max(b.x + 6, Math.min(b.x + b.w - 6, l.x));
+      quad(ctx, [tx - 4, b.y + b.h - 1, tx, b.y + b.h + 5, tx + 4, b.y + b.h - 1], T.surface);
+      ctx.fillStyle = T.ink;
+    } else if (l.kind === 'plaque') {
+      ctx.fillStyle = rgba(night ? '#141a2a' : '#ffffff', 0.62); roundRect(ctx, b.x, b.y, b.w, b.h, 5); ctx.fill();
+      ctx.strokeStyle = rgba(night ? '#8f9aa6' : '#5d6b63', 0.35); ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = night ? '#c9d1cc' : '#31403a';
+    }
+    l.lines.forEach(function (line, i) {
+      var ty = b.y + l.padY + (i + 1) * l.lh - 3;
+      if (l.kind === 'name') {
+        ctx.lineWidth = 3; ctx.strokeStyle = night ? 'rgba(20,26,23,0.78)' : 'rgba(243,244,240,0.88)'; ctx.strokeText(line, cx, ty);
+        ctx.fillStyle = night ? '#e8ece7' : '#1B2620';
+      }
+      ctx.fillText(line, cx, ty);
+    });
+  });
+  ctx.restore();
 }
 function drawClock(ctx, W, H, night, T) {
   var label = tb.phase === 'evening' ? 'Soir' : Math.floor(tb.hour) + 'h';

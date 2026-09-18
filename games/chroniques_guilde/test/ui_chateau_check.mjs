@@ -33,6 +33,7 @@ const AGE_NAMES = data.village_ages.map(a => a.name);
 const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`); };
 const note = (msg) => console.log('NOTE  ' + msg);
+const r1 = v => Math.round(v * 10) / 10;
 const scene = page => page.evaluate(() => JSON.parse(JSON.stringify(window.__scene)));
 const tableau = page => page.evaluate(() => JSON.parse(JSON.stringify(window.__tableau)));
 const noHScroll = page => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
@@ -101,6 +102,51 @@ function quietHour(day) {
   return 15;
 }
 const inside = (b, w) => b.x >= w.x - 1 && b.x + b.w <= w.x + w.w + 1 && b.y + b.h >= w.y - 1 && b.y + b.h <= w.y + w.h + 1;
+
+/* ---- outils de la tranche « le château qu'on habite » : repère logique 800 × 460 de __scene ---- */
+const LOGW = 800, LOGH = 460;
+// aire d'un polygone (lacet) — sert au taux de couverture du sol de cour
+const area = pts => Math.abs(pts.reduce((a, p, i) => { const q = pts[(i + 1) % pts.length]; return a + p[0] * q[1] - q[0] * p[1]; }, 0)) / 2;
+// point dans le quadrilatère de l'enceinte (fond, face, murs latéraux en fuite)
+const spanAt = (wall, y) => {
+  const [bl, br, fr, fl] = wall.poly, u = (y - bl[1]) / Math.max(1e-6, fl[1] - bl[1]);
+  return { u, x0: bl[0] + (fl[0] - bl[0]) * u, x1: br[0] + (fr[0] - br[0]) * u };
+};
+const inEnc = (wall, x, y, pad = 0) => {
+  if (y < wall.poly[0][1] - pad || y > wall.poly[3][1] + pad) return false;
+  const s = spanAt(wall, y); return x >= s.x0 - pad && x <= s.x1 + pad;
+};
+// bâtiment ENTOURÉ : sa base est entre le mur de fond et le mur de face, et sa boîte entre les murs latéraux
+const encircled = (b, wall) => {
+  const base = b.y + b.h;
+  if (base < wall.back.y - 1 || base > wall.front.y + 1) return false;
+  const s = spanAt(wall, base);
+  return b.x >= s.x0 - 1 && b.x + b.w <= s.x1 + 1;
+};
+const boxesHit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+const rgbOf = str => (String(str).match(/\d+/g) || [0, 0, 0]).slice(0, 3).map(Number);
+const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+// pixels du canevas du tableau, lus aux points donnés en repère logique 800 × 460
+const pixels = (page, pts) => page.evaluate(([pts, LW, LH]) => {
+  const c = document.getElementById('scene');                  // copie hors écran : la page garde son contexte intact
+  const o = document.createElement('canvas'); o.width = c.width; o.height = c.height;
+  const ctx = o.getContext('2d', { willReadFrequently: true }); ctx.drawImage(c, 0, 0);
+  const kx = c.width / LW, ky = c.height / LH, d = ctx.getImageData(0, 0, c.width, c.height).data;
+  return pts.map(([x, y]) => {
+    const X = Math.max(0, Math.min(c.width - 1, Math.round(x * kx))), Y = Math.max(0, Math.min(c.height - 1, Math.round(y * ky)));
+    const i = (Y * c.width + X) * 4; return [d[i], d[i + 1], d[i + 2]];
+  });
+}, [pts, LOGW, LOGH]);
+// grille de points strictement dans la cour, hors des boîtes de bâtiments et hors de l'épaisseur des murs
+function courtSamples(sc) {
+  const w = sc.wall, out = [], y0 = w.back.y + 10, y1 = w.front.crest - 6;
+  for (let i = 1; i <= 14; i++) for (let j = 1; j <= 9; j++) {
+    const y = y0 + (y1 - y0) * (j / 10), s = spanAt(w, y), x = s.x0 + 14 + (s.x1 - s.x0 - 28) * (i / 15);
+    if (sc.buildings.some(b => x >= b.x - 2 && x <= b.x + b.w + 2 && y >= b.y - 2 && y <= b.y + b.h + 2)) continue;
+    out.push([Math.round(x * 10) / 10, Math.round(y * 10) / 10]);
+  }
+  return out;
+}
 
 const browser = await pw.chromium.launch();
 const sil = {};
@@ -256,6 +302,110 @@ const sil = {};
   check('prefers-reduced-motion : caméra posée d\'emblée sur l\'âge (aucune animation), aucune erreur',
     sc.camera.zoom === CAM[4][0] && Math.round(sc.camera.ground) === CAM[4][1] && errors.length === 0,
     JSON.stringify(sc.camera) + ' ' + errors.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+/* ---- G. LE CHÂTEAU QU'ON HABITE : enceinte fermée, sol de cour, douve qui entoure, héros dedans, étiquettes ----
+   Tout se lit dans __scene (repère logique 800 × 460, étiquettes et figurines en pixels du canevas) et, pour le
+   sol et la douve, dans les PIXELS du canevas : le banc ne fait confiance ni aux intentions ni au code. */
+for (const age of [3, 4]) {
+  const { ctx, page, errors } = await newPage(browser, 1280, 'light', { deviceScaleFactor: 2 });
+  await loadDay(page, found.ages[age].days);
+  let sc = await setHour(page, 13);                 // plein jour : les teintes et les pixels se lisent sans ambiguïté
+  const w = sc.wall, kx = sc.canvas.w / LOGW, ky = sc.canvas.h / LOGH;
+
+  // 1. le mur de face existe, il est plus bas que le mur du fond, et la porte y est percée
+  check(`âge ${age} : MUR DE FACE présent, plus bas que le mur de fond (crête ${w.front.crest} sous ${w.back.crest})`,
+    !!w.front && w.front.h > 6 && w.front.crest > w.back.crest + 20 && w.front.y > w.back.y + 40,
+    JSON.stringify({ front: w.front.h, back: w.back.h, crestF: w.front.crest, crestB: w.back.crest }));
+  check(`âge ${age} : la PORTE est percée dans le mur de face (deux pans, ouverture ${r1(w.gate.x1 - w.gate.x0)} px entre eux)`,
+    w.gate.x1 - w.gate.x0 > 14 && w.front.segs.length === 2 &&
+    w.front.segs[0][0] <= w.front.x0 + 1 && w.front.segs[0][1] <= w.gate.x0 + 1 &&
+    w.front.segs[1][0] >= w.gate.x1 - 1 && w.front.segs[1][1] >= w.front.x1 - 1,
+    JSON.stringify(w.front.segs) + ' porte ' + JSON.stringify([w.gate.x0, w.gate.x1]));
+  check(`âge ${age} : le mur de face est PLUS LARGE que le mur de fond (murs latéraux en fuite)`,
+    w.front.x1 - w.front.x0 > (w.back.x1 - w.back.x0) + 20,
+    r1(w.front.x1 - w.front.x0) + ' vs ' + r1(w.back.x1 - w.back.x0));
+
+  // 2. chaque bâtiment de cour est ENTOURÉ par les quatre murs (pas seulement au-dessus d'une ligne)
+  const notIn = sc.buildings.filter(b => !encircled(b, w));
+  check(`âge ${age} : les ${sc.buildings.length} bâtiments de cour sont ENTOURÉS (entre face et fond, entre les murs latéraux)`,
+    sc.buildings.length >= 5 && notIn.length === 0, notIn.map(b => b.id + JSON.stringify([b.x, b.y + b.h])).join(' '));
+  const masked = sc.buildings.filter(b => b.y + b.h > w.front.crest + 2);
+  check(`âge ${age} : au moins un bâtiment de cour passe DERRIÈRE le mur de face (bas masqué)`, masked.length >= 1,
+    masked.map(b => b.id).join(', '));
+
+  // 3. le sol de cour : couverture ≥ 60 % de l'intérieur, et ce n'est pas la couleur de la prairie
+  const ratio = area(sc.courtyard.poly) / area(w.poly);
+  check(`âge ${age} : le SOL DE COUR couvre ${Math.round(ratio * 100)} % de l'intérieur de l'enceinte (≥ 60 %)`, ratio >= 0.6, r1(ratio));
+  const grass = rgbOf(sc.palette.grass), cb = rgbOf(sc.courtyard.back), cf = rgbOf(sc.courtyard.front);
+  check(`âge ${age} : la teinte du sol de cour n'est pas celle de la prairie (Δ ${Math.round(dist(cb, grass))} et ${Math.round(dist(cf, grass))})`,
+    dist(cb, grass) > 40 && dist(cf, grass) > 40, JSON.stringify([sc.courtyard.back, sc.courtyard.front, sc.palette.grass]));
+  const pts = courtSamples(sc), cols = await pixels(page, pts);
+  const green = cols.filter(c => dist(c, grass) < 18).length;
+  const earth = cols.filter(c => Math.min(dist(c, cb), dist(c, cf)) < 42).length;
+  check(`âge ${age} : aucun pixel de PRAIRIE dans la cour (${green}/${cols.length}), et le sol battu domine (${earth}/${cols.length})`,
+    cols.length >= 30 && green === 0 && earth >= Math.round(cols.length * 0.45), `vert ${green} · terre ${earth} · points ${cols.length}`);
+
+  // 4. la douve entoure et n'est jamais tranchée par le bas de l'image
+  if (age === 4) {
+    check('château : la DOUVE n\'est pas coupée par le bord inférieur (bas ' + sc.moat.bottom + ' < ' + LOGH + ')',
+      sc.moat.bottom <= LOGH - 6, JSON.stringify(sc.moat));
+    check('château : la douve SORT DU CADRE par les deux bords latéraux', sc.moat.left < 0 && sc.moat.right > LOGW, JSON.stringify([sc.moat.left, sc.moat.right]));
+    check('château : la douve REVIENT sur les deux côtés (langues d\'eau le long des murs latéraux)',
+      sc.moat.sides.length === 2 && sc.moat.sides.every(sd => sd.top < w.front.y - 24 && sd.bottom > w.front.y - 4),
+      JSON.stringify(sc.moat.sides));
+    const water = rgbOf(sc.palette.water);
+    const bottom = await pixels(page, Array.from({ length: 40 }, (_, i) => [10 + i * 20, LOGH - 2]));
+    check('château : aucune eau sur la dernière ligne de pixels du canevas', bottom.every(c => dist(c, water) > 46),
+      JSON.stringify(bottom.filter(c => dist(c, water) <= 46).slice(0, 3)));
+  }
+
+  // captures cadrées sur la cour : plein jour puis lumière rasante
+  const el = await page.$('#scene'), bb = await el.boundingBox();
+  const xs = w.poly.map(p => p[0]), ys = w.poly.map(p => p[1]);
+  const top = Math.max(0, w.back.crest - 54), bot = Math.min(LOGH, Math.max(...ys) + (age === 4 ? 46 : 22));
+  const clip = { x: bb.x + Math.max(0, Math.min(...xs) - 30) * (bb.width / LOGW), y: bb.y + top * (bb.height / LOGH),
+    width: Math.min(LOGW, Math.max(...xs) - Math.min(...xs) + 60) * (bb.width / LOGW), height: (bot - top) * (bb.height / LOGH) };
+  if (age === 4) {
+    await page.screenshot({ path: path.join(OUT, 'dom_cour_jour.png'), clip });
+    const gold = await setHour(page, 18.5);
+    check('château à 18 h 30 : gamme du soir, lumière rasante sur les tours (pas encore la nuit)',
+      gold.hour === 18.5 && gold.night === false, JSON.stringify([gold.hour, gold.night]));
+    await page.screenshot({ path: path.join(OUT, 'dom_cour_soir.png'), clip });
+  }
+
+  // 5. les figurines : au village = DANS la cour ; parti en expédition ou en raid = dehors ou sur le pont
+  await page.click('#btn-skip');                    // toutes les activités révélées : héros au village ET héros partis
+  await page.clock.runFor(300);
+  sc = await scene(page);
+  const figs = sc.figures.map(f => ({ ...f, lx: f.x / kx, ly: f.y / ky }));
+  const home = figs.filter(f => !f.out), away = figs.filter(f => f.out);
+  const homeOut = home.filter(f => !inEnc(w, f.lx, f.ly, 2));
+  check(`âge ${age} : les ${home.length} héros en activité au village sont DANS la cour`, home.length >= 1 && homeOut.length === 0,
+    homeOut.map(f => f.id + ':' + f.act + JSON.stringify([r1(f.lx), r1(f.ly)])).join(' '));
+  const onBridge = f => f.lx > w.gate.x0 - 10 && f.lx < w.gate.x1 + 10 && f.ly > w.front.y - 6 && f.ly < w.front.y + 46;
+  const awayBad = away.filter(f => inEnc(w, f.lx, f.ly, -2) && !onBridge(f));
+  check(`âge ${age} : les ${away.length} héros partis (${away.map(f => f.act).join(',') || '-'}) sont hors les murs ou sur le pont`,
+    away.length >= 1 && awayBad.length === 0, awayBad.map(f => f.id + ':' + f.act + JSON.stringify([r1(f.lx), r1(f.ly)])).join(' '));
+
+  // 6. les étiquettes : aucune sur une autre, aucune hors du cadre
+  const L = sc.labels, overlaps = [];
+  for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) if (boxesHit(L[i], L[j])) overlaps.push(L[i].id + ' × ' + L[j].id);
+  const outOfFrame = L.filter(l => l.x < 0 || l.y < 0 || l.x + l.w > sc.canvas.w || l.y + l.h > sc.canvas.h);
+  check(`âge ${age} : les ${L.length} étiquettes ne se recouvrent pas (noms, plaques, bulles)`, L.length >= 4 && overlaps.length === 0, overlaps.join(' | '));
+  check(`âge ${age} : aucune étiquette ne sort du cadre ${sc.canvas.w} × ${sc.canvas.h}`, outOfFrame.length === 0,
+    outOfFrame.map(l => l.id + JSON.stringify([l.x, l.y, l.w, l.h])).join(' '));
+  // et le placeur préfère le sol : aucune étiquette ne se pose sur un toit (boîtes des bâtiments, en pixels)
+  const bbx = sc.buildings.map(b => ({ x: b.x * kx, y: b.y * ky, w: b.w * kx, h: b.h * ky }));
+  const cover = L.map(l => {
+    let a = 0; bbx.forEach(b => { const ox = Math.min(l.x + l.w, b.x + b.w) - Math.max(l.x, b.x), oy = Math.min(l.y + l.h, b.y + b.h) - Math.max(l.y, b.y); if (ox > 0 && oy > 0) a += ox * oy; });
+    return { id: l.id, r: a / (l.w * l.h) };
+  });
+  const worst = cover.reduce((m, c) => c.r > m.r ? c : m, { id: '-', r: 0 });
+  check(`âge ${age} : aucune étiquette ne recouvre un bâtiment (pire recouvrement ${Math.round(worst.r * 100)} %)`,
+    worst.r <= 0.02, worst.id + ' ' + r1(worst.r));
+
+  check(`âge ${age} : enceinte habitée — aucune erreur console/page`, errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
 await browser.close();
