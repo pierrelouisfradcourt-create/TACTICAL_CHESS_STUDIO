@@ -19,13 +19,15 @@ const OUT = path.join(HERE, 'out'); fs.mkdirSync(OUT, { recursive: true });
 const URL_FILE = pathToFileURL(path.join(ROOT, 'index.html')).href;
 const sim = require(path.join(ROOT, 'sim.js'));
 const data = JSON.parse(fs.readFileSync(path.join(ROOT, 'data.json'), 'utf8'));
-// V5 T1 : la page ne charge pas encore tactic.js (l'écran Raid est la tranche T4).
-// La prédiction sous node doit donc jouer le même moteur que la page : raids désactivés,
-// le dragon de la forêt reste en combat automatique V4. À retirer quand la page chargera tactic.js.
-if (data.raid) data.raid.raid_enabled = false;
+// V5 T4 : la page charge tactic.js et joue le raid ; la prédiction sous node joue donc le même moteur,
+// raids ACTIFS (le bloc `data.raid.raid_enabled = false` de la T1 est retiré).
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const MANAGERS = new Function('return [' + /var MANAGERS = \[([\s\S]*?)\];/.exec(html)[1] + '];')();
 const GOLD = { light: 'rgb(184, 137, 43)', dark: 'rgb(212, 166, 74)' };
+// V5 T4 : le dragon de la forêt se joue en raid tactique. Sa journée de clôture porte une section « Raid »
+// (et non « Menace ») qui reçoit les mêmes méta V4 : butin, légendaire, bâtiment touché. Les contrôles qui
+// visaient `.is-menace` acceptent donc les deux sections.
+const THREAT_SEC = '[data-testid="chronicle"] .chron-section.is-menace, [data-testid="chronicle"] .chron-section.is-raid';
 
 const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`); };
@@ -49,7 +51,13 @@ function season(seed) {
     const vm = sim.viewModel(s, 'p1'); if (vm.is_season_over) break;
     const me = mine(vm), levels = me ? me.crafts.map(c => c.level) : null;
     if (vm.threat && vm.threat.phase === 'today' && !ev.attack) ev.attack = { day: vm.day, name: vm.threat.name, biome: vm.threat.biome_name };
-    if (!me && !ev.heir) { const o = vm.tavern.filter(t => t.cost === 0)[0]; if (o) ev.heir = { day: vm.day, id: o.id, name: o.name }; }
+    // V5 T4 : plusieurs héritiers peuvent être offerts le même jour (les raids font mourir plusieurs héros à la fois) ;
+    // on retient celui que planDefaults(p1) recrute — c'est celui que la page préremplit et accueille.
+    if (!me && !ev.heir) {
+      const rec = sim.planDefaults(s, 'p1').filter(a => a.type === 'recruit')[0];
+      const o = vm.tavern.filter(t => t.cost === 0 && (!rec || t.id === rec.payload.recruit_id))[0];
+      if (o) ev.heir = { day: vm.day, id: o.id, name: o.name };
+    }
     const r = sim.resolveDay(s, allDefaults(s)); s = r.state;
     const c = r.chronicle, vm2 = sim.viewModel(s, 'p1'), me2 = mine(vm2);
     if (c.threat && c.threat.outcome === 'vaincu' && !ev.vaincu) ev.vaincu = { day: vm.day, legendary: c.threat.legendary, name: c.threat.dragon_name, biome: c.threat.biome_name };
@@ -198,7 +206,7 @@ if (found.vaincu) {
   const t = await playToEvening(page, found.vaincu.day);
   const oc = await text(page, '[data-testid="banner-outcome"]');
   check('graine ' + found.vaincu.seed + ' j' + found.vaincu.day + ' : vaincu, bandeau nomme le dragon, le biome et le légendaire', t.threat_outcome === 'vaincu' && oc.indexOf(found.vaincu.name) >= 0 && oc.indexOf(found.vaincu.biome) >= 0 && oc.indexOf(found.vaincu.legendary) >= 0, oc);
-  check('légendaire affiché en or dans le bandeau et la chronique', (await color(page, '[data-testid="banner-outcome"] .rar-legendary')) === GOLD.light && (await color(page, '#sum-legendary .rar-legendary')) === GOLD.light && (await text(page, '#sum-legendary')).indexOf(found.vaincu.legendary) >= 0 && (await color(page, '[data-testid="chronicle"] .is-menace .loot .rar-legendary')) === GOLD.light);
+  check('légendaire affiché en or dans le bandeau et la chronique', (await color(page, '[data-testid="banner-outcome"] .rar-legendary')) === GOLD.light && (await color(page, '#sum-legendary .rar-legendary')) === GOLD.light && (await text(page, '#sum-legendary')).indexOf(found.vaincu.legendary) >= 0 && (await color(page, THREAT_SEC.split(', ').map(x => x + ' .loot .rar-legendary').join(', '))) === GOLD.light);   // V5 T4 : section Menace ou Raid
   check('trophée : __tableau.trophies = 1, badge de chronique nommant le dragon', t.trophies === 1 && (await text(page, '[data-testid="chronicle"] .chron-badge.is-crit')).indexOf(found.vaincu.name) >= 0);
   await shot(page, 'legendaire');
   await page.click('[data-testid="tab-village"]');
@@ -217,10 +225,22 @@ if (death) {
   await page.click('#btn-next-day'); t = await tableau(page);
   check('lendemain : la tombe persiste (__tableau.graves ≥ 1)', t.graves >= 1);
   // Jusqu'à 4 matins après le deuil : première mission solo ouverte à mon héros (PA ≥ 2 et classe), placée pour la capture « solo + tombe ».
+  // V5 T4 : un jour de raid (ou le lendemain, épuisé) le moteur refuse la mission solo même si la carte reste cliquable ;
+  // la boucle ne s'arrête donc que si le plan a réellement pris (__tableau.solo), et essaie chaque carte ouverte.
   let placed = false;
   for (let k = 0; k < 5 && !placed; k++) {
     t = await tableau(page);
-    if (!t.dead) { await page.click('[data-testid="tab-heros"]'); const m = await page.$('#missions .mission-card:not([disabled])'); if (m) { await m.click(); placed = true; } await page.click('[data-testid="tab-tableau"]'); }
+    if (!t.dead) {
+      await page.click('[data-testid="tab-heros"]');
+      const nCards = await count(page, '#missions .mission-card:not([disabled])');
+      for (let i = 0; i < nCards && !placed; i++) {
+        const m = (await page.$$('#missions .mission-card:not([disabled])'))[i];   // la liste est redessinée à chaque clic
+        if (!m) break;
+        await m.click();
+        if ((await tableau(page)).solo) placed = true;
+      }
+      await page.click('[data-testid="tab-tableau"]');
+    }
     if (!placed) { await page.click('[data-testid="btn-launch"]'); await page.click('#btn-next-day'); }
   }
   t = await tableau(page);

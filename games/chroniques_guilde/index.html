@@ -376,6 +376,54 @@ canvas#scene { display: block; width: 100%; border-radius: var(--radius); border
 .summary .rar-legendary { font-weight: 700; }
 body.is-defeat .topbar { border-bottom-color: var(--crit); }
 
+/* ---- V5 T4 : écran Raid (grille tactique, bandeau du boss, barre de sorts, journal du passage) ---- */
+.tab.is-raid { color: var(--crit); }
+.tab.is-raid[aria-pressed="true"] { background: var(--crit-soft); color: var(--crit); }
+#panel-raid .block { padding: 10px 8px; }
+@media (min-width: 700px) { #panel-raid .block { padding: 14px 16px; } }
+.raid-boss { border: 1.5px solid var(--crit); background: var(--crit-soft); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; }
+.raid-boss .rb-top { display: flex; align-items: baseline; gap: 6px 10px; flex-wrap: wrap; }
+.raid-boss .rb-name { font-family: var(--font-title); font-weight: 800; font-size: 15px; color: var(--crit); min-width: 0; overflow-wrap: anywhere; }
+.raid-boss .rb-night { font-size: 11px; font-weight: 700; color: var(--crit); text-transform: uppercase; letter-spacing: 0.05em; margin-left: auto; white-space: nowrap; }
+.raid-boss .rb-bar { height: 12px; background: var(--raised); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; position: relative; }
+.raid-boss .rb-bar i { display: block; height: 100%; background: var(--crit); }
+.raid-boss .rb-bar b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--ink); }
+.raid-boss .rb-meta { font-size: 12px; color: var(--muted); display: flex; gap: 4px 10px; flex-wrap: wrap; }
+.raid-riposte { display: flex; align-items: flex-start; gap: 8px; padding: 7px 9px; border-radius: 8px; background: var(--warn-soft); border: 1px solid var(--warn); color: var(--warn); font-size: 12px; font-weight: 600; }
+.raid-riposte .g { font-size: 15px; line-height: 1.2; flex: none; }
+.raid-riposte span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.raid-states { display: flex; flex-wrap: wrap; gap: 4px; }
+canvas#raid-grid { display: block; width: 100%; max-width: 441px; margin: 10px auto 0; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); touch-action: manipulation; }
+.raid-turn { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; }
+.raid-turn .rt { font-family: var(--font-title); font-weight: 700; font-size: 13px; }
+.raid-turn .rp { padding: 2px 9px; border-radius: 999px; font-weight: 700; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+.raid-turn .rp.pm { background: var(--good-soft); color: var(--good); }
+.raid-hint { margin-top: 6px; font-size: 12px; color: var(--muted); min-height: 1.4em; overflow-wrap: anywhere; }
+.raid-hint.is-armed { color: var(--accent); font-weight: 600; }
+.raid-locked { margin-top: 8px; padding: 9px 11px; border-radius: 8px; background: var(--gold-soft); border: 1px solid var(--gold); color: var(--gold); font-weight: 600; font-size: 13px; }
+.spells { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 6px; margin-top: 8px; }
+.spell-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 7px 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; min-width: 0; text-align: left; }
+.spell-btn:hover { border-color: var(--muted); background: var(--raised); }
+.spell-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.spell-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.spell-btn .n { font-family: var(--font-title); font-weight: 600; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.spell-btn .c { font-size: 10px; font-weight: 700; color: var(--accent); }
+.spell-btn .z { font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.raid-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.raid-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.raid-log li { padding: 5px 9px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); overflow-wrap: anywhere; }
+.raid-log li.mine { border-color: var(--accent); background: var(--accent-soft); }
+.raid-log li.ko { border-color: var(--crit); color: var(--crit); }
+.raid-gauge { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; margin-top: 8px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--crit); background: var(--crit-soft); font-size: 12px; }
+.raid-gauge .n { font-weight: 700; color: var(--crit); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.raid-gauge .v { font-weight: 700; color: var(--crit); white-space: nowrap; }
+.raid-gauge .bar { grid-column: 1 / -1; height: 8px; }
+.raid-gauge .bar i { background: var(--crit); }
+.chron-section.is-raid { margin-top: 16px; padding: 10px 14px; border: 1.5px solid var(--crit); border-radius: 8px; background: var(--crit-soft); }
+.chron-section.is-raid h3 { color: var(--crit); margin-top: 0; }
+.chron-section.is-raid .meta { font-family: var(--font-ui); font-size: 12px; color: var(--muted); margin-top: 6px; }
+.chron-section.is-raid .meta.down { color: var(--crit); font-weight: 600; }
+
 /* ---- toasts ---- */
 .toasts { position: fixed; left: 16px; right: 16px; bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom, 0px)); z-index: 50; display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; }
 .toast { background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 13px; max-width: 100%; box-shadow: var(--shadow); animation: toastin 0.2s ease-out; }
@@ -391,6 +439,7 @@ body.is-defeat .topbar { border-bottom-color: var(--crit); }
   <span class="chip chip-gold" id="hud-gold" title="Or de guilde">Guilde — or</span>
   <button type="button" class="btn btn-primary" id="btn-launch" data-testid="btn-launch" data-act="launch">Fin de journée</button>
   <nav class="tabs" id="tabs" aria-label="Écrans">
+    <button type="button" class="tab is-raid" id="tab-raid" data-testid="tab-raid" data-act="tab" data-tab="raid" aria-pressed="false" hidden>⚔ Raid</button>
     <button type="button" class="tab" id="tab-tableau" data-testid="tab-tableau" data-act="tab" data-tab="tableau" aria-pressed="true">Tableau</button>
     <button type="button" class="tab" id="tab-heros" data-testid="tab-heros" data-act="tab" data-tab="heros" aria-pressed="false">Mon héros</button>
     <button type="button" class="tab" id="tab-chronique" data-testid="tab-chronique" data-act="tab" data-tab="chronique" aria-pressed="false">Chronique</button>
@@ -433,6 +482,7 @@ body.is-defeat .topbar { border-bottom-color: var(--crit); }
             </div>
           </div>
         </div>
+        <div class="raid-gauge" id="raid-gauge" data-testid="raid-gauge" hidden></div>
         <div class="played" id="played" aria-live="polite">
           <div class="dots" id="dots"></div>
           <span class="txt" id="played-text" data-testid="played-count">0 / 5 ont joué</span>
@@ -474,6 +524,22 @@ body.is-defeat .topbar { border-bottom-color: var(--crit); }
         <summary id="h-crafts">Savoir-faire <span class="count" id="crafts-count"></span></summary>
         <div class="fold-body" id="hero-crafts"></div>
       </details>
+    </div>
+
+    <div class="panel" id="panel-raid" data-panel="raid" hidden>
+      <section class="block" aria-labelledby="h-raid">
+        <h2 id="h-raid" class="sr-only">Raid</h2>
+        <div class="raid-boss" id="raid-boss" data-testid="raid-boss"></div>
+        <canvas id="raid-grid" data-testid="raid-grid" width="360" height="440" role="img" aria-label="Grille du raid : 9 colonnes sur 11 lignes, le boss en haut, mon héros en bas"></canvas>
+        <div class="raid-turn" id="raid-turn"></div>
+        <div class="spells" id="raid-spells"></div>
+        <div class="raid-actions" id="raid-actions"></div>
+        <p class="raid-hint" id="raid-hint" aria-live="polite"></p>
+      </section>
+      <section class="block" aria-labelledby="h-raid-journal">
+        <h2 id="h-raid-journal">Journal du passage <span class="count" id="raid-journal-count"></span></h2>
+        <ul class="raid-log" id="raid-journal"></ul>
+      </section>
     </div>
   </section>
 
@@ -562,11 +628,12 @@ body.is-defeat .topbar { border-bottom-color: var(--crit); }
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
 <script src="data.js"></script>
+<script src="tactic.js"></script>
 <script src="sim.js"></script>
 <script>
 (function () {
 'use strict';
-var SIM = window.GuildeSim, DATA = window.GUILDE_DATA;
+var SIM = window.GuildeSim, DATA = window.GUILDE_DATA, TACTIC = window.GuildeTactic;
 var ME = 'p1', DEFAULT_SEED = 4242, SAVE_KEY = 'guilde.v2.save', UI_KEY = 'guilde.v2.ui';
 var MANAGERS = [
   { id: 'p1', name: 'Vous', kind: 'human', profile: 'humain', class_id: 'warrior' },
@@ -575,21 +642,24 @@ var MANAGERS = [
   { id: 'f_bastien', name: 'Bastien', kind: 'ai', profile: 'audacieux', class_id: 'rogue' },
   { id: 'f_maelle', name: 'Maëlle', kind: 'ai', profile: 'prudent', class_id: 'mage' }
 ];
-var ACT_LABEL = { rest: 'Repos', gather: 'Récolte', train: 'Entraînement', craft: 'Forge', expedition: 'Expédition', defend: 'Défendre le village', solo: 'Mission solo' };
-var ACT_GLYPH = { rest: '☾', gather: '❦', train: '⚑', craft: '⚒', expedition: '⚔', defend: '🛡', solo: '⚐' };
-var ACT_VERB = { rest: 'se repose', gather: 'part récolter', train: 's’entraîne', craft: 'travaille à la forge', expedition: 'part en expédition', defend: 'défend le village', solo: 'part en mission solo', dead: 'n’est plus' };
-var FULL_DAY = { expedition: true, defend: true, rest: true };
+var ACT_LABEL = { rest: 'Repos', gather: 'Récolte', train: 'Entraînement', craft: 'Forge', expedition: 'Expédition', defend: 'Défendre le village', solo: 'Mission solo', raid: 'Raid' };
+var ACT_GLYPH = { rest: '☾', gather: '❦', train: '⚑', craft: '⚒', expedition: '⚔', defend: '🛡', solo: '⚐', raid: '⚔' };
+var ACT_VERB = { rest: 'se repose', gather: 'part récolter', train: 's’entraîne', craft: 'travaille à la forge', expedition: 'part en expédition', defend: 'défend le village', solo: 'part en mission solo', raid: 'monte sur la grille du raid', dead: 'n’est plus' };
+var FULL_DAY = { expedition: true, defend: true, rest: true, raid: true };   /* V5 : le raid occupe la journée entière (isFullDay du moteur) */
 /* Types d'action gérés par l'écran (viennent de l'écran seul) ; tout autre type de planDefaults(p1) est transmis tel quel, à sa position. */
 var MANAGED = { assign: 'day', plan: 'day', vote_quest: 'vote_quest', vote_build: 'vote_build', equip: 'extras', unequip: 'extras', recruit: 'recruit' };
-var PRESET_GLYPH = { atelier: '⚒', aventure: '⚔', recuperation: '☾', cueillette: '❦', defense: '🛡' };
+var PRESET_GLYPH = { atelier: '⚒', aventure: '⚔', recuperation: '☾', cueillette: '❦', defense: '🛡', raid: '⚔' };
 var DRAGON_STATE = { dormant: 'dormant', awake: 'éveillé', repelled: 'repoussé', slain: 'vaincu' };
 var RARITY_LABEL = { common: 'commun', rare: 'rare', epic: 'épique', legendary: 'légendaire' };
 var AGE_ARTICLE = { hameau: 'un', bourg: 'un', ville: 'une', chateau: 'un' };
-var CLASS_COLOR = { warrior: '#B5452F', cleric: '#C9A227', ranger: '#3E8E4E', rogue: '#6E4C9E', mage: '#3C6FB2' };
+var CLASS_COLOR = { warrior: '#B5452F', cleric: '#C9A227', ranger: '#3E8E4E', rogue: '#6E4C9E', mage: '#3C6FB2', summoner: '#9A6B33' };
 var FONTS_URL = 'https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap';
 var DAY_START = 8, DAY_END = 20, TICK_MS = 250, TICK_H = 0.25;
 var app = { seed: DEFAULT_SEED, managers: MANAGERS, state: null, vm: null, journal: [], chronicles: {}, plan: null, chosen: false,
   tab: 'tableau', contentTab: 'tableau', viewDay: null, drawer: null, pageNotices: [], storageOk: true, raf: 0, lastDraw: 0, sceneScale: 1, slotOpen: -1 };
+/* V5 T4 : état de l'écran Raid. `draft` = l'état du moteur avec mon passage en cours (raidAction),
+   `actions` = la liste envoyée telle quelle dans l'action raid_pass du jour, `lines` = les lignes du moteur. */
+var rd = { env: null, draft: null, view: null, hero: null, actions: [], lines: [], spells: [], armed: null, move: null, preview: null, started: false, done: false, paMax: 6, cell: 0, pad: 0, forecast: undefined };
 var tb = { phase: 'morning', hour: DAY_START, timer: 0, hours: {}, placed: {}, revealed: {}, bubbles: [], pos: {}, chron: null, markers: null, done: false, craftUp: {} };
 var wideMQ = window.matchMedia('(min-width: 1100px)');
 var motionMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -696,10 +766,22 @@ function humanActions() {
     else if (kind === 'vote_build') { if (p.vote_build) out.push(mkAction('vote_build', { building_id: p.vote_build })); }
     else if (kind === 'extras') p.extras.forEach(function (a) { out.push(mkAction(a.type, a.payload)); });
     else if (kind === 'recruit') { if (p.recruit) out.push(mkAction('recruit', { recruit_id: p.recruit })); }
+    else if (kind === 'raid') { var ra = raidPassAction(); if (ra) out.push(ra); }
   }
   p.defaults.forEach(function (a) { var kind = MANAGED[a.type]; if (kind) emit(kind); else out.push(mkAction(a.type, a.payload)); });
-  ['day', 'vote_quest', 'vote_build', 'extras', 'recruit'].forEach(emit);
+  ['day', 'vote_quest', 'vote_build', 'extras', 'recruit', 'raid'].forEach(emit);
   return out;
+}
+/* V5 : le passage composé sur l'écran Raid part tel quel ; le moteur le rejoue à son tour (7b'), le
+   journal le rejoue à l'identique. Sans passage joué, le moteur applique sa politique par défaut. */
+function raidPassAction() {
+  if (!rd.started || !rd.hero || !rd.actions.length) return null;
+  var actions = rd.actions.slice();
+  if (!rd.done) actions.push({ type: 'end_pass' });
+  var a = mkAction('raid_pass', { adventurer_id: rd.hero, actions: actions }), v;
+  try { v = SIM.validateAction(app.state, a); } catch (e) { v = { ok: false, reason: e.message }; }
+  if (!v.ok) { toast('Passage refusé par le moteur : ' + v.reason, 'crit'); app.pageNotices.push('Passage de raid refusé : ' + v.reason); return null; }
+  return a;
 }
 function aiPlan(id) { try { return SIM.planDefaults(app.state, id) || []; } catch (e) { return []; } }
 function aiActivity(actions) {
@@ -806,6 +888,9 @@ function prepareMorning() {
   tb.phase = 'morning'; tb.hour = DAY_START; tb.hours = {}; tb.placed = {}; tb.revealed = {}; tb.bubbles = []; tb.chron = null; tb.markers = null; tb.autoPlayed = false; tb.craftUp = {};
   app.plan = planFromDefaults(); app.chosen = false; app.slotOpen = -1;
   friends().forEach(function (m) { tb.hours[m.id] = playHour(app.seed, app.state.day, m.id); });
+  raidReset();
+  if (raidToday()) { app.tab = 'raid'; app.contentTab = 'raid'; }
+  else if (app.contentTab === 'raid') { app.tab = 'tableau'; app.contentTab = 'tableau'; }
   if (!app.vm.is_season_over) startClock();
   publishTableau();
 }
@@ -924,6 +1009,9 @@ function removeOrder(i) { app.plan.extras.splice(i, 1); renderEquip(); }
 /* ---------- soir : marqueurs depuis la chronique (sans lire le texte) ---------- */
 function enterEvening(chron) {
   tb.phase = 'evening'; tb.hour = DAY_END; tb.bubbles = []; tb.chron = chron || null; tb.markers = computeMarkers(chron);
+  rd.done = true; rd.armed = null; rd.move = null; rd.preview = null; window.__raidPreview = null;
+  /* V5 T4 : le soir, retour au tableau vivant — l'écran Raid est en lecture seule et « Jour suivant » vit dans le tableau. */
+  if (app.contentTab === 'raid') { app.tab = 'tableau'; app.contentTab = 'tableau'; }
   Object.keys(tb.markers.defenders).forEach(function (id) { tb.placed[id] = 'defend'; });
   Object.keys(tb.markers.injured).forEach(function (id) { tb.placed[id] = 'injured'; });
   publishTableau();
@@ -955,7 +1043,427 @@ function publishTableau() {
     age: vm ? vm.village.age_index : 0, threat: threatPhase(), threat_outcome: threatOutcome(),
     ap: h ? { today: h.ap_today, max: h.ap_max } : { today: 0, max: 0 },
     slots: app.plan ? (app.plan.full ? [app.plan.full] : app.plan.slots.filter(Boolean).map(function (s) { return s.activity; })) : [],
-    solo: soloTarget(), dead: !!vm && !h, defeat: !!(vm && vm.defeat), trophies: vm ? vm.village.trophies.length : 0, graves: vm ? vm.village.graves.length : 0 };
+    solo: soloTarget(), raid: raidTableau(), dead: !!vm && !h, defeat: !!(vm && vm.defeat), trophies: vm ? vm.village.trophies.length : 0, graves: vm ? vm.village.graves.length : 0 };
+}
+/* ---------- V5 T4 : écran Raid — le moteur décide, la page dessine ----------
+   Rien n'est calculé ici : la grille, les unités, les sorts et la riposte viennent de VM.raid ;
+   l'aperçu d'un sort vient de TACTIC.previewCast ; chaque coup est joué par TACTIC.raidAction
+   (qui donne aussi la raison d'un refus) et la liste des coups part telle quelle dans l'action
+   raid_pass de la journée. raidView décrit le DÉBUT d'un passage : pendant le passage, le bloc
+   « me » est relu dans l'état du moteur (state.raid.pass, unité du héros) et complété par ses
+   propres fonctions (spellFor, dijkstra, raidAction) — jamais par une règle de l'écran. */
+var ZONE_COLOR = { roots: 'warn', spores: 'epic', sanctuaire: 'good', piege: 'gold', glace: 'accent', mur_glace: 'ink' };
+var STATE_GLYPH = { immobilise: '⛓', etourdi: '✦', marque: '◎', aveugle: '◍', entrave: '⌁', brule: '♨', poison: '☠', chancelant: '⚠', provoque: '⚑', reduction: '⛨', garde: '⛨', vol_temps: '⧗', fissures: '✕' };
+var ZONE_SHAPE = { circle: 'cercle ', cross: 'croix ', line: 'ligne ', cone: 'cône ', ring: 'anneau ', wall3: 'mur de ' };
+function raidVm() { return app.vm && app.vm.raid ? app.vm.raid : null; }
+/* Une seule source pour l'écran, le bandeau, la jauge et le widget : mon passage en cours le jour même,
+   la vue du moteur le soir (sans quoi le bandeau annonçait 100 % pendant que la jauge affichait 94 %). */
+function raidNow() { return tb.phase === 'evening' ? raidVm() : (rd.view || raidVm()); }
+function raidOn() { return !!(TACTIC && raidVm()); }
+function raidToday() { var v = raidVm(); return !!(v && v.active && app.state && app.state.day >= v.day_start); }
+function raidLive() { return !!(rd.view && rd.view.me && rd.view.me.can_play && !rd.done && tb.phase !== 'evening'); }
+function raidUnit() { var R = rd.draft && rd.draft.raid; return R && R.pass ? (R.units.filter(function (u) { return u.id === R.pass.hero_id; })[0] || null) : null; }
+function raidReset() {
+  rd = { env: null, draft: null, view: null, hero: null, actions: [], lines: [], spells: [], armed: null, move: null, preview: null, started: false, done: false, paMax: 6, cell: 0, pad: 0, forecast: undefined };
+  window.__raidPreview = null;
+  var v = raidVm(); if (!v) return;
+  try { rd.env = SIM._internal.raidEnvOf(app.state, null); } catch (e) { rd.env = null; return; }
+  rd.view = v; rd.hero = v.me ? v.me.hero_id : null; rd.spells = v.me && v.me.spells ? v.me.spells.slice() : [];
+  rd.paMax = v.me && v.me.pass ? v.me.pass.pa_max : 6;
+  rd.draft = app.state; rd.done = !(v.active && v.me && v.me.can_play);
+}
+/* Le passage commence au premier geste : le moteur pose le héros sur la grille et la journée devient « raid ». */
+function raidBegin() {
+  if (rd.started) return true;
+  if (!rd.env || !rd.hero || !rd.view || !rd.view.me.can_play) { toast(raidWhy(), 'crit'); return false; }
+  var r = TACTIC.raidAction(app.state, { type: 'begin_pass', hero_id: rd.hero }, rd.env);
+  if (!r.ok) { toast(r.reason, 'crit'); return false; }
+  if (!commitDay('raid', [null, null, null])) return false;
+  rd.draft = r.state; rd.started = true; rd.lines = rd.lines.concat(r.log);
+  rd.view = raidViewNow(); renderRaid(); renderSceneHead(); publishTableau();
+  return true;
+}
+/* Le moteur rejoue les passages dans l'ordre ASCII des managers : dire lesquels passent avant moi. */
+function raidOrderLabel() {
+  var before = 0, after = 0;
+  app.managers.forEach(function (m) { if (m.id === ME) return; if (m.id < ME) before++; else after++; });
+  if (before && after) return plural(before, 'copain monte', 'copains montent') + ' sur la grille avant toi, ' + after + ' après';
+  if (before) return plural(before, 'copain monte', 'copains montent') + ' sur la grille avant toi';
+  if (after) return plural(after, 'copain monte', 'copains montent') + ' sur la grille après toi';
+  return 'Tu es seul sur la grille';
+}
+function raidWhy() { var v = raidVm(); return v && v.me && v.me.reason ? v.me.reason : 'Aucun passage possible aujourd’hui.'; }
+function raidDo(action) {
+  var r = TACTIC.raidAction(rd.draft, action, rd.env);
+  if (!r.ok) { toast(r.reason, 'crit'); return false; }
+  rd.draft = r.state; rd.actions.push(action); rd.lines = rd.lines.concat(r.log);
+  var P = rd.draft.raid.pass;
+  if (!P || P.done || rd.draft.raid.status !== 'active') { rd.done = true; rd.forecast = undefined; }
+  raidCancel(); rd.view = raidViewNow();
+  renderRaid(); renderPlayed(); renderSceneHead(); publishTableau();
+  return true;
+}
+/* Vue courante : celle du moteur, dont « me » est relu dans l'état tant que le passage n'est pas terminé. */
+function raidViewNow() {
+  if (!TACTIC || !rd.env) return null;
+  if (!rd.started) return raidVm();
+  var v = TACTIC.raidView(rd.draft, ME, rd.env), R = rd.draft.raid, P = R.pass, u = raidUnit();
+  if (v && P && !P.done && u) { v.me = raidMe(u, P); raidRetelegraph(v, u); }
+  return v;
+}
+/* raidView simule le DÉBUT du passage : sa riposte est télégraphiée autour de ma case d'entrée. Pendant le
+   passage, on redemande le plan au moteur depuis ma case courante (ripostePlan) — « les cellules sont
+   calculées depuis ma case » — et les cases sûres suivent la même formule que raidView. */
+function raidRetelegraph(v, u) {
+  var R = rd.draft.raid, plan = TACTIC._internal.ripostePlan(R, rd.env, u.x, u.y), set = {};
+  v.boss.next_riposte = { kind: plan.kind, label: plan.label, cells: plan.cells.map(function (c) { return { x: c.x, y: c.y }; }) };
+  v.boss.next_riposte.cells.forEach(function (c) { set[c.y * v.grid.w + c.x] = 1; });
+  v.grid.cells.forEach(function (c) {
+    var k = c.y * v.grid.w + c.x, z = R.zones[String(k)];
+    c.safe = !(z && z.owner_kind === 'boss') && !set[k] && !c.boss;
+  });
+}
+function raidMe(u, P) {
+  return { hero_id: u.id, can_play: true, reason: null, cell: { x: u.x, y: u.y }, atk_eff: u.atk_eff, heal: u.heal, crit: u.crit, level: u.level,
+    class_id: u.class_id, hp: u.hp, hp_max: u.hp_max, shield: u.shield, pm_max: u.pm_max, default_actions: [],
+    pass: { turn: P.turn, turn_max: P.turn_max, pa: P.pa, pa_max: rd.paMax, pm: P.pm, pm_max: u.pm_max, seq: P.seq },
+    spells: rd.spells = raidSpells(u), reachable: raidReach(u, P.pm) };
+}
+function raidZoneLabel(s) { return s.shape && s.shape !== 'single' ? (ZONE_SHAPE[s.shape] || s.shape) + (s.r || 3) : 'cible'; }
+/* Sorts du héros : définitions du moteur (classSpells / spellFor / powerOf) ; la raison d'un sort injouable
+   est demandée au moteur lui-même (raidAction sur ma propre case, état non modifié car raidAction est pure). */
+function raidSpells(u) {
+  var T = TACTIC._internal, out = [];
+  T.classSpells(rd.env, u.class_id).forEach(function (id) {
+    var s = T.spellFor(rd.env, u, id); if (!s) return;
+    var why = raidCastWhy(id, u.x, u.y), hard = /PA insuffisants|relance/.test(why || '');
+    out.push({ id: s.id, name: s.name, cost_pa: s.cost_pa, range_min: s.range_min, range_max: s.range_max, los: !!s.los, line_only: !!s.line_only,
+      shape: s.shape || 'single', r: s.r || 0, power: T.powerOf(s, u), magic: !!s.magic, target: s.target, verb: s.verb || '',
+      range_label: s.range_min === s.range_max ? String(s.range_min) : s.range_min + '-' + s.range_max, zone_label: raidZoneLabel(s),
+      cooldown: s.cooldown || 0, cooldown_left: (u.cooldowns && u.cooldowns[id]) || 0, castable: !hard, reason: hard ? why : '',
+      description: s.description || '', crit_bonus: s.crit_bonus || 0, back_power: s.back_power ? T.powerOf({ power: s.back_power }, u) : 0,
+      effect_labels: (s.effect_labels || []).slice() });
+  });
+  return out;
+}
+/* Mes copains sont rejoués AVANT moi (le moteur trie les managers par id ASCII, « p1 » vient en dernier) :
+   la grille aura changé quand mon passage sera rejoué. Le moteur le dit lui-même — on lui fait jouer les
+   passages par défaut des copains, puis on lui demande si le mien tient encore (validateRaidPass). */
+function raidForecast() {
+  if (rd.forecast !== undefined) return rd.forecast;
+  rd.forecast = null;
+  if (!rd.started || !rd.done || !rd.actions.length || !rd.env) return null;
+  try {
+    var base = app.state, mine = String(ME);
+    app.managers.map(function (m) { return m.id; }).sort().forEach(function (mid) {
+      if (mid >= mine || aiActivity(aiPlan(mid)) !== 'raid') return;
+      Object.keys(rd.env.heroes).sort().forEach(function (id) {
+        if (rd.env.heroes[id].owner !== mid) return;
+        var acts = TACTIC.raidDefaultsFor(base, id, rd.env);
+        if (acts) base = TACTIC.raidPass(base, id, acts, rd.env).state;
+      });
+    });
+    var v = TACTIC.validateRaidPass(base, rd.hero, rd.actions, rd.env);
+    rd.forecast = { ok: !!v.ok, reason: v.reason || '' };
+  } catch (e) { rd.forecast = null; }
+  return rd.forecast;
+}
+function raidCastWhy(id, x, y) { var r = TACTIC.raidAction(rd.draft, { type: 'cast', spell_id: id, x: x, y: y }, rd.env); return r.ok ? null : r.reason; }
+function raidReach(u, pm) {
+  var R = rd.draft.raid, P = TACTIC._internal.dijkstra(R, u, u.x, u.y, pm), out = [];
+  Object.keys(P.cost).map(Number).sort(function (a, b) { return a - b; }).forEach(function (k) { out.push({ x: k % R.grid_w, y: Math.floor(k / R.grid_w), cost: P.cost[k] }); });
+  return out;
+}
+function raidPath(x, y) {
+  var u = raidUnit(); if (!u || !rd.draft.raid.pass) return null;
+  var R = rd.draft.raid, P = TACTIC._internal.dijkstra(R, u, u.x, u.y, R.pass.pm), k = y * R.grid_w + x, path = TACTIC._internal.pathTo(P, k);
+  return path ? { cells: path.map(function (i) { return { x: i % R.grid_w, y: Math.floor(i / R.grid_w) }; }), cost: P.cost[k] } : null;
+}
+function raidCancel() { rd.armed = null; rd.move = null; rd.preview = null; window.__raidPreview = null; }
+/* Armer un sort : previewCast sur chaque case donne les cases jouables, puis la zone d'effet et les cibles
+   sur la cible la plus probable (le boss s'il est visable, sinon la première case jouable). */
+function raidArm(id) {
+  if (!raidLive() || !raidBegin()) return;
+  if (rd.armed === id) { raidCancel(); renderRaid(); return; }
+  var v = rd.view, cells = [], aim = null, aimP = null;
+  v.grid.cells.forEach(function (c) {
+    var p = TACTIC.previewCast(v, id, { x: c.x, y: c.y });
+    if (!p.valid) return;
+    cells.push({ x: c.x, y: c.y });
+    if (!aimP || (!aim.boss && c.boss)) { aim = c; aimP = p; }
+  });
+  rd.armed = id; rd.move = null;
+  rd.preview = { spell: id, cells: cells, zone: aimP ? aimP.cells : [], targets: aimP ? aimP.targets : [], aim: aim ? { x: aim.x, y: aim.y } : null };
+  window.__raidPreview = { spell: id, cells: cells.slice(), zone: rd.preview.zone.slice(), aim: rd.preview.aim, targets: rd.preview.targets.slice() };
+  renderRaid();
+}
+function raidTapCell(x, y) {
+  if (!raidLive() || !raidBegin()) return;
+  if (rd.armed) {
+    var id = rd.armed, p = TACTIC.previewCast(rd.view, id, { x: x, y: y });
+    if (!p.valid) { toast(p.reason, 'crit'); raidCancel(); renderRaid(); return; }
+    raidDo({ type: 'cast', spell_id: id, x: x, y: y });
+    return;
+  }
+  if (rd.move && rd.move.x === x && rd.move.y === y) { raidDo({ type: 'move', to: { x: x, y: y } }); return; }
+  var path = raidPath(x, y);
+  if (!path) { var r = TACTIC.raidAction(rd.draft, { type: 'move', to: { x: x, y: y } }, rd.env); toast(r.reason || 'Déplacement impossible.', 'crit'); rd.move = null; renderRaid(); return; }
+  rd.move = { x: x, y: y, cells: path.cells, cost: path.cost }; rd.armed = null; rd.preview = null; window.__raidPreview = null;
+  renderRaid();
+}
+function raidEndTurn() { if (raidLive() && raidBegin()) raidDo({ type: 'end_turn' }); }
+function raidEndPass() { if (raidLive() && raidBegin()) raidDo({ type: 'end_pass' }); }
+/* ---------- écran Raid : rendu ---------- */
+function renderRaid() {
+  var v = raidNow();
+  $('tab-raid').hidden = !raidOn();
+  $('raid-gauge').hidden = !(raidToday() && v);
+  if (!v) { $('raid-boss').innerHTML = ''; $('raid-spells').innerHTML = ''; $('raid-actions').innerHTML = ''; $('raid-journal').innerHTML = ''; return; }
+  renderRaidGauge(v); renderRaidBoss(v); renderRaidTurn(v); renderRaidSpells(v); renderRaidJournal(v); drawRaidGrid(v);
+}
+function renderRaidGauge(v) {
+  $('raid-gauge').innerHTML = '<span class="n">' + esc(v.name) + '</span><span class="v" id="raid-gauge-pct">' + v.hp_pct + ' %</span>' +
+    '<span class="bar"><i style="width:' + pct(v.hp_pct) + '%"></i></span>';
+}
+function renderRaidBoss(v) {
+  var b = v.boss, night = 'nuit ' + (v.nights + 1) + ' / ' + v.max_nights;
+  var meta = [v.phase_label, v.hp_label + ' PV', b.tenacity_label];
+  if (v.enrage_pct) meta.push('enragé +' + v.enrage_pct + ' %');
+  if (v.regen_pct) meta.push('sève +' + v.regen_pct + ' % / tour'); else meta.push('sève coupée (brûlure)');
+  if (b.shield) meta.push('écorce ' + b.shield);
+  $('raid-boss').innerHTML = '<div class="rb-top"><span class="rb-name">' + esc(b.name) + '</span><span class="rb-night">' + esc(night) + '</span></div>' +
+    '<div class="rb-bar"><i style="width:' + pct(v.hp_pct) + '%"></i><b>' + v.hp_pct + ' %</b></div>' +
+    '<div class="rb-meta">' + meta.map(function (m) { return '<span>' + esc(m) + '</span>'; }).join('') + '</div>' +
+    (b.states.length ? '<div class="raid-states">' + b.states.map(function (st) { return '<span class="pill pill-warn">' + esc(st.label) + ' (' + st.turns + ')</span>'; }).join('') + '</div>' : '') +
+    '<div class="raid-riposte" id="raid-riposte" data-testid="raid-riposte"><span class="g" aria-hidden="true">⚠</span><span>' + esc(b.next_riposte.label) + '</span></div>' +
+    (v.warnings.length ? '<div class="raid-states">' + v.warnings.map(function (w) { return '<span class="pill pill-crit">' + esc(w) + '</span>'; }).join('') + '</div>' : '');
+}
+function renderRaidTurn(v) {
+  var me = v.me, live = raidLive();
+  $('raid-turn').innerHTML = !me || !me.pass ? '' :
+    '<span class="rt">Tour ' + me.pass.turn + ' / ' + me.pass.turn_max + '</span><span class="rp" id="raid-pa">' + me.pass.pa + ' / ' + me.pass.pa_max + ' PA</span>' +
+    '<span class="rp pm" id="raid-pm">' + me.pass.pm + ' / ' + me.pass.pm_max + ' PM</span>' +
+    '<span class="muted">' + esc(me.hp + ' / ' + me.hp_max + ' PV' + (me.shield ? ' · bouclier ' + me.shield : '')) + '</span>';
+  $('raid-actions').innerHTML = live ?
+    '<button type="button" class="btn" id="btn-end-turn" data-testid="btn-end-turn" data-act="raid-end-turn">Fin de tour</button>' +
+    '<button type="button" class="btn btn-primary" id="btn-end-pass" data-testid="btn-end-pass" data-act="raid-end-pass">Fin de passage</button>' :
+    '<div class="raid-locked" id="raid-locked" data-testid="raid-locked">' + esc(raidTurnLabel(v)) + '</div>';
+  $('raid-hint').className = 'raid-hint' + (rd.armed || rd.move ? ' is-armed' : '');
+  $('raid-hint').textContent = raidHint(v);
+}
+function raidTurnLabel(v) {
+  if (v.status === 'won') return 'Le dragon est abattu : la clairière est à vous.';
+  if (v.status === 'lost') return 'La forêt a gagné : le siège est perdu.';
+  if (rd.done && rd.started) {
+    var f = raidForecast();
+    return 'Passage transmis. ' + raidOrderLabel() + ' ; termine la journée par « Fin de journée ». ' +
+      (f && !f.ok ? '⚠ Sur la grille qu’ils laisseront, le moteur arrêtera ton passage à : ' + f.reason + '.' : '');
+  }
+  if (tb.phase === 'evening') return 'La journée est finie : les passages du jour sont dans la chronique.';
+  return v.me && v.me.reason ? v.me.reason : raidOrderLabel() + '.';
+}
+function raidHint(v) {
+  if (!raidLive()) return v.waiting_on.length ? 'Sur la grille aujourd’hui : ' + v.waiting_on.join(', ') + '.' : '';
+  if (rd.armed) {
+    var s = v.me.spells.filter(function (x) { return x.id === rd.armed; })[0], n = rd.preview ? rd.preview.cells.length : 0;
+    return (s ? s.name + ' armé (' + s.cost_pa + ' PA, portée ' + s.range_label + ', ' + s.zone_label + ')' : '') +
+      (n ? ' — touche une des ' + n + ' cases surlignées pour lancer, ailleurs pour annuler.' : ' — aucune case à portée d’ici ; touche la grille pour annuler.');
+  }
+  if (rd.move) return 'Déplacement vers (' + rd.move.x + ', ' + rd.move.y + ') : ' + rd.move.cost + ' PM — touche la même case pour confirmer.';
+  return 'Touche un sort pour l’armer, ou une case atteignable pour te déplacer.';
+}
+function renderRaidSpells(v) {
+  var me = v.me, live = raidLive();
+  /* Après le passage le moteur ne renvoie plus de sorts : on garde la dernière liste qu'il a donnée, grisée. */
+  var list = me && me.spells.length ? me.spells : rd.spells;
+  $('raid-spells').innerHTML = !list.length ? '' : list.map(function (s) {
+    var off = !live || !me || !me.spells.length || !s.castable, why = s.reason || (live ? '' : raidTurnLabel(v));
+    return '<button type="button" class="spell-btn" id="spell-' + esc(s.id) + '" data-testid="spell-' + esc(s.id) + '" data-act="raid-spell" data-id="' + esc(s.id) + '"' +
+      ' aria-pressed="' + (rd.armed === s.id) + '"' + (off ? ' disabled title="' + esc(why) + '"' : ' title="' + esc(s.description) + '"') + '>' +
+      '<span class="n">' + esc(s.name) + '</span><span class="c">' + s.cost_pa + ' PA · portée ' + esc(s.range_label) + '</span><span class="z">' + esc((s.shape !== 'single' ? s.zone_label + ' · ' : '') + s.verb) + (s.cooldown_left ? ' · relance ' + s.cooldown_left : '') + '</span></button>';
+  }).join('');
+}
+/* Journal : les passages du jour donnés par le moteur (ou par la chronique le soir) puis mon passage en cours. */
+function renderRaidJournal(v) {
+  var rows = [], chron = tb.phase === 'evening' && tb.chron && tb.chron.raid ? tb.chron.raid.passes : null;
+  (chron || v.passes_today).forEach(function (p) {
+    rows.push('<li class="' + (p.ko ? 'ko' : '') + '">' + esc(p.manager_name + ' — ' + p.hero_name + ' : ' + p.damage + ' dégâts' + (p.ko ? ' · à terre' : '')) + '</li>');
+  });
+  v.journal.forEach(function (j) { j.lines.forEach(function (l) { rows.push('<li>' + esc(j.hero_name + ' — ' + l) + '</li>'); }); });
+  rd.lines.forEach(function (l) { rows.push('<li class="mine">' + esc(l) + '</li>'); });
+  if (!rows.length) rows.push('<li class="muted">Personne n’a encore joué aujourd’hui. ' + esc(raidOrderLabel()) + '.</li>');
+  $('raid-journal').innerHTML = rows.join('');
+  $('raid-journal-count').textContent = plural((chron || v.passes_today).length, 'passage', 'passages') + ' · ' +
+    plural(v.waiting_on.length, 'héros attendu', 'héros attendus') + (raidLive() && rd.started ? ' · ton passage en cours' : '');
+}
+/* ---------- écran Raid : la grille en Canvas ---------- */
+function raidCtx(canvas, v) {
+  var W = Math.max(200, Math.round(canvas.clientWidth || 340)), dpr = window.devicePixelRatio || 1;
+  rd.cell = Math.max(18, Math.floor((W - 2) / v.grid.w)); rd.pad = Math.floor((W - rd.cell * v.grid.w) / 2);
+  var H = rd.cell * v.grid.h + 2;
+  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); canvas.style.height = H + 'px'; }
+  var ctx = canvas.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  return ctx;
+}
+function raidRect(x, y) { return { x: rd.pad + x * rd.cell, y: 1 + y * rd.cell, s: rd.cell }; }
+function drawRaidGrid(v) {
+  var canvas = $('raid-grid'); if (!canvas || !v) return;
+  var ctx = raidCtx(canvas, v), T = tokens(), painted = [];
+  v.grid.cells.forEach(function (c) { drawRaidCell(ctx, c, T); });
+  drawRaidOverlay(ctx, v, T);
+  ctx.strokeStyle = rgba(T.line, 0.9); ctx.lineWidth = 1;
+  v.grid.cells.forEach(function (c) { var r = raidRect(c.x, c.y); ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.s - 1, r.s - 1); });
+  drawRaidBossFig(ctx, v, T);
+  v.units.forEach(function (u) { if (u.id !== (v.me && v.me.hero_id)) { drawRaidUnit(ctx, u, T, false); painted.push(u); } });
+  if (v.me && v.me.cell && v.me.can_play && tb.phase !== 'evening') { var self = raidSelfUnit(v); drawRaidUnit(ctx, self, T, true); painted.push(self); }
+  drawRaidMarks(ctx, v, T);
+  raidPublishDraw(v, painted);
+}
+/* V5 T4 : trace en lecture seule de ce que le dernier dessin a peint (bancs : la grille suit-elle le modèle de vue ?). */
+function raidPublishDraw(v, painted) {
+  window.__raidDraw = { w: v.grid.w, h: v.grid.h, cell: rd.cell, pad: rd.pad,
+    boss: { id: v.boss.id, x: v.boss.x, y: v.boss.y, w: v.boss.w, h: v.boss.h, hp_pct: v.hp_pct },
+    units: painted.map(function (u) { return { id: u.id, x: u.x, y: u.y, kind: u.kind, class_id: raidClassOf(u), mine: u.id === (v.me && v.me.hero_id) }; }),
+    zones: v.grid.cells.filter(function (c) { return !!c.zone; }).map(function (c) { return { x: c.x, y: c.y, id: c.zone.id }; }),
+    riposte: v.boss.next_riposte.cells.map(function (c) { return { x: c.x, y: c.y }; }),
+    preview: rd.preview ? { spell: rd.preview.spell, cells: rd.preview.cells.length, zone: rd.preview.zone.length, targets: rd.preview.targets.length } : null,
+    move: rd.move ? { x: rd.move.x, y: rd.move.y, cost: rd.move.cost, cells: rd.move.cells.length } : null,
+    reachable: raidLive() && v.me && v.me.reachable ? v.me.reachable.length : 0 };
+}
+/* Au-dessus des figurines : les cases jouables du sort armé (un grand nombre tombe sous le corps du boss)
+   et les cibles que previewCast annonce touchées. */
+function drawRaidMarks(ctx, v, T) {
+  if (!rd.preview) return;
+  /* Les cases jouables d'un corps à corps tombent sous le corps du boss : le voile d'accent est repassé
+     PAR-DESSUS les figurines, sinon l'aperçu disparaît sous elles. Zone d'effet ensuite, cibles en dernier. */
+  rd.preview.cells.forEach(function (c) {
+    var r = raidRect(c.x, c.y);
+    ctx.fillStyle = rgba(T.accent, 0.24); ctx.fillRect(r.x, r.y, r.s, r.s);
+    ctx.strokeStyle = T.accent; ctx.lineWidth = 2; ctx.strokeRect(r.x + 2.5, r.y + 2.5, r.s - 5, r.s - 5);
+    ctx.beginPath(); ctx.arc(r.x + r.s / 2, r.y + r.s / 2, Math.max(2.5, r.s * 0.09), 0, 6.2832); ctx.fillStyle = T.accent; ctx.fill();
+  });
+  ctx.save(); ctx.setLineDash([4, 3]); ctx.strokeStyle = T.crit; ctx.lineWidth = 2;
+  rd.preview.zone.forEach(function (c) {
+    var r = raidRect(c.x, c.y);
+    ctx.fillStyle = rgba(T.crit, 0.3); ctx.fillRect(r.x, r.y, r.s, r.s);
+    ctx.strokeRect(r.x + 1.5, r.y + 1.5, r.s - 3, r.s - 3);
+  });
+  ctx.restore();
+  var byId = {}; v.units.forEach(function (u) { byId[u.id] = u; });
+  ctx.save(); ctx.setLineDash([5, 3]); ctx.strokeStyle = T.gold; ctx.lineWidth = 3;
+  rd.preview.targets.forEach(function (t) {
+    var boss = t.unit_id === v.boss.id, u = byId[t.unit_id];
+    if (!boss && !u) return;
+    var r = boss ? raidRect(v.boss.x, v.boss.y) : raidRect(u.x, u.y);
+    ctx.strokeRect(r.x + 1.5, r.y + 1.5, (boss ? v.boss.w : 1) * rd.cell - 3, (boss ? v.boss.h : 1) * rd.cell - 3);
+  });
+  ctx.restore();
+}
+function raidSelfUnit(v) {
+  var u = v.units.filter(function (x) { return x.id === v.me.hero_id; })[0], h = myHero();
+  return u || { id: v.me.hero_id, kind: 'hero', class_id: v.me.class_id, name: h ? h.name : '?', x: v.me.cell.x, y: v.me.cell.y,
+    hp: v.me.hp, hp_max: v.me.hp_max, shield: v.me.shield || 0, states: [], is_mine: true, side: 'guild' };
+}
+function drawRaidCell(ctx, c, T) {
+  var r = raidRect(c.x, c.y);
+  ctx.fillStyle = c.kind === 'water' ? rgba(T.accent, 0.3) : T.surface;
+  ctx.fillRect(r.x, r.y, r.s, r.s);
+  /* Obstacle : un bloc barré en gris de thème (T.ink virait au blanc éclatant en sombre et volait l'œil au boss). */
+  if (c.kind === 'wall' || c.kind === 'pit') {
+    ctx.fillStyle = rgba(T.muted, c.kind === 'pit' ? 0.7 : 0.45); ctx.fillRect(r.x, r.y, r.s, r.s);
+    ctx.strokeStyle = rgba(T.muted, 0.95); ctx.lineWidth = 1.5;
+    ctx.strokeRect(r.x + 1.5, r.y + 1.5, r.s - 3, r.s - 3);
+    ctx.beginPath();
+    ctx.moveTo(r.x + 5, r.y + 5); ctx.lineTo(r.x + r.s - 5, r.y + r.s - 5);
+    ctx.moveTo(r.x + r.s - 5, r.y + 5); ctx.lineTo(r.x + 5, r.y + r.s - 5);
+    ctx.stroke();
+  }
+  if (c.spawn) { ctx.fillStyle = rgba(T.accent, 0.12); ctx.fillRect(r.x, r.y, r.s, r.s); }
+  if (!c.zone) return;
+  ctx.fillStyle = rgba(T[ZONE_COLOR[c.zone.id] || 'muted'], c.zone.id === 'mur_glace' ? 0.85 : 0.34);
+  ctx.fillRect(r.x, r.y, r.s, r.s);
+  ctx.strokeStyle = rgba(T[ZONE_COLOR[c.zone.id] || 'muted'], 0.9); ctx.lineWidth = 2;
+  ctx.strokeRect(r.x + 2, r.y + 2, r.s - 4, r.s - 4);
+  ctx.fillStyle = T[ZONE_COLOR[c.zone.id] || 'muted']; ctx.font = uiFont(Math.max(8, Math.round(r.s * 0.24)), 700);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(String(c.zone.label || '').slice(0, 3), r.x + 3, r.y + 2);
+}
+/* Télégraphe de la riposte (hachures), cases jouables, zone d'effet et chemin de déplacement. */
+function drawRaidOverlay(ctx, v, T) {
+  v.boss.next_riposte.cells.forEach(function (c) { hatchCell(ctx, c, rgba(T.crit, 0.38)); });
+  if (rd.preview) {
+    rd.preview.cells.forEach(function (c) { var r = raidRect(c.x, c.y); ctx.fillStyle = rgba(T.accent, 0.26); ctx.fillRect(r.x, r.y, r.s, r.s); });
+    rd.preview.zone.forEach(function (c) { var r = raidRect(c.x, c.y); ctx.fillStyle = rgba(T.crit, 0.42); ctx.fillRect(r.x, r.y, r.s, r.s); });
+  } else if (rd.move) {
+    rd.move.cells.forEach(function (c) { var r = raidRect(c.x, c.y); ctx.fillStyle = rgba(T.good, 0.38); ctx.fillRect(r.x, r.y, r.s, r.s); });
+    var last = raidRect(rd.move.x, rd.move.y);
+    ctx.fillStyle = T.good; ctx.font = uiFont(Math.max(10, Math.round(rd.cell * 0.34)), 800); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(rd.move.cost + ' PM', last.x + last.s / 2, last.y + last.s / 2);
+  } else if (raidLive() && v.me.reachable.length) {
+    v.me.reachable.forEach(function (c) { var r = raidRect(c.x, c.y); ctx.fillStyle = rgba(T.good, 0.22); ctx.fillRect(r.x, r.y, r.s, r.s); ctx.fillStyle = rgba(T.good, 0.7); ctx.fillRect(r.x + r.s / 2 - 2, r.y + r.s / 2 - 2, 4, 4); });
+  }
+}
+function hatchCell(ctx, c, color) {
+  var r = raidRect(c.x, c.y);
+  ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.s, r.s); ctx.clip();
+  ctx.strokeStyle = color; ctx.lineWidth = 2;
+  for (var i = -r.s; i < r.s; i += 6) { ctx.beginPath(); ctx.moveTo(r.x + i, r.y); ctx.lineTo(r.x + i + r.s, r.y + r.s); ctx.stroke(); }
+  ctx.restore();
+}
+function drawRaidBossFig(ctx, v, T) {
+  var b = v.boss, r = raidRect(b.x, b.y), w = b.w * rd.cell, h = b.h * rd.cell;
+  ctx.fillStyle = rgba(T.crit, 0.9); roundRect(ctx, r.x + 2, r.y + 2, w - 4, h - 4, 8); ctx.fill();
+  ctx.strokeStyle = T.crit; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = glyphFont(Math.round(w * 0.34)); ctx.fillText('🌲', r.x + w / 2, r.y + h * 0.36);
+  ctx.font = uiFont(Math.max(10, Math.round(w * 0.17)), 800); ctx.fillText(v.hp_pct + ' %', r.x + w / 2, r.y + h * 0.66);
+  ctx.font = uiFont(Math.max(8, Math.round(w * 0.12)), 600); ctx.fillText('phase ' + b.phase, r.x + w / 2, r.y + h * 0.84);
+  drawRaidStates(ctx, b.states, r.x + w - 4, r.y + 4, T, true);
+}
+/* VM.raid.units ne porte pas la classe : on la lit sur l'unité du moteur (même id) pour colorer la figurine. */
+function raidClassOf(u) {
+  if (u.class_id) return u.class_id;
+  var R = rd.draft && rd.draft.raid, e = R ? R.units.filter(function (x) { return x.id === u.id; })[0] : null;
+  return e && e.class_id ? e.class_id : null;
+}
+function drawRaidUnit(ctx, u, T, mine) {
+  var r = raidRect(u.x, u.y), cx = r.x + r.s / 2, cy = r.y + r.s / 2, rad = r.s * 0.33;
+  var col = u.side === 'boss' ? T.crit : u.kind === 'summon' ? T.epic : CLASS_COLOR[raidClassOf(u)] || (mine ? T.accent : T.muted);
+  if (mine) { ctx.beginPath(); ctx.arc(cx, cy - 2, rad + 4, 0, 6.2832); ctx.fillStyle = rgba(T.accent, 0.35); ctx.fill(); }
+  ctx.beginPath(); ctx.arc(cx, cy - 2, rad, 0, 6.2832); ctx.fillStyle = col; ctx.fill();
+  ctx.strokeStyle = mine ? T.accent : rgba(T.ink, 0.5); ctx.lineWidth = mine ? 2.5 : 1; ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = uiFont(Math.max(9, Math.round(rad * 1.05)), 800);
+  ctx.fillText(String(u.name || '?').charAt(0).toUpperCase(), cx, cy - 2);
+  var bw = r.s * 0.72, bx = cx - bw / 2, by = r.y + r.s - 7;
+  ctx.fillStyle = rgba(T.ink, 0.25); ctx.fillRect(bx, by, bw, 4);
+  ctx.fillStyle = u.hp * 3 <= u.hp_max ? T.crit : T.good; ctx.fillRect(bx, by, Math.max(1, bw * Math.max(0, u.hp) / Math.max(1, u.hp_max)), 4);
+  if (u.shield) { ctx.fillStyle = T.accent; ctx.fillRect(bx, by - 3, Math.max(1, bw * Math.min(1, u.shield / Math.max(1, u.hp_max))), 2); }
+  drawRaidStates(ctx, u.states, r.x + r.s - 3, r.y + 2, T, false);
+}
+function drawRaidStates(ctx, states, rx, ry, T, big) {
+  if (!states || !states.length) return;
+  ctx.font = glyphFont(big ? 13 : Math.max(8, Math.round(rd.cell * 0.28)));
+  ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.fillStyle = big ? '#fff' : T.ink;
+  states.slice(0, 3).forEach(function (st, i) { ctx.fillText(STATE_GLYPH[st.id] || '•', rx, ry + i * (big ? 14 : rd.cell * 0.3)); });
+}
+window.__rdcell = function () { return rd.cell; };
+window.__rdpad = function () { return rd.pad; };
+window.__rdreach = function () { return rd.view && rd.view.me ? rd.view.me.reachable : []; };
+/* V5 T4 : la vue du moteur telle que l'écran la dessine (lecture seule, pour les bancs). */
+window.__raidView = function () { return raidNow(); };
+window.__raidDraw = null;
+function raidCellFromEvent(ev) {
+  var canvas = $('raid-grid'), b = canvas.getBoundingClientRect(), v = raidNow();
+  if (!v || !rd.cell) return null;
+  var x = Math.floor((ev.clientX - b.left - rd.pad) / rd.cell), y = Math.floor((ev.clientY - b.top - 1) / rd.cell);
+  return x >= 0 && y >= 0 && x < v.grid.w && y < v.grid.h ? { x: x, y: y } : null;
+}
+function raidTableau() {
+  var v = raidOn() ? raidNow() : null;
+  if (!v) return null;
+  var me = v.me || {}, ps = me.pass || null;
+  return { active: !!v.active, boss_pct: v.hp_pct, day: app.state ? app.state.day : 0, my_pass_done: !!rd.done,
+    spells: (me.spells || []).map(function (s) { return s.id; }), ap: ps ? ps.pa : 0, pm: ps ? ps.pm : 0 };
 }
 /* ---------- scène : géométrie ---------- */
 var LW = 800, LH = 460, HORIZON = 190;
@@ -974,6 +1482,7 @@ function roadPoint(t) {
 }
 function spotFor(activity, idx) {
   if (activity === 'expedition') { var p = roadPoint(0.5 + idx * 0.09); return { x: p.x, y: p.y + 6 }; }
+  if (activity === 'raid') { var q = roadPoint(0.62 + idx * 0.08); return { x: q.x, y: q.y + 4 }; }   /* V5 : la route du donjon mène à la clairière */
   var s = SPOTS[activity] || SPOTS.idle;
   return { x: s.x + idx * s.dx, y: s.y, row: idx % 2 };
 }
@@ -1001,7 +1510,7 @@ function stepPositions(snap) {
 /* ---------- scène : dessin ---------- */
 function tokens() {
   var cs = getComputedStyle(document.documentElement), out = {};
-  ['bg', 'surface', 'ink', 'muted', 'line', 'accent', 'gold', 'good', 'warn', 'crit', 'raised'].forEach(function (k) { out[k] = cs.getPropertyValue('--' + k).trim() || '#888'; });
+  ['bg', 'surface', 'ink', 'muted', 'line', 'accent', 'gold', 'good', 'warn', 'crit', 'raised', 'epic'].forEach(function (k) { out[k] = cs.getPropertyValue('--' + k).trim() || '#888'; });
   return out;
 }
 function rgba(hex, a) {
@@ -1040,6 +1549,7 @@ function drawScene(canvas, mini) {
 function drawBackdrop(ctx, evening, t, T) {
   var age = app.vm.village.age_index, th = threatPhase(), out = threatOutcome(), ruin = !!app.vm.defeat;
   drawSky(ctx, evening, th === 'today', ruin);
+  if (raidToday() && !ruin) drawRaidSky(ctx, evening);
   ctx.fillStyle = ruin ? '#5c6158' : evening ? '#26372b' : '#7ea86b'; ctx.beginPath(); ctx.moveTo(0, HORIZON + 4); ctx.quadraticCurveTo(200, HORIZON - 40, 420, HORIZON + 2); ctx.quadraticCurveTo(600, HORIZON - 30, LW, HORIZON + 6); ctx.lineTo(LW, HORIZON + 40); ctx.lineTo(0, HORIZON + 40); ctx.fill();
   ctx.fillStyle = ruin ? '#6a6e62' : evening ? '#33482f' : '#9cc27d'; ctx.fillRect(0, HORIZON + 20, LW, LH - HORIZON - 20);
   drawMountain(ctx, evening); drawForest(ctx, evening, t); drawRoad(ctx, evening, age); drawTrail(ctx, evening); drawDungeon(ctx, evening);
@@ -1047,6 +1557,14 @@ function drawBackdrop(ctx, evening, t, T) {
   if (age >= 1) drawHouses(ctx, 2 + age, evening);
   if (age === 0) drawCampfire(ctx, 322, 262, t, evening);
   drawSkyDragon(ctx, evening, t, th, out);
+}
+/* Jour de raid : le ciel prend la couleur du biome du dragon (forêt : brume verte sur l'horizon). */
+var BIOME_SKY = { forest: ['#3d6b4a', '#a8c49a'], mountain: ['#6b5f57', '#d9c7ae'], marsh: ['#40605e', '#a8bfa0'] };
+function raidBiome() { var t = app.vm && app.vm.threat; return t && t.biome_id && BIOME_SKY[t.biome_id] ? t.biome_id : 'forest'; }
+function drawRaidSky(ctx, evening) {
+  var c = BIOME_SKY[raidBiome()], g = ctx.createLinearGradient(0, 0, 0, HORIZON);
+  g.addColorStop(0, evening ? '#16221b' : c[0]); g.addColorStop(1, evening ? '#2c3b30' : c[1]);
+  ctx.save(); ctx.globalAlpha = 0.72; ctx.fillStyle = g; ctx.fillRect(0, 0, LW, HORIZON + 4); ctx.restore();
 }
 function drawSky(ctx, evening, red, ruin) {
   var g = ctx.createLinearGradient(0, 0, 0, HORIZON);
@@ -1332,7 +1850,7 @@ function drawFigures(ctx, s, sy, fs, T, mini, evening) {
     var p = tb.pos[m.id]; if (!p) return;
     var h = heroOf(m.id), act = h ? tb.placed[m.id] : 'dead', mk = tb.markers || { injured: {}, levelUp: {}, limping: {} };
     drawFigure(ctx, { x: p.x * s, y: p.y * sy, fs: fs, color: CLASS_COLOR[h ? h.class_id : ''] || T.accent, initial: m.name.charAt(0).toUpperCase(), name: mini ? '' : m.name, row: p.row || 0,
-      ghost: !act || act === 'dead', dead: !h, seated: act === 'rest', lying: act === 'injured', limping: !!mk.limping[m.id], star: !!mk.levelUp[m.id], cross: act === 'injured', mine: m.id === ME, armed: act === 'defend', solo: act === 'solo' }, T, evening);
+      ghost: !act || act === 'dead', dead: !h, seated: act === 'rest', lying: act === 'injured', limping: !!mk.limping[m.id], star: !!mk.levelUp[m.id], cross: act === 'injured', mine: m.id === ME, armed: act === 'defend' || act === 'raid', solo: act === 'solo', aura: act === 'raid' }, T, evening);
   });
   if (mini || evening) return;
   tb.bubbles.filter(function (b) { return b.until > tb.hour; }).slice(-2).forEach(function (b) { var p = tb.pos[b.id]; if (p) drawBubble(ctx, p.x * s, p.y * sy - 46 * fs, b.text, T, s * LW); });
@@ -1340,6 +1858,7 @@ function drawFigures(ctx, s, sy, fs, T, mini, evening) {
 function drawFigure(ctx, f, T, evening) {
   var u = f.fs, hr = 5.5 * u, bw = 13 * u, bh = 15 * u, lg = 8 * u;
   ctx.save(); ctx.translate(f.x, f.y);
+  if (f.aura) { var g = ctx.createRadialGradient(0, -14 * u, 2 * u, 0, -14 * u, 22 * u); g.addColorStop(0, rgba(T.crit, 0.55)); g.addColorStop(1, rgba(T.crit, 0)); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, -14 * u, 22 * u, 0, 6.2832); ctx.fill(); }
   if (f.lying) { ctx.rotate(-Math.PI / 2); ctx.translate(-4 * u, 0); }
   else if (f.limping) ctx.rotate(0.22);
   ctx.lineWidth = 1.5;
@@ -1396,7 +1915,7 @@ function sceneLoop(now) {
 function startLoop() { if (!app.raf && !motionMQ.matches) app.raf = requestAnimationFrame(sceneLoop); else drawAll(); }
 
 /* ---------- rendu : en-tête, onglets, tiroir ---------- */
-function render() { renderHeader(); renderTableau(); renderHero(); renderVillage(); renderEffectif(); renderChronicle(); renderJournal(); renderTabs(); applyLayout(); publishTableau(); }
+function render() { renderHeader(); renderTableau(); renderHero(); renderRaid(); renderVillage(); renderEffectif(); renderChronicle(); renderJournal(); renderTabs(); applyLayout(); publishTableau(); }
 function renderHeader() {
   var vm = app.vm, over = vm.is_season_over, d = vm.defeat;
   $('day-counter').textContent = d ? 'Guilde dispersée — jour ' + d.day + ' / ' + vm.season_length : over ? 'Saison terminée — jour ' + vm.season_length + ' / ' + vm.season_length : 'Jour ' + vm.day + ' / ' + vm.season_length;
@@ -1406,12 +1925,14 @@ function renderHeader() {
   document.body.classList.toggle('is-defeat', !!d);
 }
 function renderTabs() {
+  $('tab-raid').hidden = !raidOn();
   document.querySelectorAll('.tab').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.tab === app.tab ? 'true' : 'false'); });
   document.querySelectorAll('.gbtn').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.section === app.drawer ? 'true' : 'false'); });
 }
 function setTab(id) {
   app.tab = id; if (id !== 'chronique') app.contentTab = id;
   renderTabs(); applyLayout(); saveUi();
+  if (id === 'raid') renderRaid();
   if (id === 'chronique' && wideMQ.matches) {
     var col = $('panel-chronique'); col.scrollIntoView({ behavior: motionMQ.matches ? 'auto' : 'smooth', block: 'start' });
     col.classList.remove('flash'); void col.offsetWidth; col.classList.add('flash');
@@ -1421,9 +1942,13 @@ function applyLayout() {
   var wide = wideMQ.matches;
   $('panel-chronique').hidden = !(wide || app.tab === 'chronique');
   $('col-main').hidden = !wide && app.tab === 'chronique';
+  if (app.contentTab === 'raid' && !raidOn()) { app.tab = app.contentTab = 'tableau'; renderTabs(); }
   $('panel-tableau').hidden = app.contentTab !== 'tableau';
   $('panel-heros').hidden = app.contentTab !== 'heros';
+  $('panel-raid').hidden = app.contentTab !== 'raid';
+  $('tab-raid').hidden = !raidOn();
   document.documentElement.style.setProperty('--topbar-h', $('topbar').offsetHeight + 'px');
+  if (!$('panel-raid').hidden) renderRaid();
   if (!$('panel-tableau').hidden && !$('col-main').hidden) startLoop();
 }
 function openDrawer(section) {
@@ -1454,9 +1979,21 @@ function sceneBanners() {
   if (oc === 'vaincu') out.push(bannerHtml('outcome', 'is-good', '🐉', dragonName(t) + ' est vaincu' + biomeSuffix(t) + (t && t.legendary ? ' · ' : ''), t && t.legendary ? '<span class="rar-legendary">' + esc(t.legendary) + ' (légendaire)</span>' : ''));
   else if (oc === 'repoussé') out.push(bannerHtml('outcome', 'is-warn', '🐉', dragonName(t) + ' est repoussé' + biomeSuffix(t) + ' : il s’éloigne vers les cimes.'));
   else if (oc === 'ravage') out.push(bannerHtml('outcome', 'is-dark', '🔥', 'Jour noir : ' + (t && t.building_hit ? t.building_hit + ' a brûlé' : 'le village est ravagé') + ' (' + dragonName(t) + (t && t.biome_name ? ', ' + t.biome_name : '') + ')'));
+  raidBanners(out);
   if (evening && sum.deaths && sum.deaths.length) out.push(bannerHtml('deuil', 'is-mourning', '🕯', 'Deuil : ' + deathsText(sum.deaths)));
   if (evening && sum.village_age_up) out.push(bannerHtml('age', 'is-gold', '🏰', 'Le village devient ' + (AGE_ARTICLE[ageIdByName(sum.village_age_up)] || 'un') + ' ' + sum.village_age_up));
   return out;
+}
+/* Bandeaux du raid : le matin, le siège et ce qu'il reste à jouer ; le soir, la nuit du boss (sauf issue V4). */
+function raidBanners(out) {
+  var v = raidNow(), c = tb.chron && tb.chron.raid ? tb.chron.raid : null, evening = tb.phase === 'evening';
+  if (!v && !c) return;
+  if (!evening && raidToday()) {
+    out.push(bannerHtml('raid', 'is-crit', '⚔️', v.name + ' tient la clairière — ' + v.hp_pct + ' % · nuit ' + (v.nights + 1) + ' / ' + v.max_nights + ' · ' +
+      (rd.done ? (rd.started ? 'ton passage est joué' : (v.me && v.me.reason ? v.me.reason : 'tu ne montes pas sur la grille')) : 'à toi de jouer')));
+    return;
+  }
+  if (evening && c && c.status === 'active') out.push(bannerHtml('raid', 'is-crit', '⚔️', c.name + ' reste debout à ' + c.hp_pct + ' % : il se soigne cette nuit (nuit ' + c.nights + ' / ' + (v ? v.max_nights : 4) + ').'));
 }
 function renderClock() {
   var el = $('clock'), evening = tb.phase === 'evening';
@@ -1474,10 +2011,15 @@ function renderPlayed() {
   var l2 = $('widget-l2'), c = tb.chron;
   if (tb.phase === 'evening' && c) { l2.textContent = c.headline || c.title || ''; l2.className = 'wl wl2'; }
   else if (app.vm.defeat) { l2.textContent = 'La guilde est dispersée'; l2.className = 'wl wl2 crit'; }
+  else if (raidToday()) { var rv = raidNow(); l2.textContent = '⚔️ Raid jour ' + app.state.day + ' · boss ' + rv.hp_pct + ' % · ' + raidPlayedLabel(rv); l2.className = 'wl wl2 crit'; }
   else if (threatPhase() === 'today') { l2.textContent = '🐉 Dragon aujourd’hui' + (app.chosen ? '' : ' · tu n’as pas joué'); l2.className = 'wl wl2 crit'; }
   else if (!myHero()) { l2.textContent = 'Ton héros est tombé'; l2.className = 'wl wl2 crit'; }
   else if (!app.chosen) { l2.textContent = 'Tu n’as pas encore joué'; l2.className = 'wl wl2 warn'; }
   else { l2.textContent = 'Journée en cours · ' + Math.floor(tb.hour) + 'h'; l2.className = 'wl wl2'; }
+}
+function raidPlayedLabel(v) {
+  var done = v.passes_today.length, total = done + v.waiting_on.length;   /* mon passage entre dans passes_today dès qu'il est joué */
+  return done + '/' + Math.max(1, total) + ' ont joué';
 }
 function renderInstant() {
   var c = tb.chron, evening = tb.phase === 'evening';
@@ -1730,7 +2272,7 @@ function shiftChronicle(delta) {
   if (i < 0 || i >= days.length) return;
   app.viewDay = days[i]; renderChronicle();
 }
-function phaseClass(phase) { var p = String(phase || '').toLowerCase(); return p === 'menace' ? ' is-menace' : p === 'presage' ? ' is-presage' : p === 'village' ? ' is-village' : p === 'deuil' ? ' is-deuil' : p === 'solo' ? ' is-solo' : ''; }
+function phaseClass(phase) { var p = String(phase || '').toLowerCase(); return p === 'raid' ? ' is-raid' : p === 'menace' ? ' is-menace' : p === 'presage' ? ' is-presage' : p === 'village' ? ' is-village' : p === 'deuil' ? ' is-deuil' : p === 'solo' ? ' is-solo' : ''; }
 function lootHtml(line, legendary) { var s = esc(line); return legendary && String(line).indexOf(legendary) === 0 ? '<span class="rar-legendary">' + s + '</span>' : s; }
 function threatMetaHtml(t) {
   var html = '<p class="meta">Défenseurs : ' + ((t.defenders || []).map(esc).join(', ') || 'aucun') + '</p>';
@@ -1745,11 +2287,21 @@ function chronicleHtml(c) {
   var placed = false;
   (c.sections || []).forEach(function (s) {
     var cls = phaseClass(s.phase);
-    html += '<section class="chron-section' + cls + '"><h3>' + esc(s.title || s.phase) + '</h3>' + (s.lines || []).map(function (l) { return '<p>' + esc(l) + '</p>'; }).join('') + (cls === ' is-menace' && t ? threatMetaHtml(t) : '') + '</section>';
+    var extra = cls === ' is-menace' && t ? threatMetaHtml(t) : cls === ' is-raid' ? raidChronHtml(c.raid, t) : '';
+    html += '<section class="chron-section' + cls + '"><h3>' + esc(s.title || s.phase) + '</h3>' + (s.lines || []).map(function (l) { return '<p>' + esc(l) + '</p>'; }).join('') + extra + '</section>';
     if (!placed && c.expedition && /exp/i.test(String(s.phase))) { html += expeditionHtml(c.expedition); placed = true; }
   });
   if (!placed && c.expedition) html += expeditionHtml(c.expedition);
   return html + summaryHtml(c.summary) + '</article>';
+}
+/* Section Raid de la chronique : les passages de chacun, puis les méta de la menace le jour de clôture. */
+function raidChronHtml(r, t) {
+  var html = '';
+  if (r && r.passes && r.passes.length) html += '<p class="meta" id="chron-raid-passes">' + r.passes.map(function (p) {
+    return esc(p.manager_name + ' — ' + p.hero_name + ' : ' + p.damage + ' dégâts' + (p.ko ? ' (à terre)' : '')); }).join(' · ') + '</p>';
+  if (r) html += '<p class="meta' + (r.status === 'lost' ? ' down' : '') + '">Sève restante : ' + r.hp_pct + ' % · ' + plural(r.nights, 'nuit', 'nuits') + (r.won_by ? ' · coup fatal : ' + esc(r.won_by) : '') + '</p>';
+  if (t) html += threatMetaHtml(t);
+  return html;
 }
 function outcomePill(o) {
   var cls = o === 'succès' ? 'pill-good' : o === 'échec' ? 'pill-crit' : o === 'retraite' ? 'pill-warn' : 'pill-muted';
@@ -1813,6 +2365,9 @@ function onAction(btn) {
     case 'clear-slot': clearSlot(parseInt(btn.dataset.i, 10)); break;
     case 'chooser-close': app.slotOpen = -1; renderHero(); break;
     case 'solo': chooseSolo(id); break;
+    case 'raid-spell': raidArm(id); break;
+    case 'raid-end-turn': raidEndTurn(); break;
+    case 'raid-end-pass': raidEndPass(); break;
     case 'heir': toggleHeir(id); break;
     case 'new-game-prompt': openDrawer('journal'); $('seed-input').focus(); break;
     case 'replay': replayJournal(); break;
@@ -1836,7 +2391,8 @@ function wireEvents() {
     else if (el.dataset && el.dataset.slot && el.value) { addOrder('equip', { adventurer_id: myHero().id, item_id: el.value }); }
   });
   document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && app.drawer) closeDrawer(); });
-  window.addEventListener('resize', function () { applyLayout(); drawAll(); });
+  $('raid-grid').addEventListener('click', function (ev) { var c = raidCellFromEvent(ev); if (c) raidTapCell(c.x, c.y); });
+  window.addEventListener('resize', function () { applyLayout(); drawAll(); renderRaid(); });
   if (wideMQ.addEventListener) wideMQ.addEventListener('change', function () { renderTabs(); applyLayout(); });
   document.addEventListener('visibilitychange', function () { if (!document.hidden) applyLayout(); });
 }

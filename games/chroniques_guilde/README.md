@@ -32,12 +32,17 @@ polices système : les polices Google ne se chargent qu'en http(s).
 - V5 T1 (GO Pierre) : `tactic.js` — grille 9×11, points d'action et de mouvement, portées et lignes de vue,
   formes de zone, poussées, états, passages entrelacés, riposte télégraphiée, nuit et enrage. Six classes de
   base dont l'Invocateur. Le dragon de la forêt devient un raid persistant sur plusieurs jours (activité
-  `raid`, action `raid_pass`). Banc `test/tactic_t1_check.mjs` (20). La page ne charge pas encore `tactic.js`
-  (l'écran Raid est la tranche T4) : les bancs d'interface jouent donc `raid_enabled = false` pour rester
-  alignés sur elle, et le dragon de la forêt y reste en combat automatique.
-- V5 T2 à T5 (à construire) : hybrides, spécialisations, écran Raid, calibrage — voir `design/V5_SPEC.md`.
+  `raid`, action `raid_pass`). Banc `test/tactic_t1_check.mjs` (20).
+- V5 T4 : écran Raid dans la page — grille tactile, bandeau du boss avec sa riposte annoncée, barre de sorts,
+  aperçu de zone en deux temps, journal des passages, jauge du boss sur le tableau et l'aperçu widget.
+  La page charge `tactic.js`. Banc `test/ui_v5_check.mjs` (39).
+  Limite connue, à arbitrer : le passage humain se compose sur la grille du matin alors que le moteur le rejoue
+  après ceux des amis (managers triés par identifiant, le joueur passe dernier). La page prévient en clair quand
+  un passage sera interrompu, et les traces laissées par les amis le jour même n'apparaissent que le lendemain.
+- V5 T2, T3, T5 (à construire) : hybrides et deux autres dragons en raid, spécialisations, calibrage —
+  voir `design/V5_SPEC.md`.
 
 ## État
-software_verdict: OK (19/19 · 13/13 · 24/24 · 55/55 au 2026-09-18) · evidence_verdict: MECHANICAL_VALIDATION_ONLY ·
+software_verdict: OK (19/19 · 13/13 · 24/24 · 20/20 · 52/52 · 48/48 · 55/55 · 39/39 au 2026-09-18) · evidence_verdict: MECHANICAL_VALIDATION_ONLY ·
 claim_verdict: NO_CLAIM_ALLOWED. Aucun playtest humain. Coupes, calibrages et non-vérifiés : voir CONTRACT.md
 (section V4) et design/UI_BRIEF_V2.md. Non codé : fond d'écran animé Android, morts-vivants, portail.

@@ -17,14 +17,15 @@ const OUT = path.join(HERE, 'out'); fs.mkdirSync(OUT, { recursive: true });
 const URL_FILE = pathToFileURL(path.join(ROOT, 'index.html')).href;
 const sim = require(path.join(ROOT, 'sim.js'));
 const data = JSON.parse(fs.readFileSync(path.join(ROOT, 'data.json'), 'utf8'));
-// V5 T1 : la page ne charge pas encore tactic.js (l'écran Raid est la tranche T4).
-// La prédiction sous node doit donc jouer le même moteur que la page : raids désactivés,
-// le dragon de la forêt reste en combat automatique V4. À retirer quand la page chargera tactic.js.
-if (data.raid) data.raid.raid_enabled = false;
+// V5 T4 : la page charge tactic.js et joue le raid ; la prédiction sous node joue donc le même moteur,
+// raids ACTIFS (le bloc `data.raid.raid_enabled = false` de la T1 est retiré).
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const MANAGERS = new Function('return [' + /var MANAGERS = \[([\s\S]*?)\];/.exec(html)[1] + '];')();
 const AGE_NAMES = data.village_ages.map(a => a.name);
 const OUTCOMES = ['vaincu', 'repoussé', 'ravage'];
+// V5 T4 : le dragon de la forêt se joue en raid tactique ; sa journée de clôture n'a plus de section « Menace »
+// dans la chronique mais une section « Raid » qui porte les mêmes méta (bâtiment touché, butin, légendaire).
+const THREAT_SEC = '[data-testid="chronicle"] .chron-section.is-menace, [data-testid="chronicle"] .chron-section.is-raid';
 // V4 : la page transmet tout planDefaults(p1) dans son ordre (plus de filtre de types) ; la prédiction sous node joue la même politique.
 const PAGE_TYPES = null;
 
@@ -130,7 +131,7 @@ const browser = await pw.chromium.launch();
   const oc = await text(page, '[data-testid="banner-outcome"]');
   const expect = { vaincu: /dragon est vaincu/, 'repoussé': /dragon est repoussé/, ravage: /Jour noir/ }[t.threat_outcome];
   check('soir de l’attaque : bandeau d’issue correspondant', await visible(page, '[data-testid="banner-outcome"]') && expect.test(oc), oc);
-  check('soir de l’attaque : bloc Menace mis en évidence + badge âge dans la chronique', (await page.$$('[data-testid="chronicle"] .chron-section.is-menace')).length === 1 && (await text(page, '#chron-age')) === AGE_NAMES[t.age] , await text(page, '#chron-age'));
+  check('soir de l’attaque : bloc Menace (ou Raid) mis en évidence + badge âge dans la chronique', (await page.$$(THREAT_SEC)).length === 1 && (await text(page, '#chron-age')) === AGE_NAMES[t.age] , await text(page, '#chron-age'));
   check('soir de l’attaque : « Qui a joué » toujours là (5 / 5)', /5 \/ 5 ont joué/.test(await text(page, '[data-testid="played-count"]')));
   const outcomeShot = t.threat_outcome === 'repoussé' ? 'repousse' : t.threat_outcome;
   await shot(page, 'soir_' + outcomeShot);
@@ -190,7 +191,7 @@ if (ravage) {
   t = await playToEvening(page, ravage.day);
   const oc = await text(page, '[data-testid="banner-outcome"]');
   check('graine ' + ravage.seed + ' jour ' + ravage.day + ' : ravage, bandeau « Jour noir : … a brûlé »', t.threat_outcome === 'ravage' && /Jour noir/.test(oc) && (!ravage.hit || oc.indexOf(ravage.hit) >= 0), oc);
-  check('ravage : chronique signale le bâtiment touché', /Bâtiment touché/.test(await text(page, '[data-testid="chronicle"] .is-menace')));
+  check('ravage : chronique signale le bâtiment touché', /Bâtiment touché/.test(await text(page, THREAT_SEC)));   // V5 T4 : section Menace ou Raid
   await shot(page, 'soir_ravage');
   check('ravage : aucune erreur console/page', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
