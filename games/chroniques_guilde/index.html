@@ -1,6 +1,6 @@
 <title>Chroniques de Guilde</title>
 <style>
-/* Chroniques de Guilde — V2 « tableau vivant ». Date : 2026-09-18. Source : CONTRACT.md (plan graphique) + UI_BRIEF_V2.md. */
+/* Chroniques de Guilde — V4 « journée composée, missions solo, dragons de biome, deuil ». Date : 2026-09-18. Source : CONTRACT.md (plan graphique + section V4) + mission PAGE V4. */
 :root {
   --bg: #F3F4F0; --surface: #FFFFFF; --ink: #1B2620; --muted: #5D6B63; --line: #D6DBD3;
   --accent: #1F6F78; --accent-ink: #FFFFFF; --gold: #B8892B; --good: #2F7D4F; --warn: #B7791F; --crit: #B23A3A; --epic: #7B5EA7;
@@ -147,18 +147,6 @@ canvas#scene { display: block; width: 100%; border-radius: var(--radius); border
 .instant .eyebrow { font-family: var(--font-ui); font-style: normal; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gold); font-weight: 700; display: block; margin-bottom: 2px; }
 .quick { margin-top: 12px; }
 .quick .lead { margin-bottom: 6px; }
-.act-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
-.act-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 10px 4px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; min-width: 0; text-align: center; }
-.act-btn:hover { border-color: var(--muted); background: var(--raised); }
-.act-btn .g { font-size: 20px; line-height: 1; }
-.act-btn .l { font-family: var(--font-title); font-weight: 600; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-.act-btn .r { font-size: 10px; color: var(--muted); line-height: 1.2; }
-.act-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.act-btn[aria-pressed="true"] .r { color: inherit; }
-.act-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.act-big .act-btn { padding: 14px 6px; }
-.act-big .act-btn .g { font-size: 26px; }
-@media (max-width: 430px) { .act-btn .l { font-size: 11px; } .act-big .act-btn .g { font-size: 22px; } }
 .evening-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
 
 /* ---- mon héros ---- */
@@ -207,7 +195,7 @@ canvas#scene { display: block; width: 100%; border-radius: var(--radius); border
 .col-chronicle.flash { animation: flash 0.9s ease-out; }
 @keyframes flash { 0% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
 .chron-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-.chron-nav select { flex: 1 1 120px; }
+.chron-nav select { flex: 1 1 120px; min-width: 0; }
 .chronicle { font-family: var(--font-chron); font-size: 17px; line-height: 1.5; max-width: 65ch; }
 .chron-eyebrow { font-family: var(--font-ui); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
 .chron-title { font-size: 24px; font-weight: 800; line-height: 1.15; margin: 2px 0 10px; }
@@ -271,6 +259,123 @@ canvas#scene { display: block; width: 100%; border-radius: var(--radius); border
 .notices li { margin-bottom: 3px; }
 .notices li.crit { color: var(--crit); }
 
+/* ---- V3 : âges, dragon, bandeaux ---- */
+.scene-banners { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.scene-banners:empty { display: none; }
+.scene-banner { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid var(--line); background: var(--raised); min-width: 0; }
+.scene-banner .g { font-size: 18px; line-height: 1; flex: none; }
+.scene-banner span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.scene-banner.is-crit { background: var(--crit-soft); border-color: var(--crit); color: var(--crit); }
+.scene-banner.is-presage { color: var(--muted); font-family: var(--font-chron); font-style: italic; font-weight: 500; font-size: 15px; }
+.scene-banner.is-good { background: var(--good-soft); border-color: var(--good); color: var(--good); }
+.scene-banner.is-warn { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.scene-banner.is-dark { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.scene-banner.is-gold { background: var(--gold-soft); border-color: var(--gold); color: var(--gold); }
+.widget-tile .wl2.crit { color: var(--crit); font-weight: 700; }
+.age-card { display: flex; flex-direction: column; gap: 6px; }
+.age-name { font-family: var(--font-title); font-weight: 800; font-size: 20px; letter-spacing: -0.02em; }
+.age-desc { font-family: var(--font-chron); font-size: 15px; font-style: italic; color: var(--muted); }
+.age-gauges { display: flex; flex-direction: column; gap: 6px; }
+.age-gauge { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 12px; }
+.age-gauge .bar i { background: var(--accent); }
+.chron-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--gold-soft); color: var(--gold); font-family: var(--font-ui); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; vertical-align: middle; margin-left: 6px; }
+.chron-badge.is-crit { background: var(--crit-soft); color: var(--crit); }
+.chron-section.is-menace { margin-top: 16px; padding: 10px 14px; border: 1.5px solid var(--crit); border-radius: 8px; background: var(--crit-soft); }
+.chron-section.is-menace h3 { color: var(--crit); margin-top: 0; }
+.chron-section.is-menace .meta { font-family: var(--font-ui); font-size: 12px; color: var(--muted); margin-top: 6px; }
+.chron-section.is-menace .meta.down { color: var(--crit); font-weight: 600; }
+.chron-section.is-presage p { font-style: italic; color: var(--muted); }
+.chron-section.is-village { border-left: 3px solid var(--gold); padding-left: 12px; }
+.age-tag { display: inline-block; padding: 0 6px; border-radius: 4px; background: var(--gold-soft); color: var(--gold); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-right: 5px; vertical-align: middle; }
+
+/* ---- V4 : journée composée (préréglages, cases, chooser), missions solo, savoir-faire, biomes, deuil, défaite ---- */
+.ap-line { color: var(--accent); font-weight: 600; }
+.presets { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; }
+#presets { margin-bottom: 10px; }
+.preset-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 8px 6px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; min-width: 0; text-align: center; }
+.preset-btn:hover { border-color: var(--muted); background: var(--raised); }
+.preset-btn .g { font-size: 18px; line-height: 1; }
+.preset-btn .l { font-family: var(--font-title); font-weight: 600; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.preset-btn .r { font-size: 10px; color: var(--muted); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.preset-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.preset-btn[aria-pressed="true"] .r { color: inherit; }
+.preset-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.preset-btn.is-defend { grid-column: 1 / -1; flex-direction: row; gap: 10px; padding: 10px; border-color: var(--crit); background: var(--crit-soft); color: var(--crit); }
+.preset-btn.is-defend .l { font-size: 14px; white-space: normal; } .preset-btn.is-defend .r { color: var(--crit); white-space: normal; }
+.preset-btn.is-defend[aria-pressed="true"] { background: var(--crit); border-color: var(--crit); color: #fff; } .preset-btn.is-defend[aria-pressed="true"] .r { color: #fff; }
+.slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.slots.has-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.day-slot { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 88px; padding: 8px 6px; border-radius: 12px; border: 2px dashed var(--line); background: var(--raised); cursor: pointer; min-width: 0; text-align: center; color: var(--ink); }
+.day-slot:hover { border-color: var(--muted); }
+.day-slot.is-filled { border-style: solid; border-color: var(--accent); background: var(--surface); }
+.day-slot.is-locked { border-color: var(--gold); background: var(--gold-soft); }
+.day-slot[aria-expanded="true"] { box-shadow: 0 0 0 2px var(--accent); }
+.day-slot .g { font-size: 22px; line-height: 1; }
+.day-slot.is-empty .g { color: var(--muted); }
+.day-slot .l { font-family: var(--font-title); font-weight: 600; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.day-slot.is-empty .l { color: var(--muted); font-weight: 500; }
+.day-slot .t { font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.day-slot .ap { font-size: 10px; font-weight: 700; color: var(--accent); }
+.chooser { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--accent); border-radius: 10px; background: var(--surface); }
+.chooser h3 { font-size: 13px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.chooser h3 .sp { flex: 1 1 auto; }
+.opt { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding: 6px 0; border-top: 1px solid var(--line); }
+.opt .head { font-weight: 600; font-size: 12px; }
+.opt .cost { font-size: 11px; color: var(--accent); font-weight: 700; min-width: 34px; }
+.missions { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 6px; }
+.mission-card { text-align: left; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; display: flex; flex-direction: column; gap: 3px; min-width: 0; color: var(--ink); }
+.mission-card:hover { border-color: var(--muted); }
+.mission-card[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.mission-card:disabled { opacity: 0.5; cursor: not-allowed; }
+.mission-card .n { font-family: var(--font-title); font-weight: 600; font-size: 13px; line-height: 1.25; }
+.mission-card .b { font-size: 11px; color: var(--muted); }
+.mission-card .stars { color: var(--gold); letter-spacing: 1px; font-size: 12px; }
+.mission-card .rw { font-size: 11px; color: var(--muted); }
+.mission-card .rk { font-size: 11px; font-weight: 600; color: var(--warn); }
+.fold { padding: 0; }
+.fold > summary { cursor: pointer; padding: 12px 16px; font-family: var(--font-title); font-weight: 600; font-size: 15px; list-style: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary::before { content: '▸'; color: var(--muted); font-size: 12px; transition: transform 0.15s; }
+.fold[open] > summary::before { transform: rotate(90deg); }
+.fold > summary .count { color: var(--muted); font-family: var(--font-ui); font-weight: 500; font-size: 12px; }
+.fold-body { padding: 0 16px 14px; }
+.crafts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 8px; margin-top: 4px; }
+@media (min-width: 700px) { .crafts { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.craft { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 6px; align-items: center; font-size: 11px; padding: 4px 6px; border-radius: 6px; background: var(--raised); min-width: 0; }
+.craft b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.craft .lv { font-weight: 700; color: var(--accent); white-space: nowrap; }
+.craft .bar { grid-column: 1 / -1; height: 4px; }
+.craft .bar i { background: var(--accent); }
+.craft small { grid-column: 1 / -1; color: var(--muted); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.craft.is-up { box-shadow: inset 0 0 0 1.5px var(--gold); }
+.craft-star { color: var(--gold); }
+.craft-badge { margin-left: 6px; }
+.biome-list { display: flex; flex-direction: column; gap: 8px; }
+.biome { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; font-size: 12px; }
+.biome .n { font-weight: 600; font-size: 13px; }
+.biome .bar { grid-column: 1 / -1; height: 6px; }
+.biome .bar i { background: var(--accent); }
+.biome .d { grid-column: 1 / -1; color: var(--muted); overflow-wrap: anywhere; }
+.biome .d b { color: var(--ink); }
+.dragon-dormant { color: var(--muted); } .dragon-awake { color: var(--crit); font-weight: 700; } .dragon-repelled { color: var(--warn); font-weight: 600; } .dragon-slain { color: var(--good); font-weight: 700; }
+.plain-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.plain-list li { display: flex; justify-content: space-between; gap: 8px; padding: 4px 8px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); min-width: 0; }
+.plain-list li span:last-child { text-align: right; min-width: 0; overflow-wrap: anywhere; }
+.plain-list li.muted { display: block; }
+.heir-card { border: 1px solid var(--gold); border-radius: var(--radius); padding: 10px 12px; background: var(--gold-soft); margin-top: 8px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.heir-card .n { font-family: var(--font-title); font-weight: 700; font-size: 15px; }
+.mourning { font-family: var(--font-chron); font-style: italic; color: var(--muted); font-size: 15px; }
+.scene-banner.is-mourning { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.scene-banner.is-defeat { background: #2a2326; border-color: #2a2326; color: #f0e9e2; font-size: 14px; flex-wrap: wrap; }
+.scene-banner.is-defeat .btn { margin-left: auto; background: #f0e9e2; color: #2a2326; border-color: #f0e9e2; }
+.chron-section.is-deuil { margin-top: 16px; padding: 10px 14px; border: 1.5px solid var(--ink); border-radius: 8px; background: var(--raised); }
+.chron-section.is-deuil h3 { color: var(--ink); margin-top: 0; }
+.chron-section.is-solo { border-left: 3px solid var(--accent); padding-left: 12px; }
+.summary .wide { grid-column: 1 / -1; }
+.summary ul { margin: 2px 0 0; padding-left: 16px; }
+.summary .rar-legendary { font-weight: 700; }
+body.is-defeat .topbar { border-bottom-color: var(--crit); }
+
 /* ---- toasts ---- */
 .toasts { position: fixed; left: 16px; right: 16px; bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom, 0px)); z-index: 50; display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; }
 .toast { background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 13px; max-width: 100%; box-shadow: var(--shadow); animation: toastin 0.2s ease-out; }
@@ -311,12 +416,13 @@ canvas#scene { display: block; width: 100%; border-radius: var(--radius); border
         <div class="tableau-top">
           <div class="scene-wrap">
             <div class="scene-head">
-              <h2 id="h-scene">Le village aujourd’hui</h2>
+              <h2 id="h-scene" data-testid="scene-title">Le village aujourd’hui</h2>
               <span class="clock" id="clock" data-phase="morning" aria-live="off">8h</span>
               <span class="spacer"></span>
               <button type="button" class="btn btn-sm" id="btn-skip" data-act="skip">Passer</button>
             </div>
-            <canvas id="scene" width="800" height="460" role="img" aria-label="Le village : figurines des cinq héros placées selon leur activité du jour"></canvas>
+            <div class="scene-banners" id="scene-banners" aria-live="polite"></div>
+            <canvas id="scene" width="800" height="460" role="img" aria-label="Le village selon son âge : figurines des cinq héros placées selon leur activité du jour, sentier des missions solo, trophées sur le hall, tombes près de la chapelle"></canvas>
           </div>
           <div>
             <p class="widget-title">Aperçu widget</p>
@@ -338,7 +444,7 @@ canvas#scene { display: block; width: 100%; border-radius: var(--radius); border
         </div>
         <div class="quick" id="quick">
           <p class="lead" id="quick-lead">Aujourd’hui, mon héros…</p>
-          <div class="act-row" id="quick-acts"></div>
+          <div class="presets" id="quick-acts"></div>
         </div>
       </section>
     </div>
@@ -348,19 +454,26 @@ canvas#scene { display: block; width: 100%; border-radius: var(--radius); border
         <h2 id="h-hero" class="sr-only">Mon héros</h2>
         <div id="hero-card"></div>
       </section>
-      <section class="block" aria-labelledby="h-today">
-        <h2 id="h-today">Aujourd’hui je…</h2>
-        <div class="act-row act-big" id="hero-acts"></div>
-        <div class="targets" id="target-row" hidden></div>
+      <section class="block" aria-labelledby="h-today" id="today-block">
+        <h2 id="h-today">Ma journée <span class="count ap-line" id="ap-line" data-testid="ap-line"></span></h2>
+        <div class="presets" id="presets"></div>
+        <div class="slots" id="slots" aria-label="Créneaux de la journée"></div>
+        <div class="chooser" id="chooser" hidden></div>
+        <p class="section-label" style="margin-top:14px">Missions du jour <span id="missions-count"></span></p>
+        <div class="missions" id="missions"></div>
       </section>
-      <section class="block" aria-labelledby="h-quests">
-        <h2 id="h-quests">La guilde part où ? <span class="count" id="quest-count"></span></h2>
-        <div class="quest-cards" id="quest-cards"></div>
-      </section>
-      <section class="block" aria-labelledby="h-equip">
-        <h2 id="h-equip">Équipement</h2>
-        <div class="equip-rows" id="equip-rows"></div>
-      </section>
+      <details class="block fold" id="fold-quests" open>
+        <summary id="h-quests">La guilde part où ? <span class="count" id="quest-count"></span></summary>
+        <div class="fold-body"><div class="quest-cards" id="quest-cards"></div></div>
+      </details>
+      <details class="block fold" id="fold-equip">
+        <summary id="h-equip">Équipement</summary>
+        <div class="fold-body"><div class="equip-rows" id="equip-rows"></div></div>
+      </details>
+      <details class="block fold" id="fold-crafts">
+        <summary id="h-crafts">Savoir-faire <span class="count" id="crafts-count"></span></summary>
+        <div class="fold-body" id="hero-crafts"></div>
+      </details>
     </div>
   </section>
 
@@ -381,6 +494,23 @@ canvas#scene { display: block; width: 100%; border-radius: var(--radius); border
   </div>
   <div class="drawer-body">
     <div id="drawer-village" hidden>
+      <section class="block" aria-labelledby="h-age" id="age-card">
+        <h2 id="h-age">Âge du village</h2>
+        <div class="age-card" id="age-body"></div>
+      </section>
+      <section class="block" aria-labelledby="h-biomes" id="biomes-card">
+        <h2 id="h-biomes">Biomes <span class="count" id="biomes-count"></span></h2>
+        <div class="biome-list" id="biome-list"></div>
+      </section>
+      <section class="block" aria-labelledby="h-memorial" id="memorial-card">
+        <h2 id="h-memorial">Trophées et tombes <span class="count" id="memorial-count"></span></h2>
+        <ul class="plain-list" id="trophy-list"></ul>
+        <ul class="plain-list" id="grave-list" style="margin-top:6px"></ul>
+      </section>
+      <section class="block" aria-labelledby="h-chest">
+        <h2 id="h-chest">Coffre de guilde <span class="count" id="chest-count"></span></h2>
+        <ul class="plain-list" id="chest-list"></ul>
+      </section>
       <section class="block" aria-labelledby="h-site">
         <h2 id="h-site">Chantier</h2>
         <p class="lead" id="construction-line"></p>
@@ -445,16 +575,22 @@ var MANAGERS = [
   { id: 'f_bastien', name: 'Bastien', kind: 'ai', profile: 'audacieux', class_id: 'rogue' },
   { id: 'f_maelle', name: 'Maëlle', kind: 'ai', profile: 'prudent', class_id: 'mage' }
 ];
-var ACTS = ['rest', 'gather', 'train', 'craft', 'expedition'];
-var ACT_LABEL = { rest: 'Repos', gather: 'Récolte', train: 'Entraînement', craft: 'Forge', expedition: 'Expédition' };
-var ACT_GLYPH = { rest: '☾', gather: '❦', train: '⚑', craft: '⚒', expedition: '⚔' };
-var ACT_VERB = { rest: 'se repose', gather: 'part récolter', train: 's’entraîne', craft: 'travaille à la forge', expedition: 'part en expédition' };
+var ACT_LABEL = { rest: 'Repos', gather: 'Récolte', train: 'Entraînement', craft: 'Forge', expedition: 'Expédition', defend: 'Défendre le village', solo: 'Mission solo' };
+var ACT_GLYPH = { rest: '☾', gather: '❦', train: '⚑', craft: '⚒', expedition: '⚔', defend: '🛡', solo: '⚐' };
+var ACT_VERB = { rest: 'se repose', gather: 'part récolter', train: 's’entraîne', craft: 'travaille à la forge', expedition: 'part en expédition', defend: 'défend le village', solo: 'part en mission solo', dead: 'n’est plus' };
+var FULL_DAY = { expedition: true, defend: true, rest: true };
+/* Types d'action gérés par l'écran (viennent de l'écran seul) ; tout autre type de planDefaults(p1) est transmis tel quel, à sa position. */
+var MANAGED = { assign: 'day', plan: 'day', vote_quest: 'vote_quest', vote_build: 'vote_build', equip: 'extras', unequip: 'extras', recruit: 'recruit' };
+var PRESET_GLYPH = { atelier: '⚒', aventure: '⚔', recuperation: '☾', cueillette: '❦', defense: '🛡' };
+var DRAGON_STATE = { dormant: 'dormant', awake: 'éveillé', repelled: 'repoussé', slain: 'vaincu' };
+var RARITY_LABEL = { common: 'commun', rare: 'rare', epic: 'épique', legendary: 'légendaire' };
+var AGE_ARTICLE = { hameau: 'un', bourg: 'un', ville: 'une', chateau: 'un' };
 var CLASS_COLOR = { warrior: '#B5452F', cleric: '#C9A227', ranger: '#3E8E4E', rogue: '#6E4C9E', mage: '#3C6FB2' };
 var FONTS_URL = 'https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap';
 var DAY_START = 8, DAY_END = 20, TICK_MS = 250, TICK_H = 0.25;
 var app = { seed: DEFAULT_SEED, managers: MANAGERS, state: null, vm: null, journal: [], chronicles: {}, plan: null, chosen: false,
-  tab: 'tableau', contentTab: 'tableau', viewDay: null, drawer: null, pageNotices: [], storageOk: true, raf: 0, lastDraw: 0, sceneScale: 1 };
-var tb = { phase: 'morning', hour: DAY_START, timer: 0, hours: {}, placed: {}, revealed: {}, bubbles: [], pos: {}, chron: null, markers: null, done: false };
+  tab: 'tableau', contentTab: 'tableau', viewDay: null, drawer: null, pageNotices: [], storageOk: true, raf: 0, lastDraw: 0, sceneScale: 1, slotOpen: -1 };
+var tb = { phase: 'morning', hour: DAY_START, timer: 0, hours: {}, placed: {}, revealed: {}, bubbles: [], pos: {}, chron: null, markers: null, done: false, craftUp: {} };
 var wideMQ = window.matchMedia('(min-width: 1100px)');
 var motionMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
 function $(id) { return document.getElementById(id); }
@@ -481,42 +617,104 @@ function loadUi() { var raw = lsGet(UI_KEY); if (!raw) return; try { var ui = JS
 /* ---------- moteur : accès par viewModel et le modèle d'action seulement ---------- */
 function normalizeVM(vm) {
   var v = vm || {};
-  ['managers', 'roster', 'quest_board', 'buildings', 'inventory', 'history', 'notices'].forEach(function (k) { if (!Array.isArray(v[k])) v[k] = []; });
+  ['managers', 'roster', 'quest_board', 'buildings', 'inventory', 'history', 'notices', 'solo_board', 'biomes', 'tavern'].forEach(function (k) { if (!Array.isArray(v[k])) v[k] = []; });
   v.manager = v.manager || { id: ME, name: 'Vous', kind: 'human', gold: 0 };
   v.guild = v.guild || { gold: 0 };
+  if (!Array.isArray(v.guild.chest)) v.guild.chest = [];
   v.derby = v.derby || { next_day: null, last: null };
   v.roster.forEach(function (a) {
-    ['attributes', 'traits', 'skills', 'equipment', 'activity_options'].forEach(function (k) { if (!Array.isArray(a[k])) a[k] = []; });
+    ['attributes', 'traits', 'skills', 'equipment', 'activity_options', 'presets', 'crafts', 'slots_planned'].forEach(function (k) { if (!Array.isArray(a[k])) a[k] = []; });
     a.activity_options.forEach(function (o) { if (!Array.isArray(o.targets)) o.targets = []; });
+    a.presets.forEach(function (p) { if (!Array.isArray(p.slots)) p.slots = []; });
+    if (!Number.isInteger(a.ap_max)) a.ap_max = 3;
+    if (!Number.isInteger(a.ap_today)) a.ap_today = a.ap_max;
   });
   v.buildings.forEach(function (b) { b.decor = b.decor || {}; if (!Number.isInteger(b.max_level)) b.max_level = Math.max(1, b.level || 1); });
+  v.village = v.village || { age_index: 0, age_id: 'campement', age_name: 'Campement', age_description: '', defense: 0, guards: 0, next_age: null };
+  if (!Number.isInteger(v.village.age_index)) v.village.age_index = 0;
+  ['graves', 'trophies'].forEach(function (k) { if (!Array.isArray(v.village[k])) v.village[k] = []; });
+  v.threat = v.threat && typeof v.threat === 'object' ? v.threat : null;
+  v.defeat = v.defeat && typeof v.defeat === 'object' ? v.defeat : null;
+  v.biomes.forEach(function (b) { b.dragon = b.dragon && typeof b.dragon === 'object' ? b.dragon : { name: '', state: 'dormant', next_day: null }; });
   return v;
 }
+function ageNameAt(idx) { var a = DATA && Array.isArray(DATA.village_ages) ? DATA.village_ages[idx] : null; return a && a.name ? a.name : (app.vm && app.vm.village.age_index === idx ? app.vm.village.age_name : ''); }
+function ageIdByName(name) { var a = (DATA && Array.isArray(DATA.village_ages) ? DATA.village_ages : []).filter(function (x) { return x.name === name; })[0]; return a ? a.id : ''; }
+function ageIndexOfDay(day) { var h = app.vm.history.filter(function (x) { return x && x.day === day; })[0]; return h && Number.isInteger(h.village_age_index) ? h.village_age_index : null; }
+function buildingIdByName(name) { var b = app.vm.buildings.filter(function (x) { return x.name === name; })[0]; return b ? b.id : null; }
+/* Lecture de la menace pour le tableau : le présage se voit le soir de la veille, l'attaque le matin du jour J, l'issue le soir du jour J. */
+function threatPhase() {
+  if (!app.vm) return null;
+  if (tb.phase === 'evening') { var c = tb.chron; return c && !c.threat && c.summary && c.summary.presage ? 'presage' : null; }
+  return app.vm.threat && app.vm.threat.phase === 'today' ? 'today' : null;
+}
+function threatOutcome() { return tb.phase === 'evening' && tb.chron && tb.chron.threat && tb.chron.threat.outcome ? tb.chron.threat.outcome : null; }
 function computeVM() { app.vm = normalizeVM(SIM.viewModel(app.state, ME)); }
 function myHero() { return app.vm.roster.filter(function (a) { return a.is_mine; })[0] || null; }
 function heroOf(managerId) { return app.vm.roster.filter(function (a) { return a.manager_id === managerId; })[0] || null; }
 function mkAction(type, payload) { return { manager_id: ME, day: app.state.day, type: type, payload: payload }; }
 function planFromDefaults() {
-  var plan = { assign: null, vote_quest: null, vote_build: null, extras: [] }, acts;
+  var plan = { defaults: [], full: null, slots: [null, null, null], vote_quest: null, vote_build: null, extras: [], recruit: null }, acts;
   try { acts = SIM.planDefaults(app.state, ME) || []; } catch (e) { acts = []; }
-  acts.forEach(function (a) {
-    if (!a || !a.payload) return;
-    if (a.type === 'assign') plan.assign = { activity: a.payload.activity, target: a.payload.target || null, adventurer_id: a.payload.adventurer_id };
+  plan.defaults = acts.filter(function (a) { return a && typeof a.type === 'string' && a.payload && typeof a.payload === 'object'; });
+  plan.defaults.forEach(function (a) {
+    var kind = MANAGED[a.type];
+    if (a.type === 'assign') setDayFromAssign(plan, a.payload);
+    else if (a.type === 'plan') { plan.full = null; plan.slots = padSlots(a.payload.slots); }
     else if (a.type === 'vote_quest') plan.vote_quest = a.payload.quest_id;
     else if (a.type === 'vote_build') plan.vote_build = a.payload.building_id;
-    else if (a.type === 'equip' || a.type === 'unequip') plan.extras.push(mkAction(a.type, a.payload));
+    else if (kind === 'extras') plan.extras.push(mkAction(a.type, a.payload));
+    else if (a.type === 'recruit') plan.recruit = a.payload.recruit_id;
   });
   return plan;
 }
+/* assign = journée pleine : expedition/defend/rest verrouillent les cases ; un assign train/craft/gather vaut « × PA » (jamais produit par planDefaults humain, projeté sur les cases par sécurité). */
+function setDayFromAssign(plan, p) {
+  if (FULL_DAY[p.activity]) { plan.full = p.activity; plan.slots = [null, null, null]; return; }
+  var h = myHero(), n = h ? Math.max(1, Math.min(4, h.ap_today)) : 1, slots = [];
+  for (var i = 0; i < n; i++) slots.push({ activity: p.activity, target: p.target || null });
+  plan.full = null; plan.slots = padSlots(slots);
+}
+function padSlots(list) { var out = (Array.isArray(list) ? list : []).map(function (s) { return { activity: s.activity, target: s.target || null }; }); while (out.length < 3) out.push(null); return out; }
+function compactSlots(slots) { return slots.filter(Boolean).map(function (s) { var o = { activity: s.activity }; if (s.target) o.target = s.target; return o; }); }
+function defaultDayAction() { return app.plan.defaults.filter(function (a) { return a.type === 'assign' || a.type === 'plan'; })[0] || null; }
+/* Action du jour envoyée : la valeur par défaut telle quelle tant que l'écran n'a pas été touché (rejeu fidèle), sinon ce que montrent les cases. */
+function dayAction() {
+  var h = myHero(); if (!h) return null;
+  if (!app.chosen) { var d = defaultDayAction(); return d ? mkAction(d.type, d.payload) : null; }
+  if (app.plan.full) return mkAction('assign', { adventurer_id: h.id, activity: app.plan.full });
+  var slots = compactSlots(app.plan.slots);
+  return slots.length ? mkAction('plan', { adventurer_id: h.id, slots: slots }) : mkAction('assign', { adventurer_id: h.id, activity: 'rest' });
+}
+/* Ordre d'émission = ordre de planDefaults(p1) (le moteur y est sensible) ; chaque type géré est remplacé par la valeur de l'écran à sa position, les autres types passent tels quels. */
 function humanActions() {
-  var out = [], p = app.plan, h = myHero();
-  if (p.assign && h) { var payload = { adventurer_id: h.id, activity: p.assign.activity }; if (p.assign.target) payload.target = p.assign.target; out.push(mkAction('assign', payload)); }
-  if (p.vote_quest) out.push(mkAction('vote_quest', { quest_id: p.vote_quest }));
-  if (p.vote_build) out.push(mkAction('vote_build', { building_id: p.vote_build }));
-  return out.concat(p.extras.map(function (a) { return mkAction(a.type, a.payload); }));
+  var p = app.plan, out = [], done = {}, day = dayAction();
+  function emit(kind) {
+    if (done[kind]) return; done[kind] = true;
+    if (kind === 'day') { if (day) out.push(day); }
+    else if (kind === 'vote_quest') { if (p.vote_quest) out.push(mkAction('vote_quest', { quest_id: p.vote_quest })); }
+    else if (kind === 'vote_build') { if (p.vote_build) out.push(mkAction('vote_build', { building_id: p.vote_build })); }
+    else if (kind === 'extras') p.extras.forEach(function (a) { out.push(mkAction(a.type, a.payload)); });
+    else if (kind === 'recruit') { if (p.recruit) out.push(mkAction('recruit', { recruit_id: p.recruit })); }
+  }
+  p.defaults.forEach(function (a) { var kind = MANAGED[a.type]; if (kind) emit(kind); else out.push(mkAction(a.type, a.payload)); });
+  ['day', 'vote_quest', 'vote_build', 'extras', 'recruit'].forEach(emit);
+  return out;
 }
 function aiPlan(id) { try { return SIM.planDefaults(app.state, id) || []; } catch (e) { return []; } }
-function aiActivity(actions) { var a = actions.filter(function (x) { return x && x.type === 'assign' && x.payload; })[0]; return a ? a.payload.activity : 'rest'; }
+function aiActivity(actions) {
+  var a = actions.filter(function (x) { return x && (x.type === 'assign' || x.type === 'plan') && x.payload; })[0];
+  if (!a) return 'rest';
+  if (a.type === 'assign') return a.payload.activity;
+  return primaryActivity(null, padSlots(a.payload.slots));
+}
+function primaryActivity(full, slots) {
+  if (full) return full;
+  var acts = slots.filter(Boolean).map(function (s) { return s.activity; });
+  if (!acts.length) return 'rest';
+  return acts.indexOf('solo') >= 0 ? 'solo' : acts[0];
+}
+function soloTarget() { if (!app.plan || app.plan.full) return null; var s = app.plan.slots.filter(function (x) { return x && x.activity === 'solo'; })[0]; return s ? s.target : null; }
 function allAiActions() { var out = []; friends().forEach(function (m) { out = out.concat(aiPlan(m.id)); }); return out; }
 
 /* ---------- partie, journée, rejeu ---------- */
@@ -529,13 +727,13 @@ function launchDay() {
   if (tb.phase === 'evening') prepareMorning();
   stopClock();
   friends().forEach(function (m) { if (!tb.revealed[m.id]) revealFriend(m.id, true); });
-  var day = app.state.day, actions = humanActions().concat(allAiActions());
+  var day = app.state.day, actions = humanActions().concat(allAiActions()), before = craftLevels();
   var r = SIM.resolveDay(app.state, actions), hash = SIM.hashState(r.state);
-  if (app.plan.assign && !app.chosen) { tb.placed[ME] = app.plan.assign.activity; tb.autoPlayed = true; }
+  if (myHero() && !app.chosen) { tb.placed[ME] = primaryActivity(app.plan.full, app.plan.slots); tb.autoPlayed = true; }
   app.journal.push({ day: day, actions: actions, hash: hash });
   app.chronicles[day] = r.chronicle;
   app.state = r.state; app.viewDay = day; app.pageNotices = [];
-  computeVM(); enterEvening(r.chronicle); saveGame(); render();
+  computeVM(); tb.craftUp = craftUps(before); enterEvening(r.chronicle); saveGame(); render();
   toast('Jour ' + day + ' résolu' + (r.chronicle && r.chronicle.headline ? ' — ' + r.chronicle.headline : ''));
 }
 function replayFrom(seed, managers, days) {
@@ -605,8 +803,8 @@ function newGameFromInput() {
 /* ---------- la journée simulée (horloge, révélations) ---------- */
 function prepareMorning() {
   stopClock();
-  tb.phase = 'morning'; tb.hour = DAY_START; tb.hours = {}; tb.placed = {}; tb.revealed = {}; tb.bubbles = []; tb.chron = null; tb.markers = null; tb.autoPlayed = false;
-  app.plan = planFromDefaults(); app.chosen = false;
+  tb.phase = 'morning'; tb.hour = DAY_START; tb.hours = {}; tb.placed = {}; tb.revealed = {}; tb.bubbles = []; tb.chron = null; tb.markers = null; tb.autoPlayed = false; tb.craftUp = {};
+  app.plan = planFromDefaults(); app.chosen = false; app.slotOpen = -1;
   friends().forEach(function (m) { tb.hours[m.id] = playHour(app.seed, app.state.day, m.id); });
   if (!app.vm.is_season_over) startClock();
   publishTableau();
@@ -623,7 +821,7 @@ function tickClock() {
 }
 function revealDue() { friends().forEach(function (m) { if (!tb.revealed[m.id] && tb.hour >= tb.hours[m.id]) revealFriend(m.id, false); }); }
 function revealFriend(id, silent) {
-  var act = aiActivity(aiPlan(id));
+  var act = heroOf(id) ? aiActivity(aiPlan(id)) : 'dead';
   tb.revealed[id] = true; tb.placed[id] = act;
   if (!silent) tb.bubbles.push({ id: id, text: managerById(id).name + ' ' + (ACT_VERB[act] || act), until: tb.hour + 2.5 });
   renderPlayed();
@@ -633,31 +831,80 @@ function skipDay() {
   tb.hour = DAY_END; revealDue(); stopClock(); tb.bubbles = [];
   renderClock(); renderPlayed(); publishTableau(); drawAll();
 }
-function chooseActivity(activity) {
-  var h = myHero(); if (!h) return false;
-  var opt = h.activity_options.filter(function (o) { return o.activity === activity; })[0];
-  if (!opt) { toast(reasonFor(h, activity), 'crit'); return false; }
-  if (tb.phase === 'evening') { toast('La journée est finie : passe au jour suivant pour choisir.'); return false; }
-  var target = opt.targets.length ? (opt.targets.some(function (t) { return t.id === (app.plan.assign && app.plan.assign.target); }) ? app.plan.assign.target : opt.targets[0].id) : null;
-  var payload = { adventurer_id: h.id, activity: activity }; if (target) payload.target = target;
-  var v = SIM.validateAction(app.state, mkAction('assign', payload));
-  if (!v || !v.ok) { toast((v && v.reason) || 'Action refusée par le moteur.', 'crit'); return false; }
-  app.plan.assign = { adventurer_id: h.id, activity: activity, target: target }; app.chosen = true;
-  tb.placed[ME] = activity;
-  renderHero(); renderQuick(); renderPlayed(); publishTableau(); drawAll();
-  return true;
-}
-function chooseTarget(id) {
-  if (!app.plan.assign) return;
-  var h = myHero(), payload = { adventurer_id: h.id, activity: app.plan.assign.activity, target: id };
-  var v = SIM.validateAction(app.state, mkAction('assign', payload));
-  if (!v || !v.ok) { toast((v && v.reason) || 'Cible refusée.', 'crit'); return; }
-  app.plan.assign.target = id; renderTargets();
-}
-function reasonFor(h, activity) {
+
+
+function reasonFor(h) {
+  if (!h) return 'Aucun héros vivant.';
   if (!h.is_available && h.status_label) return h.status_label;
   if (h.injury) return 'Blessé : ' + h.injury.label;
   return 'Pas possible aujourd’hui';
+}
+/* ---------- journée composée : validation à la volée par le moteur, jamais de règle côté page ---------- */
+function validateDay(full, slots) {
+  var h = myHero(); if (!h) return { ok: false, reason: 'Aucun héros vivant à planifier.' };
+  if (tb.phase === 'evening') return { ok: false, reason: 'La journée est finie : passe au jour suivant pour choisir.' };
+  var a = full ? mkAction('assign', { adventurer_id: h.id, activity: full }) : mkAction('plan', { adventurer_id: h.id, slots: compactSlots(slots) }), v;
+  try { v = SIM.validateAction(app.state, a); } catch (e) { v = { ok: false, reason: e.message }; }
+  return v && v.ok ? { ok: true } : { ok: false, reason: (v && v.reason) || 'Plan refusé par le moteur.' };
+}
+function commitDay(full, slots) {
+  var v = validateDay(full, slots);
+  if (!v.ok) { toast(v.reason, 'crit'); return false; }
+  app.plan.full = full; app.plan.slots = slots; app.chosen = true; app.slotOpen = -1;
+  tb.placed[ME] = primaryActivity(full, slots);
+  renderHero(); renderQuick(); renderPlayed(); publishTableau(); drawAll();
+  return true;
+}
+function presetFull(p) { return p.slots.length ? (FULL_DAY[p.slots[0].activity] ? p.slots[0].activity : null) : 'rest'; }
+function applyPreset(id) {
+  var h = myHero(), p = h && h.presets.filter(function (x) { return x.id === id; })[0];
+  if (!p) { toast(reasonFor(h), 'crit'); return false; }
+  if (!p.available) { toast(p.reason || 'Préréglage indisponible aujourd’hui.', 'crit'); return false; }
+  var full = presetFull(p);
+  return commitDay(full, full ? [null, null, null] : padSlots(p.slots));
+}
+function openSlot(i) { app.slotOpen = app.slotOpen === i ? -1 : i; renderHero(); if (app.slotOpen >= 0) { var c = $('chooser'); if (c && !c.hidden) c.scrollIntoView({ block: 'nearest' }); } }
+function chooseForSlot(i, activity, target) {
+  if (FULL_DAY[activity]) return commitDay(activity, [null, null, null]);
+  var slots = app.plan.full ? [null, null, null] : app.plan.slots.slice();
+  while (slots.length <= i) slots.push(null);
+  slots[i] = { activity: activity, target: target || null };
+  return commitDay(null, slots);
+}
+function clearSlot(i) {
+  if (app.plan.full) return commitDay(null, [null, null, null]);
+  var slots = app.plan.slots.slice(); slots[i] = null;
+  return commitDay(null, slots);
+}
+function chooseSolo(id) {
+  var h = myHero(), opt = h && h.activity_options.filter(function (o) { return o.activity === 'solo'; })[0];
+  if (!h) { toast(reasonFor(h), 'crit'); return false; }
+  if (!opt) { toast('Mission solo impossible aujourd’hui : il faut 2 PA disponibles.', 'crit'); return false; }
+  if (!opt.targets.some(function (t) { return t.id === id; })) { toast('Cette mission n’est pas ouverte à ' + h.name + '.', 'crit'); return false; }
+  var slots = app.plan.full ? [null, null, null] : app.plan.slots.slice(), i = -1;
+  slots.forEach(function (s, k) { if (i < 0 && s && s.activity === 'solo') i = k; });
+  if (i >= 0 && slots[i].target === id) { slots[i] = null; return commitDay(null, slots); }
+  if (i < 0) slots.forEach(function (s, k) { if (i < 0 && !s) i = k; });
+  if (i < 0) i = slots.length - 1;
+  slots[i] = { activity: 'solo', target: id };
+  return commitDay(null, slots);
+}
+function heirOffers() {
+  return app.vm.tavern.filter(function (t) { if (t.cost !== 0) return false; var v; try { v = SIM.validateAction(app.state, mkAction('recruit', { recruit_id: t.id })); } catch (e) { v = null; } return !!(v && v.ok); });
+}
+function toggleHeir(id) {
+  if (tb.phase === 'evening') { toast('La journée est finie : passe au jour suivant.'); return false; }
+  if (app.plan.recruit === id) { app.plan.recruit = null; renderHero(); toast('L’héritier reste à la taverne ce soir.'); return true; }
+  var v; try { v = SIM.validateAction(app.state, mkAction('recruit', { recruit_id: id })); } catch (e) { v = { ok: false, reason: e.message }; }
+  if (!v || !v.ok) { toast((v && v.reason) || 'Recrutement refusé.', 'crit'); return false; }
+  app.plan.recruit = id; renderHero(); toast('L’héritier sera accueilli à la fin de la journée.');
+  return true;
+}
+function craftLevels() { var out = {}; app.vm.roster.forEach(function (a) { out[a.id] = {}; a.crafts.forEach(function (c) { out[a.id][c.id] = c.level; }); }); return out; }
+function craftUps(before) {
+  var out = {};
+  app.vm.roster.forEach(function (a) { var prev = before[a.id]; if (!prev) return; a.crafts.forEach(function (c) { if (Number.isInteger(prev[c.id]) && c.level > prev[c.id]) { out[a.id] = out[a.id] || {}; out[a.id][c.id] = c.name; } }); });
+  return out;
 }
 function setVote(kind, id) {
   var type = kind === 'quest' ? 'vote_quest' : 'vote_build', payload = kind === 'quest' ? { quest_id: id } : { building_id: id };
@@ -677,6 +924,7 @@ function removeOrder(i) { app.plan.extras.splice(i, 1); renderEquip(); }
 /* ---------- soir : marqueurs depuis la chronique (sans lire le texte) ---------- */
 function enterEvening(chron) {
   tb.phase = 'evening'; tb.hour = DAY_END; tb.bubbles = []; tb.chron = chron || null; tb.markers = computeMarkers(chron);
+  Object.keys(tb.markers.defenders).forEach(function (id) { tb.placed[id] = 'defend'; });
   Object.keys(tb.markers.injured).forEach(function (id) { tb.placed[id] = 'injured'; });
   publishTableau();
 }
@@ -686,7 +934,9 @@ function managerOfHeroName(label) {
   return best ? best.manager_id : null;
 }
 function computeMarkers(c) {
-  var m = { injured: {}, levelUp: {}, limping: {}, trophy: false, scaffold: null, banner: null }, sum = (c && c.summary) || {}, vm = app.vm;
+  var m = { injured: {}, levelUp: {}, limping: {}, defenders: {}, trophy: false, scaffold: null, banner: null, threat: null, burnt: null }, sum = (c && c.summary) || {}, vm = app.vm;
+  m.threat = c && c.threat && typeof c.threat === 'object' ? c.threat : null;
+  if (m.threat) { (m.threat.defenders || []).forEach(function (n) { var id = managerOfHeroName(n); if (id) m.defenders[id] = true; }); m.burnt = m.threat.building_hit ? buildingIdByName(m.threat.building_hit) : null; }
   (sum.injuries || []).forEach(function (s) { var id = managerOfHeroName(s); if (id) m.injured[id] = true; });
   (sum.level_ups || []).forEach(function (s) { var id = managerOfHeroName(s); if (id) m.levelUp[id] = true; });
   var e = c && c.expedition;
@@ -699,16 +949,25 @@ function computeMarkers(c) {
 }
 function playedCount() { return app.managers.filter(function (m) { return !!tb.placed[m.id]; }).length; }
 function publishTableau() {
-  var placed = {}; Object.keys(tb.placed).forEach(function (k) { placed[k] = tb.placed[k]; });
+  var placed = {}, h = app.vm ? myHero() : null, vm = app.vm; Object.keys(tb.placed).forEach(function (k) { placed[k] = tb.placed[k]; });
   window.__tableau = { day: app.state ? app.state.day : 0, hour: tb.hour, phase: tb.phase, evening: tb.phase === 'evening', placed: placed, played: playedCount(),
-    total: app.managers.length, revealed: Object.keys(tb.revealed), hours: tb.hours, chosen: app.chosen, targets: app.vm ? targetsFor() : {} };
+    total: app.managers.length, revealed: Object.keys(tb.revealed), hours: tb.hours, chosen: app.chosen, targets: vm ? targetsFor() : {},
+    age: vm ? vm.village.age_index : 0, threat: threatPhase(), threat_outcome: threatOutcome(),
+    ap: h ? { today: h.ap_today, max: h.ap_max } : { today: 0, max: 0 },
+    slots: app.plan ? (app.plan.full ? [app.plan.full] : app.plan.slots.filter(Boolean).map(function (s) { return s.activity; })) : [],
+    solo: soloTarget(), dead: !!vm && !h, defeat: !!(vm && vm.defeat), trophies: vm ? vm.village.trophies.length : 0, graves: vm ? vm.village.graves.length : 0 };
 }
-
 /* ---------- scène : géométrie ---------- */
 var LW = 800, LH = 460, HORIZON = 190;
 var ROAD = [[430, 300], [540, 335], [660, 378], [800, 412]];
 var BSLOT = { chapel: [560, 232], hall: [400, 278], forge: [245, 285], warehouse: [578, 290], training_ground: [705, 335], infirmary: [118, 345], tavern: [300, 368], market: [470, 392] };
-var SPOTS = { idle: { x: 318, y: 314, dx: 44 }, gather: { x: 34, y: 284, dx: 46 }, train: { x: 650, y: 350, dx: 36 }, craft: { x: 180, y: 312, dx: 44 }, rest: { x: 62, y: 392, dx: 46 }, injured: { x: 60, y: 398, dx: 52 } };
+var SPOTS = { idle: { x: 318, y: 314, dx: 44 }, gather: { x: 34, y: 284, dx: 46 }, train: { x: 650, y: 350, dx: 36 }, craft: { x: 180, y: 312, dx: 44 }, rest: { x: 124, y: 392, dx: 46 }, injured: { x: 122, y: 398, dx: 52 }, defend: { x: 568, y: 414, dx: 40 }, solo: { x: 296, y: 268, dx: 30 }, dead: { x: 318, y: 314, dx: 44 } };
+/* Sentier des missions solo : part du parvis du hall vers la forêt (haut-gauche), distinct de la route du donjon. Tombes : à droite de la chapelle, dans l'enceinte. */
+var SOLO_TRAIL = [[396, 302], [330, 278], [268, 254], [212, 240], [184, 232]], GRAVES = { x: 646, y: 242, dx: 11, dy: 12, perRow: 4 };
+/* Enceinte (bourg et au-delà) : deux polylignes autour du village, la porte est le trou entre les deux, sur la route. */
+var WALL_A = [[100, 222], [692, 222], [692, 300], [613, 342]], WALL_B = [[601, 376], [540, 412], [100, 424], [100, 222]], GATE = { x: 607, y: 359 };
+var HOUSES = [[252, 232], [332, 230], [478, 232], [652, 234], [200, 236], [392, 230]];
+var TOWERS = [[100, 222], [692, 222], [100, 424], [540, 412]];
 function roadPoint(t) {
   var n = ROAD.length - 1, f = Math.max(0, Math.min(0.999, t)) * n, i = Math.floor(f), u = f - i, a = ROAD[i], b = ROAD[i + 1];
   return { x: a[0] + (b[0] - a[0]) * u, y: a[1] + (b[1] - a[1]) * u };
@@ -721,7 +980,7 @@ function spotFor(activity, idx) {
 function targetsFor() {
   var counts = {}, out = {};
   app.managers.forEach(function (m) {
-    var act = tb.placed[m.id] || 'idle', i = counts[act] || 0; counts[act] = i + 1;
+    var act = heroOf(m.id) ? (tb.placed[m.id] || 'idle') : 'dead', i = counts[act] || 0; counts[act] = i + 1;
     out[m.id] = spotFor(act, i); out[m.id].row = i % (app.sceneScale < 0.6 ? 3 : 2);
   });
   return out;
@@ -772,21 +1031,194 @@ function drawScene(canvas, mini) {
   drawBackdrop(ctx, evening, t, T);
   var order = Object.keys(BSLOT).sort(function (a, b) { return BSLOT[a][1] - BSLOT[b][1]; });
   order.forEach(function (id) { var b = app.vm.buildings.filter(function (x) { return x.id === id; })[0]; if (b) drawBuilding(ctx, b, BSLOT[id], evening, t, T, mini); });
-  if (evening && tb.markers && tb.markers.trophy) drawTrophy(ctx, roadPoint(0.4), T);
+  drawSceneExtras(ctx, evening, t, T);
+  if (app.vm.defeat) drawRuins(ctx, t);
   ctx.restore();
-  drawFigures(ctx, s, sy, fs, T, mini, evening);
+  if (!app.vm.defeat) drawFigures(ctx, s, sy, fs, T, mini, evening);
   if (!mini) drawClock(ctx, W, H, evening, T);
 }
 function drawBackdrop(ctx, evening, t, T) {
+  var age = app.vm.village.age_index, th = threatPhase(), out = threatOutcome(), ruin = !!app.vm.defeat;
+  drawSky(ctx, evening, th === 'today', ruin);
+  ctx.fillStyle = ruin ? '#5c6158' : evening ? '#26372b' : '#7ea86b'; ctx.beginPath(); ctx.moveTo(0, HORIZON + 4); ctx.quadraticCurveTo(200, HORIZON - 40, 420, HORIZON + 2); ctx.quadraticCurveTo(600, HORIZON - 30, LW, HORIZON + 6); ctx.lineTo(LW, HORIZON + 40); ctx.lineTo(0, HORIZON + 40); ctx.fill();
+  ctx.fillStyle = ruin ? '#6a6e62' : evening ? '#33482f' : '#9cc27d'; ctx.fillRect(0, HORIZON + 20, LW, LH - HORIZON - 20);
+  drawMountain(ctx, evening); drawForest(ctx, evening, t); drawRoad(ctx, evening, age); drawTrail(ctx, evening); drawDungeon(ctx, evening);
+  drawEnclosure(ctx, age, evening, T);
+  if (age >= 1) drawHouses(ctx, 2 + age, evening);
+  if (age === 0) drawCampfire(ctx, 322, 262, t, evening);
+  drawSkyDragon(ctx, evening, t, th, out);
+}
+function drawSky(ctx, evening, red, ruin) {
   var g = ctx.createLinearGradient(0, 0, 0, HORIZON);
-  if (evening) { g.addColorStop(0, '#171d2e'); g.addColorStop(1, '#4a3d5a'); } else { g.addColorStop(0, '#bcd4e2'); g.addColorStop(1, '#eef1e4'); }
+  if (ruin) { g.addColorStop(0, '#585c60'); g.addColorStop(1, '#9a9a96'); }
+  else if (evening) { g.addColorStop(0, '#171d2e'); g.addColorStop(1, '#4a3d5a'); }
+  else if (red) { g.addColorStop(0, '#b4514a'); g.addColorStop(1, '#efc7a2'); }
+  else { g.addColorStop(0, '#bcd4e2'); g.addColorStop(1, '#eef1e4'); }
   ctx.fillStyle = g; ctx.fillRect(0, 0, LW, HORIZON + 4);
+  if (ruin) return;
   if (evening) { ctx.fillStyle = 'rgba(255,255,255,0.75)'; for (var i = 0; i < 26; i++) { var h = fnv1a('star' + i); ctx.fillRect(20 + (h % 760), 10 + ((h >>> 8) % 120), 1.6, 1.6); } }
-  else { var sx = 60 + (tb.hour - DAY_START) / 12 * (LW - 120), syy = HORIZON - 30 - Math.sin((tb.hour - DAY_START) / 12 * Math.PI) * 120; ctx.beginPath(); ctx.arc(sx, syy, 16, 0, 6.2832); ctx.fillStyle = '#f2c94c'; ctx.fill(); }
+  else { var sx = 60 + (tb.hour - DAY_START) / 12 * (LW - 120), syy = HORIZON - 30 - Math.sin((tb.hour - DAY_START) / 12 * Math.PI) * 120; ctx.beginPath(); ctx.arc(sx, syy, 16, 0, 6.2832); ctx.fillStyle = red ? '#f0a050' : '#f2c94c'; ctx.fill(); }
   if (evening) { ctx.beginPath(); ctx.arc(700, 60, 14, 0, 6.2832); ctx.fillStyle = '#e8e4c8'; ctx.fill(); ctx.beginPath(); ctx.arc(692, 54, 12, 0, 6.2832); ctx.fillStyle = '#2a2f45'; ctx.fill(); }
-  ctx.fillStyle = evening ? '#26372b' : '#7ea86b'; ctx.beginPath(); ctx.moveTo(0, HORIZON + 4); ctx.quadraticCurveTo(200, HORIZON - 40, 420, HORIZON + 2); ctx.quadraticCurveTo(600, HORIZON - 30, LW, HORIZON + 6); ctx.lineTo(LW, HORIZON + 40); ctx.lineTo(0, HORIZON + 40); ctx.fill();
-  ctx.fillStyle = evening ? '#33482f' : '#9cc27d'; ctx.fillRect(0, HORIZON + 20, LW, LH - HORIZON - 20);
-  drawMountain(ctx, evening); drawForest(ctx, evening, t); drawRoad(ctx, evening); drawDungeon(ctx, evening);
+}
+/* Ruines (défaite) : fumée sur chaque parcelle bâtie, voile gris sur tout le tableau, aucune figurine. */
+function drawRuins(ctx, t) {
+  Object.keys(BSLOT).forEach(function (id, i) { var p = BSLOT[id]; for (var k = 0; k < 4; k++) { var ph = (t * 0.12 + k / 4 + i * 0.13) % 1, r = 6 + ph * 14; ctx.fillStyle = 'rgba(40,38,42,' + (0.7 - ph * 0.6) + ')'; ctx.beginPath(); ctx.arc(p[0] + Math.sin((ph + k + i) * 6.28) * 12, p[1] - 30 - ph * 70, r, 0, 6.2832); ctx.fill(); } });
+  ctx.fillStyle = 'rgba(52,50,56,0.42)'; ctx.fillRect(0, 0, LW, LH);
+}
+function drawTrail(ctx, evening) {
+  ctx.save(); ctx.strokeStyle = evening ? 'rgba(78,74,60,0.9)' : 'rgba(201,188,152,0.95)'; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.setLineDash([9, 7]);
+  ctx.beginPath(); ctx.moveTo(SOLO_TRAIL[0][0], SOLO_TRAIL[0][1]); for (var i = 1; i < SOLO_TRAIL.length; i++) ctx.lineTo(SOLO_TRAIL[i][0], SOLO_TRAIL[i][1]); ctx.stroke(); ctx.restore();
+}
+function drawGraves(ctx, evening, T) {
+  app.vm.village.graves.forEach(function (g, i) {
+    var x = GRAVES.x + (i % GRAVES.perRow) * GRAVES.dx, y = GRAVES.y + Math.floor(i / GRAVES.perRow) * GRAVES.dy;
+    ctx.fillStyle = evening ? '#3f4a44' : '#5b6b5b'; ctx.beginPath(); ctx.ellipse(x, y + 1, 6, 2.5, 0, 0, 6.2832); ctx.fill();
+    ctx.fillStyle = evening ? '#9aa39c' : '#c9cfc2'; roundRect(ctx, x - 4, y - 12, 8, 12, 3); ctx.fill();
+    ctx.strokeStyle = evening ? '#3f4a44' : '#5D6B63'; ctx.lineWidth = 0.8; ctx.stroke();
+    ctx.fillStyle = evening ? '#1d2521' : '#2f3531'; ctx.fillRect(x - 0.8, y - 10.5, 1.6, 8); ctx.fillRect(x - 3, y - 8.5, 6, 1.6);
+  });
+}
+function drawTrophies(ctx, bx, by, dim, n) {
+  for (var i = 0; i < Math.min(n, 5); i++) {
+    var x = bx + 10 + i * 13, y = by - 3;
+    ctx.strokeStyle = '#3a2e27'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y + 4); ctx.lineTo(x, y - 8); ctx.stroke();
+    ctx.fillStyle = '#efe6d2'; ctx.beginPath(); ctx.arc(x, y - 11, 4.2, 0, 6.2832); ctx.fill(); ctx.fillRect(x - 2.5, y - 9, 5, 2.5);
+    ctx.fillStyle = '#2a2323'; ctx.fillRect(x - 2.4, y - 12.4, 1.6, 1.8); ctx.fillRect(x + 0.8, y - 12.4, 1.6, 1.8);
+  }
+}
+function drawSkyDragon(ctx, evening, t, th, out) {
+  var flap = (Math.sin(t * 5) + 1) / 2;
+  if (!evening && th === 'today') { var a = t * 0.45, x = 430 + Math.cos(a) * 190, y = 95 + Math.sin(a) * 28; drawDragon(ctx, x, y, 1.15, flap, 'rgba(60,18,18,0.92)', -Math.sin(a) >= 0 ? 1 : -1); }
+  else if (evening && th === 'presage') drawDragon(ctx, 703, 64, 0.8, 0.35 + flap * 0.15, '#0f121e', -1);
+  else if (evening && out === 'repoussé') drawDragon(ctx, 560 + Math.sin(t * 0.5) * 12, 78 - Math.sin(t * 0.3) * 6, 0.72, flap, '#2a1a2a', 1);
+}
+function drawDragon(ctx, x, y, sc, flap, color, dir) {
+  var wy = -30 + 22 * flap;
+  ctx.save(); ctx.translate(x, y); ctx.scale(sc * (dir || 1), sc); ctx.fillStyle = color; ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.ellipse(0, 0, 22, 7, 0, 0, 6.2832); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-18, 0); ctx.quadraticCurveTo(-36, -8, -50, 8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(16, -2); ctx.lineTo(30, -14); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(26, -18); ctx.lineTo(42, -12); ctx.lineTo(28, -8); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(4, -4); ctx.lineTo(-16, wy); ctx.lineTo(-2, wy + 6); ctx.lineTo(12, wy + 2); ctx.lineTo(22, -6); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-2, -3); ctx.lineTo(-22, wy + 10); ctx.lineTo(-8, wy + 14); ctx.lineTo(8, -2); ctx.closePath(); ctx.fill();
+  ctx.lineCap = 'butt'; ctx.restore();
+}
+function drawDragonDown(ctx, x, y) {
+  ctx.save(); ctx.translate(x, y); ctx.fillStyle = '#6e2a2a'; ctx.strokeStyle = '#6e2a2a'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.ellipse(0, 0, 30, 9, 0, 0, 6.2832); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-26, 2); ctx.quadraticCurveTo(-50, -2, -62, 10); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(24, -2); ctx.lineTo(44, 4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(40, -2); ctx.lineTo(58, 6); ctx.lineTo(40, 10); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#4d1d1d'; ctx.beginPath(); ctx.moveTo(-6, -6); ctx.lineTo(-30, -18); ctx.lineTo(10, -14); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#f1d3b6'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(46, 1); ctx.lineTo(50, 5); ctx.moveTo(50, 1); ctx.lineTo(46, 5); ctx.stroke();
+  ctx.lineCap = 'butt'; ctx.restore();
+}
+function drawLootSack(ctx, x, y, T) {
+  ctx.fillStyle = '#8a6a3c'; ctx.beginPath(); ctx.ellipse(x, y, 9, 8, 0, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = '#6b5030'; ctx.fillRect(x - 3, y - 12, 6, 5);
+  ctx.fillStyle = T.gold; ctx.beginPath(); ctx.arc(x + 9, y + 4, 3, 0, 6.2832); ctx.fill();
+}
+function drawFlames(ctx, x, y, w, t, k) {
+  var n = Math.max(2, Math.round(w / 12));
+  for (var i = 0; i < n; i++) {
+    var fl = Math.sin(t * 7 + i * 1.7) * 0.5 + 0.5, fx = x + w * ((i + 0.5) / n), h = (12 + 12 * fl) * k;
+    ctx.fillStyle = 'rgba(232,96,40,0.9)'; ctx.beginPath(); ctx.moveTo(fx - 6 * k, y); ctx.lineTo(fx, y - h); ctx.lineTo(fx + 6 * k, y); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(250,204,70,0.92)'; ctx.beginPath(); ctx.moveTo(fx - 3 * k, y); ctx.lineTo(fx, y - h * 0.55); ctx.lineTo(fx + 3 * k, y); ctx.closePath(); ctx.fill();
+  }
+}
+function drawFire(ctx, x, y, w, t) {
+  drawFlames(ctx, x, y, w, t, 1.2);
+  for (var j = 0; j < 4; j++) { var ph = (t * 0.18 + j / 4) % 1, r = 5 + ph * 10; ctx.fillStyle = 'rgba(28,28,32,' + (0.75 - ph * 0.6) + ')'; ctx.beginPath(); ctx.arc(x + w * 0.5 + Math.sin((ph + j) * 6.28) * 10, y - 18 - ph * 48, r, 0, 6.2832); ctx.fill(); }
+}
+function drawCampfire(ctx, x, y, t, evening) {
+  if (evening) { var g = ctx.createRadialGradient(x, y, 2, x, y, 44); g.addColorStop(0, 'rgba(255,170,60,0.45)'); g.addColorStop(1, 'rgba(255,170,60,0)'); ctx.fillStyle = g; ctx.fillRect(x - 44, y - 44, 88, 88); }
+  ctx.strokeStyle = '#5b4632'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - 9, y + 3); ctx.lineTo(x + 9, y - 1); ctx.moveTo(x - 9, y - 1); ctx.lineTo(x + 9, y + 3); ctx.stroke();
+  drawFlames(ctx, x - 8, y - 1, 16, t, 0.6);
+}
+function drawTent(ctx, cx, base, evening) {
+  var w = 44, h = 28;
+  ctx.fillStyle = evening ? '#5a5040' : '#cdb78e'; ctx.beginPath(); ctx.moveTo(cx - w / 2, base); ctx.lineTo(cx, base - h); ctx.lineTo(cx + w / 2, base); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = evening ? '#3d3528' : '#8a744e'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = evening ? '#221d18' : '#5a4632'; ctx.beginPath(); ctx.moveTo(cx - 7, base); ctx.lineTo(cx, base - 13); ctx.lineTo(cx + 7, base); ctx.closePath(); ctx.fill();
+}
+function drawHouses(ctx, n, evening) {
+  HOUSES.slice(0, n).forEach(function (p, i) {
+    var w = 22 + (i % 2) * 6, h = 14, x = p[0] - w / 2, y = p[1] - h;
+    ctx.fillStyle = evening ? '#4a3d2c' : '#a5875c'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = evening ? '#2a2323' : '#5a4632'; ctx.beginPath(); ctx.moveTo(x - 2, y); ctx.lineTo(p[0], y - 9); ctx.lineTo(x + w + 2, y); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = evening ? '#ffd778' : '#e8e0c8'; ctx.fillRect(p[0] - 2, y + 5, 4, 4);
+  });
+}
+/* Enceinte : palissade au bourg, muraille crénelée en ville, douve + pont-levis + tours au château. */
+function wallSegments() { var s = []; [WALL_A, WALL_B].forEach(function (poly) { for (var i = 1; i < poly.length; i++) s.push([poly[i - 1], poly[i]]); }); return s; }
+function wallLength() { return wallSegments().reduce(function (a, s) { return a + Math.hypot(s[1][0] - s[0][0], s[1][1] - s[0][1]); }, 0); }
+function wallWalk(d) {
+  var segs = wallSegments(), acc = 0;
+  for (var i = 0; i < segs.length; i++) {
+    var s = segs[i], l = Math.hypot(s[1][0] - s[0][0], s[1][1] - s[0][1]);
+    if (d <= acc + l) { var u = l ? (d - acc) / l : 0; return { x: s[0][0] + (s[1][0] - s[0][0]) * u, y: s[0][1] + (s[1][1] - s[0][1]) * u }; }
+    acc += l;
+  }
+  return { x: segs[0][0][0], y: segs[0][0][1] };
+}
+function strokeWall(ctx, color, width) {
+  ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
+  [WALL_A, WALL_B].forEach(function (poly) { ctx.moveTo(poly[0][0], poly[0][1]); for (var i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]); });
+  ctx.stroke(); ctx.lineCap = 'butt';
+}
+function drawEnclosure(ctx, age, evening, T) {
+  if (age < 2) return;
+  var L = wallLength(), d;
+  if (age >= 4) strokeWall(ctx, evening ? 'rgba(58,96,150,0.75)' : 'rgba(92,152,214,0.8)', 26);
+  if (age === 2) {
+    strokeWall(ctx, evening ? '#5c4b34' : '#7a5c3a', 5); ctx.fillStyle = evening ? '#8c7654' : '#a8845a';
+    for (d = 0; d < L; d += 9) { var p = wallWalk(d); ctx.fillRect(p.x - 1.5, p.y - 11, 3, 12); ctx.beginPath(); ctx.moveTo(p.x - 1.5, p.y - 11); ctx.lineTo(p.x, p.y - 15); ctx.lineTo(p.x + 1.5, p.y - 11); ctx.fill(); }
+  } else {
+    strokeWall(ctx, evening ? '#4e4c48' : '#8e8a80', 9); ctx.fillStyle = evening ? '#66635c' : '#b3ada0';
+    for (d = 0; d < L; d += 12) { var q = wallWalk(d); ctx.fillRect(q.x - 2.5, q.y - 9, 5, 5); }
+    drawTower(ctx, 613, 342, evening, T, false); drawTower(ctx, 601, 376, evening, T, false);
+  }
+  if (age >= 4) { drawDrawbridge(ctx, evening); TOWERS.forEach(function (p) { drawTower(ctx, p[0], p[1], evening, T, true); }); }
+}
+function drawTower(ctx, x, y, evening, T, big) {
+  var w = big ? 16 : 12, h = big ? 34 : 24;
+  ctx.fillStyle = evening ? '#5a5751' : '#9c978a'; ctx.fillRect(x - w / 2, y - h, w, h);
+  ctx.fillStyle = evening ? '#2a2323' : '#4a3a31'; ctx.beginPath(); ctx.moveTo(x - w / 2 - 2, y - h); ctx.lineTo(x, y - h - (big ? 14 : 10)); ctx.lineTo(x + w / 2 + 2, y - h); ctx.closePath(); ctx.fill();
+  if (big) { ctx.fillStyle = T.accent; ctx.fillRect(x - 0.5, y - h - 24, 1, 12); ctx.beginPath(); ctx.moveTo(x, y - h - 24); ctx.lineTo(x + 8, y - h - 21); ctx.lineTo(x, y - h - 18); ctx.closePath(); ctx.fill(); }
+}
+function drawDrawbridge(ctx, evening) {
+  ctx.save(); ctx.translate(GATE.x, GATE.y); ctx.rotate(Math.atan2(43, 120)); ctx.fillStyle = evening ? '#5a4630' : '#8a6a3c'; ctx.fillRect(-20, -13, 40, 26);
+  ctx.strokeStyle = evening ? '#3d2f20' : '#6b5030'; ctx.lineWidth = 1; ctx.beginPath(); for (var i = -14; i <= 14; i += 7) { ctx.moveTo(i, -13); ctx.lineTo(i, 13); } ctx.stroke(); ctx.restore();
+}
+function drawGuildBanner(ctx, x, y, T) {
+  ctx.fillStyle = '#3a2e27'; ctx.fillRect(x, y - 30, 2, 32);
+  ctx.fillStyle = T.accent; ctx.beginPath(); ctx.moveTo(x + 2, y - 30); ctx.lineTo(x + 22, y - 25); ctx.lineTo(x + 2, y - 16); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = T.gold; ctx.beginPath(); ctx.arc(x + 8, y - 24, 2.2, 0, 6.2832); ctx.fill();
+}
+/* Gardes : 2 à la porte au bourg, patrouille sur l'enceinte ensuite (position = heure simulée, déterministe). En alerte, tous à la porte, armes levées. */
+function drawGuards(ctx, age, guards, evening, alert) {
+  if (age < 2 || !guards) return;
+  var n = Math.min(guards, 6), k;
+  if (alert) { for (k = 0; k < n; k++) drawGuard(ctx, 596 - k * 14, 380 + k * 8, evening, true); return; }
+  if (age === 2) { drawGuard(ctx, 592, 388, evening, false); if (n > 1) drawGuard(ctx, 624, 350, evening, false); return; }
+  var L = wallLength(), frac = ((tb.hour - DAY_START) / 12) * 0.5;
+  for (k = 0; k < n; k++) { var p = wallWalk((((frac + k / n) % 1) + 1) % 1 * L); drawGuard(ctx, p.x, p.y - 3, evening, false); }
+}
+function drawGuard(ctx, x, y, evening, raised) {
+  var body = evening ? '#6a6f74' : '#8a8f94', tip = x + 6 + (raised ? 6 : 0);
+  ctx.fillStyle = body; roundRect(ctx, x - 4, y - 12, 8, 11, 2); ctx.fill();
+  ctx.fillStyle = '#3a3232'; ctx.fillRect(x - 3.5, y - 2, 3, 3); ctx.fillRect(x + 0.5, y - 2, 3, 3);
+  ctx.fillStyle = evening ? '#c9b8a6' : '#e7cdb4'; ctx.beginPath(); ctx.arc(x, y - 15.5, 3.5, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = body; ctx.beginPath(); ctx.arc(x, y - 16.5, 3.8, Math.PI, 0); ctx.fill();
+  ctx.strokeStyle = '#5b4632'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x + 6, y); ctx.lineTo(tip, y - 26); ctx.stroke();
+  ctx.fillStyle = '#c8c2b4'; ctx.beginPath(); ctx.moveTo(tip, y - 31); ctx.lineTo(tip - 2.5, y - 25); ctx.lineTo(tip + 2.5, y - 25); ctx.closePath(); ctx.fill();
+}
+function drawSceneExtras(ctx, evening, t, T) {
+  var v = app.vm.village, out = threatOutcome(), th = threatPhase();
+  drawGraves(ctx, evening, T);
+  if (evening && tb.markers && tb.markers.trophy) drawTrophy(ctx, roadPoint(0.4), T);
+  if (evening && out === 'vaincu') { drawDragonDown(ctx, 702, 388); drawLootSack(ctx, 632, 404, T); }
+  drawGuards(ctx, v.age_index, v.guards, evening, th === 'today' || !!out);
 }
 function drawMountain(ctx, evening) {
   ctx.fillStyle = evening ? '#4a4a55' : '#9a9aa6'; ctx.beginPath(); ctx.moveTo(30, 215); ctx.lineTo(120, 100); ctx.lineTo(215, 215); ctx.closePath(); ctx.fill();
@@ -803,10 +1235,14 @@ function drawForest(ctx, evening, t) {
     ctx.beginPath(); ctx.moveTo(p[0] + sway, p[1] - h); ctx.lineTo(p[0] - w / 2, p[1] - 8); ctx.lineTo(p[0] + w / 2, p[1] - 8); ctx.closePath(); ctx.fill();
   });
 }
-function drawRoad(ctx, evening) {
-  ctx.strokeStyle = evening ? '#5e5644' : '#d8c59a'; ctx.lineWidth = 26; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+/* Route : sentier au campement, terre au hameau, pavée à partir du bourg. */
+function drawRoad(ctx, evening, age) {
+  var outer = age === 0 ? (evening ? '#4e4a3c' : '#c9bc98') : age === 1 ? (evening ? '#4f3f2c' : '#b8925e') : (evening ? '#4b4a46' : '#aaa596');
+  var inner = age === 0 ? null : age === 1 ? (evening ? '#5d4c36' : '#cfa974') : (evening ? '#5a5955' : '#c5c0b1');
+  ctx.strokeStyle = outer; ctx.lineWidth = age === 0 ? 10 : age === 1 ? 22 : 26; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.beginPath(); ctx.moveTo(ROAD[0][0], ROAD[0][1]); for (var i = 1; i < ROAD.length; i++) ctx.lineTo(ROAD[i][0], ROAD[i][1]); ctx.stroke();
-  ctx.strokeStyle = evening ? '#6b6350' : '#e6d6b0'; ctx.lineWidth = 14; ctx.stroke();
+  if (inner) { ctx.strokeStyle = inner; ctx.lineWidth = age === 1 ? 12 : 14; ctx.stroke(); }
+  if (age >= 2) { ctx.fillStyle = evening ? 'rgba(0,0,0,0.25)' : 'rgba(80,75,65,0.28)'; for (var k = 0; k < 28; k++) { var p = roadPoint(k / 28), h = fnv1a('pave' + k); ctx.fillRect(p.x - 8 + (h % 14), p.y - 5 + ((h >>> 6) % 9), 3, 2); } }
   ctx.lineCap = 'butt';
 }
 function drawDungeon(ctx, evening) {
@@ -819,7 +1255,7 @@ function bsize(b) { var size = Math.max(1, Math.min(3, Number(b.decor.size) || b
 function cssColor(c, T) { return typeof c === 'string' && /^#[0-9a-f]{3,8}$/i.test(c) ? c : (T[c] || T.accent); }
 function drawBuilding(ctx, b, slot, evening, t, T, mini) {
   var d = b.decor, dim = bsize(b), cx = slot[0], base = slot[1], bx = cx - dim.w / 2, by = base - dim.h;
-  if ((b.level | 0) === 0) { drawEmptyLot(ctx, b, cx, base, dim, T, evening, mini); return; }
+  if ((b.level | 0) === 0) { drawEmptyLot(ctx, b, cx, base, dim, T, evening, mini, t); return; }
   if (b.id === 'training_ground') { drawYard(ctx, cx, base, dim, evening, t, T); return; }
   var color = cssColor(d.color, T);
   ctx.fillStyle = evening ? shade(color, 0.55) : color; roundRect(ctx, bx, by, dim.w, dim.h, 3); ctx.fill();
@@ -833,15 +1269,21 @@ function drawBuilding(ctx, b, slot, evening, t, T, mini) {
   if (!mini) { ctx.font = glyphFont(9 + 3 * dim.size); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fillText(String(d.glyph || ''), cx, by + dim.h * 0.32); }
   if (evening && tb.markers && tb.markers.scaffold === b.id) drawScaffold(ctx, bx, by, dim, T);
   if (evening && b.id === 'hall' && tb.markers && tb.markers.banner) drawBanner(ctx, cx, by - dim.h * 0.55, tb.markers.banner, T);
+  if (b.id === 'hall' && app.vm.village.age_index >= 4) drawGuildBanner(ctx, bx + 8, by + 2, T);
+  if (b.id === 'hall' && app.vm.village.trophies.length) drawTrophies(ctx, bx, by, dim, app.vm.village.trophies.length);
+  if (evening && tb.markers && tb.markers.burnt === b.id) drawFire(ctx, bx, by - dim.h * 0.15, dim.w, t);
 }
 function shade(hex, k) { var m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(hex); if (!m) return hex; return 'rgb(' + Math.round(parseInt(m[1], 16) * k) + ',' + Math.round(parseInt(m[2], 16) * k) + ',' + Math.round(parseInt(m[3], 16) * k) + ')'; }
-function drawEmptyLot(ctx, b, cx, base, dim, T, evening, mini) {
-  var w = Math.max(dim.w, 98), h = dim.h * 0.8, x = cx - w / 2, y = base - h;
-  ctx.save(); ctx.setLineDash([4, 3]); ctx.strokeStyle = evening ? '#9aa79f' : '#5D6B63'; ctx.lineWidth = 1.2; roundRect(ctx, x, y, w, h, 4); ctx.stroke(); ctx.restore();
+function drawEmptyLot(ctx, b, cx, base, dim, T, evening, mini, t) {
+  var w = Math.max(dim.w, 98), h = dim.h * 0.8, x = cx - w / 2, y = base - h, camp = app.vm.village.age_index === 0;
+  if (camp) drawTent(ctx, cx, base, evening);
+  else { ctx.save(); ctx.setLineDash([4, 3]); ctx.strokeStyle = evening ? '#9aa79f' : '#5D6B63'; ctx.lineWidth = 1.2; roundRect(ctx, x, y, w, h, 4); ctx.stroke(); ctx.restore(); }
   if (evening && tb.markers && tb.markers.scaffold === b.id) drawScaffold(ctx, x, y, { w: w, h: h }, T);
+  if (evening && tb.markers && tb.markers.burnt === b.id) drawFire(ctx, x + 10, base - 6, w - 20, t || 0);
   if (mini) return;
   ctx.fillStyle = evening ? '#c9d1cc' : '#3d4a42'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   var lines = ctx.canvas.clientWidth >= 520 ? wrapName(ctx, b.name, w - 8, uiFont(9, 600)) : [];
+  if (camp) { lines.forEach(function (l, i) { ctx.font = uiFont(8, 600); ctx.fillText(l, cx, base + 7 + i * 9); }); return; }
   lines.forEach(function (l, i) { ctx.font = uiFont(9, 600); ctx.fillText(l, cx, y + 8 + i * 10); });
   ctx.font = uiFont(lines.length ? 8 : 9, 500); ctx.fillText('à bâtir', cx, base - 8);
 }
@@ -888,9 +1330,9 @@ function drawFigures(ctx, s, sy, fs, T, mini, evening) {
   var order = app.managers.slice().sort(function (a, b) { return (tb.pos[a.id] || { y: 0 }).y - (tb.pos[b.id] || { y: 0 }).y; });
   order.forEach(function (m) {
     var p = tb.pos[m.id]; if (!p) return;
-    var h = heroOf(m.id), act = tb.placed[m.id], mk = tb.markers || { injured: {}, levelUp: {}, limping: {} };
+    var h = heroOf(m.id), act = h ? tb.placed[m.id] : 'dead', mk = tb.markers || { injured: {}, levelUp: {}, limping: {} };
     drawFigure(ctx, { x: p.x * s, y: p.y * sy, fs: fs, color: CLASS_COLOR[h ? h.class_id : ''] || T.accent, initial: m.name.charAt(0).toUpperCase(), name: mini ? '' : m.name, row: p.row || 0,
-      ghost: !act, seated: act === 'rest', lying: act === 'injured', limping: !!mk.limping[m.id], star: !!mk.levelUp[m.id], cross: act === 'injured', mine: m.id === ME }, T, evening);
+      ghost: !act || act === 'dead', dead: !h, seated: act === 'rest', lying: act === 'injured', limping: !!mk.limping[m.id], star: !!mk.levelUp[m.id], cross: act === 'injured', mine: m.id === ME, armed: act === 'defend', solo: act === 'solo' }, T, evening);
   });
   if (mini || evening) return;
   tb.bubbles.filter(function (b) { return b.until > tb.hour; }).slice(-2).forEach(function (b) { var p = tb.pos[b.id]; if (p) drawBubble(ctx, p.x * s, p.y * sy - 46 * fs, b.text, T, s * LW); });
@@ -911,6 +1353,9 @@ function drawFigure(ctx, f, T, evening) {
   ctx.font = uiFont(Math.max(8, 9 * u), 800); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = f.ghost ? (evening ? '#c9d1cc' : '#5D6B63') : '#fff';
   ctx.fillText(f.ghost ? '?' : f.initial, 0, -lg - (f.seated ? bh * 0.35 : bh * 0.5));
   if (f.limping) { ctx.strokeStyle = '#5b4632'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bw / 2 + 2 * u, -lg - bh * 0.6); ctx.lineTo(bw / 2 + 6 * u, 0); ctx.stroke(); }
+  if (f.armed) { var tx = bw / 2 + 9 * u, ty = -lg - bh - hr * 2 - 8 * u; ctx.strokeStyle = '#5b4632'; ctx.lineWidth = 2 * u; ctx.beginPath(); ctx.moveTo(bw / 2, -lg - bh * 0.7); ctx.lineTo(tx, ty); ctx.stroke(); ctx.fillStyle = '#d6d0c2'; ctx.beginPath(); ctx.moveTo(tx + 1.5 * u, ty - 7 * u); ctx.lineTo(tx - 3 * u, ty + 1 * u); ctx.lineTo(tx + 3.5 * u, ty + 2 * u); ctx.closePath(); ctx.fill(); }
+  if (f.dead) { ctx.fillStyle = '#111'; ctx.fillRect(-bw / 2 - 1, -lg - bh * 0.72, bw + 2, 3.2 * u); }
+  if (f.solo) { var sx = bw / 2 + 4 * u, sy0 = -lg - bh - 10 * u; ctx.strokeStyle = '#5b4632'; ctx.lineWidth = 1.5 * u; ctx.beginPath(); ctx.moveTo(sx, -lg - bh * 0.6); ctx.lineTo(sx, sy0); ctx.stroke(); ctx.fillStyle = T.accent; ctx.beginPath(); ctx.moveTo(sx, sy0); ctx.lineTo(sx + 9 * u, sy0 + 3 * u); ctx.lineTo(sx, sy0 + 6 * u); ctx.closePath(); ctx.fill(); }
   ctx.restore();
   drawFigureMarks(ctx, f, u, hr + bh + lg + 2, T, evening);
 }
@@ -953,11 +1398,12 @@ function startLoop() { if (!app.raf && !motionMQ.matches) app.raf = requestAnima
 /* ---------- rendu : en-tête, onglets, tiroir ---------- */
 function render() { renderHeader(); renderTableau(); renderHero(); renderVillage(); renderEffectif(); renderChronicle(); renderJournal(); renderTabs(); applyLayout(); publishTableau(); }
 function renderHeader() {
-  var vm = app.vm, over = vm.is_season_over;
-  $('day-counter').textContent = over ? 'Saison terminée — jour ' + vm.season_length + ' / ' + vm.season_length : 'Jour ' + vm.day + ' / ' + vm.season_length;
+  var vm = app.vm, over = vm.is_season_over, d = vm.defeat;
+  $('day-counter').textContent = d ? 'Guilde dispersée — jour ' + d.day + ' / ' + vm.season_length : over ? 'Saison terminée — jour ' + vm.season_length + ' / ' + vm.season_length : 'Jour ' + vm.day + ' / ' + vm.season_length;
   $('hud-gold').textContent = vm.guild.gold + ' or';
   $('state-hash').textContent = vm.hash;
-  var btn = $('btn-launch'); btn.disabled = over; btn.textContent = over ? 'Saison terminée' : 'Fin de journée';
+  var btn = $('btn-launch'); btn.disabled = over || !!d; btn.textContent = d ? 'Guilde dispersée' : over ? 'Saison terminée' : 'Fin de journée';
+  document.body.classList.toggle('is-defeat', !!d);
 }
 function renderTabs() {
   document.querySelectorAll('.tab').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.tab === app.tab ? 'true' : 'false'); });
@@ -990,7 +1436,28 @@ function openDrawer(section) {
 function closeDrawer() { app.drawer = null; $('drawer').hidden = true; $('drawer-backdrop').hidden = true; renderTabs(); }
 
 /* ---------- rendu : tableau ---------- */
-function renderTableau() { renderClock(); renderPlayed(); renderQuick(); renderInstant(); }
+function renderTableau() { renderSceneHead(); renderClock(); renderPlayed(); renderQuick(); renderInstant(); }
+function renderSceneHead() {
+  var vm = app.vm, evening = tb.phase === 'evening';
+  $('h-scene').textContent = vm.village.age_name + ' — ' + (evening ? 'Soir du jour ' + (app.viewDay !== null ? app.viewDay : vm.day) : 'Jour ' + vm.day + ' / ' + vm.season_length);
+  $('scene-banners').innerHTML = sceneBanners().join('');
+}
+function bannerHtml(id, cls, glyph, text, extra) { return '<div class="scene-banner ' + cls + '" id="banner-' + id + '" data-testid="banner-' + id + '"><span class="g" aria-hidden="true">' + glyph + '</span><span>' + esc(text) + (extra || '') + '</span></div>'; }
+function dragonName(t) { return t && (t.name || t.dragon_name) ? String(t.name || t.dragon_name) : 'Le dragon'; }
+function biomeSuffix(t) { return t && t.biome_name ? ' — ' + t.biome_name : ''; }
+function deathsText(list) { return list.length === 1 ? list[0] + ' est tombé' : list.slice(0, -1).join(', ') + ' et ' + list[list.length - 1] + ' sont tombés'; }
+function sceneBanners() {
+  var vm = app.vm, out = [], th = threatPhase(), oc = threatOutcome(), c = tb.chron, sum = (c && c.summary) || {}, t = c && c.threat, d = vm.defeat, evening = tb.phase === 'evening';
+  if (d) out.push(bannerHtml('defeat', 'is-defeat', '🏚', 'La guilde est dispersée — jour ' + d.day + ' : ' + d.reason, '<button type="button" class="btn btn-sm" id="btn-new-game-defeat" data-act="new-game-prompt">Nouvelle partie</button>'));
+  if (th === 'today' && vm.threat) out.push(bannerHtml('threat', 'is-crit', '🐉', dragonName(vm.threat) + ' attaque aujourd’hui' + biomeSuffix(vm.threat) + ' · défense estimée ' + vm.threat.defense_estimate + ', ' + plural(vm.threat.defenders_planned, 'défenseur prévu', 'défenseurs prévus')));
+  if (th === 'presage') out.push(bannerHtml('presage', 'is-presage', '☾', 'Présage : ' + (vm.threat ? dragonName(vm.threat) + ' s’éveille' + biomeSuffix(vm.threat) : sum.presage) + '. Une ombre ailée est passée ; les anciens murmurent.'));
+  if (oc === 'vaincu') out.push(bannerHtml('outcome', 'is-good', '🐉', dragonName(t) + ' est vaincu' + biomeSuffix(t) + (t && t.legendary ? ' · ' : ''), t && t.legendary ? '<span class="rar-legendary">' + esc(t.legendary) + ' (légendaire)</span>' : ''));
+  else if (oc === 'repoussé') out.push(bannerHtml('outcome', 'is-warn', '🐉', dragonName(t) + ' est repoussé' + biomeSuffix(t) + ' : il s’éloigne vers les cimes.'));
+  else if (oc === 'ravage') out.push(bannerHtml('outcome', 'is-dark', '🔥', 'Jour noir : ' + (t && t.building_hit ? t.building_hit + ' a brûlé' : 'le village est ravagé') + ' (' + dragonName(t) + (t && t.biome_name ? ', ' + t.biome_name : '') + ')'));
+  if (evening && sum.deaths && sum.deaths.length) out.push(bannerHtml('deuil', 'is-mourning', '🕯', 'Deuil : ' + deathsText(sum.deaths)));
+  if (evening && sum.village_age_up) out.push(bannerHtml('age', 'is-gold', '🏰', 'Le village devient ' + (AGE_ARTICLE[ageIdByName(sum.village_age_up)] || 'un') + ' ' + sum.village_age_up));
+  return out;
+}
 function renderClock() {
   var el = $('clock'), evening = tb.phase === 'evening';
   el.textContent = evening ? 'Soir' : Math.floor(tb.hour) + 'h'; el.dataset.phase = evening ? 'evening' : 'morning';
@@ -1006,6 +1473,9 @@ function renderPlayed() {
   $('widget-l1').textContent = n + '/' + total + ' ont joué';
   var l2 = $('widget-l2'), c = tb.chron;
   if (tb.phase === 'evening' && c) { l2.textContent = c.headline || c.title || ''; l2.className = 'wl wl2'; }
+  else if (app.vm.defeat) { l2.textContent = 'La guilde est dispersée'; l2.className = 'wl wl2 crit'; }
+  else if (threatPhase() === 'today') { l2.textContent = '🐉 Dragon aujourd’hui' + (app.chosen ? '' : ' · tu n’as pas joué'); l2.className = 'wl wl2 crit'; }
+  else if (!myHero()) { l2.textContent = 'Ton héros est tombé'; l2.className = 'wl wl2 crit'; }
   else if (!app.chosen) { l2.textContent = 'Tu n’as pas encore joué'; l2.className = 'wl wl2 warn'; }
   else { l2.textContent = 'Journée en cours · ' + Math.floor(tb.hour) + 'h'; l2.className = 'wl wl2'; }
 }
@@ -1015,47 +1485,132 @@ function renderInstant() {
   $('evening-actions').hidden = !evening || app.vm.is_season_over;
   $('quick').hidden = evening;
 }
-function actButtons(prefix, big) {
-  var h = myHero(), cur = app.chosen && app.plan.assign ? app.plan.assign.activity : null;
-  return ACTS.map(function (act) {
-    var opt = h && h.activity_options.filter(function (o) { return o.activity === act; })[0], ok = !!opt && tb.phase !== 'evening';
-    var reason = !opt && h ? reasonFor(h, act) : '';
-    return '<button type="button" class="act-btn" id="' + prefix + act + '" data-act="choose" data-activity="' + act + '" aria-pressed="' + (cur === act) + '"' + (ok ? '' : ' disabled title="' + esc(reason) + '"') + '>' +
-      '<span class="g" aria-hidden="true">' + ACT_GLYPH[act] + '</span><span class="l">' + ACT_LABEL[act] + '</span>' + (big && reason ? '<span class="r">' + esc(reason) + '</span>' : '') + '</button>';
+/* Liste des activités = celles proposées par le moteur (defend en tête), puis les cinq habituelles (grisées si absentes aujourd'hui). */
+
+function actLabel(h, act) { var o = h && h.activity_options.filter(function (x) { return x.activity === act; })[0]; return ACT_LABEL[act] || (o && o.label) || act; }
+function costOf(h, act) { var o = h && h.activity_options.filter(function (x) { return x.activity === act; })[0]; return o && Number.isInteger(o.cost_ap) ? o.cost_ap : null; }
+function targetLabelOf(h, activity, id) {
+  var o = h && h.activity_options.filter(function (x) { return x.activity === activity; })[0], t = o && o.targets.filter(function (x) { return x.id === id; })[0];
+  if (t) return t.label;
+  var m = app.vm.solo_board.filter(function (x) { return x.id === id; })[0];
+  return m ? m.name : String(id || '');
+}
+function presetList(h) { var list = h ? h.presets.slice() : []; list.sort(function (a, b) { return (b.id === 'defense' ? 1 : 0) - (a.id === 'defense' ? 1 : 0); }); return list; }
+function presetActive(h, p) {
+  var full = presetFull(p);
+  if (full) return app.plan.full === full;
+  return !app.plan.full && JSON.stringify(compactSlots(padSlots(p.slots))) === JSON.stringify(compactSlots(app.plan.slots));
+}
+function presetHint(h, p) {
+  if (!p.slots.length) return 'repos';
+  var parts = [], last = null;
+  p.slots.forEach(function (s) { var l = actLabel(h, s.activity); if (last && last.l === l) last.n++; else { last = { l: l, n: 1 }; parts.push(last); } });
+  return parts.map(function (x) { return x.l + (x.n > 1 ? ' ×' + x.n : ''); }).join(' · ');
+}
+/* Préréglages du moteur (VM.roster[].presets), « Défense » en tête le jour d'attaque ; grisés avec la raison du moteur. data-testid seulement sur les grands (Mon héros). */
+function presetButtons(h, prefix, big) {
+  if (!h) return '';
+  var evening = tb.phase === 'evening';
+  return presetList(h).map(function (p) {
+    var ok = p.available && !evening, defend = p.id === 'defense';
+    var hint = defend && app.vm.threat ? 'Défense estimée ' + app.vm.threat.defense_estimate + ' · ' + plural(app.vm.threat.defenders_planned, 'défenseur prévu', 'défenseurs prévus') : presetHint(h, p);
+    return '<button type="button" class="preset-btn' + (defend ? ' is-defend' : '') + '" id="' + prefix + esc(p.id) + '"' + (big ? ' data-testid="' + prefix + esc(p.id) + '"' : '') + ' data-act="preset" data-id="' + esc(p.id) + '" aria-pressed="' + presetActive(h, p) + '"' + (ok ? '' : ' disabled title="' + esc(evening ? 'La journée est finie' : p.reason || 'indisponible') + '"') + '>' +
+      '<span class="g" aria-hidden="true">' + (PRESET_GLYPH[p.id] || '✦') + '</span><span class="l">' + esc(p.label) + '</span>' + (big ? '<span class="r">' + esc(p.available ? hint : (p.reason || '')) + '</span>' : '') + '</button>';
   }).join('');
 }
 function renderQuick() {
-  var h = myHero();
-  $('quick-lead').textContent = h ? (app.chosen ? h.name + ' : ' + ACT_LABEL[app.plan.assign.activity] + (app.plan.assign.target ? ' · ' + targetLabel(h, app.plan.assign) : '') : 'Aujourd’hui, ' + h.name + '…') : 'Aucun héros.';
-  $('quick-acts').innerHTML = actButtons('quick-', false);
+  var h = myHero(), vm = app.vm;
+  $('quick-lead').textContent = h ? (app.chosen ? h.name + ' : ' + dayLabel(h) : 'Aujourd’hui, ' + h.name + '…') : vm.defeat ? 'La guilde est dispersée.' : 'Ton héros est tombé : ton héritier t’attend dans « Mon héros ».';
+  $('quick-acts').innerHTML = presetButtons(h, 'quick-', false) + (h && tb.phase !== 'evening' ? '<button type="button" class="preset-btn" id="quick-compose" data-act="tab" data-tab="heros"><span class="g" aria-hidden="true">✎</span><span class="l">Composer</span></button>' : '');
 }
-
+function dayLabel(h) {
+  if (app.plan.full) return actLabel(h, app.plan.full);
+  var parts = app.plan.slots.filter(Boolean).map(function (s) { return actLabel(h, s.activity) + (s.target ? ' (' + targetLabelOf(h, s.activity, s.target) + ')' : ''); });
+  return parts.join(' · ') || 'Repos';
+}
 /* ---------- rendu : mon héros ---------- */
 function gaugeHtml(label, val, cls) { return '<div class="gauge"><span class="gauge-l">' + label + '</span><span class="gauge-bar"><i class="' + cls + '" style="width:' + pct(val) + '%"></i></span><span class="gauge-v">' + esc(val) + '</span></div>'; }
 function gaugesHtml(a) { return '<div class="gauges">' + gaugeHtml('Forme', a.form, 'g-good') + gaugeHtml('Fatigue', a.fatigue, 'g-warn') + gaugeHtml('Moral', a.morale, '') + '</div>'; }
 function xpBar(a) { return '<div style="margin-top:8px"><div class="section-label">XP ' + esc(a.xp) + ' / ' + esc(a.xp_next) + '</div><div class="bar"><i style="width:' + ratio(a.xp, a.xp_next) + '%"></i></div></div>'; }
 function traitsChips(a) { return '<div class="chips">' + (a.traits.map(function (t) { return '<span class="pill pill-muted">' + esc(t.name) + '</span>'; }).join('') || '<span class="muted small">Aucun trait</span>') + '</div>'; }
-function targetLabel(h, assign) {
-  var o = h.activity_options.filter(function (x) { return x.activity === assign.activity; })[0], t = o && o.targets.filter(function (x) { return x.id === assign.target; })[0];
-  return t ? t.label : '';
-}
+
 function renderHero() {
   var h = myHero();
-  if (!h) { $('hero-card').innerHTML = '<p class="muted">Aucun héros à votre nom.</p>'; $('hero-acts').innerHTML = ''; return; }
+  renderHeroCard(h); renderDay(h); renderMissions(h); renderQuests(); renderEquip(); renderHeroCrafts(h);
+}
+function renderHeroCard(h) {
+  if (!h) { $('hero-card').innerHTML = heirHtml(); return; }
   var injury = h.injury ? '<p style="margin-top:8px"><span class="pill pill-crit">' + esc(h.injury.label) + ' · ' + plural(h.injury.days, 'jour', 'jours') + '</span></p>' : '';
   $('hero-card').innerHTML = '<div class="hero-head"><span class="hero-glyph" style="background:' + (CLASS_COLOR[h.class_id] || 'var(--accent)') + '" aria-hidden="true">' + esc(h.class_glyph) + '</span>' +
-    '<div class="hero-id"><h2>' + esc(h.name) + '</h2><p>' + esc(h.class_name) + ' · niveau ' + esc(h.level) + ' · ' + esc(h.status_label) + '</p></div></div>' + xpBar(h) + gaugesHtml(h) + injury + traitsChips(h);
-  $('hero-acts').innerHTML = actButtons('act-', true);
-  renderTargets(); renderQuests(); renderEquip();
+    '<div class="hero-id"><h2>' + esc(h.name) + craftStar(h) + '</h2><p>' + esc(h.class_name) + ' · niveau ' + esc(h.level) + ' · ' + esc(h.status_label) + '</p></div></div>' + xpBar(h) + gaugesHtml(h) + injury + traitsChips(h);
 }
-function renderTargets() {
-  var h = myHero(), row = $('target-row'), a = app.chosen ? app.plan.assign : null;
-  var o = h && a ? h.activity_options.filter(function (x) { return x.activity === a.activity; })[0] : null;
-  if (!o || !o.targets.length) { row.hidden = true; row.innerHTML = ''; return; }
-  row.hidden = false;
-  row.innerHTML = '<p class="section-label">' + (a.activity === 'gather' ? 'Quelle ressource ?' : a.activity === 'train' ? 'Quel attribut ?' : 'Quelle recette ?') + '</p><div class="chips">' +
-    o.targets.map(function (t) { return '<button type="button" class="chip-btn" id="tgt-' + esc(t.id) + '" data-act="target" data-id="' + esc(t.id) + '" aria-pressed="' + (a.target === t.id) + '">' + esc(t.label) + '</button>'; }).join('') + '</div>';
+/* Héros mort : offre d'héritier de la taverne (coût 0, validée par le moteur), bouton bascule « Accueillir l'héritier » (prérempli si planDefaults le recrute). */
+function heirHtml() {
+  var vm = app.vm, grave = vm.village.graves.slice(-1)[0];
+  if (vm.defeat) return '<p class="mourning">La guilde est dispersée : il n’y a plus de héros à mener.</p>';
+  var html = '<div class="hero-head"><span class="hero-glyph" style="background:var(--muted)" aria-hidden="true">✝</span><div class="hero-id"><h2>' + (grave ? esc(grave.name) : 'Ton héros') + ' est tombé</h2><p>' + (grave ? 'Jour ' + esc(grave.day) + ' · ' + esc(grave.cause) : '') + '</p></div></div>';
+  var offers = heirOffers();
+  if (!offers.length) return html + '<p class="mourning" style="margin-top:8px">' + (tb.phase === 'evening' ? 'Demain, un héritier t’attendra à la taverne.' : 'Personne ne t’attend à la taverne aujourd’hui.') + '</p>';
+  var o = offers[0], planned = app.plan.recruit === o.id;
+  return html + '<p class="lead" style="margin-top:10px;margin-bottom:0" id="heir-lead">Ton héritier t’attend à la taverne.</p><div class="heir-card" id="heir-card"><span class="n">' + esc(o.class_glyph) + ' ' + esc(o.name) + '</span>' +
+    '<span class="small">' + esc(o.class_name) + ' · niveau ' + esc(o.level) + ' · ' + esc(o.attributes_summary) + '</span><span class="small muted">' + (o.traits || []).map(esc).join(' · ') + ' · coût ' + esc(o.cost) + ' or</span>' +
+    '<button type="button" class="btn' + (planned ? '' : ' btn-primary') + '" id="btn-heir" data-testid="btn-heir" data-act="heir" data-id="' + esc(o.id) + '" aria-pressed="' + planned + '">' + (planned ? 'Héritier accueilli ce soir ✓' : 'Accueillir l’héritier') + '</button></div>';
 }
+function renderDay(h) {
+  if (!h) { $('ap-line').textContent = ''; $('presets').innerHTML = ''; $('slots').innerHTML = '<p class="muted small">Aucun héros à planifier aujourd’hui.</p>'; $('chooser').hidden = true; $('chooser').innerHTML = ''; return; }
+  $('ap-line').textContent = 'Points d’action : ' + h.ap_today + ' / ' + h.ap_max;
+  $('presets').innerHTML = presetButtons(h, 'preset-', true);
+  var n = slotCount(h), slots = app.plan.slots.slice(); while (slots.length < n) slots.push(null);
+  $('slots').className = 'slots' + (n > 3 ? ' has-4' : '');
+  $('slots').innerHTML = slots.slice(0, n).map(function (s, i) { return slotHtml(h, s, i); }).join('');
+  renderChooser(h);
+}
+function slotCount(h) { return Math.max(3, Math.min(4, h.ap_today), app.plan.slots.filter(Boolean).length); }
+function slotHtml(h, s, i) {
+  var full = app.plan.full, act = full || (s && s.activity), open = app.slotOpen === i, cost = act ? costOf(h, act) : null;
+  var cls = 'day-slot' + (full ? ' is-locked is-filled' : s ? ' is-filled' : ' is-empty');
+  var label = act ? actLabel(h, act) : 'Case ' + (i + 1), sub = full ? 'journée entière' : s && s.target ? targetLabelOf(h, s.activity, s.target) : s ? '' : 'un tap pour choisir';
+  var ap = full ? (i === 0 && cost !== null ? cost + ' PA' : '') : (cost !== null ? cost + ' PA' : '');
+  return '<button type="button" class="' + cls + '" id="slot-' + (i + 1) + '" data-testid="slot-' + (i + 1) + '" data-act="slot" data-i="' + i + '" aria-expanded="' + open + '" aria-label="Créneau ' + (i + 1) + ' : ' + esc(label) + '">' +
+    '<span class="g" aria-hidden="true">' + (act ? (ACT_GLYPH[act] || '✦') : '+') + '</span><span class="l">' + esc(label) + '</span><span class="t">' + esc(sub) + '</span>' + (ap ? '<span class="ap">' + ap + '</span>' : '') + '</button>';
+}
+/* Choix d'activité pour une case : uniquement ce que le moteur permet aujourd'hui (activity_options : label, coût, cibles). */
+function renderChooser(h) {
+  var box = $('chooser'), i = app.slotOpen;
+  if (i < 0 || !h) { box.hidden = true; box.innerHTML = ''; return; }
+  var rows = h.activity_options.map(function (o) {
+    var cost = '<span class="cost">' + (Number.isInteger(o.cost_ap) ? o.cost_ap + ' PA' : '') + '</span>', glyph = ACT_GLYPH[o.activity] || '✦';
+    if (!o.targets.length) return '<div class="opt">' + cost + '<button type="button" class="chip-btn" id="opt-' + esc(o.activity) + '" data-act="choose-slot" data-i="' + i + '" data-activity="' + esc(o.activity) + '">' + glyph + ' ' + esc(o.label) + (FULL_DAY[o.activity] ? ' · journée entière' : '') + '</button></div>';
+    return '<div class="opt">' + cost + '<span class="head">' + glyph + ' ' + esc(o.label) + '</span>' + o.targets.map(function (t) { return '<button type="button" class="chip-btn" id="opt-' + esc(o.activity) + '-' + esc(t.id) + '" data-act="choose-slot" data-i="' + i + '" data-activity="' + esc(o.activity) + '" data-target="' + esc(t.id) + '">' + esc(t.label) + '</button>'; }).join('') + '</div>';
+  });
+  box.hidden = false;
+  box.innerHTML = '<h3>Case ' + (i + 1) + ' — que fait ' + esc(h.name) + ' ?<span class="sp"></span><button type="button" class="btn btn-xs" id="chooser-clear" data-act="clear-slot" data-i="' + i + '">Vider</button><button type="button" class="btn btn-xs" data-act="chooser-close" aria-label="Fermer">✕</button></h3>' +
+    (rows.join('') || '<p class="muted small">' + esc(reasonFor(h)) + '</p>');
+}
+function renderMissions(h) {
+  var board = app.vm.solo_board, opt = h && h.activity_options.filter(function (o) { return o.activity === 'solo'; })[0], evening = tb.phase === 'evening', sel = soloTarget();
+  $('missions-count').textContent = board.length ? '· 2 PA la mission, une par jour' : '';
+  $('missions').innerHTML = board.map(function (m) {
+    var open = !!opt && opt.targets.some(function (t) { return t.id === m.id; }), ok = open && !evening;
+    var why = evening ? 'La journée est finie' : !h ? 'Aucun héros vivant' : !opt ? 'Il faut 2 PA disponibles' : 'Réservée : ' + (m.class_name || 'autre classe');
+    return '<button type="button" class="mission-card" id="mission-' + esc(m.id) + '" data-act="solo" data-id="' + esc(m.id) + '" aria-pressed="' + (sel === m.id) + '"' + (ok ? '' : ' disabled title="' + esc(why) + '"') + '>' +
+      '<span class="n">' + esc(m.name) + '</span><span class="b">' + (m.class_name ? esc(m.class_name) : 'Libre') + ' · ' + esc(m.cost_ap) + ' PA</span><span class="stars" aria-label="difficulté ' + esc(m.difficulty) + '">' + stars(m.difficulty) + '</span>' +
+      '<span class="rw">' + esc(m.rewards_label) + '</span><span class="rk">' + esc(m.risk_label) + '</span></button>';
+  }).join('') || '<p class="muted small">Aucune mission affichée aujourd’hui.</p>';
+}
+function craftsHtml(a) {
+  var ups = tb.craftUp[a.id] || {};
+  return '<div class="crafts">' + a.crafts.map(function (c) {
+    return '<div class="craft' + (ups[c.id] ? ' is-up' : '') + '" id="craft-' + esc(a.id) + '-' + esc(c.id) + '"><b>' + esc(c.name) + (ups[c.id] ? ' <span class="craft-star" aria-label="niveau gagné">★</span>' : '') + '</b><span class="lv">niv. ' + esc(c.level) + '</span>' +
+      '<span class="bar"><i style="width:' + ratio(c.xp, c.xp_next) + '%"></i></span><small>' + esc(c.xp) + ' / ' + esc(c.xp_next) + ' XP · ' + esc(c.bonus_label) + '</small></div>';
+  }).join('') + '</div>';
+}
+function craftStar(a) { var ups = tb.craftUp[a.id]; if (!ups) return ''; var names = Object.keys(ups).map(function (k) { return ups[k]; }); return names.length ? ' <span class="pill pill-good craft-badge" title="Savoir-faire monté">★ ' + esc(names.join(', ')) + '</span>' : ''; }
+function renderHeroCrafts(h) {
+  $('crafts-count').textContent = h ? plural(h.crafts.length, 'discipline', 'disciplines') + (tb.craftUp[h.id] ? ' · ★ progrès' : '') : '';
+  $('hero-crafts').innerHTML = h ? (h.crafts.length ? craftsHtml(h) : '<p class="muted small">Aucun savoir-faire.</p>') : '';
+}
+
 function stars(n) { var s = ''; for (var i = 0; i < 5; i++) s += i < n ? '★' : '☆'; return s; }
 function renderQuests() {
   var list = app.vm.quest_board.slice(0, 3), mine = app.plan.vote_quest;
@@ -1087,8 +1642,18 @@ function itemName(id) { var it = app.vm.inventory.filter(function (x) { return x
 
 /* ---------- rendu : tiroir Village / Compagnons ---------- */
 function pipsHtml(level, max) { var s = ''; for (var i = 0; i < max; i++) s += '<i class="' + (i < level ? 'on' : '') + '"></i>'; return '<span class="pips" aria-hidden="true">' + s + '</span>'; }
+function ageGauge(label, have, min) { return '<div class="age-gauge"><span class="gauge-l">' + label + '</span><span class="bar"><i style="width:' + ratio(have, min) + '%"></i></span><span class="gauge-v">' + esc(have) + ' / ' + esc(min) + '</span></div>'; }
+function renderAgeCard() {
+  var v = app.vm.village, n = v.next_age;
+  var html = '<p class="age-name" id="age-name">' + esc(v.age_name) + '</p><p class="age-desc">' + esc(v.age_description) + '</p>' +
+    '<p class="small muted">Défense ' + esc(v.defense) + ' · ' + plural(v.guards, 'garde', 'gardes') + '</p>';
+  if (n) html += '<p class="section-label">Vers ' + esc(n.name) + '</p><div class="age-gauges" id="age-gauges">' + ageGauge('Prestige', n.prestige_have, n.prestige_min) + ageGauge('Niveaux', n.levels_have, n.levels_min) + '</div>';
+  else html += '<p class="small muted" id="age-gauges">Âge le plus élevé : le village ne grandira plus cette saison.</p>';
+  $('age-body').innerHTML = html;
+}
 function renderVillage() {
   var vm = app.vm, c = vm.construction, mine = app.plan.vote_build;
+  renderAgeCard(); renderBiomes(); renderMemorial(); renderChest();
   $('construction-line').textContent = c ? c.name + ' → niveau ' + c.to_level + ' : ' + c.progress + ' / ' + c.needed + ' (' + plural(c.days_left, 'jour restant', 'jours restants') + ')' : 'Aucun chantier en cours : le bâtiment le plus voté ce soir sera lancé si les ressources suffisent.';
   $('vote-line').textContent = mine ? 'Mon vote : ' + nameOf(vm.buildings, mine) + '. Un tap sur un autre bâtiment change le vote.' : 'Un tap sur « Voter » = mon vote du jour.';
   $('village-count').textContent = 'prestige ' + vm.guild.prestige;
@@ -1099,15 +1664,35 @@ function renderVillage() {
   }).join('');
 }
 function nameOf(list, id) { var x = (list || []).filter(function (o) { return o.id === id; })[0]; return x ? x.name : String(id); }
+function renderBiomes() {
+  var list = app.vm.biomes;
+  $('biomes-count').textContent = list.length ? plural(list.length, 'biome', 'biomes') : '';
+  $('biome-list').innerHTML = list.map(function (b) {
+    var d = b.dragon, st = DRAGON_STATE[d.state] || d.state || '';
+    return '<div class="biome" id="biome-' + esc(b.id) + '"><span class="n">' + esc(b.name) + '</span><span class="muted">maîtrise ' + esc(b.mastery) + ' / ' + esc(b.mastery_needed) + '</span><span class="bar"><i style="width:' + ratio(b.mastery, b.mastery_needed) + '%"></i></span>' +
+      '<span class="d">🐉 <b>' + esc(d.name) + '</b> · <span class="dragon-' + esc(d.state) + '">' + esc(st) + '</span>' + (Number.isInteger(d.next_day) ? ' · attendu jour ' + esc(d.next_day) : '') + (Number.isInteger(d.legendary_left) ? ' · ' + plural(d.legendary_left, 'légendaire à gagner', 'légendaires à gagner') : '') + '</span></div>';
+  }).join('') || '<p class="muted small">Aucun biome connu.</p>';
+}
+function renderMemorial() {
+  var v = app.vm.village;
+  $('memorial-count').textContent = plural(v.trophies.length, 'trophée', 'trophées') + ' · ' + plural(v.graves.length, 'tombe', 'tombes');
+  $('trophy-list').innerHTML = v.trophies.map(function (t) { return '<li><span>💀 ' + esc(t.dragon_name) + '</span><span class="muted">jour ' + esc(t.day) + '</span></li>'; }).join('') || '<li class="muted">Aucun trophée sur le hall.</li>';
+  $('grave-list').innerHTML = v.graves.map(function (g) { return '<li><span>✝ ' + esc(g.name) + '</span><span class="muted">jour ' + esc(g.day) + ' · ' + esc(g.cause) + '</span></li>'; }).join('') || '<li class="muted">Aucune tombe près de la chapelle.</li>';
+}
+function renderChest() {
+  var c = app.vm.guild.chest;
+  $('chest-count').textContent = plural(c.length, 'objet', 'objets');
+  $('chest-list').innerHTML = c.map(function (it) { return '<li><strong class="' + rarityClass(it.rarity) + '">' + esc(it.name) + '</strong><span class="muted">' + esc(RARITY_LABEL[it.rarity] || it.rarity) + '</span></li>'; }).join('') || '<li class="muted">Le coffre de guilde est vide.</li>';
+}
 function attrGrid(a) { return '<div class="attr-grid">' + a.attributes.map(function (x) { return '<div class="attr"><span>' + esc(x.name) + '</span><b>' + esc(x.value) + '</b></div>'; }).join('') + '</div>'; }
 function skillsList(a) { return '<ul class="skills">' + a.skills.map(function (s) { return '<li class="' + (s.unlocked ? '' : 'locked') + '"><span>' + (s.unlocked ? '✓ ' : '· ') + esc(s.name) + '</span><span class="muted">niv. ' + esc(s.level_req) + '</span></li>'; }).join('') + '</ul>'; }
 function equipList(a) { return '<ul class="equip-list">' + a.equipment.map(function (e) { return '<li><span class="slot">' + esc(e.slot_name) + '</span>' + (e.item_name ? '<strong class="' + rarityClass(e.rarity) + '">' + esc(e.item_name) + '</strong>' : '<span class="muted">—</span>') + '</li>'; }).join('') + '</ul>'; }
 function effectifCard(a) {
   var m = managerById(a.manager_id), cls = a.injury ? 'pill-crit' : !a.is_available ? 'pill-warn' : 'pill-good';
   return '<article class="adv-card' + (a.is_mine ? ' is-mine' : '') + '" id="eff-' + esc(a.id) + '"><header class="adv-head"><span class="adv-glyph" aria-hidden="true">' + esc(a.class_glyph) + '</span><div class="adv-id"><strong>' + esc(a.name) + '</strong><span class="muted">' +
-    esc(a.class_name) + ' · niv. ' + a.level + ' · ' + (a.is_mine ? 'mon héros' : 'héros de ' + esc(m.name)) + '</span></div><span class="pill ' + cls + '">' + esc(a.status_label) + '</span></header>' +
+    esc(a.class_name) + ' · niv. ' + a.level + ' · ' + (a.is_mine ? 'mon héros' : 'héros de ' + esc(m.name)) + '</span></div><span class="pill ' + cls + '">' + esc(a.status_label) + '</span>' + craftStar(a) + '</header>' +
     gaugesHtml(a) + xpBar(a) + '<div class="section-label">Attributs</div>' + attrGrid(a) + '<div class="section-label">Traits</div>' + traitsChips(a) +
-    '<div class="section-label">Compétences</div>' + skillsList(a) + '<div class="section-label">Équipement</div>' + equipList(a) + '</article>';
+    '<div class="section-label">Compétences</div>' + skillsList(a) + '<div class="section-label">Équipement</div>' + equipList(a) + '<div class="section-label">Savoir-faire</div>' + craftsHtml(a) + '</article>';
 }
 function renderEffectif() {
   var list = app.managers.map(function (m) { return heroOf(m.id); }).filter(Boolean);
@@ -1145,11 +1730,22 @@ function shiftChronicle(delta) {
   if (i < 0 || i >= days.length) return;
   app.viewDay = days[i]; renderChronicle();
 }
+function phaseClass(phase) { var p = String(phase || '').toLowerCase(); return p === 'menace' ? ' is-menace' : p === 'presage' ? ' is-presage' : p === 'village' ? ' is-village' : p === 'deuil' ? ' is-deuil' : p === 'solo' ? ' is-solo' : ''; }
+function lootHtml(line, legendary) { var s = esc(line); return legendary && String(line).indexOf(legendary) === 0 ? '<span class="rar-legendary">' + s + '</span>' : s; }
+function threatMetaHtml(t) {
+  var html = '<p class="meta">Défenseurs : ' + ((t.defenders || []).map(esc).join(', ') || 'aucun') + '</p>';
+  if (t.building_hit) html += '<p class="meta down">Bâtiment touché : ' + esc(t.building_hit) + '</p>';
+  if (t.loot && t.loot.length) html += '<p class="loot"><strong>Butin :</strong> ' + t.loot.map(function (l) { return lootHtml(l, t.legendary); }).join(', ') + '</p>';
+  return html;
+}
 function chronicleHtml(c) {
-  var html = '<article class="chron">' + (titleHasDay(c.title) ? '' : '<p class="chron-eyebrow">Jour ' + esc(c.day) + '</p>') + '<h2 class="chron-title">' + esc(c.title || 'Jour ' + c.day) + '</h2>' + (c.headline ? '<p class="chron-headline">' + esc(c.headline) + '</p>' : '');
+  var ai = ageIndexOfDay(c.day), t = c.threat && typeof c.threat === 'object' ? c.threat : null;
+  var eyebrow = '<p class="chron-eyebrow">' + (titleHasDay(c.title) ? 'Chronique' : 'Jour ' + esc(c.day)) + (ai !== null ? '<span class="chron-badge" id="chron-age">' + esc(ageNameAt(ai)) + '</span>' : '') + (t ? '<span class="chron-badge is-crit">' + esc(t.dragon_name || 'Dragon') + ' : ' + esc(t.outcome) + '</span>' : '') + '</p>';
+  var html = '<article class="chron">' + eyebrow + '<h2 class="chron-title">' + esc(c.title || 'Jour ' + c.day) + '</h2>' + (c.headline ? '<p class="chron-headline">' + esc(c.headline) + '</p>' : '');
   var placed = false;
   (c.sections || []).forEach(function (s) {
-    html += '<section class="chron-section"><h3>' + esc(s.title || s.phase) + '</h3>' + (s.lines || []).map(function (l) { return '<p>' + esc(l) + '</p>'; }).join('') + '</section>';
+    var cls = phaseClass(s.phase);
+    html += '<section class="chron-section' + cls + '"><h3>' + esc(s.title || s.phase) + '</h3>' + (s.lines || []).map(function (l) { return '<p>' + esc(l) + '</p>'; }).join('') + (cls === ' is-menace' && t ? threatMetaHtml(t) : '') + '</section>';
     if (!placed && c.expedition && /exp/i.test(String(s.phase))) { html += expeditionHtml(c.expedition); placed = true; }
   });
   if (!placed && c.expedition) html += expeditionHtml(c.expedition);
@@ -1169,18 +1765,24 @@ function expeditionHtml(e) {
 }
 function summaryHtml(s) {
   if (!s) return '';
-  var gold = Number(s.gold_delta) || 0;
+  var gold = Number(s.gold_delta) || 0, list = function (k) { return Array.isArray(s[k]) ? s[k] : []; };
   return '<div class="summary"><div><b>Or de guilde</b><span class="' + (gold > 0 ? 'up' : gold < 0 ? 'down' : '') + '">' + signed(gold) + '</span></div>' +
-    '<div><b>Blessés</b>' + ((s.injuries || []).map(esc).join(', ') || '—') + '</div><div><b>Niveaux</b>' + ((s.level_ups || []).map(esc).join(', ') || '—') + '</div>' +
-    '<div><b>Chantier</b>' + (esc(s.construction) || '—') + '</div></div>';
+    '<div><b>Blessés</b>' + (list('injuries').map(esc).join(', ') || '—') + '</div><div><b>Niveaux</b>' + (list('level_ups').map(esc).join(', ') || '—') + '</div>' +
+    '<div><b>Chantier</b>' + (esc(s.construction) || '—') + '</div>' +
+    (s.village_age_up ? '<div><b>Village</b><span class="up">' + esc(s.village_age_up) + '</span></div>' : '') +
+    (s.threat_outcome ? '<div><b>Menace</b><span class="' + (s.threat_outcome === 'ravage' ? 'down' : 'up') + '">Dragon ' + esc(s.threat_outcome) + '</span></div>' : '') +
+    (s.presage ? '<div><b>Présage</b>' + esc(s.presage) + '</div>' : '') +
+    (list('deaths').length ? '<div id="sum-deaths"><b>Deuil</b><span class="down">' + list('deaths').map(esc).join(', ') + '</span></div>' : '') +
+    (list('legendary').length ? '<div id="sum-legendary"><b>Légendaire</b><span class="rar-legendary">' + list('legendary').map(esc).join(', ') + '</span></div>' : '') +
+    (list('recruits').length ? '<div><b>Recrues</b>' + list('recruits').map(esc).join(', ') + '</div>' : '') +
+    (list('solo_results').length ? '<div class="wide" id="sum-solo"><b>Missions solo</b><ul>' + list('solo_results').map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('') + '</ul></div>' : '') + '</div>';
 }
-
 /* ---------- rendu : journal ---------- */
 function renderJournal() {
   $('journal-count').textContent = plural(app.journal.length, 'journée', 'journées') + ' · graine ' + app.seed;
   $('journal-rows').innerHTML = app.journal.map(function (d) {
-    var c = app.chronicles[d.day];
-    return '<li><span>Jour ' + d.day + '</span><span class="t" title="' + esc(c ? c.headline : '') + '">' + esc(c ? c.title : '') + '</span><code class="hashcell">' + esc(d.hash) + '</code></li>';
+    var c = app.chronicles[d.day], ai = ageIndexOfDay(d.day), tag = ai !== null ? '<span class="age-tag">' + esc(ageNameAt(ai)) + '</span>' : '';
+    return '<li><span>Jour ' + d.day + '</span><span class="t" title="' + esc(c ? c.headline : '') + '">' + tag + esc(c ? c.title : '') + '</span><code class="hashcell">' + esc(d.hash) + '</code></li>';
   }).join('') || '<li class="muted" style="display:block">Aucune journée jouée. Empreinte de départ : ' + esc(app.vm.hash) + '.</li>';
   $('seed-input').value = app.seed;
   $('storage-status').textContent = app.storageOk ? 'Sauvegarde locale active : le journal et la graine sont conservés dans ce navigateur.' : 'Sauvegarde locale indisponible : la partie vit le temps de cette page (export possible).';
@@ -1205,8 +1807,14 @@ function onAction(btn) {
     case 'launch': launchDay(); break;
     case 'next-day': prepareMorning(); render(); break;
     case 'skip': skipDay(); break;
-    case 'choose': chooseActivity(btn.dataset.activity); break;
-    case 'target': chooseTarget(id); break;
+    case 'preset': applyPreset(id); break;
+    case 'slot': openSlot(parseInt(btn.dataset.i, 10)); break;
+    case 'choose-slot': chooseForSlot(parseInt(btn.dataset.i, 10), btn.dataset.activity, btn.dataset.target || null); break;
+    case 'clear-slot': clearSlot(parseInt(btn.dataset.i, 10)); break;
+    case 'chooser-close': app.slotOpen = -1; renderHero(); break;
+    case 'solo': chooseSolo(id); break;
+    case 'heir': toggleHeir(id); break;
+    case 'new-game-prompt': openDrawer('journal'); $('seed-input').focus(); break;
     case 'replay': replayJournal(); break;
     case 'export': exportJournal(); break;
     case 'import': importJournal($('journal-json').value); break;

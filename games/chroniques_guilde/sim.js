@@ -1,7 +1,9 @@
 /* Chroniques de Guilde — moteur pur (UMD, aucune dépendance).
- * Date : 2026-09-17. Source : CONTRACT.md + design_aventuriers.md + design_quetes_donjons.md
- * + design_objets_economie.md (§0-2). Entiers partout, mulberry32 sur la graine du jour,
- * un seul flux RNG consommé dans l'ordre des phases du contrat.
+ * Date : 2026-09-17 (V1-V3), V4 le 2026-09-18. Source : CONTRACT.md (section V4) + design_aventuriers.md
+ * + design_quetes_donjons.md + design_objets_economie.md (§0-2). Entiers partout, mulberry32 sur la graine
+ * du jour, un seul flux RNG consommé dans l'ordre des phases du contrat.
+ * V4 : dragons de biome réveillés par la maîtrise (plus de calendrier), points d'action et journées composées
+ * (action plan), savoir-faire par l'usage, missions solo, mort et héritier, défaite (guilde dispersée).
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -114,7 +116,11 @@
       slots: byId(data.slots), rarities: byId(data.rarities), events: byId(data.events),
       attrs: data.attributes.map(a => a.id), attr_names: byId(data.attributes),
       templates: data.templates, difficulty: {}, profiles: byId(data.ai_profiles),
-      skills_by_class: {}
+      skills_by_class: {},
+      ages: data.village_ages || [{ id: 'campement', name: 'Campement', prestige_min: 0, levels_min: 0, defense: 0, guards: 0, description: '' }],
+      threats: data.threats || null,
+      dragons: data.dragons || {}, crafts: byId(data.crafts || []), crafts_list: data.crafts || [],
+      solo: byId(data.solo_missions || []), solo_list: data.solo_missions || []
     };
     for (const d of data.difficulty) D.difficulty[d.d] = d;
     for (const s of data.skills) (D.skills_by_class[s.class_id] = D.skills_by_class[s.class_id] || []).push(s);
@@ -144,6 +150,38 @@
   function perfPct(h) {
     return clamp(50 + div(h.form * 2, 5) + div(h.morale, 5) - div(Math.max(0, h.fatigue - 50) * 3, 5), 20, 110);
   }
+  // ---- Savoir-faire (V4) : XP par l'usage, niveaux 1-10, bonus chiffré par niveau ----
+  function craftXp(h, id) { return (h.crafts && h.crafts[id]) || 0; }
+  function craftLevel(D, xp) {
+    const t = D.C.craft_xp_table || [0, 0];
+    let lv = 1;
+    while (lv < t.length - 1 && xp >= t[lv + 1]) lv++;
+    return lv;
+  }
+  function craftXpNext(D, lv) { const t = D.C.craft_xp_table || [0, 0]; return lv >= t.length - 1 ? t[t.length - 1] : t[lv + 1]; }
+  function craftBonus(D, h, id) {
+    const c = D.crafts[id];
+    if (!c) return 0;
+    const lv = craftLevel(D, craftXp(h, id));
+    const per = (c.per_level_class && c.per_level_class[h.class_id] !== undefined) ? c.per_level_class[h.class_id] : c.per_level;
+    return per * (lv - 1);
+  }
+  function craftBonusLabel(D, h, id) { return fill(D.crafts[id].label, { n: craftBonus(D, h, id) }); }
+  function emptyCrafts(D) { const o = {}; for (const c of D.crafts_list) o[c.id] = 0; return o; }
+  // ---- Points d'action (V4) ----
+  function apMax(D, state, h) {
+    let ap = D.C.ap_base || 3;
+    if (hasTrait(h, 'endurant') || bLevel(D, state, 'training_ground') >= (D.C.ap_training_ground_level || 3)) ap += 1;
+    return Math.max(D.C.ap_min || 1, ap);
+  }
+  function apToday(D, state, h) {
+    let ap = apMax(D, state, h);
+    if (h.fatigue >= (D.C.ap_fatigue_threshold || 60)) ap -= 1;
+    return Math.max(D.C.ap_min || 1, ap);
+  }
+  function apCost(D, activity) { const c = D.C.ap_cost || {}; return c[activity] === undefined ? 1 : c[activity]; }
+  function isFullDay(activity) { return activity === 'expedition' || activity === 'defend' || activity === 'rest'; }
+  function slotsCost(D, slots) { let n = 0; for (const s of slots) if (!isFullDay(s.activity)) n += apCost(D, s.activity); return n; }
   function itemStats(D, state, h) {
     const tot = {};
     const inv = state.inventories[h.owner];
@@ -174,13 +212,14 @@
     const it = itemStats(D, state, h);
     const p = {
       id: h.id, name: heroName(h), class_id: h.class_id, level: h.level, owner: h.owner, gender: h.gender,
-      hp_max: pct(20 + A.vigor * 3 + h.level * 2, perf) + (it.hp || 0),
+      hp_max: pct(pct(20 + A.vigor * 3 + h.level * 2, perf), 100 + craftBonus(D, h, 'endurance')) + (it.hp || 0),
       atk: pct(attackBase(D, h, A), perf) + (it.atk || 0) + (h.class_id === 'mage' ? (it.magic || 0) : 0),
       heal: pct(A.will * 2 + A.mind, perf) + (it.heal || 0),
       def: A.vigor + div(A.strength, 2) + (it.def || 0),
       spd: 7 + div(h.level, 2) + div(A.dexterity, 8) + (it.spd || 0),
       crit: Math.min(400, 30 + A.luck * 5) + (it.crit || 0) + (hasSkill(D, h, 'precise_shot') ? 100 : 0),
-      dodge: Math.min(350, A.dexterity * 4),
+      dodge: Math.min(350, A.dexterity * 4) + craftBonus(D, h, 'discretion'),
+      hit_bonus: craftBonus(D, h, 'archerie'), xp_pct: craftBonus(D, h, 'erudition'),
       fire: it.fire ? 1 : 0, morale: h.morale, fatigue: h.fatigue, traits: h.traits.slice(),
       magic: h.class_id === 'mage' ? 1 : 0, priority: (hasSkill(D, h, 'taunt') ? 100 : 0) + (hasTrait(h, 'brave') ? 50 : 0) - (hasTrait(h, 'coward') ? 50 : 0),
       skills: D.skills_by_class[h.class_id].filter(s => s.type === 'active' && h.level >= s.unlock_level).map(s => s.id),
@@ -205,12 +244,17 @@
     const it = itemStats(D, state, h);
     const tool = it['gather_' + biome.id] || 0;
     if (tool) p = pct(p, 100 + tool);
+    const herb = craftBonus(D, h, 'herboristerie');
+    if (herb) p = pct(p, 100 + herb);
     return p;
   }
   function craftPower(D, state, h) {
     const cls = D.classes[h.class_id];
     let p = div((10 + attrEff(D, h, cls.craft_attr)) * (100 + cls.craft_affinity), 100);
-    return pct(p, perfPct(h));
+    p = pct(p, perfPct(h));
+    const forge = craftBonus(D, h, 'forge');
+    if (forge) p = pct(p, 100 + forge);
+    return p;
   }
   function xpNext(D, h) { return h.level >= D.C.level_max ? D.raw.xp_table[D.C.level_max] : D.raw.xp_table[h.level + 1]; }
 
@@ -232,7 +276,7 @@
   }
 
   function genTraits(D, rng, rarity) {
-    const all = D.raw.traits.map(t => t.id);
+    const all = D.raw.traits.filter(t => t.generated !== false).map(t => t.id);
     const positive = all.filter(t => D.traits[t].polarity === 1);
     const n = (rarity === 'rare' || rarity === 'legendary') ? 2 : 1;
     const t1 = (rarity === 'rare' || rarity === 'legendary') ? positive[rng.roll(positive.length)] : all[rng.roll(all.length)];
@@ -275,7 +319,8 @@
       form: 50, fatigue: 0, morale: 60, injury: { severity: 0, days_left: 0 }, scars: 0,
       age_seasons: age, traits: traits, wage: opts.wage !== undefined ? opts.wage : wageOf(D, level, rarity),
       unpaid_days: 0, equipment: { weapon: null, armor: null, trinket: null, potion: null },
-      history: { expeditions: 0, victories: 0, injuries: 0, level_ups: 0 }, last_activity: 'rest', last_team: []
+      history: { expeditions: 0, victories: 0, injuries: 0, level_ups: 0 }, last_activity: 'rest', last_team: [],
+      crafts: emptyCrafts(D)
     };
     return h;
   }
@@ -391,8 +436,13 @@
       warehouse: {}, inventories: {}, forge_queue: [], quests: [], tavern: [], market: [], quarters: {},
       next_uid: 1, next_quest: 1, next_hero: {}, history: [], last_chronicle: null,
       derby: { last: null }, season_report: null, notices: [],
-      stats: { expeditions: 0, successes: 0, gold_earned: 0, derby_wins: 0, derby_losses: 0, derby_draws: 0, level_ups: 0, injuries: 0, items_found: 0 }
+      village_age: 0, threats: [],
+      // V4 : maîtrise des biomes, dragons de biome, trophées, tombes, coffre de guilde, tableau solo, chute.
+      biome_mastery: {}, dragons: {}, trophies: [], graves: [], guild_chest: [], solo_board: {}, legendary_given: [],
+      collapsed: null, hall_hits: 0,
+      stats: { expeditions: 0, successes: 0, gold_earned: 0, derby_wins: 0, derby_losses: 0, derby_draws: 0, level_ups: 0, injuries: 0, items_found: 0, deaths: 0, dragons_slain: 0, solo_done: 0, solo_success: 0 }
     };
+    for (const b of sortedKeys(D.dragons)) { state.biome_mastery[b] = 0; state.dragons[b] = { state: 'dormant', next_day: null, awakenings: 0, slain_day: null, last_outcome: null }; }
     for (const b of D.raw.buildings) state.buildings[b.id] = b.start_level;
     for (const r of D.raw.resources) state.warehouse[r.id] = 0;
     for (const m of state.managers) {
@@ -431,8 +481,30 @@
     refreshMarket(D, state, rng);
     const nOffers = D.C.tavern_offers[bLevel(D, state, 'tavern')];
     for (let i = 0; i < nOffers; i++) state.tavern.push(genOffer(D, state, rng, i));
+    // V4 : plus de calendrier de menaces ; les dragons se réveillent par la maîtrise des biomes (phase 11c).
+    for (const mid of sortedKeys(state.inventories)) state.solo_board[mid] = rollSoloBoard(D, state, rng, mid);
     return attachData(state, data);
   }
+  // Tableau des missions solo d'un manager : 2 missions tirées parmi les éligibles (ids triés), renouvelées le soir.
+  function soloEligible(D, state, managerId) {
+    const heroes = heroesOf(state, managerId);
+    const classes = {};
+    for (const h of heroes) classes[h.class_id] = 1;
+    const avg = heroes.length ? div(sum(heroes.map(h => h.level)), heroes.length) : 1;
+    const dmax = clamp(div(avg, 2) + 1, 2, 5);
+    return D.solo_list.filter(m => (m.class_id === null || classes[m.class_id]) && m.difficulty <= dmax).map(m => m.id).sort();
+  }
+  function rollSoloBoard(D, state, rng, managerId) {
+    let pool = soloEligible(D, state, managerId);
+    if (pool.length < 2) pool = D.solo_list.map(m => m.id).sort();
+    const n = Math.min(D.C.solo_per_day || 2, pool.length), out = [];
+    for (let i = 0; i < n; i++) { const pick = pool[rng.roll(pool.length)]; out.push(pick); pool = pool.filter(x => x !== pick); }
+    return out.sort();
+  }
+  function threatOn(state, day) { return (state.threats || []).filter(t => t.day === day && t.outcome === null)[0] || null; }
+  function threatToday(state) { return threatOn(state, state.day); }
+  function villageAge(D, state) { return D.ages[clamp(state.village_age || 0, 0, D.ages.length - 1)]; }
+  function buildingLevelsSum(state) { return sum(sortedKeys(state.buildings).map(b => state.buildings[b])); }
   function addHero(D, state, owner, h) {
     h.id = 'h_' + owner + '_' + pad3(state.next_hero[owner]);
     state.next_hero[owner] += 1;
@@ -477,7 +549,7 @@
   // ===================================================================================
   // 5. VALIDATION DES ACTIONS (jamais d'exception, raison en français)
   // ===================================================================================
-  const ACTIVITIES = ['gather', 'train', 'craft', 'rest', 'expedition'];
+  const ACTIVITIES = ['gather', 'train', 'craft', 'rest', 'expedition', 'defend', 'solo'];
   function bad(reason) { return { ok: false, reason: reason }; }
   function validateAction(state, action) {
     try { return validateInner(state, action); } catch (e) { return bad('action malformée'); }
@@ -491,6 +563,7 @@
     const mine = id => state.heroes[id] && state.heroes[id].owner === a.manager_id ? state.heroes[id] : null;
     switch (a.type) {
       case 'assign': return validateAssign(D, state, a, p, mine);
+      case 'plan': return validatePlan(D, state, a, p, mine);
       case 'vote_quest': return state.quests.some(q => q.id === p.quest_id) ? { ok: true } : bad('quête absente du tableau');
       case 'vote_build': {
         const b = D.buildings[p.building_id];
@@ -508,8 +581,10 @@
       case 'recruit': {
         const o = state.tavern.filter(x => x.id === p.recruit_id)[0];
         if (!o) return bad('cette recrue n\'est plus à la taverne');
+        if (o.heir_for && o.heir_for !== a.manager_id) return bad('cet héritier est réservé à ' + managerName(state, o.heir_for));
         if (state.purses[a.manager_id] < o.cost) return bad('or insuffisant (' + o.cost + ' requis)');
-        if (heroesOf(state, a.manager_id).length >= rosterCap(D, state)) return bad('effectif complet (' + rosterCap(D, state) + ')');
+        // Exception explicite : l'héritier d'un mort est recruté même effectif complet (max_heroes = 1 compris).
+        if (!o.heir_for && heroesOf(state, a.manager_id).length >= rosterCap(D, state)) return bad('effectif complet (' + rosterCap(D, state) + ')');
         return { ok: true };
       }
       case 'equip': {
@@ -560,28 +635,89 @@
       default: return bad('type d\'action inconnu');
     }
   }
+  // Un créneau d'activité (V4). Renvoie null si valide, sinon la raison.
+  function slotWhy(D, state, a, h, s) {
+    if (!s || typeof s !== 'object' || ACTIVITIES.indexOf(s.activity) < 0) return 'activité inconnue';
+    if (s.activity === 'defend' && !threatToday(state)) return 'pas de menace aujourd\'hui';
+    if (h.fatigue >= 100 && s.activity !== 'rest') return heroName(h) + ' est épuisé' + (h.gender === 'f' ? 'e' : '') + ' : repos obligatoire';
+    if (h.injury.severity >= 1 && s.activity !== 'rest' && s.activity !== 'craft') return heroName(h) + ' est blessé' + (h.gender === 'f' ? 'e' : '') + ' : repos ou forge seulement';
+    if (s.activity === 'gather' && !D.resources[s.target]) return 'ressource cible inconnue';
+    if (s.activity === 'gather' && D.resources[s.target].gatherable === false) return 'ressource non récoltable';
+    if (s.activity === 'train' && D.attrs.indexOf(s.target) < 0) return 'attribut cible inconnu';
+    if (s.activity === 'craft' && s.target && !D.recipes[s.target]) return 'recette cible inconnue';
+    if (s.activity === 'solo') {
+      if (!D.solo[s.target]) return 'mission solo inconnue';
+      if ((state.solo_board[a.manager_id] || []).indexOf(s.target) < 0) return 'mission absente de votre tableau';
+      const m = D.solo[s.target];
+      if (m.class_id && m.class_id !== h.class_id) return 'mission réservée aux ' + D.classes[m.class_id].name.toLowerCase() + 's';
+    }
+    return null;
+  }
+  // assign = journée pleine d'une activité (compatibilité) ; on la valide comme le plan équivalent.
   function validateAssign(D, state, a, p, mine) {
     const h = mine(p.adventurer_id);
     if (!h) return bad('aventurier inconnu ou pas à vous');
     if (ACTIVITIES.indexOf(p.activity) < 0) return bad('activité inconnue');
-    if (h.injury.severity >= 2 && p.activity !== 'rest') return bad(heroName(h) + ' est trop blessé : repos obligatoire');
-    if (h.fatigue >= 100 && p.activity !== 'rest') return bad(heroName(h) + ' est épuisé : repos obligatoire');
-    if (h.injury.severity >= 1 && p.activity === 'expedition') return bad(heroName(h) + ' est blessé : pas d\'expédition');
-    if (p.activity === 'gather' && !D.resources[p.target]) return bad('ressource cible inconnue');
-    if (p.activity === 'train' && D.attrs.indexOf(p.target) < 0) return bad('attribut cible inconnu');
-    if (p.activity === 'craft' && p.target && !D.recipes[p.target]) return bad('recette cible inconnue');
+    if (p.activity === 'solo') return bad('une mission solo se planifie par l\'action plan (2 PA)');
+    return validateSlots(D, state, a, h, slotsOfAssign(D, state, h, p.activity, p.target || null));
+  }
+  function validatePlan(D, state, a, p, mine) {
+    const h = mine(p.adventurer_id);
+    if (!h) return bad('aventurier inconnu ou pas à vous');
+    if (!Array.isArray(p.slots)) return bad('plan sans créneaux');
+    return validateSlots(D, state, a, h, p.slots);
+  }
+  function validateSlots(D, state, a, h, slots) {
+    if (!slots.length) return { ok: true };            // plan vide = repos
+    for (const s of slots) { const why = slotWhy(D, state, a, h, s); if (why) return bad(why); }
+    const full = slots.filter(s => isFullDay(s.activity));
+    if (full.length && slots.length > 1) return bad('une journée entière (' + activityLabel(full[0].activity) + ') ne se combine pas');
+    if (slots.filter(s => s.activity === 'solo').length > 1) return bad('une seule mission solo par jour');
+    const cost = slotsCost(D, slots), ap = apToday(D, state, h);
+    if (cost > ap) return bad('plan trop chargé pour ' + heroName(h) + ' : ' + cost + ' PA demandés, ' + ap + ' disponible(s)');
     return { ok: true };
+  }
+  function activityLabel(act) { return { gather: 'Récolte', train: 'Entraînement', craft: 'Forge', rest: 'Repos', expedition: 'Expédition', defend: 'Défendre le village', solo: 'Mission solo' }[act] || act; }
+  function slotsOfAssign(D, state, h, activity, target) {
+    if (activity === 'rest') return [];
+    if (isFullDay(activity)) return [{ activity: activity, target: null }];
+    const out = [], n = Math.max(1, div(apToday(D, state, h), apCost(D, activity)));
+    for (let i = 0; i < n; i++) out.push({ activity: activity, target: target || null });
+    return out;
   }
 
   // ===================================================================================
   // 6. PLANS PAR DÉFAUT (humain raisonnable, IA prudente, IA audacieuse) — déterministes
   // ===================================================================================
+  const HUMAN_PROFILE = { rest_fatigue: 60, expedition_max: 3, expedition_fatigue_max: 45, expedition_min_level_margin: -1, train_every: 3, buy_potions: false, vote_quest: 'fit', vote_build: 'cheapest', recruit_gold_margin: 60, defend: 'always' };
+  function profileOf(D, m) { return m.kind === 'ai' ? D.profiles[m.profile] : HUMAN_PROFILE; }
+  function canDefend(h) { return h.injury.severity < 2 && h.fatigue < 100; }
+  // Défenseurs prévus par les managers qui défendent « toujours » (humain, prudent) : base déterministe des décisions de l'audacieux.
+  function defendersAlways(D, state) {
+    let n = 0;
+    for (const m of state.managers) if (profileOf(D, m).defend === 'always') n += heroesOf(state, m.id).filter(canDefend).length;
+    return n;
+  }
+  // Décision « défendre » d'un héros pour un jour d'attaque ; othersAlways = défenseurs prévus par les autres (calcul ci-dessus).
+  function defendDecision(D, m, h, othersAlways) {
+    if (!canDefend(h)) return false;
+    const mode = profileOf(D, m).defend;
+    if (mode === 'always') return true;
+    if (mode === 'if_needed') return h.injury.severity === 0 && othersAlways < 2;
+    return false;
+  }
+  function plannedDefenders(D, state) {
+    const always = defendersAlways(D, state);
+    let n = 0;
+    for (const m of state.managers) for (const h of heroesOf(state, m.id)) if (defendDecision(D, m, h, always)) n++;
+    return n;
+  }
   function planDefaults(state, managerId) {
     const D = index(state.__data || GLOBAL_DATA);
     const m = managerOf(state, managerId);
     if (!m) return [];
     const prof = m.kind === 'ai' ? D.profiles[m.profile] : D.profiles.prudent;
-    const P = m.kind === 'ai' ? prof : { rest_fatigue: 60, expedition_max: 3, expedition_fatigue_max: 45, expedition_min_level_margin: -1, train_every: 3, buy_potions: false, vote_quest: 'fit', vote_build: 'cheapest', recruit_gold_margin: 60 };
+    const P = m.kind === 'ai' ? prof : HUMAN_PROFILE;
     const out = [];
     const act = (type, payload) => out.push({ manager_id: managerId, day: state.day, type: type, payload: payload });
     const heroes = heroesOf(state, managerId);
@@ -597,13 +733,21 @@
     let PP = P;
     if (derbyDay) PP = Object.assign({}, P, { expedition_fatigue_max: P.expedition_fatigue_max + 30, rest_fatigue: Math.max(P.rest_fatigue, P.expedition_fatigue_max + 31), expedition_min_level_margin: P.expedition_min_level_margin - 1 });
     else if (derbyEve) PP = Object.assign({}, P, { expedition_fatigue_max: 15 });   // veille de derby : on garde les troupes fraîches
-    planAssign(D, state, PP, heroes, target, needs, act);
+    planAssign(D, state, PP, heroes, target, needs, act, m);
     planEconomy(D, state, m, P, heroes, act);
     return out.filter(x => validateAction(state, x).ok);
   }
+  // Biome préféré des votes : celui dont la maîtrise est la plus haute (égalité : id ASCII le plus petit) — concentration naturelle.
+  function preferredBiome(D, state) {
+    let best = null;
+    for (const b of sortedKeys(state.biome_mastery || {})) if (best === null || state.biome_mastery[b] > state.biome_mastery[best]) best = b;
+    return best;
+  }
   function pickQuestVote(D, state, mode, avg) {
-    const qs = state.quests.slice().sort((a, b) => (a.id < b.id ? -1 : 1));
+    let qs = state.quests.slice().sort((a, b) => (a.id < b.id ? -1 : 1));
     if (!qs.length) return null;
+    const pref = preferredBiome(D, state);
+    if (pref && qs.some(q => q.biome === pref)) qs = qs.filter(q => q.biome === pref);
     const gold = q => D.difficulty[q.difficulty].gold_base * D.quest_types[q.type].reward_gold_pct;
     const easiest = qs.reduce((b, q) => (q.difficulty < b.difficulty ? q : b), qs[0]);
     if (mode === 'easiest') return easiest;
@@ -659,7 +803,7 @@
       let room = missing - free;
       for (const r of sortedKeys(state.warehouse)) {
         if (room <= 0) break;
-        if (wanted[r] || !(state.warehouse[r] > 0)) continue;
+        if (wanted[r] || !(state.warehouse[r] > 0) || (D.resources[r] && D.resources[r].dragon)) continue;   // les matériaux de dragon restent à l'entrepôt
         const q = Math.min(state.warehouse[r], room);
         act('withdraw', { resource_id: r, qty: q }); room -= q;
       }
@@ -689,23 +833,81 @@
       if (h) { filled[h.id + '|' + slot] = 1; act('equip', { adventurer_id: h.id, item_id: it.uid }); }
     }
   }
-  function planAssign(D, state, P, heroes, quest, needs, act) {
+  // ---- V4 : journées composées. Chaque héros reçoit un plan (créneaux) ou un assign de journée entière (defend, rest, expedition). ----
+  function soloBoardOf(D, state, h) {
+    return (state.solo_board[h.owner] || []).map(id => D.solo[id]).filter(m => m && (!m.class_id || m.class_id === h.class_id)).sort((a, b) => a.difficulty - b.difficulty || (a.id < b.id ? -1 : 1));
+  }
+  function soloPick(D, state, h, mode) {
+    const board = soloBoardOf(D, state, h);
+    if (!board.length) return null;
+    if (mode === 'easy') { const easy = board.filter(m => m.difficulty <= 2); return easy.length ? easy[0] : null; }
+    if (mode === 'hard') return board[board.length - 1];
+    const fit = board.filter(m => m.difficulty <= div(h.level, 2) + 1);     // « raisonnable » (humain)
+    return fit.length ? fit[fit.length - 1] : board[0];
+  }
+  function trainSlot(D, h) { return { activity: 'train', target: D.classes[h.class_id].primary }; }
+  function fillSlots(D, state, h, ap, first, needs) {   // complète ap créneaux avec first (craft si commande, sinon récolte)
+    const out = [];
+    for (let i = 0; i < ap; i++) out.push(first === 'craft' && craftJobFor(state, h) ? { activity: 'craft', target: null } : first === 'train' ? trainSlot(D, h) : { activity: 'gather', target: gatherTargetFor(D, h, needs) });
+    return out;
+  }
+  function planAssign(D, state, P, heroes, quest, needs, act, m) {
     let sent = 0;
     const maxParty = quest ? Math.min(P.expedition_max, D.quest_types[quest.type].party_max) : 0;
     const rec = quest ? D.difficulty[quest.difficulty].rec_level : 99;
+    const threat = threatToday(state);
+    const othersAlways = threat && m ? defendersAlways(D, state) - (profileOf(D, m).defend === 'always' ? heroes.filter(canDefend).length : 0) : 0;
+    const profile = m && m.kind === 'ai' ? m.profile : 'humain';
     for (const h of heroes) {
-      let plan;
-      if (h.injury.severity >= 1 || h.fatigue >= 100) plan = { activity: 'rest' };
-      else if (h.fatigue >= P.rest_fatigue || h.morale < 25) plan = { activity: 'rest' };
-      else if (quest && sent < maxParty && h.fatigue <= P.expedition_fatigue_max && h.level >= rec + P.expedition_min_level_margin) { plan = { activity: 'expedition' }; sent++; }
-      else if (state.day % P.train_every === 0) plan = { activity: 'train', target: D.classes[h.class_id].primary };
-      else if (craftJobFor(state, h)) plan = { activity: 'craft' };
-      else plan = { activity: 'gather', target: gatherTargetFor(D, h, needs) };
-      act('assign', { adventurer_id: h.id, activity: plan.activity, target: plan.target });
+      const ap = apToday(D, state, h);
+      const trainDay = state.day % P.train_every === 0;
+      if (threat && m && defendDecision(D, m, h, othersAlways)) { act('assign', { adventurer_id: h.id, activity: 'defend' }); continue; }
+      if (h.fatigue >= 100 || h.fatigue >= P.rest_fatigue || h.morale < 25) { act('assign', { adventurer_id: h.id, activity: 'rest' }); continue; }
+      if (h.injury.severity >= 1) { act(craftJobFor(state, h) ? 'plan' : 'assign', craftJobFor(state, h) ? { adventurer_id: h.id, slots: fillSlots(D, state, h, ap, 'craft', needs) } : { adventurer_id: h.id, activity: 'rest' }); continue; }
+      const canExp = quest && sent < maxParty && h.fatigue <= P.expedition_fatigue_max && h.level >= rec + P.expedition_min_level_margin && ap >= apCost(D, 'expedition');
+      let slots = null;
+      if (profile === 'audacieux') {
+        if (canExp) { act('assign', { adventurer_id: h.id, activity: 'expedition' }); sent++; continue; }
+        const s = ap >= apCost(D, 'solo') ? soloPick(D, state, h, 'hard') : null;
+        if (s) slots = [{ activity: 'solo', target: s.id }].concat(fillSlots(D, state, h, ap - apCost(D, 'solo'), 'train', needs));
+        else slots = fillSlots(D, state, h, ap, trainDay ? 'train' : 'craft', needs);
+      } else if (profile === 'prudent') {
+        if (canExp) { act('assign', { adventurer_id: h.id, activity: 'expedition' }); sent++; continue; }
+        const s = ap >= apCost(D, 'solo') ? soloPick(D, state, h, 'easy') : null;
+        if (s) slots = [{ activity: 'solo', target: s.id }].concat(fillSlots(D, state, h, ap - apCost(D, 'solo'), 'craft', needs));
+        else if (trainDay) slots = fillSlots(D, state, h, ap, 'train', needs);
+        else slots = fillSlots(D, state, h, ap, 'craft', needs);                   // atelier si commande, sinon cueillette
+      } else {                                                                      // humain : Aventure si disponible, sinon Atelier, sinon entraînement/cueillette
+        if (canExp) { act('assign', { adventurer_id: h.id, activity: 'expedition' }); sent++; continue; }
+        const s = ap >= apCost(D, 'solo') ? soloPick(D, state, h, 'fit') : null;
+        if (s) slots = [{ activity: 'solo', target: s.id }].concat(fillSlots(D, state, h, ap - apCost(D, 'solo'), 'train', needs));
+        else if (craftJobFor(state, h)) slots = fillSlots(D, state, h, Math.max(1, ap - 1), 'craft', needs).concat(ap > 1 ? [trainSlot(D, h)] : []);
+        else slots = fillSlots(D, state, h, ap, trainDay ? 'train' : 'gather', needs);
+      }
+      act('plan', { adventurer_id: h.id, slots: slots });
     }
   }
-  function craftJobFor(state, h) {
-    return (h.class_id === 'warrior' || h.class_id === 'mage') && state.forge_queue.some(q => q.owner === h.owner);
+  function craftJobFor(state, h) { return state.forge_queue.some(q => q.owner === h.owner); }
+  // Préréglages calculés pour l'interface (VM.roster[].presets), filtrés par ce qui est permis aujourd'hui.
+  function presetsFor(D, state, h) {
+    const ap = apToday(D, state, h), a = { manager_id: h.owner, day: state.day };
+    const needs = {};
+    const out = [];
+    const add = (id, label, slots, reason) => {
+      let why = reason || null;
+      if (!why && slots !== null) { const v = validateSlots(D, state, a, h, slots); if (!v.ok) why = v.reason; }
+      out.push({ id: id, label: label, slots: why ? [] : slots, available: !why, reason: why || '' });
+    };
+    const job = craftJobFor(state, h);
+    add('atelier', 'Atelier', job ? (h.injury.severity >= 1 ? fillSlots(D, state, h, ap, 'craft', needs) : fillSlots(D, state, h, Math.max(1, ap - 1), 'craft', needs).concat(ap > 1 ? [trainSlot(D, h)] : [])) : null, job ? null : 'aucune commande à la forge');
+    const s = soloPick(D, state, h, 'fit');
+    if (h.injury.severity === 0 && h.fatigue < 100 && ap >= apCost(D, 'expedition') && state.quests.length) add('aventure', 'Aventure', [{ activity: 'expedition', target: null }]);
+    else if (s && ap >= apCost(D, 'solo')) add('aventure', 'Aventure', [{ activity: 'solo', target: s.id }].concat(fillSlots(D, state, h, ap - apCost(D, 'solo'), 'train', needs)));
+    else add('aventure', 'Aventure', null, h.injury.severity >= 1 ? heroName(h) + ' est blessé' + (h.gender === 'f' ? 'e' : '') : h.fatigue >= 100 ? heroName(h) + ' est épuisé' + (h.gender === 'f' ? 'e' : '') : 'ni expédition ni mission solo possible');
+    add('recuperation', 'Récupération', []);
+    add('cueillette', 'Cueillette', fillSlots(D, state, h, ap, 'gather', needs));
+    if (threatToday(state)) add('defense', 'Défense', [{ activity: 'defend', target: null }]);
+    return out;
   }
   function gatherTargetFor(D, h, needs) {
     const wanted = sortedKeys(needs || {}).filter(r => needs[r] > 0).sort((a, b) => needs[b] - needs[a] || (a < b ? -1 : 1));
@@ -715,16 +917,35 @@
     if (h.class_id === 'cleric') return 'herbs';
     return h.class_id === 'rogue' ? 'hide' : 'wood';
   }
+  // Recette de palier dragon réalisable avec l'entrepôt + l'inventaire : retraits ciblés puis commande (V4).
+  function planDragonCraft(D, state, m, act) {
+    if (bLevel(D, state, 'forge') < 3) return;
+    const inv = state.inventories[m.id].resources;
+    for (const r of D.raw.recipes.filter(x => x.category === 'dragon').sort((a, b) => (a.id < b.id ? -1 : 1))) {
+      if (state.purses[m.id] < r.gold || state.forge_queue.some(q => q.recipe_id === r.id)) continue;
+      const missing = {};
+      let ok = true;
+      for (const res of sortedKeys(r.cost)) { const d = r.cost[res] - (inv[res] || 0); if (d > 0) { if ((state.warehouse[res] || 0) < d) { ok = false; break; } missing[res] = d; } }
+      if (!ok) continue;
+      for (const res of sortedKeys(missing)) act('withdraw', { resource_id: res, qty: missing[res] });
+      return r;
+    }
+    return null;
+  }
   function planEconomy(D, state, m, P, heroes, act) {
     const mid = m.id, inv = state.inventories[mid];
-    const offers = state.tavern.slice().sort((a, b) => a.cost - b.cost);
-    if (offers.length && heroes.length < rosterCap(D, state) && state.purses[mid] >= offers[0].cost + P.recruit_gold_margin) act('recruit', { recruit_id: offers[0].id });
+    const heir = state.tavern.filter(o => o.heir_for === mid)[0];
+    if (heir) act('recruit', { recruit_id: heir.id });
+    const offers = state.tavern.filter(o => !o.heir_for).sort((a, b) => a.cost - b.cost);
+    if (!heir && offers.length && heroes.length < rosterCap(D, state) && state.purses[mid] >= offers[0].cost + P.recruit_gold_margin) act('recruit', { recruit_id: offers[0].id });
+    planDragonCraft(D, state, m, act);
     if (P.buy_potions && state.purses[mid] >= 100) {
       const potions = inv.items.filter(x => x.item_id === 'c_potion_soin').length;
       const s = state.market.filter(x => x.item_id === 'c_potion_soin')[0];
       if (s && s.stock > 0 && potions < heroes.length) act('buy', { item_id: 'c_potion_soin' });
     }
-    const want = m.kind === 'ai' && m.profile === 'audacieux' ? ['r_potion_soin', 'r_epee_fer', 'r_cuir'] : ['r_potion_soin', 'r_gambison'];
+    const dragonRecipes = D.raw.recipes.filter(x => x.category === 'dragon').map(x => x.id).sort();
+    const want = dragonRecipes.concat(m.kind === 'ai' && m.profile === 'audacieux' ? ['r_potion_soin', 'r_epee_fer', 'r_cuir'] : ['r_potion_soin', 'r_gambison']);
     for (const rid of want) if (!state.forge_queue.some(q => q.owner === mid && q.recipe_id === rid) && canAffordRecipe(D, state, mid, D.recipes[rid]) === null) { act('craft_order', { recipe_id: rid }); break; }
     if (m.kind === 'ai') {
       const deco = m.profile === 'audacieux' ? 'banniere' : 'banc';
@@ -744,8 +965,10 @@
   // 7. JOURNÉE — contexte, phases 1 à 6
   // ===================================================================================
   const PHASES = [['matin', 'Matin'], ['paie', 'Trésorerie'], ['recolte', 'Récolte'], ['entrainement', 'Entraînement'],
-    ['forge', 'Forge'], ['infirmerie', 'Infirmerie'], ['expedition', 'Expédition'], ['marche', 'Marché'],
-    ['taverne', 'Taverne'], ['chantier', 'Chantier'], ['soir', 'Soir'], ['derby', 'Derby'], ['bilan', 'Bilan de saison']];
+    ['forge', 'Forge'], ['infirmerie', 'Infirmerie'], ['expedition', 'Expédition'], ['menace', 'Menace'], ['solo', 'Missions solo'], ['deuil', 'Deuil'],
+    ['marche', 'Marché'], ['taverne', 'Taverne'], ['chantier', 'Chantier'], ['soir', 'Soir'], ['village', 'Village'], ['presage', 'Présage'],
+    ['derby', 'Derby'], ['bilan', 'Bilan de saison']];
+  const UNTRIMMED = { expedition: 1, menace: 1, deuil: 1, village: 1, presage: 1, derby: 1, bilan: 1 };   // sections jamais rognées par le budget de lignes
   function say(ctx, phase, text) { if (text) ctx.sections[phase].lines.push(text); }
   function moment(ctx, score, text) { ctx.moments.push({ score: score, text: text, seq: ctx.moments.length }); }
   function tpl(ctx, kind, salt, vars) { return pickTpl(ctx.D, kind, ctx.state.day + '|' + salt, vars); }
@@ -754,8 +977,9 @@
   function makeCtx(D, state) {
     const ctx = { D: D, state: state, rng: makeRng(fnvU32(state.seed ^ state.day)), sections: {}, moments: [], plans: {},
       votes_quest: {}, votes_build: {}, queued: { craft: [], buy: [], sell: [], recruit: [] }, effective: {}, forced: {},
-      notices: [], log: [], expedition: null, exp_result: null, quest: null, xp: {}, build_vote: null,
-      summary: { gold_delta: 0, injuries: [], level_ups: [], recruits: [], construction: '' }, gold_start: 0 };
+      notices: [], log: [], expedition: null, exp_result: null, quest: null, xp: {}, build_vote: null, threat: null,
+      deaths: [], solo_results: [], legendary: [],
+      summary: { gold_delta: 0, injuries: [], level_ups: [], recruits: [], construction: '', village_age_up: null, presage: null, threat_outcome: null, deaths: [], legendary: [], solo_results: [] }, gold_start: 0 };
     for (const p of PHASES) ctx.sections[p[0]] = { phase: p[0], title: p[1], lines: [] };
     return ctx;
   }
@@ -789,7 +1013,8 @@
   function applyOrQueue(ctx, a) {
     const state = ctx.state, D = ctx.D, p = a.payload;
     switch (a.type) {
-      case 'assign': ctx.plans[p.adventurer_id] = { activity: p.activity, target: p.target || null, manager: a.manager_id }; break;
+      case 'assign': ctx.plans[p.adventurer_id] = { slots: slotsOfAssign(D, state, state.heroes[p.adventurer_id], p.activity, p.target || null), manager: a.manager_id }; break;
+      case 'plan': ctx.plans[p.adventurer_id] = { slots: p.slots.map(s => ({ activity: s.activity, target: s.target || null })), manager: a.manager_id }; break;
       case 'vote_quest': ctx.votes_quest[a.manager_id] = p.quest_id; break;
       case 'vote_build': ctx.votes_build[a.manager_id] = p.building_id; break;
       case 'craft_order': ctx.queued.craft.push(a); break;
@@ -831,18 +1056,22 @@
     ctx.build_vote = b ? b.id : null;
     if (ctx.build_vote) say(ctx, 'matin', tpl(ctx, 'vote_build', 'b', { b: D.buildings[b.id].name, n: bLevel(D, state, b.id) + 1 }));
   }
+  // Activité effective V4 : liste de créneaux (vide = repos) ; activity = créneau principal (compatibilité des phases).
+  function effectiveOf(slots) {
+    const main = slots.length ? slots[0].activity : 'rest';
+    return { activity: main, target: slots.length ? slots[0].target : null, slots: slots };
+  }
   function resolveEffective(ctx) {
     const state = ctx.state;
     for (const h of allHeroes(state)) {
       const plan = ctx.plans[h.id];
-      let act = plan ? plan.activity : 'rest';
-      let target = plan ? plan.target : null;
-      if (h.fatigue >= 100 && act !== 'rest') { act = 'rest'; ctx.forced[h.id] = 'épuisé'; }
-      if (h.injury.severity >= 2 && act !== 'rest') { act = 'rest'; ctx.forced[h.id] = 'blessé'; }
-      if (h.injury.severity === 1 && act === 'expedition') { act = 'rest'; ctx.forced[h.id] = 'blessé'; }
-      ctx.effective[h.id] = { activity: act, target: target };
+      let slots = plan ? plan.slots.slice() : [];
+      if (h.fatigue >= 100 && slots.length) { slots = []; ctx.forced[h.id] = 'épuisé'; }
+      if (h.injury.severity >= 1 && slots.some(s => s.activity !== 'craft')) { slots = slots.filter(s => s.activity === 'craft'); ctx.forced[h.id] = 'blessé'; }
+      ctx.effective[h.id] = effectiveOf(slots);
     }
   }
+  function demoteToRest(ctx, h, why) { ctx.effective[h.id] = effectiveOf([]); ctx.forced[h.id] = why; }
 
   // ---- Phase 2 : paie et entretien (or de guilde) ----
   function phasePay(ctx) {
@@ -864,34 +1093,118 @@
     }
   }
 
-  // ---- Phase 3 : récolte ----
-  function phaseGather(ctx) {
+  // ---- Phases 3-5 (V4) : récolte, entraînement et forge « par créneau », dans l'ordre des créneaux du héros, héros triés par id.
+  // Rendement d'un créneau = rendement journalier V3 / slot_divisor (entier, min 1). Une ligne de chronique par héros et par activité.
+  const SLOT_DIV = 3;
+  function slotDiv(D) { return D.C.slot_divisor || SLOT_DIV; }
+  function gatherSlot(ctx, h, slot, acc) {
     const state = ctx.state, D = ctx.D;
-    for (const h of allHeroes(state)) {
-      const e = ctx.effective[h.id];
-      if (e.activity !== 'gather') continue;
-      const res = D.resources[e.target] || D.resources.wood;
-      const biome = D.biomes[res.biome];
-      const units = Math.max(1, div(gatherPower(D, state, h, biome.id), 10));
-      const share = (biome.gather_split.filter(s => s[0] === res.id)[0] || [res.id, 100])[1];
-      const qty = Math.max(1, div(units * share, 100));
-      const inv = state.inventories[h.owner].resources;
-      inv[res.id] += qty;
-      const out = [qty + ' ' + res.name.toLowerCase()];
-      if (share < 100) { const extra = div(units, 2); if (extra > 0) { inv[biome.primary] += extra; out.push(extra + ' ' + D.resources[biome.primary].name.toLowerCase()); } }
-      say(ctx, 'recolte', tpl(ctx, 'gather', h.id, { a: heroName(h), n: qty, r: res.name.toLowerCase() + (out.length > 1 ? ' (+' + out[1] + ')' : ''), place: biome.name }));
-      rollAccident(ctx, h, 'gather', biome.name);
+    const res = D.resources[slot.target] || D.resources.wood;
+    const biome = D.biomes[res.biome];
+    const units = Math.max(1, div(div(gatherPower(D, state, h, biome.id), 10), slotDiv(D)));
+    const share = (biome.gather_split.filter(s => s[0] === res.id)[0] || [res.id, 100])[1];
+    const qty = Math.max(1, div(units * share, 100));
+    const inv = state.inventories[h.owner].resources;
+    inv[res.id] += qty;
+    const key = 'gather|' + res.id;
+    const a = acc[key] = acc[key] || { kind: 'gather', res: res, biome: biome, qty: 0, extra: 0 };
+    a.qty += qty;
+    if (share < 100) { const extra = div(units, 2); if (extra > 0) { inv[biome.primary] += extra; a.extra += extra; } }
+    addCraftXp(ctx, h, 'herboristerie', D.C.craft_xp.gather);
+    return rollAccident(ctx, h, 'gather', biome.name);
+  }
+  function trainSlotRun(ctx, h, slot, acc) {
+    const state = ctx.state, D = ctx.D;
+    const attr = D.attrs.indexOf(slot.target) >= 0 ? slot.target : D.classes[h.class_id].primary;
+    const cls = D.classes[h.class_id];
+    let tp = D.C.tp_base[bLevel(D, state, 'training_ground')];
+    if (attr === cls.primary) tp = pct(tp, 120);
+    if (attr === cls.dump) tp = pct(tp, 80);
+    if (hasTrait(h, 'diligent')) tp = pct(tp, 125);
+    if (hasTrait(h, 'lazy')) tp = pct(tp, 70);
+    if (h.age_seasons < 6) tp = pct(tp, 120);
+    if (h.age_seasons >= 12) tp = pct(tp, 50);
+    if (hasTrait(h, 'hothead')) tp += 2;
+    tp = Math.max(1, div(tp, slotDiv(D)));
+    h.train_points[attr] = (h.train_points[attr] || 0) + tp;
+    const key = 'train|' + attr;
+    const a = acc[key] = acc[key] || { kind: 'train', attr: attr, tp: 0, gains: 0 };
+    a.tp += tp;
+    while (h.trained[attr] < D.C.trained_max && h.train_points[attr] >= D.C.tp_threshold_base + D.C.tp_threshold_step * h.trained[attr]) {
+      h.train_points[attr] -= D.C.tp_threshold_base + D.C.tp_threshold_step * h.trained[attr];
+      h.trained[attr] += 1;
+      a.gains += 1;
+      say(ctx, 'entrainement', tpl(ctx, 'train_gain', h.id + attr, { a: heroName(h), attr: D.attr_names[attr].name, n: attrEff(D, h, attr) }));
+      moment(ctx, 30, heroName(h) + ' gagne un point de ' + D.attr_names[attr].name.toLowerCase() + ' à l\'entraînement.');
+    }
+    addXp(ctx, h, Math.max(1, div(10 + 5 * bLevel(D, state, 'training_ground'), slotDiv(D))));
+    addCraftXp(ctx, h, (D.C.craft_by_attribute || {})[attr] || 'endurance', D.C.craft_xp.train);
+    return rollAccident(ctx, h, 'train', 'au terrain d\'entraînement');
+  }
+  function craftSlotRun(ctx, h, slot, acc, work) {
+    const state = ctx.state, D = ctx.D;
+    const job = state.forge_queue.filter(q => q.owner === h.owner)[0];
+    const key = 'craft|' + (job ? job.uid : 'idle');
+    const a = acc[key] = acc[key] || { kind: 'craft', job: job, work: 0 };
+    if (!job) return false;
+    let p = craftPower(D, state, h);
+    if (D.classes[h.class_id].craft_specialty === D.recipes[job.recipe_id].category) p = pct(p, 120);
+    p = Math.max(1, div(p, slotDiv(D)));
+    work[job.uid] = (work[job.uid] || 0) + p;
+    a.work += p;
+    addXp(ctx, h, Math.max(1, div(5, slotDiv(D))));
+    addCraftXp(ctx, h, 'forge', D.C.craft_xp.craft);
+    return rollAccident(ctx, h, 'craft', 'à la forge');
+  }
+  function sayAccumulated(ctx, h, acc) {
+    const D = ctx.D;
+    for (const key of sortedKeys(acc)) {
+      const a = acc[key];
+      if (a.kind === 'gather') say(ctx, 'recolte', tpl(ctx, 'gather', h.id, { a: heroName(h), n: a.qty, r: a.res.name.toLowerCase() + (a.extra ? ' (+' + a.extra + ' ' + D.resources[a.biome.primary].name.toLowerCase() + ')' : ''), place: a.biome.name }));
+      else if (a.kind === 'train') say(ctx, 'entrainement', tpl(ctx, 'train', h.id, { a: heroName(h), prog: deWord(D.attr_names[a.attr].name.toLowerCase()), tp: a.tp }));
+      else if (a.kind === 'craft') { if (a.job) say(ctx, 'forge', tpl(ctx, 'craft', h.id, { a: heroName(h), work: a.work, recipe: D.recipes[a.job.recipe_id].name.toLowerCase() })); else say(ctx, 'forge', tpl(ctx, 'craft_idle', h.id, { a: heroName(h) })); }
     }
   }
+  function phaseSlots(ctx) {
+    const state = ctx.state, D = ctx.D;
+    forgeOrders(ctx);
+    const work = {};
+    for (const h of allHeroes(state)) {
+      const e = ctx.effective[h.id];
+      const acc = {};
+      let hurt = false;
+      for (const slot of e.slots) {
+        if (hurt) break;                                       // blessé en cours de journée : les créneaux restants sautent
+        if (slot.activity === 'gather') hurt = gatherSlot(ctx, h, slot, acc);
+        else if (slot.activity === 'train') hurt = trainSlotRun(ctx, h, slot, acc);
+        else if (slot.activity === 'craft') hurt = craftSlotRun(ctx, h, slot, acc, work);
+      }
+      sayAccumulated(ctx, h, acc);
+    }
+    forgeAdvance(ctx, work);
+  }
+  // Accident d'activité : chance journalière V3 divisée par le nombre de créneaux (entier, min 1). true = blessé.
   function rollAccident(ctx, h, activity, place) {
     const D = ctx.D;
     let p = D.C.accident_permille[activity];
     if (h.fatigue >= 80) p *= 2;
     if (attrEff(D, h, 'luck') >= 30) p -= 5;
-    if (!ctx.rng.chance(p)) return;
+    p = Math.max(1, div(p, slotDiv(D)));
+    if (!ctx.rng.chance(p)) return false;
     const days = injure(ctx, h, 1);
     say(ctx, activity === 'gather' ? 'recolte' : activity === 'train' ? 'entrainement' : 'forge', tpl(ctx, 'gather_accident', h.id, gv(h, { a: heroName(h), place: place })));
     moment(ctx, 40, heroName(h) + ' se blesse bêtement (' + days + ' j) — ' + place + '.');
+    return true;
+  }
+  // XP de savoir-faire (V4) : montée de niveau signalée dans la section du soir.
+  function addCraftXp(ctx, h, craftId, amount) {
+    const D = ctx.D;
+    if (!D.crafts[craftId] || !amount) return;
+    if (!h.crafts) h.crafts = emptyCrafts(D);
+    const before = craftLevel(D, craftXp(h, craftId));
+    h.crafts[craftId] = (h.crafts[craftId] || 0) + amount;
+    const after = craftLevel(D, h.crafts[craftId]);
+    if (after > before) { say(ctx, 'soir', tpl(ctx, 'craft_level_up', h.id + craftId, { a: heroName(h), craft: D.crafts[craftId].name.toLowerCase(), n: after })); moment(ctx, 28 + after, heroName(h) + ' passe maître niveau ' + after + ' en ' + D.crafts[craftId].name.toLowerCase() + '.'); }
   }
   // Nouvelle blessure : jours tirés (TIRAGE), vigueur et traits. Renvoie les jours.
   function injure(ctx, h, severity) {
@@ -911,39 +1224,10 @@
     return days;
   }
 
-  // ---- Phase 4 : entraînement ----
-  function phaseTrain(ctx) {
-    const state = ctx.state, D = ctx.D;
-    for (const h of allHeroes(state)) {
-      const e = ctx.effective[h.id];
-      if (e.activity !== 'train') continue;
-      const attr = D.attrs.indexOf(e.target) >= 0 ? e.target : D.classes[h.class_id].primary;
-      const cls = D.classes[h.class_id];
-      let tp = D.C.tp_base[bLevel(D, state, 'training_ground')];
-      if (attr === cls.primary) tp = pct(tp, 120);
-      if (attr === cls.dump) tp = pct(tp, 80);
-      if (hasTrait(h, 'diligent')) tp = pct(tp, 125);
-      if (hasTrait(h, 'lazy')) tp = pct(tp, 70);
-      if (h.age_seasons < 6) tp = pct(tp, 120);
-      if (h.age_seasons >= 12) tp = pct(tp, 50);
-      if (h.injury.severity === 1) tp = pct(tp, 50);
-      if (hasTrait(h, 'hothead')) tp += 2;
-      h.train_points[attr] = (h.train_points[attr] || 0) + tp;
-      say(ctx, 'entrainement', tpl(ctx, 'train', h.id, { a: heroName(h), prog: deWord(D.attr_names[attr].name.toLowerCase()), tp: tp }));
-      while (h.trained[attr] < D.C.trained_max && h.train_points[attr] >= D.C.tp_threshold_base + D.C.tp_threshold_step * h.trained[attr]) {
-        h.train_points[attr] -= D.C.tp_threshold_base + D.C.tp_threshold_step * h.trained[attr];
-        h.trained[attr] += 1;
-        say(ctx, 'entrainement', tpl(ctx, 'train_gain', h.id + attr, { a: heroName(h), attr: D.attr_names[attr].name, n: attrEff(D, h, attr) }));
-        moment(ctx, 30, heroName(h) + ' gagne un point de ' + D.attr_names[attr].name.toLowerCase() + ' à l\'entraînement.');
-      }
-      addXp(ctx, h, 10 + 5 * bLevel(D, state, 'training_ground'));
-      rollAccident(ctx, h, 'train', 'au terrain d\'entraînement');
-    }
-  }
   function addXp(ctx, h, amount) { ctx.xp[h.id] = (ctx.xp[h.id] || 0) + Math.max(0, amount); }
 
-  // ---- Phase 5 : forge (commandes, avancement, livraison) ----
-  function phaseForge(ctx) {
+  // ---- Phase 5 : forge (commandes au matin, avancement et livraison après les créneaux) ----
+  function forgeOrders(ctx) {
     const state = ctx.state, D = ctx.D;
     for (const a of ctx.queued.craft) {
       const r = D.recipes[a.payload.recipe_id];
@@ -955,18 +1239,9 @@
       state.next_uid += 1;
       say(ctx, 'forge', managerName(state, a.manager_id) + ' commande : ' + r.name.toLowerCase() + '.');
     }
-    const work = {};
-    for (const h of allHeroes(state)) {
-      if (ctx.effective[h.id].activity !== 'craft') continue;
-      const job = state.forge_queue.filter(q => q.owner === h.owner)[0];
-      if (!job) { say(ctx, 'forge', tpl(ctx, 'craft_idle', h.id, { a: heroName(h) })); continue; }
-      let p = craftPower(D, state, h);
-      if (D.classes[h.class_id].craft_specialty === D.recipes[job.recipe_id].category) p = pct(p, 120);
-      work[job.uid] = (work[job.uid] || 0) + p;
-      say(ctx, 'forge', tpl(ctx, 'craft', h.id, { a: heroName(h), work: p, recipe: D.recipes[job.recipe_id].name.toLowerCase() }));
-      addXp(ctx, h, 5);
-      rollAccident(ctx, h, 'craft', 'à la forge');
-    }
+  }
+  function forgeAdvance(ctx, work) {
+    const state = ctx.state, D = ctx.D;
     const base = D.C.forge_work_per_day[bLevel(D, state, 'forge')];
     if (state.forge_queue.length) work[state.forge_queue[0].uid] = (work[state.forge_queue[0].uid] || 0) + base;
     const remaining = [];
@@ -976,7 +1251,9 @@
       const itemId = D.recipes[job.recipe_id].result;
       giveItem(D, state, job.owner, itemId);
       say(ctx, 'forge', tpl(ctx, 'craft_done', job.uid, { item: D.items[itemId].name, owner: managerName(state, job.owner) }));
-      moment(ctx, 25, 'La forge livre ' + D.items[itemId].name.toLowerCase() + ' à ' + managerName(state, job.owner) + '.');
+      const rar = D.items[itemId].rarity;
+      if (rar === 'legendary') ctx.summary.legendary.push(D.items[itemId].name);
+      moment(ctx, rar === 'legendary' ? 88 : rar === 'epic' ? 60 : 25, 'La forge livre ' + D.items[itemId].name.toLowerCase() + (rar === 'legendary' ? ' (légendaire !)' : rar === 'epic' ? ' (épique)' : '') + ' à ' + managerName(state, job.owner) + '.');
     }
     state.forge_queue = remaining;
   }
@@ -1015,7 +1292,7 @@
     f.status = { poison: 0, poison_l: 0, entangled: 0 }; f.cooldowns = {}; f.used_once = {};
     return f;
   }
-  function roomLog(exp, text) { if (exp.room && exp.room.lines.length < 14 && text) exp.room.lines.push(text); }
+  function roomLog(exp, text) { if (exp.room && exp.room.lines.length < 14 && text) exp.room.lines.push(text.charAt(0).toUpperCase() + text.slice(1)); }
   function conscious(exp) { return exp.party.filter(f => !f.ko && !f.deserted); }
   function managersIn(exp) { const m = {}; for (const f of exp.party) if (!f.deserted) m[f.owner] = 1; return sortedKeys(m); }
 
@@ -1024,7 +1301,7 @@
     const state = ctx.state, D = ctx.D;
     const cands = allHeroes(state).filter(h => ctx.effective[h.id].activity === 'expedition');
     const quest = ctx.quest;
-    const demote = (h, why) => { ctx.effective[h.id] = { activity: 'rest', target: null }; ctx.forced[h.id] = why; };
+    const demote = (h, why) => demoteToRest(ctx, h, why);
     if (!quest) { for (const h of cands) demote(h, 'aucune quête'); return []; }
     const kept = [];
     for (const h of cands) {
@@ -1349,11 +1626,13 @@
     return out;
   }
   function activeMonsters(cb) { return cb.monsters.filter(m => m.alive && !m.fled); }
+  function bossLike(m) { return !!(m.boss || m.dragon); }
 
   function runCombat(ctx, exp, monsters, opts, rng) {
-    const cb = { exp: exp, monsters: monsters, round: 0, ko_this: 0, shield: 0, retreat_at: 2, first: !!opts.first };
+    const cb = { exp: exp, monsters: monsters, round: 0, ko_this: 0, shield: 0, retreat_at: 2, first: !!opts.first,
+      no_retreat: !!opts.no_retreat, max_rounds: opts.max_rounds || ctx.D.C.combat_round_cap, flee_hp_pct: opts.flee_hp_pct || 0, flee_permille: opts.flee_permille || 1000, wall: !!opts.wall };
     exp.last_ko = 0;
-    roomLog(exp, 'Surgissent ' + joinFr(monsters.map(m => m.name.toLowerCase())) + ' !');
+    if (!opts.silent_start) roomLog(exp, 'Surgissent ' + joinFr(monsters.map(m => m.name.toLowerCase())) + ' !');
     for (const f of conscious(exp)) { f.init = f.spd * 100 + rng.roll(100); f.cooldowns = {}; f.status.entangled = 0; }
     for (const m of monsters) m.init = m.spd * 100 + rng.roll(100);
     const order = conscious(exp).map(f => ({ adv: f })).concat(monsters.map(m => ({ mon: m })));
@@ -1362,8 +1641,10 @@
     while (!result) {
       cb.round++;
       exp.counters.rounds_total++;
-      if (cb.round > ctx.D.C.combat_round_cap) { result = 'stalemate'; break; }
-      if (cb.round >= 2 && shouldRetreat(exp)) { result = attemptRetreat(ctx, cb, rng); if (result) break; }
+      if (cb.round > cb.max_rounds) { result = 'stalemate'; break; }
+      // Fuite (menace) : sous flee_hp_pct % de PV, le dragon tente de partir à chaque tour (TIRAGE flee_permille).
+      if (cb.flee_hp_pct > 0 && activeMonsters(cb).filter(m => m.dragon).every(m => m.hp * 100 <= m.hp_max * cb.flee_hp_pct) && rng.chance(cb.flee_permille)) { result = 'fled'; break; }
+      if (cb.round >= 2 && !cb.no_retreat && shouldRetreat(exp)) { result = attemptRetreat(ctx, cb, rng); if (result) break; }
       const seq = cb.first && cb.round === 1 ? order.filter(o => o.mon).concat(order.filter(o => o.adv)) : order;
       for (const o of seq) {
         if (o.adv && (o.adv.ko || o.adv.deserted)) continue;
@@ -1382,6 +1663,7 @@
   }
   function combatEnd(cb) {
     if (!activeMonsters(cb).length) return 'victory';
+    if (cb.monsters.some(m => m.dragon) && !cb.monsters.some(m => m.dragon && m.alive)) return 'victory';   // le dragon tombé, ses rejetons se dispersent
     if (!conscious(cb.exp).length) return 'wiped';
     if (cb.exp.quest.type === 'escort' && cb.exp.counters.caravan_hp <= 0) return 'caravan_lost';
     return null;
@@ -1414,8 +1696,8 @@
     }
     if (x.alive !== undefined) {           // monstre
       if (x.status.burned > 0) x.status.burned--;
-      else if (x.special === 'regen' || (x.boss && x.mechanic === 'roots')) x.hp = Math.min(x.hp_max, x.hp + pct(x.hp_max, x.boss ? 8 : 5));
-      if (x.boss && x.mechanic === 'heads' && x.heads < 3 && x.fire_round !== cb.round - 1) { x.heads = Math.min(3, x.heads + 1); x.hp = Math.min(x.hp_max, x.hp + pct(x.hp_max, x.siege ? 15 : 10)); roomLog(exp, 'Une tête repousse…'); }
+      else if (x.special === 'regen' || (bossLike(x) && x.mechanic === 'roots')) x.hp = Math.min(x.hp_max, x.hp + pct(x.hp_max, bossLike(x) ? (x.dragon ? 5 : 8) : 5));
+      if (bossLike(x) && x.mechanic === 'heads' && x.heads < 3 && x.fire_round !== cb.round - 1) { x.heads = Math.min(3, x.heads + 1); x.hp = Math.min(x.hp_max, x.hp + pct(x.hp_max, x.siege ? 15 : 10)); roomLog(exp, 'Une tête repousse…'); }
       if (x.special === 'coward' && x.hp * 4 < x.hp_max) { x.fled = true; roomLog(exp, x.name + ' détale en couinant.'); return true; }
       if (x.special === 'blast' && !x.used && x.hp * 2 < x.hp_max) {
         x.used = true;
@@ -1477,7 +1759,7 @@
     const c = conscious(cb.exp);
     const taunt = c.filter(f => f.priority >= 100)[0];
     if (taunt) return taunt;
-    const rule = m.boss && m.mechanic === 'heads' ? 'weakest' : m.target_rule;
+    const rule = bossLike(m) && m.mechanic === 'heads' ? 'weakest' : m.target_rule;
     if (rule === 'random') return c[rng.roll(c.length)];
     const s = c.slice();
     if (rule === 'weakest') s.sort((a, b) => div(a.hp * 1000, a.hp_max) - div(b.hp * 1000, b.hp_max) || b.priority - a.priority || a.slot - b.slot);
@@ -1488,11 +1770,11 @@
   function monsterTurn(ctx, cb, m, rng) {
     const exp = cb.exp;
     if (!conscious(exp).length) return;
-    if (m.boss) { if (bossTurn(ctx, cb, m, rng)) return; }
+    if (m.boss || m.dragon) { if (bossTurn(ctx, cb, m, rng)) return; }
     if (m.special === 'crush' && cb.round % 2 === 1) { roomLog(exp, m.name + ' lève sa massue, lentement.'); return; }
     if (m.special === 'screech' && cb.round === 1) { for (const f of conscious(exp)) f.morale = clamp(f.morale - 8, 0, 100); roomLog(exp, m.name + ' pousse un cri qui glace le sang.'); return; }
     if (exp.quest.type === 'escort' && rng.chance(300)) { const dmg = Math.max(1, div(m.atk * m.atk, m.atk + 6 + exp.L)); exp.counters.caravan_hp -= dmg; roomLog(exp, m.name + ' s\'en prend à la caravane : ' + dmg + ' dégâts.'); return; }
-    const times = m.boss && m.mechanic === 'heads' ? m.heads : 1;
+    const times = bossLike(m) && m.mechanic === 'heads' ? m.heads : 1;
     for (let i = 0; i < times; i++) {
       const t = monsterTarget(cb, m, rng);
       if (!t) return;
@@ -1502,15 +1784,22 @@
   // Mécanismes de boss (un par biome). true = le tour est consommé.
   function bossTurn(ctx, cb, m, rng) {
     const exp = cb.exp, c = conscious(exp);
+    if (m.dragon && m.breath_every > 0 && cb.round % m.breath_every === 0) {   // souffle de zone du dragon (moitié derrière une muraille ou pour les plus rapides)
+      roomLog(exp, m.breath_label || tpl(ctx, 'threat_breath', 'b' + cb.round, {}));
+      if (cb.wall) roomLog(exp, tpl(ctx, 'threat_wall', 'w' + cb.round, {}));
+      for (const f of c) applyDamage(ctx, cb, m, f, m.breath_power, { magic: true, fire: false, ignore_half: false, stealth: false, breath: true }, rng);
+      return true;
+    }
     if (m.mechanic === 'roots') {
-      if (!m.awakened && m.hp * 2 < m.hp_max) { m.awakened = true; const n = cb.monsters.length; for (let i = 0; i < 2 && cb.monsters.length < 5; i++) cb.monsters.push(instantiateMonster(ctx.D, 'corrupted_sylvan', Math.max(1, exp.L - 2), n + i, false)); roomLog(exp, 'Le Sylvain s\'éveille : deux sylvains corrompus sortent de l\'écorce.'); }
+      if (!m.awakened && m.hp * 2 < m.hp_max) { m.awakened = true; const n = cb.monsters.length; for (let i = 0; i < 2 && cb.monsters.length < 5; i++) cb.monsters.push(instantiateMonster(ctx.D, 'corrupted_sylvan', Math.max(1, exp.L - 2), n + i, false)); roomLog(exp, (m.dragon ? m.name : 'Le Sylvain') + ' s\'éveille : deux sylvains corrompus sortent de l\'écorce.'); }
       if (cb.round % (m.siege ? 2 : 3) === 0) { const t = c.slice().sort((a, b) => b.atk - a.atk || a.slot - b.slot)[0]; t.status.entangled = 1; roomLog(exp, 'Les racines du Sylvain enserrent ' + t.name + '.'); return true; }
     } else if (m.mechanic === 'breath') {
       const cyc = m.siege ? 2 : 3, ph = cb.round % cyc;
-      if (ph === 1) { roomLog(exp, 'Le Drake gonfle ses poumons…'); return true; }
+      if (ph === 1) { roomLog(exp, (m.dragon ? m.name : 'Le Drake') + ' gonfle ses poumons…'); return true; }
       if (ph === (m.siege ? 0 : 2)) {
-        roomLog(exp, 'Une nappe de cendres brûlantes !');
-        for (const f of c) { const full = applyDamage(ctx, cb, m, f, 120, { magic: true, fire: false, ignore_half: false, stealth: false, breath: true }, rng); if (full === undefined) continue; }
+        roomLog(exp, m.dragon ? m.breath_label : 'Une nappe de cendres brûlantes !');
+        if (m.dragon && cb.wall) roomLog(exp, tpl(ctx, 'threat_wall', 'w' + cb.round, {}));
+        for (const f of c) applyDamage(ctx, cb, m, f, m.dragon ? m.breath_power : 120, { magic: true, fire: false, ignore_half: false, stealth: false, breath: true }, rng);
         return true;
       }
     } else if (m.mechanic === 'heads' && cb.round % 4 === 0) {
@@ -1529,7 +1818,7 @@
   function applyDamage(ctx, cb, src, tgt, power, tags, rng) {
     const exp = cb.exp, srcAdv = src.alive === undefined, tgtAdv = tgt.alive === undefined;
     const evasion = tgtAdv ? tgt.dodge : tgt.evasion;
-    const hit = clamp(850 + (src.spd - tgt.spd) * 15, 600, 950) - evasion;
+    const hit = clamp(850 + (src.spd - tgt.spd) * 15, 600, 950) - evasion + (srcAdv ? (src.hit_bonus || 0) : 0);
     if (!tags.breath && !rng.chance(hit)) { roomLog(exp, src.name + ' rate ' + tgt.name + '.'); return; }
     const variance = 90 + rng.roll(21);
     let atk = src.atk;
@@ -1543,11 +1832,11 @@
     let dmg = div(raw * raw, raw + def);
     let critP = (srcAdv ? src.crit + src.feat_crit + (src.morale >= 70 ? 20 : 0) : src.crit) + (tags.stealth ? 400 : 0);
     if (src.special === 'spearfish' && tgt.hp * 2 < tgt.hp_max) critP = 250;
-    if (tgt.special === 'stoneskin' || (tgt.boss && tgt.mechanic === 'breath' && tgt.hp * 2 > tgt.hp_max)) critP = 0;
+    if (tgt.special === 'stoneskin' || tgt.crit_immune || (bossLike(tgt) && tgt.mechanic === 'breath' && tgt.hp * 2 > tgt.hp_max)) critP = 0;
     let crit = false;
     if (critP > 0 && rng.chance(critP)) { dmg = pct(dmg, 150); crit = true; }
     if (tgt.special === 'spectral' && !tags.magic) dmg = div(dmg, 2);
-    if (tags.breath && (tgt.spd >= src.spd + 2 || cb.shield)) dmg = div(dmg, 2);
+    if (tags.breath && (tgt.spd >= src.spd + 2 || cb.shield || cb.wall)) dmg = div(dmg, 2);
     if (tgtAdv && tgt.priority >= 100) dmg = pct(dmg, 90);
     if (tgtAdv && cb.shield) dmg = pct(dmg, 75);
     dmg = Math.max(1, dmg);
@@ -1555,7 +1844,7 @@
     if (srcAdv) src.damage += dmg;
     if (crit) roomLog(exp, 'Coup critique ! ' + src.name + ' déchire ' + tgt.name + ' : ' + dmg + ' dégâts.');
     else if (tgtAdv) roomLog(exp, src.name + ' ' + src.verb + ' ' + tgt.name + ' : ' + dmg + ' dégâts.');
-    else if (tgt.boss || dmg * 3 >= tgt.hp_max) roomLog(exp, src.name + ' frappe ' + tgt.name + ' : ' + dmg + ' dégâts.');
+    else if (tgt.boss || tgt.dragon || dmg * 3 >= tgt.hp_max) roomLog(exp, src.name + ' frappe ' + tgt.name + ' : ' + dmg + ' dégâts.');
     if (crit && tgt.boss) moment(ctx, 55, src.name + ' porte un coup critique à ' + tgt.name + ' (' + dmg + ' dégâts).');
     onHit(ctx, cb, src, tgt, dmg, tags);
     if (tgt.hp <= 0) { if (tgtAdv) knockOut(ctx, exp, tgt); else monsterDown(ctx, cb, tgt, src, rng); }
@@ -1564,7 +1853,7 @@
     const exp = cb.exp;
     if (src.alive === undefined) {          // aventurier → monstre
       if (tags.fire) { tgt.status.burned = 1; tgt.fire_round = cb.round; }
-      if (tgt.boss && tgt.mechanic === 'heads') { tgt.head_dmg += dmg; if (tgt.head_dmg * 4 >= tgt.hp_max && tgt.heads > 1) { tgt.heads--; tgt.head_dmg = 0; roomLog(exp, 'Une tête de l\'Hydre roule au sol !'); } }
+      if (bossLike(tgt) && tgt.mechanic === 'heads') { tgt.head_dmg += dmg; if (tgt.head_dmg * 4 >= tgt.hp_max && tgt.heads > 1) { tgt.heads--; tgt.head_dmg = 0; roomLog(exp, 'Une tête de l\'Hydre roule au sol !'); } }
       return;
     }
     if (src.special === 'venom' && !tgt.poison_immune) { tgt.status.poison = 3; tgt.status.poison_l = src.level; }
@@ -1577,6 +1866,7 @@
     f.fatigue = clamp(f.fatigue + 15, 0, 100);
     exp.counters.ko_count++;
     for (const c of conscious(exp)) c.morale = clamp(c.morale - 8, 0, 100);
+    if (f.guard) { roomLog(exp, tpl(ctx, 'threat_guard_falls', f.id, { a: f.name })); return; }
     roomLog(exp, f.name + ' tombe, hors de combat !');
     moment(ctx, 60, f.name + ' est tombé au combat dans ' + exp.biome.name + '.');
   }
@@ -1586,7 +1876,8 @@
     if (m.special === 'tenacious' && !m.used) { m.used = true; m.hp = 1; roomLog(exp, m.name + ' se relève, tenace.'); return; }
     m.alive = false; m.hp = 0;
     exp.counters.kills++;
-    if (killer && killer.alive === undefined) killer.kills++;
+    if (killer && killer.alive === undefined) { killer.kills++; exp.last_killer = killer.name; }
+    if (m.dragon) return;                   // butin et instant du jour gérés par la phase menace
     if (exp.quest.target_monster_id === m.id) exp.counters.kills_target++;
     exp.xp_pool += m.xp;
     exp.bag.gold += m.stolen; m.stolen = 0;
@@ -1674,6 +1965,7 @@
       if (f.level > exp.L + 4) xp = pct(xp, 50);
       if (f.level < exp.L - 4) xp = pct(xp, 120);
       xp = permille(xp, 1000 + f.xp_bonus_permille);
+      if (f.xp_pct) xp = pct(xp, 100 + f.xp_pct);
       if (f.was_ko) xp = div(xp, 2);
       f.xp_gain = xp;
     }
@@ -1706,6 +1998,7 @@
       }
       if (f.was_ko) {
         const sev = exp.outcome === 'wiped' || exp.quest.difficulty >= 6 ? 2 : 1;
+        f.grave = h.injury.severity >= 2;            // parti déjà gravement blessé (sévérité ≥ 2) et tombé à 0 PV → tirage de mort
         injure(ctx, h, sev);
         h.injury.days_left = Math.max(1, h.injury.days_left + div(exp.quest.difficulty, 3) - (clericUp ? 1 : 0) + f.injury_bonus_days);
         dm -= sev === 1 ? 5 : 10;
@@ -1716,6 +2009,14 @@
       h.history.expeditions++;
       if (exp.outcome === 'success' || exp.outcome === 'partial') h.history.victories++;
       h.last_team = exp.party.filter(x => x.id !== f.id).map(x => x.id);
+      if (!f.deserted) { addCraftXp(ctx, h, 'endurance', D.C.craft_xp.expedition_endurance); addCraftXp(ctx, h, (D.C.craft_by_class || {})[h.class_id] || 'endurance', D.C.craft_xp.expedition_class); }
+    }
+    // Mort possible (V4) : parti en expédition avec une blessure grave (sévérité ≥ 2) et tombé à 0 PV — TIRAGE death_permille.wounded.
+    // (La validation V4 refuse ce départ : ce chemin n'est atteignable que si la règle « blessé = repos ou forge » est levée.)
+    for (const f of exp.party) {
+      if (!f.grave) continue;
+      const h = state.heroes[f.id];
+      if (h) rollDeath(ctx, h, 'wounded', 'de ses blessures après « ' + exp.quest.name + ' »');
     }
   }
   function outcomeLabel(o) { return o === 'success' ? 'succès' : o === 'partial' ? 'succès partiel' : o === 'retreat' ? 'retraite' : o === 'wiped' ? 'déroute' : 'échec'; }
@@ -1737,6 +2038,12 @@
     state.stats.expeditions++;
     if (exp.outcome === 'success') { state.stats.successes++; state.guild.prestige += D.C.prestige_per_success + quest.difficulty; }
     else if (exp.outcome === 'partial') state.guild.prestige += D.C.prestige_per_partial;
+    // Maîtrise de biome (V4) : +1 par quête réussie, +2 si le boss du donjon est vaincu.
+    if (state.biome_mastery && state.biome_mastery[quest.biome] !== undefined) {
+      let gain = exp.outcome === 'success' ? (D.C.mastery_success || 1) : 0;
+      if (exp.counters.boss_killed) gain += D.C.mastery_boss_bonus || 2;
+      if (gain) { state.biome_mastery[quest.biome] += gain; say(ctx, 'expedition', 'Maîtrise ' + biomeDe(D, quest.biome) + ' : ' + state.biome_mastery[quest.biome] + ' (+' + gain + ').'); }
+    }
     const c = exp.counters;
     for (const l of exp.lines.slice(0, 4)) say(ctx, 'expedition', l);
     say(ctx, 'expedition', 'Bilan : ' + c.rooms_cleared + '/' + c.rooms_total + ' salles nettoyées, ' + c.kills + ' monstres abattus, ' + c.ko_count + ' KO, ' + c.rounds_total + ' tours de combat.');
@@ -1756,6 +2063,316 @@
     ctx.expedition = { quest_name: quest.name, biome_name: D.biomes[quest.biome].name, participants: fighters.map(f => f.name), outcome: outcomeVm(exp.outcome),
       rooms: exp.rooms.map(r => ({ name: r.name, lines: r.lines })), loot: loot, xp: xpTotal };
     ctx.summary.gold_delta += rw.gold;
+  }
+
+  // ===================================================================================
+  // 10b. MENACE — phase 7b : le dragon attaque le village (défenseurs = héros « defend » + gardes de l'âge)
+  // ===================================================================================
+  function guardHero(D, state, i, level) {
+    const names = D.raw.first_names_m;
+    return { id: 'guard_' + pad2(i), owner: 'village', first_name: 'Garde', epithet: names[(i * 7 + state.day) % names.length], gender: 'm',
+      class_id: 'warrior', rarity: 'common', level: level, xp: 0, bonus_attrs: emptyAttrs(D), trained: emptyAttrs(D), train_points: {},
+      form: 50, fatigue: 0, morale: 60, injury: { severity: 0, days_left: 0 }, scars: 0, age_seasons: 8, traits: [], wage: 0, unpaid_days: 0,
+      equipment: { weapon: null, armor: null, trinket: null, potion: null }, history: { expeditions: 0, victories: 0, injuries: 0, level_ups: 0 }, last_activity: 'rest', last_team: [], crafts: {} };
+  }
+  function makeDragon(D, T, DR, day) {
+    return { id: DR.id, biome: DR.biome, name: dragonVars(DR).threat_le, verb: DR.verb, level: 1 + div(day, 2), slot: 0, boss: false, dragon: true, mechanic: DR.mechanic, elite: false, siege: false,
+      hp_max: DR.hp_base + DR.hp_per_day * day, atk: DR.atk_base + DR.atk_per_day * day, def: DR.def_base + DR.def_per_day * day, spd: DR.spd,
+      crit: 0, evasion: 0, target_rule: DR.mechanic === 'heads' ? 'weakest' : 'strongest', special: 'dragon', xp: 0, crit_immune: true,
+      breath_every: DR.breath_every || 0, breath_power: DR.breath_power || T.breath_power || 100, breath_label: DR.breath_label || '',
+      alive: true, fled: false, status: { poison: 0, poison_l: 0, burned: 0, entangled: 0 }, used: false, stolen: 0, loot: [],
+      heads: 3, head_dmg: 0, fire_round: -1, awakened: false, hp: 0 };
+  }
+  function defenseArena(D, fighters, day) {
+    return { quest: { id: 'threat_' + pad2(day), type: 'defense', difficulty: 1 + div(day, 5), target_monster_id: null, name: 'Défense du village' }, type: { objective: 'defense', boss: 'none', rooms_per_floor: 1 },
+      biome: { id: 'village', name: 'la défense du village', boss: null, outdoor: true }, d: null, L: 1 + div(day, 3), floors: 1, day: day,
+      party: fighters, bag: { gold: 0, resources: {}, items: [], item_rolls_bonus: 0, rarity_bonus: 0 }, xp_pool: 0,
+      counters: { rooms_total: 1, rooms_visited: 0, rooms_cleared: 0, floors_cleared: 0, kills: 0, kills_target: 0, harvest_done: 0, harvest_total: 0, ko_count: 0, rounds_total: 0, deserters: 0, boss_killed: false, caravan_hp: 0 },
+      flags: { cursed: false, nest: false, storm: false, skip_next: false, feat: null }, rooms: [], room: { name: 'Place du village', lines: [] }, outcome: null, events_floor: 0, lines: [], last_combat: null, last_ko: 0, last_killer: null };
+  }
+  // Ravage : un bâtiment perd un niveau. Le hall ne tombe à 0 que s'il est le seul bâtiment ≥ 1 ou s'il a déjà brûlé une fois (second ravage).
+  function ravageBuilding(ctx) {
+    const state = ctx.state, D = ctx.D;
+    const others = D.raw.buildings.map(b => b.id).filter(id => id !== 'hall' && bLevel(D, state, id) >= 1);
+    const hallLv = bLevel(D, state, 'hall');
+    const cands = others.slice();
+    if (hallLv >= 2 || (hallLv === 1 && (!others.length || (state.hall_hits || 0) >= 1))) cands.push('hall');
+    cands.sort();
+    if (!cands.length) return null;
+    const id = cands[ctx.rng.roll(cands.length)];
+    state.buildings[id] -= 1;
+    if (id === 'hall') state.hall_hits = (state.hall_hits || 0) + 1;
+    if (state.construction && state.construction.building_id === id) state.construction.to_level = state.buildings[id] + 1;
+    return id;
+  }
+  // Mort d'un héros (V4) : retiré de l'effectif, tombe, équipement au coffre de guilde, héritier à la taverne (phase 9 du même jour → visible le lendemain).
+  function killHero(ctx, h, cause) {
+    const state = ctx.state, D = ctx.D;
+    const inv = state.inventories[h.owner];
+    for (const s of sortedKeys(h.equipment)) {
+      const uid = h.equipment[s];
+      if (!uid) continue;
+      const it = inv.items.filter(x => x.uid === uid)[0];
+      if (it) { state.guild_chest.push({ uid: it.uid, item_id: it.item_id, from: heroName(h) }); inv.items = inv.items.filter(x => x.uid !== uid); }
+      h.equipment[s] = null;
+    }
+    state.graves.push({ hero_id: h.id, name: heroName(h), day: state.day, cause: cause });
+    ctx.deaths.push({ owner: h.owner, hero_id: h.id, name: heroName(h), class_id: h.class_id, traits: h.traits.slice(), epithet: h.epithet, cause: cause });
+    ctx.summary.deaths.push(heroName(h));
+    state.stats.deaths += 1;
+    delete state.heroes[h.id];
+    say(ctx, 'deuil', tpl(ctx, 'death', h.id, gv(h, { a: heroName(h), cause: cause })));
+    moment(ctx, 99, heroName(h) + ' est mort ' + cause + '. La guilde porte le deuil.');
+  }
+  // Tirage de mort (V4) après un KO : dragon (death_permille.dragon) ou blessure grave en expédition/solo (death_permille.wounded).
+  function rollDeath(ctx, h, kind, cause) {
+    const p = (ctx.D.C.death_permille || {})[kind] || 0;
+    if (p > 0 && ctx.rng.chance(p)) { killHero(ctx, h, cause); return true; }
+    return false;
+  }
+  // Chute de la guilde (V4) : hall au niveau 0 après un ravage. La saison s'arrête (resolveDay devient l'identité).
+  function collapseGuild(ctx, reason) {
+    const state = ctx.state, D = ctx.D;
+    state.collapsed = { day: state.day, reason: reason };
+    const lines = [tpl(ctx, 'collapse', 'c', {}), 'Jour ' + state.day + ' : ' + reason + '.',
+      'Trésorerie de guilde : ' + state.guild.gold + ' or · prestige ' + state.guild.prestige + '.',
+      'Expéditions : ' + state.stats.expeditions + ', dont ' + state.stats.successes + ' succès · dragons abattus : ' + state.stats.dragons_slain + ' · morts : ' + state.stats.deaths + '.'];
+    for (const m of state.managers) lines.push(m.name + ' : ' + state.purses[m.id] + ' or, ' + heroesOf(state, m.id).length + ' aventurier(s) dispersé(s).');
+    state.season_report = { title: 'Chute de la guilde — jour ' + state.day, lines: lines };
+    for (const l of lines) say(ctx, 'bilan', l);
+    moment(ctx, 100, 'La guilde est dispersée : ' + reason + '.');
+  }
+  function dragonVars(DR) {
+    const art = DR.article || 'le', le = art + (art === 'l\'' ? '' : ' ') + DR.name, f = DR.gender === 'f';
+    const cap = le.charAt(0).toUpperCase() + le.slice(1);
+    return { threat: DR.name, threat_le: le, Threat_le: cap, dragon: DR.name, dragon_le: le, Dragon_le: cap, threat_de: (art === 'le' ? 'du ' : art === 'la' ? 'de la ' : 'de l\'') + DR.name, dragon_de: (art === 'le' ? 'du ' : art === 'la' ? 'de la ' : 'de l\'') + DR.name, e: f ? 'e' : '', il: f ? 'elle' : 'il' };
+  }
+  function biomeLe(D, id) { const b = D.biomes[id]; return (b.article || 'le') + ' ' + b.name; }
+  function biomeDe(D, id) { const b = D.biomes[id]; return ((b.article || 'le') === 'la' ? 'de la ' : 'du ') + b.name; }
+  function scheduleThreat(state, biome, dragonId, day) {
+    state.threats.push({ type: 'dragon', biome: biome, dragon_id: dragonId, day: day, presage_day: day - 1, outcome: null });
+  }
+  function phaseThreat(ctx) {
+    const state = ctx.state, D = ctx.D, T = D.threats && D.threats.dragon;
+    const threat = threatToday(state);
+    if (!threat || !T) return;
+    const DR = D.dragons[threat.biome], dr = state.dragons[threat.biome];
+    if (!DR || !dr) { threat.outcome = 'annulé'; return; }
+    const age = villageAge(D, state), day = state.day;
+    const heroes = allHeroes(state).filter(h => ctx.effective[h.id].activity === 'defend');
+    const roster = allHeroes(state);
+    const avgLevel = Math.max(1, div(sum(roster.map(h => h.level)), Math.max(1, roster.length)));
+    const fighters = heroes.map((h, i) => makeFighter(D, combatProfile(D, state, h), i));
+    for (let i = 0; i < age.guards; i++) {
+      const g = makeFighter(D, combatProfile(D, state, guardHero(D, state, i, avgLevel)), fighters.length);
+      g.guard = true; g.skills = []; g.priority = 0; g.potion = null;
+      g.hp_max = pct(g.hp_max, T.guard_hp_pct); g.hp = g.hp_max;
+      fighters.push(g);
+    }
+    for (const f of fighters) { f.hp_max = pct(f.hp_max, 100 + age.defense); f.hp = f.hp_max; f.def = pct(f.def, 100 + age.defense); }
+    const dragon = makeDragon(D, T, DR, day);
+    dragon.hp = dragon.hp_max;
+    const exp = defenseArena(D, fighters, day);
+    const wall = state.village_age >= T.wall_age_min;
+    const biomeName = D.biomes[threat.biome].name;
+    const DV = dragonVars(DR);
+    const vars = Object.assign({ biome: biomeName, biome_le: biomeLe(D, threat.biome), biome_de: biomeDe(D, threat.biome), n: fighters.length, guards: age.guards ? ', dont ' + age.guards + ' garde(s) du village' : '' }, DV);
+    say(ctx, 'menace', tpl(ctx, 'threat_arrival', 'a', vars));
+    let outcome;
+    if (!fighters.length) {
+      outcome = age.defense >= T.wall_alone_defense_min ? 'repoussé' : 'ravage';
+      say(ctx, 'menace', tpl(ctx, outcome === 'ravage' ? 'threat_none' : 'threat_walls_hold', 'n', vars));
+    } else {
+      const r = runCombat(ctx, exp, [dragon], { first: false, no_retreat: true, max_rounds: T.max_rounds, flee_hp_pct: T.flee_hp_pct, flee_permille: T.flee_permille || 1000, wall: wall, silent_start: true }, ctx.rng);
+      outcome = r === 'victory' ? 'vaincu' : r === 'wiped' ? 'ravage' : 'repoussé';
+      for (const l of exp.room.lines.slice(0, 10)) say(ctx, 'menace', l);
+      if (outcome === 'vaincu') say(ctx, 'menace', tpl(ctx, 'threat_decisive', 'd', Object.assign({ a: exp.last_killer || fighters[0].name }, vars)));
+      else if (outcome === 'repoussé') say(ctx, 'menace', tpl(ctx, 'threat_flee', 'f', vars));
+    }
+    const loot = [];
+    let buildingHit = null, legendaryName = null;
+    if (outcome === 'vaincu') {
+      dr.state = 'slain'; dr.slain_day = day; dr.next_day = null; dr.last_outcome = outcome;
+      state.stats.dragons_slain += 1;
+      const gold = T.gold_base + T.gold_per_day * day;
+      state.guild.gold += gold; loot.push(gold + ' or → caisse de guilde');
+      // Matériaux propres au dragon (4-8 au total, répartis entre ses deux matériaux), à l'entrepôt.
+      // L'entrepôt leur fait de la place : le surplus de ressources ordinaires les moins chères est vendu (moitié du prix) ;
+      // seuls des matériaux de dragon excédant la capacité totale seraient vendus.
+      const total = ctx.rng.between(T.material_min, T.material_max);
+      const first = ctx.rng.between(1, total - 1);
+      const qtys = [first, total - first];
+      let room = warehouseCap(D, state) - warehouseUsed(state) - total;
+      if (room < 0) {
+        const ordinary = D.raw.resources.filter(r => !r.dragon && (state.warehouse[r.id] || 0) > 0).sort((x, y) => x.sell - y.sell || (x.id < y.id ? -1 : 1));
+        let cleared = 0;
+        for (const r of ordinary) {
+          if (room >= 0) break;
+          const q = Math.min(state.warehouse[r.id], -room);
+          state.warehouse[r.id] -= q; room += q; cleared += div(q * r.sell, 2);
+          loot.push(q + ' ' + r.name.toLowerCase() + ' vendus pour faire de la place');
+        }
+        state.guild.gold += cleared;
+      }
+      DR.materials.forEach((rid, i) => {
+        const res = D.resources[rid];
+        if (!res) return;
+        const free = Math.max(0, warehouseCap(D, state) - warehouseUsed(state)), q = Math.min(free, qtys[i]);
+        state.warehouse[rid] = (state.warehouse[rid] || 0) + q;
+        const sold = (qtys[i] - q) * res.sell;
+        state.guild.gold += sold;
+        loot.push(q + ' ' + res.name.toLowerCase() + ' → entrepôt' + (sold ? ' (' + sold + ' or de surplus vendu)' : ''));
+      });
+      state.guild.prestige += T.prestige_win;
+      // Objet légendaire : un seul exemplaire par saison, au défenseur qui a fait le plus de dégâts (à défaut premier manager).
+      const pool = DR.legendary_pool.filter(id => D.items[id] && state.legendary_given.indexOf(id) < 0).sort();
+      const best = fighters.filter(f => !f.guard).slice().sort((a, b) => b.damage - a.damage || a.slot - b.slot)[0];
+      const owner = best ? best.owner : state.managers[0].id;
+      if (pool.length) {
+        const itemId = pool[ctx.rng.roll(pool.length)];
+        giveItem(D, state, owner, itemId); state.stats.items_found++;
+        state.legendary_given.push(itemId);
+        legendaryName = D.items[itemId].name;
+        ctx.summary.legendary.push(legendaryName);
+        loot.push(legendaryName + ' (légendaire) → ' + managerName(state, owner));
+        say(ctx, 'menace', tpl(ctx, 'legendary_grant', 'l', { a: best ? best.name : managerName(state, owner), item: legendaryName, flavor: D.items[itemId].flavor || '' }));
+      }
+      state.trophies.push({ dragon_id: DR.id, day: day });
+      say(ctx, 'menace', tpl(ctx, 'threat_victory', 'v', vars));
+      say(ctx, 'menace', tpl(ctx, 'trophy', 't', DV));
+      moment(ctx, 98, DV.Threat_le + ' est vaincu' + DV.e + ' sous les murs du village par ' + joinFr(fighters.filter(f => !f.guard).map(f => f.name)) + ' !');
+    } else if (outcome === 'repoussé') {
+      dr.state = 'repelled'; dr.last_outcome = outcome;
+      const next = day + (D.C.dragon_return_repelled || 5);
+      dr.next_day = next <= state.season_length ? next : null;
+      if (dr.next_day) scheduleThreat(state, threat.biome, DR.id, next);
+      state.guild.prestige += T.prestige_repel;
+      say(ctx, 'menace', tpl(ctx, 'threat_repel', 'r', vars));
+      moment(ctx, 70, DV.Threat_le + ' est repoussé' + DV.e + ' : le village tient, la muraille fume.');
+    } else {
+      dr.state = 'awake'; dr.last_outcome = outcome;
+      const next = day + (D.C.dragon_return_ravage || 3);
+      dr.next_day = next <= state.season_length ? next : null;
+      if (dr.next_day) scheduleThreat(state, threat.biome, DR.id, next);
+      buildingHit = ravageBuilding(ctx);
+      const lost = pct(state.guild.gold, T.ravage_gold_pct);
+      state.guild.gold -= lost;
+      state.guild.prestige = Math.max(0, state.guild.prestige + T.prestige_ravage);
+      if (buildingHit) say(ctx, 'menace', tpl(ctx, 'threat_burn', 'b', { b: D.buildings[buildingHit].name }));
+      say(ctx, 'menace', tpl(ctx, 'threat_ravage', 'x', vars) + ' La caisse perd ' + lost + ' or.');
+      moment(ctx, 96, 'Jour noir : ' + DV.threat_le + ' ravage le village' + (buildingHit ? ', ' + D.buildings[buildingHit].name + ' brûle' : '') + '.');
+    }
+    applyDefenseToHeroes(ctx, exp, outcome, T);
+    // Mort possible : héros tombé à 0 PV face au dragon (TIRAGE death_permille.dragon).
+    for (const f of exp.party) {
+      if (f.guard || !f.was_ko) continue;
+      const h = state.heroes[f.id];
+      if (h) rollDeath(ctx, h, 'dragon', 'sous les griffes ' + DV.threat_de);
+    }
+    threat.outcome = outcome;
+    ctx.summary.threat_outcome = outcome;
+    ctx.threat = { type: 'dragon', biome_id: threat.biome, biome_name: biomeName, dragon_id: DR.id, dragon_name: DR.name, outcome: outcome, defenders: fighters.map(f => f.name), building_hit: buildingHit ? D.buildings[buildingHit].name : null, loot: loot, legendary: legendaryName };
+    if (loot.length) say(ctx, 'menace', 'Dépouilles : ' + loot.join(' · ') + '.');
+    if (outcome === 'ravage' && bLevel(D, state, 'hall') <= 0) collapseGuild(ctx, 'la maison de guilde a brûlé sous les flammes ' + DV.threat_de);
+  }
+  // Report sur les héros défenseurs : fatigue/moral du combat, consommables, blessures des KO (comme après une expédition), XP.
+  function applyDefenseToHeroes(ctx, exp, outcome, T) {
+    const state = ctx.state, D = ctx.D, day = state.day;
+    const xp = outcome === 'vaincu' ? T.xp_win_base + T.xp_win_per_day * day : outcome === 'repoussé' ? T.xp_repel_base + T.xp_repel_per_day * day : T.xp_ravage;
+    for (const f of exp.party) {
+      if (f.guard) continue;
+      const h = state.heroes[f.id];
+      if (!h) continue;
+      h.fatigue = clamp(f.fatigue + (hasTrait(h, 'fragile') ? 5 : 0), 0, 100);
+      h.morale = f.morale;
+      for (const uid of f.consumed) { state.inventories[h.owner].items = state.inventories[h.owner].items.filter(x => x.uid !== uid); for (const s of sortedKeys(h.equipment)) if (h.equipment[s] === uid) h.equipment[s] = null; }
+      let dm = outcome === 'vaincu' ? 10 : outcome === 'repoussé' ? 3 : -10;
+      if (dm < 0 && hasTrait(h, 'brave')) dm = div(dm, 2);
+      if (f.was_ko) {
+        injure(ctx, h, outcome === 'ravage' ? 2 : 1);
+        dm -= 5;
+        say(ctx, 'menace', tpl(ctx, 'injury', h.id, gv(h, { a: heroName(h), n: h.injury.days_left })));
+      }
+      if (hasTrait(h, 'stoic')) dm = div(dm, 2);
+      h.morale = clamp(h.morale + dm, 0, 100);
+      addXp(ctx, h, f.was_ko ? div(xp, 2) : xp);
+    }
+  }
+
+  // ===================================================================================
+  // 10c. MISSIONS SOLO — phase 7c (V4) : 2 PA, 1 jour, récompenses personnelles, savoir-faire, blessure par jet contre la difficulté
+  // ===================================================================================
+  function soloAptitude(D, state, h, m) {
+    const cls = D.classes[h.class_id];
+    let apt = h.level * 5 + attrEff(D, h, cls.primary) + attrEff(D, h, cls.secondary) + 4 * craftLevel(D, craftXp(h, m.craft_id));
+    if (m.class_id === h.class_id) apt += 6;
+    if (hasTrait(h, 'brave')) apt += 3;
+    if (hasTrait(h, 'lucky')) apt += 3;
+    if (hasTrait(h, 'coward')) apt -= 3;
+    return pct(apt, perfPct(h));
+  }
+  function soloRewardsLabel(D, m) {
+    const parts = [];
+    if (m.gold) parts.push(m.gold + ' or');
+    for (const r of sortedKeys(m.resources)) parts.push(m.resources[r] + ' ' + D.resources[r].name.toLowerCase());
+    parts.push(m.xp + ' XP');
+    parts.push(D.crafts[m.craft_id] ? D.crafts[m.craft_id].name.toLowerCase() : m.craft_id);
+    return parts.join(' · ');
+  }
+  function soloRiskLabel(m) { return m.difficulty <= 1 ? 'risque faible' : m.difficulty <= 3 ? 'risque modéré' : 'risque élevé'; }
+  function phaseSolo(ctx) {
+    const state = ctx.state, D = ctx.D, C = D.C;
+    for (const h of allHeroes(state)) {
+      const e = ctx.effective[h.id];
+      for (const slot of e.slots) {
+        if (slot.activity !== 'solo') continue;
+        const m = D.solo[slot.target];
+        if (!m || !state.heroes[h.id]) continue;
+        const apt = soloAptitude(D, state, h, m) + ctx.rng.roll(C.solo_roll || 30);
+        const dc = (C.solo_dc || [])[m.difficulty] || 50;
+        const ok = apt >= dc;
+        state.stats.solo_done += 1;
+        const rewards = [];
+        if (ok) {
+          state.stats.solo_success += 1;
+          if (m.gold) { state.purses[h.owner] += m.gold; rewards.push(m.gold + ' or'); }
+          const inv = state.inventories[h.owner].resources;
+          for (const r of sortedKeys(m.resources)) { inv[r] = (inv[r] || 0) + m.resources[r]; rewards.push(m.resources[r] + ' ' + D.resources[r].name.toLowerCase()); }
+          let xp = m.xp;
+          const erud = craftBonus(D, h, 'erudition');
+          if (erud) xp = pct(xp, 100 + erud);
+          addXp(ctx, h, xp); rewards.push(xp + ' XP');
+          addCraftXp(ctx, h, m.craft_id, m.craft_xp);
+          say(ctx, 'solo', tpl(ctx, 'solo_success', h.id, gv(h, { a: heroName(h), mission: m.text, reward: rewards.join(', ') })));
+          if (ctx.rng.chance(m.item_permille)) {
+            const itemId = instantiateItem(D, { pool: null, rarity_bonus: m.difficulty * 10 }, 0, ctx.rng);
+            giveItem(D, state, h.owner, itemId); state.stats.items_found++;
+            say(ctx, 'solo', tpl(ctx, 'solo_item', h.id, { a: heroName(h), item: D.items[itemId].name.toLowerCase() }));
+            if (D.items[itemId].rarity !== 'common') moment(ctx, 42, heroName(h) + ' rapporte ' + D.items[itemId].name + ' de sa mission solo.');
+          }
+          moment(ctx, 24 + 4 * m.difficulty, heroName(h) + ' réussit ' + m.text + '.');
+          ctx.summary.solo_results.push(heroName(h) + ' : ' + m.name + ' — réussie (' + rewards.join(', ') + ')');
+        } else {
+          addXp(ctx, h, div(m.xp, 3));
+          addCraftXp(ctx, h, m.craft_id, div(m.craft_xp, 2));
+          say(ctx, 'solo', tpl(ctx, 'solo_fail', h.id, gv(h, { a: heroName(h), mission: m.text })));
+          moment(ctx, 26 + 3 * m.difficulty, heroName(h) + ' échoue : ' + m.text + '.');
+          ctx.summary.solo_results.push(heroName(h) + ' : ' + m.name + ' — échec');
+        }
+        // Blessure : jet contre la difficulté (permille doublé sur échec), chance protège, discrétion aide.
+        let p = m.injury_permille * (ok ? 1 : 2);
+        if (attrEff(D, h, 'luck') >= 25) p -= 20;
+        p -= craftBonus(D, h, 'discretion');
+        if (p > 0 && ctx.rng.chance(p)) {
+          const sev = !ok && m.difficulty >= 4 ? 2 : 1;
+          const grave = h.injury.severity >= 2;     // parti gravement blessé (inatteignable par la validation V4, voir expédition)
+          injure(ctx, h, sev);
+          say(ctx, 'solo', tpl(ctx, 'injury', h.id, gv(h, { a: heroName(h), n: h.injury.days_left })));
+          if (grave) rollDeath(ctx, h, 'wounded', 'de ses blessures après ' + m.text);
+        }
+        break;    // une seule mission solo par jour et par héros (2 PA)
+      }
+    }
   }
 
   // ===================================================================================
@@ -1792,16 +2409,29 @@
       const name = names[a.payload.recruit_id] || a.payload.recruit_id;
       let why = null;
       if (!o) why = 'arrivé trop tard à la taverne';
+      else if (o.heir_for && o.heir_for !== a.manager_id) why = 'héritier réservé à ' + managerName(state, o.heir_for);
       else if (state.purses[a.manager_id] < o.cost) why = 'or insuffisant';
-      else if (heroesOf(state, a.manager_id).length >= rosterCap(D, state)) why = 'effectif complet';
+      else if (!o.heir_for && heroesOf(state, a.manager_id).length >= rosterCap(D, state)) why = 'effectif complet';
       if (why) { const t = tpl(ctx, 'recruit_fail', a.manager_id, { m: managerName(state, a.manager_id), a: name, reason: why }); ctx.notices.push(t); say(ctx, 'taverne', t); continue; }
       state.purses[a.manager_id] -= o.cost;
       state.tavern = state.tavern.filter(x => x.id !== o.id);
       const h = addHero(D, state, a.manager_id, o.hero);
-      ctx.effective[h.id] = { activity: 'rest', target: null };
+      ctx.effective[h.id] = effectiveOf([]);
       ctx.summary.recruits.push(heroName(h));
-      say(ctx, 'taverne', tpl(ctx, 'recruit', h.id, { m: managerName(state, a.manager_id), a: heroName(h), cls: D.classes[h.class_id].name, lvl: h.level, n: o.cost }));
-      moment(ctx, 30, managerName(state, a.manager_id) + ' engage ' + heroName(h) + ', ' + D.classes[h.class_id].name.toLowerCase() + ' de niveau ' + h.level + '.');
+      if (o.heir_for) { say(ctx, 'taverne', tpl(ctx, 'heir_recruit', h.id, { m: managerName(state, a.manager_id), a: heroName(h), dead: o.dead_name, link: h.gender === 'f' ? 'héritière' : 'héritier' })); moment(ctx, 62, heroName(h) + ' reprend la place de ' + o.dead_name + ' chez ' + managerName(state, a.manager_id) + '.'); }
+      else { say(ctx, 'taverne', tpl(ctx, 'recruit', h.id, { m: managerName(state, a.manager_id), a: heroName(h), cls: D.classes[h.class_id].name, lvl: h.level, n: o.cost })); moment(ctx, 30, managerName(state, a.manager_id) + ' engage ' + heroName(h) + ', ' + D.classes[h.class_id].name.toLowerCase() + ' de niveau ' + h.level + '.'); }
+    }
+    // Héritiers (V4) : pour chaque mort du jour, une offre à coût 0 réservée au manager endeuillé, visible dès le lendemain.
+    for (const dead of ctx.deaths.slice().sort((x, y) => (x.hero_id < y.hero_id ? -1 : 1))) {
+      const level = Math.max(1, guildLevel(D, state) - 1);
+      const h = genHero(D, ctx.rng, state, { class_id: dead.class_id, level: level, rarity: 'common' });
+      h.epithet = dead.epithet;
+      const inherited = dead.traits.length ? dead.traits[ctx.rng.roll(dead.traits.length)] : null;
+      h.traits = ['heritier'].concat(inherited && inherited !== 'heritier' ? [inherited] : []);
+      uniqueName(state, h);
+      const o = { id: 'heir' + pad2(state.day) + '_' + dead.owner, hero: h, cost: 0, wage: h.wage, expires_day: state.day + (D.C.heir_expires_days || 4), heir_for: dead.owner, dead_name: dead.name };
+      state.tavern.push(o);
+      say(ctx, 'taverne', tpl(ctx, 'heir_offer', o.id, { a: heroName(h), dead: dead.name, m: managerName(state, dead.owner), link: h.gender === 'f' ? 'héritière' : 'héritier', il: h.gender === 'f' ? 'elle' : 'il' }));
     }
     const keep = [];
     for (const o of state.tavern) { if (o.expires_day <= state.day + 1) say(ctx, 'taverne', tpl(ctx, 'tavern_expired', o.id, gv(o.hero, { a: heroName(o.hero) }))); else keep.push(o); }
@@ -1846,14 +2476,16 @@
   // ---- Phase 11 : fin de jour (état des héros, XP, niveaux, tableau des quêtes) ----
   function phaseEvening(ctx) {
     const state = ctx.state, D = ctx.D;
+    for (const mid of sortedKeys(state.solo_board)) state.solo_board[mid] = rollSoloBoard(D, state, ctx.rng, mid);   // tableau solo renouvelé le soir (V4)
     const chapel = D.C.chapel_morale[bLevel(D, state, 'chapel')];
     const decoMorale = {};
     for (const m of sortedKeys(state.quarters)) decoMorale[m] = Math.min(D.C.decoration_morale_cap, sum(state.quarters[m].map(q => D.decorations[q.decoration_id].morale)));
     const cheerful = {};
     for (const h of allHeroes(state)) if (hasTrait(h, 'cheerful')) cheerful[h.owner] = 1;
     for (const h of allHeroes(state)) {
-      const act = ctx.effective[h.id] ? ctx.effective[h.id].activity : 'rest';
-      const dl = D.C.activity_deltas[act] || D.C.activity_deltas.rest;
+      const eff = ctx.effective[h.id] || effectiveOf([]);
+      const act = eff.activity;
+      const dl = slotDeltas(D, eff.slots);
       h.form += Math.sign(50 - h.form) * Math.min(2, Math.abs(50 - h.form));
       let fat = dl.fatigue, mor = dl.morale;
       if (act === 'expedition') fat += 5 * (ctx.exp_floors || 1);
@@ -1865,15 +2497,68 @@
       h.fatigue = clamp(h.fatigue + fat, 0, 100);
       h.form = clamp(h.form + dl.form, 0, 100);
       h.morale = clamp(h.morale + mor, hasTrait(h, 'cheerful') ? 20 : 0, 100);
-      if (act === 'gather' || act === 'craft') addXp(ctx, h, dl.xp);
+      if (dl.xp) addXp(ctx, h, dl.xp);
       h.last_activity = act;
-      for (const ev of applyXp(D, h, ctx.xp[h.id] || 0)) {
+      let dayXp = ctx.xp[h.id] || 0;
+      const erud = craftBonus(D, h, 'erudition');
+      if (erud && dayXp) dayXp = pct(dayXp, 100 + erud);
+      for (const ev of applyXp(D, h, dayXp)) {
         if (ev.kind === 'level_up') { state.stats.level_ups++; ctx.summary.level_ups.push(heroName(h) + ' → ' + ev.level); say(ctx, 'soir', tpl(ctx, 'level_up', h.id, { a: heroName(h), n: ev.level })); moment(ctx, 50 + ev.level, heroName(h) + ' passe niveau ' + ev.level + ' !'); }
         else say(ctx, 'soir', tpl(ctx, 'skill_unlocked', h.id + ev.skill.id, { a: heroName(h), skill: ev.skill.name }));
       }
     }
     if (chapel) say(ctx, 'soir', tpl(ctx, 'chapel', 'c', { n: chapel }));
     refreshBoard(ctx);
+  }
+  // Deltas de fin de jour d'une journée composée (V4) : Σ par activité de delta_journalier × PA dépensés / slot_divisor ; journée vide = repos.
+  function slotDeltas(D, slots) {
+    const out = { fatigue: 0, form: 0, morale: 0, xp: 0 };
+    if (!slots.length) return Object.assign(out, D.C.activity_deltas.rest);
+    const spent = {};
+    for (const s of slots) spent[s.activity] = (spent[s.activity] || 0) + (isFullDay(s.activity) ? slotDiv(D) : apCost(D, s.activity));
+    for (const act of sortedKeys(spent)) {
+      const dl = D.C.activity_deltas[act] || D.C.activity_deltas.rest;
+      for (const k of ['fatigue', 'form', 'morale', 'xp']) out[k] += div(dl[k] * spent[act], slotDiv(D));
+    }
+    return out;
+  }
+  // ---- Phase 11b : âge du village (au plus un âge par jour, jamais de recul) ----
+  function phaseVillageAge(ctx) {
+    const state = ctx.state, D = ctx.D;
+    const cur = clamp(state.village_age || 0, 0, D.ages.length - 1);
+    if (cur >= D.ages.length - 1) return;
+    const next = D.ages[cur + 1], levels = buildingLevelsSum(state);
+    if (state.guild.prestige < next.prestige_min || levels < next.levels_min) return;
+    state.village_age = cur + 1;
+    state.guild.prestige += D.C.village_age_up_prestige || 0;
+    say(ctx, 'village', tpl(ctx, 'village_age_up', 'age', { old: D.ages[cur].name.toLowerCase(), new: next.name.toLowerCase(), desc: next.description }));
+    moment(ctx, 92, 'Le village devient ' + next.name.toLowerCase() + ' : ' + next.description);
+    ctx.summary.village_age_up = next.name;
+  }
+  // ---- Phase 11c (V4) : réveil des dragons par la maîtrise des biomes, puis présage (la veille d'une attaque) ----
+  function activeThreat(state) { return (state.threats || []).filter(t => t.outcome === null)[0] || null; }
+  function phaseDragons(ctx) {
+    const state = ctx.state, D = ctx.D, day = state.day;
+    let woke = null;
+    if (day >= (D.C.dragon_wake_day_min || 10) && day + 1 <= state.season_length && !activeThreat(state)) {
+      for (const b of sortedKeys(D.dragons)) {
+        const dr = state.dragons[b];
+        if (!dr || dr.state !== 'dormant' || dr.awakenings > 0 || (state.biome_mastery[b] || 0) < (D.C.dragon_wake_mastery || 8)) continue;
+        dr.state = 'awake'; dr.awakenings += 1; dr.next_day = day + 1;
+        scheduleThreat(state, b, D.dragons[b].id, day + 1);
+        woke = b;
+        break;                                   // un seul réveil par soir
+      }
+    }
+    const t = (state.threats || []).filter(x => x.presage_day === day && x.outcome === null)[0];
+    if (!t) return;
+    const DR = D.dragons[t.biome];
+    if (!DR) return;
+    const presage = tpl(ctx, 'presage', 'p', {}), DV = dragonVars(DR);
+    if (woke === t.biome) say(ctx, 'presage', tpl(ctx, 'dragon_wake', 'w', Object.assign({ biome: D.biomes[t.biome].name, biome_le: biomeLe(D, t.biome), biome_de: biomeDe(D, t.biome), presage: presage }, DV)));
+    else say(ctx, 'presage', tpl(ctx, 'dragon_return', 'r', Object.assign({ presage: presage }, DV)));
+    moment(ctx, 75, 'Présage : ' + DV.dragon_le + (woke === t.biome ? ' s\'est réveillé' + DV.e : ' revient') + '. Le village retient son souffle.');
+    ctx.summary.presage = DR.name;
   }
   function refreshBoard(ctx) {
     const state = ctx.state, D = ctx.D;
@@ -1918,9 +2603,10 @@
   }
 
   // ---- Phase 13 : bilan de saison ----
+  function dragonById(D, id) { for (const b of sortedKeys(D.dragons)) if (D.dragons[b].id === id) return D.dragons[b]; return null; }
   function phaseSeason(ctx) {
     const state = ctx.state, D = ctx.D;
-    if (state.day !== state.season_length) return;
+    if (state.day !== state.season_length || state.collapsed) return;
     const heroes = allHeroes(state);
     const best = heroes.slice().sort((a, b) => b.level - a.level || b.xp - a.xp || (a.id < b.id ? -1 : 1))[0];
     const s = state.stats;
@@ -1930,7 +2616,9 @@
       'Derbys : ' + s.derby_wins + ' victoire(s), ' + s.derby_losses + ' défaite(s), ' + s.derby_draws + ' nul(s).',
       'Montées de niveau : ' + s.level_ups + ' · blessures : ' + s.injuries + '.',
       best ? 'Aventurier de la saison : ' + heroName(best) + ' (' + D.classes[best.class_id].name + ' niveau ' + best.level + ').' : 'Aucun aventurier.',
-      'Bâtiments : ' + D.raw.buildings.map(b => b.name + ' ' + bLevel(D, state, b.id)).join(', ') + '.'
+      'Bâtiments : ' + D.raw.buildings.map(b => b.name + ' ' + bLevel(D, state, b.id)).join(', ') + '.',
+      'Dragons abattus : ' + state.stats.dragons_slain + (state.trophies.length ? ' (' + state.trophies.map(t => (dragonById(D, t.dragon_id) || { name: t.dragon_id }).name + ' j' + t.day).join(', ') + ')' : '') + ' · morts : ' + state.stats.deaths + (state.graves.length ? ' (' + state.graves.map(g => g.name).join(', ') + ')' : '') + '.',
+      'Missions solo : ' + state.stats.solo_done + ', dont ' + state.stats.solo_success + ' réussies.'
     ];
     for (const m of state.managers) lines.push(m.name + ' : ' + state.purses[m.id] + ' or, ' + heroesOf(state, m.id).length + ' aventurier(s).');
     state.season_report = { title: 'Bilan de la saison — ' + state.season_length + ' jours', lines: lines };
@@ -1941,7 +2629,7 @@
   // ===================================================================================
   // 12. CHRONIQUE : assemblage, budget de lignes, instant du jour
   // ===================================================================================
-  const SECTION_CAP = { matin: 6, paie: 2, recolte: 8, entrainement: 6, forge: 6, infirmerie: 5, expedition: 12, marche: 6, taverne: 6, chantier: 3, soir: 14, derby: 3, bilan: 12 };
+  const SECTION_CAP = { matin: 6, paie: 2, recolte: 8, entrainement: 6, forge: 6, infirmerie: 5, expedition: 13, menace: 22, solo: 8, deuil: 4, marche: 6, taverne: 6, chantier: 3, soir: 14, village: 1, presage: 1, derby: 3, bilan: 12 };
   function ambianceLines(ctx, need) {
     const state = ctx.state, D = ctx.D, out = [];
     const heroes = allHeroes(state).sort((a, b) => (fnvStr(state.day + a.id) % 97) - (fnvStr(state.day + b.id) % 97) || (a.id < b.id ? -1 : 1));
@@ -1967,7 +2655,7 @@
     let guard = 0;
     while (total > D.C.chronicle_max_lines && guard++ < 200) {
       let big = null;
-      for (const p of PHASES) { const s = ctx.sections[p[0]]; if (p[0] !== 'expedition' && p[0] !== 'derby' && p[0] !== 'bilan' && s.lines.length > 2 && (!big || s.lines.length > big.lines.length)) big = s; }
+      for (const p of PHASES) { const s = ctx.sections[p[0]]; if (!UNTRIMMED[p[0]] && s.lines.length > 2 && (!big || s.lines.length > big.lines.length)) big = s; }
       if (!big) break;
       big.lines.pop(); total--;
     }
@@ -1976,31 +2664,43 @@
     let headline = 'Une journée sans histoire au village ; on affûte les lames et on compte les sous.';
     if (ctx.moments.length) headline = ctx.moments.slice().sort((a, b) => b.score - a.score || a.seq - b.seq)[0].text;
     const sections = PHASES.map(p => ctx.sections[p[0]]).filter(s => s.lines.length).map(s => ({ phase: s.phase, title: s.title, lines: s.lines }));
-    return { day: state.day, title: title, headline: headline, sections: sections, expedition: ctx.expedition,
-      summary: { gold_delta: ctx.summary.gold_delta, injuries: ctx.summary.injuries, level_ups: ctx.summary.level_ups, recruits: ctx.summary.recruits, construction: ctx.summary.construction } };
+    return { day: state.day, title: title, headline: headline, sections: sections, expedition: ctx.expedition, threat: ctx.threat,
+      summary: { gold_delta: ctx.summary.gold_delta, injuries: ctx.summary.injuries, level_ups: ctx.summary.level_ups, recruits: ctx.summary.recruits, construction: ctx.summary.construction,
+        village_age_up: ctx.summary.village_age_up, presage: ctx.summary.presage, threat_outcome: ctx.summary.threat_outcome,
+        deaths: ctx.summary.deaths, legendary: ctx.summary.legendary, solo_results: ctx.summary.solo_results } };
   }
 
   // ===================================================================================
   // 13. RÉSOLUTION D'UNE JOURNÉE (pure : clone profond de l'entrée, jamais de mutation)
   // ===================================================================================
   function attachData(state, data) { Object.defineProperty(state, '__data', { value: data, enumerable: false, configurable: true }); return state; }
+  function collapsedChronicle(D, state) {
+    const line = pickTpl(D, 'collapsed_day', String(state.day), {});
+    return { day: state.day, title: 'Jour ' + state.day + ' — la guilde est dispersée', headline: 'La guilde est dispersée.',
+      sections: [{ phase: 'bilan', title: 'Bilan de saison', lines: [line, 'Chute le jour ' + state.collapsed.day + ' : ' + state.collapsed.reason + '.'] }], expedition: null, threat: null,
+      summary: { gold_delta: 0, injuries: [], level_ups: [], recruits: [], construction: '', village_age_up: null, presage: null, threat_outcome: null, deaths: [], legendary: [], solo_results: [] } };
+  }
   function resolveDay(input, actions) {
     const data = input.__data || GLOBAL_DATA;
     const D = index(data);
     const state = attachData(clone(input), data);
+    // Guilde dispersée (V4) : l'état ne change plus, la chronique le dit.
+    if (state.collapsed) return { state: state, chronicle: collapsedChronicle(D, state), log: ['jour ' + state.day + ' : guilde dispersée depuis le jour ' + state.collapsed.day + ', état inchangé'] };
     const ctx = makeCtx(D, state);
     const goldBefore = state.guild.gold + sum(sortedKeys(state.purses).map(m => state.purses[m]));
     phaseValidation(ctx, Array.isArray(actions) ? actions : []);     // 1
     phasePay(ctx);                                                      // 2
-    phaseGather(ctx);                                                   // 3
-    phaseTrain(ctx);                                                    // 4
-    phaseForge(ctx);                                                    // 5
+    phaseSlots(ctx);                                                    // 3-5 récolte, entraînement, forge — par créneau (V4)
     phaseInfirmary(ctx);                                                // 6
     phaseExpedition(ctx);                                               // 7
+    phaseThreat(ctx);                                                   // 7b menace (dragon de biome)
+    phaseSolo(ctx);                                                     // 7c missions solo (V4)
     phaseMarket(ctx);                                                   // 8
-    phaseTavern(ctx);                                                   // 9
+    phaseTavern(ctx);                                                   // 9 (héritiers compris)
     phaseConstruction(ctx);                                             // 10
     phaseEvening(ctx);                                                  // 11
+    phaseVillageAge(ctx);                                               // 11b âge du village
+    phaseDragons(ctx);                                                  // 11c réveil des dragons + présage
     phaseDerby(ctx);                                                    // 12
     phaseSeason(ctx);                                                   // 13
     ctx.summary.gold_delta = state.guild.gold + sum(sortedKeys(state.purses).map(m => state.purses[m])) - goldBefore;
@@ -2010,7 +2710,7 @@
     const dayDone = state.day;
     state.day += 1;
     const h = hashState(Object.assign({}, state, { history: null }));
-    state.history.push({ day: dayDone, title: chronicle.title, headline: chronicle.headline, hash: h });
+    state.history.push({ day: dayDone, title: chronicle.title, headline: chronicle.headline, hash: h, village_age_index: state.village_age || 0 });
     ctx.log.push('jour ' + dayDone + ' résolu, ' + ctx.rng.count + ' tirages, hash ' + h);
     return { state: state, chronicle: chronicle, log: ctx.log };
   }
@@ -2030,23 +2730,77 @@
     if (h.morale < 20) return 'Moral brisé';
     return 'Disponible';
   }
+  // Activités permises AUJOURD'HUI (V4 : coût en PA ; blessé = repos ou forge ; solo avec les missions du tableau du manager).
   function activityOptions(D, state, h) {
-    const rest = { activity: 'rest', label: 'Repos', targets: [] };
-    if (h.injury.severity >= 2 || h.fatigue >= 100) return [rest];
+    const rest = { activity: 'rest', label: 'Repos', targets: [], cost_ap: apCost(D, 'rest') };
     const lv = bLevel(D, state, 'forge');
+    const craft = { activity: 'craft', label: 'Forge', targets: D.raw.recipes.filter(r => r.forge_level <= lv).map(r => ({ id: r.id, label: r.name })), cost_ap: apCost(D, 'craft') };
+    if (h.fatigue >= 100) return [rest];
+    if (h.injury.severity >= 1) return [craft, rest];
+    const ap = apToday(D, state, h);
     const out = [
-      { activity: 'gather', label: 'Récolte', targets: D.raw.resources.map(r => ({ id: r.id, label: r.name + ' (' + D.biomes[r.biome].name + ')' })) },
-      { activity: 'train', label: 'Entraînement', targets: D.raw.attributes.map(a => ({ id: a.id, label: a.name })) },
-      { activity: 'craft', label: 'Forge', targets: D.raw.recipes.filter(r => r.forge_level <= lv).map(r => ({ id: r.id, label: r.name })) },
-      rest
+      { activity: 'gather', label: 'Récolte', targets: D.raw.resources.filter(r => r.gatherable !== false).map(r => ({ id: r.id, label: r.name + ' (' + D.biomes[r.biome].name + ')' })), cost_ap: apCost(D, 'gather') },
+      { activity: 'train', label: 'Entraînement', targets: D.raw.attributes.map(a => ({ id: a.id, label: a.name })), cost_ap: apCost(D, 'train') },
+      craft, rest
     ];
-    if (h.injury.severity === 0) out.push({ activity: 'expedition', label: 'Expédition', targets: [] });
+    const board = soloBoardOf(D, state, h);
+    if (board.length && ap >= apCost(D, 'solo')) out.push({ activity: 'solo', label: 'Mission solo', targets: board.map(m => ({ id: m.id, label: m.name + ' (difficulté ' + m.difficulty + ')' })), cost_ap: apCost(D, 'solo') });
+    out.push({ activity: 'expedition', label: 'Expédition', targets: [], cost_ap: apCost(D, 'expedition') });
+    if (threatToday(state) && canDefend(h)) out.push({ activity: 'defend', label: 'Défendre le village', targets: [], cost_ap: apCost(D, 'defend') });
     return out;
   }
-  function rosterVm(D, state, managerId, planned) {
+  function slotLabel(D, state, s) {
+    const t = s.target;
+    let tl = '';
+    if (s.activity === 'gather' && D.resources[t]) tl = D.resources[t].name;
+    else if (s.activity === 'train' && D.attr_names[t]) tl = D.attr_names[t].name;
+    else if (s.activity === 'craft' && D.recipes[t]) tl = D.recipes[t].name;
+    else if (s.activity === 'solo' && D.solo[t]) tl = D.solo[t].name;
+    return activityLabel(s.activity) + (tl ? ' · ' + tl : '');
+  }
+  function craftsVm(D, h) {
+    return D.crafts_list.map(c => { const xp = craftXp(h, c.id), lv = craftLevel(D, xp); return { id: c.id, name: c.name, level: lv, xp: xp, xp_next: craftXpNext(D, lv), bonus_label: craftBonusLabel(D, h, c.id) }; });
+  }
+  function soloBoardVm(D, state, managerId) {
+    return (state.solo_board[managerId] || []).map(id => D.solo[id]).filter(m => !!m).map(m => ({ id: m.id, name: m.name, class_id: m.class_id, class_name: m.class_id ? D.classes[m.class_id].name : null, difficulty: m.difficulty, cost_ap: apCost(D, 'solo'), rewards_label: soloRewardsLabel(D, m), risk_label: soloRiskLabel(m) }));
+  }
+  function dragonVmState(dr) { return dr.state === 'slain' ? 'slain' : dr.state === 'repelled' ? 'repelled' : dr.state === 'awake' ? 'awake' : 'dormant'; }
+  function biomesVm(D, state) {
+    return D.raw.biomes.map(b => {
+      const DR = D.dragons[b.id] || null, dr = state.dragons[b.id] || { state: 'dormant', next_day: null };
+      const left = DR ? DR.legendary_pool.filter(id => state.legendary_given.indexOf(id) < 0).length : 0;
+      return { id: b.id, name: b.name, mastery: state.biome_mastery[b.id] || 0, mastery_needed: D.C.dragon_wake_mastery || 8,
+        dragon: DR ? { id: DR.id, name: DR.name, state: dragonVmState(dr), next_day: dr.next_day === undefined ? null : dr.next_day, legendary_left: left } : null };
+    });
+  }
+  function villageVm(D, state) {
+    const idx = clamp(state.village_age || 0, 0, D.ages.length - 1), age = D.ages[idx], next = D.ages[idx + 1] || null;
+    return { age_index: idx, age_id: age.id, age_name: age.name, age_description: age.description, defense: age.defense, guards: age.guards,
+      next_age: next ? { id: next.id, name: next.name, prestige_min: next.prestige_min, levels_min: next.levels_min, prestige_have: state.guild.prestige, levels_have: buildingLevelsSum(state) } : null,
+      graves: state.graves.map(g => ({ name: g.name, day: g.day, cause: g.cause })),
+      trophies: state.trophies.map(t => ({ dragon_name: (dragonById(D, t.dragon_id) || { name: t.dragon_id }).name, day: t.day })),
+      hall_level: bLevel(D, state, 'hall') };
+  }
+  function threatVm(D, state, plans) {
+    const T = D.threats;
+    if (!T) return null;
+    const today = threatToday(state);
+    const t = today || (state.threats || []).filter(x => x.presage_day === state.day && x.outcome === null)[0] || null;
+    if (!t || !T[t.type]) return null;
+    const DR = D.dragons[t.biome] || null;
+    const age = villageAge(D, state);
+    let planned = 0;
+    if (today) { for (const m of sortedKeys(plans)) for (const a of plans[m]) if ((a.type === 'assign' && a.payload.activity === 'defend') || (a.type === 'plan' && a.payload.slots.some(s => s.activity === 'defend'))) planned++; }
+    else planned = plannedDefenders(D, state);
+    return { type: t.type, name: DR ? DR.name : T[t.type].name, phase: today ? 'today' : 'presage', day: t.day, description: DR ? DR.description : T[t.type].description,
+      defense_estimate: Math.min(100, age.defense + 5 * age.guards), defenders_planned: planned,
+      biome_id: t.biome || null, biome_name: t.biome && D.biomes[t.biome] ? D.biomes[t.biome].name : null, dragon_id: DR ? DR.id : null };
+  }
+  function rosterVm(D, state, managerId, planned, plannedSlots) {
     return allHeroes(state).map(h => {
       const inv = state.inventories[h.owner];
       const cls = D.classes[h.class_id];
+      const slots = plannedSlots[h.id] || [];
       return {
         id: h.id, name: heroName(h), class_id: h.class_id, class_name: cls.name, class_glyph: cls.glyph, manager_id: h.owner, manager_name: managerName(state, h.owner),
         level: h.level, xp: h.xp, xp_next: xpNext(D, h),
@@ -2057,7 +2811,11 @@
         skills: D.skills_by_class[h.class_id].map(s => ({ id: s.id, name: s.name, level_req: s.unlock_level, unlocked: h.level >= s.unlock_level })),
         equipment: D.raw.slots.map(s => { const uid = h.equipment[s.id]; const it = uid ? inv.items.filter(x => x.uid === uid)[0] : null; return { slot: s.id, slot_name: s.name, item_name: it ? D.items[it.item_id].name : null, rarity: it ? D.items[it.item_id].rarity : null }; }),
         activity_options: activityOptions(D, state, h),
-        planned: planned[h.id] || null, status_label: statusLabel(h), is_available: h.injury.severity < 2 && h.fatigue < 100, is_mine: h.owner === managerId
+        planned: planned[h.id] || null, status_label: statusLabel(h), is_available: h.injury.severity < 2 && h.fatigue < 100, is_mine: h.owner === managerId,
+        ap_max: apMax(D, state, h), ap_today: apToday(D, state, h),
+        slots_planned: slots.map(s => ({ activity: s.activity, target: s.target === undefined ? null : s.target, label: slotLabel(D, state, s) })),
+        presets: presetsFor(D, state, h).map(p => ({ id: p.id, label: p.label, slots: p.slots.map(s => ({ activity: s.activity, target: s.target === undefined ? null : s.target })), available: p.available, reason: p.reason })),
+        crafts: craftsVm(D, h), is_dead: false
       };
     });
   }
@@ -2065,13 +2823,14 @@
     const D = index(state.__data || GLOBAL_DATA);
     const me = managerOf(state, managerId) || state.managers[0];
     managerId = me.id;
-    const plans = {}, voteQ = {}, voteB = {}, mineQ = {}, mineB = {}, planned = {};
+    const plans = {}, voteQ = {}, voteB = {}, mineQ = {}, mineB = {}, planned = {}, plannedSlots = {};
     for (const m of state.managers) {
       plans[m.id] = planDefaults(state, m.id);
       for (const a of plans[m.id]) {
         if (a.type === 'vote_quest') { voteQ[a.payload.quest_id] = (voteQ[a.payload.quest_id] || 0) + 1; if (m.id === managerId) mineQ[a.payload.quest_id] = true; }
         if (a.type === 'vote_build') { voteB[a.payload.building_id] = (voteB[a.payload.building_id] || 0) + 1; if (m.id === managerId) mineB[a.payload.building_id] = true; }
-        if (a.type === 'assign' && m.id === managerId) planned[a.payload.adventurer_id] = { activity: a.payload.activity, target: a.payload.target || null };
+        if (a.type === 'assign' && m.id === managerId) { planned[a.payload.adventurer_id] = { activity: a.payload.activity, target: a.payload.target || null }; plannedSlots[a.payload.adventurer_id] = slotsOfAssign(D, state, state.heroes[a.payload.adventurer_id], a.payload.activity, a.payload.target || null); }
+        if (a.type === 'plan' && m.id === managerId) { const sl = a.payload.slots; planned[a.payload.adventurer_id] = sl.length ? { activity: sl[0].activity, target: sl[0].target || null } : { activity: 'rest', target: null }; plannedSlots[a.payload.adventurer_id] = sl; }
       }
     }
     const inv = state.inventories[managerId];
@@ -2081,12 +2840,14 @@
     const nextDerby = D.C.derby_days.filter(d => d >= state.day)[0];
     const upkeep = dailyUpkeep(D, state);
     return {
-      day: state.day, season_length: state.season_length, seed: state.seed, hash: hashState(state), is_season_over: state.day > state.season_length,
+      day: state.day, season_length: state.season_length, seed: state.seed, hash: hashState(state), is_season_over: state.day > state.season_length || !!state.collapsed,
       manager: { id: me.id, name: me.name, kind: me.kind, gold: state.purses[me.id] },
       managers: state.managers.map(m => ({ id: m.id, name: m.name, kind: m.kind, profile_label: m.kind === 'ai' ? D.profiles[m.profile].label : 'Humain', gold: state.purses[m.id], adventurer_count: heroesOf(state, m.id).length })),
       guild: { gold: state.guild.gold, prestige: state.guild.prestige, upkeep_per_day: upkeep, storage_capacity: warehouseCap(D, state), storage_used: warehouseUsed(state),
-        storage: D.raw.resources.map(r => ({ resource_id: r.id, name: r.name, glyph: r.glyph, qty: state.warehouse[r.id] || 0, value: r.sell })) },
-      roster: rosterVm(D, state, managerId, planned),
+        storage: D.raw.resources.map(r => ({ resource_id: r.id, name: r.name, glyph: r.glyph, qty: state.warehouse[r.id] || 0, value: r.sell })),
+        chest: state.guild_chest.map(x => ({ item_id: x.item_id, name: D.items[x.item_id] ? D.items[x.item_id].name : x.item_id, rarity: D.items[x.item_id] ? D.items[x.item_id].rarity : 'common' })) },
+      roster: rosterVm(D, state, managerId, planned, plannedSlots),
+      solo_board: soloBoardVm(D, state, managerId), biomes: biomesVm(D, state), defeat: state.collapsed ? { day: state.collapsed.day, reason: state.collapsed.reason } : null,
       quest_board: state.quests.slice().sort((a, b) => (a.id < b.id ? -1 : 1)).map(q => { const t = D.quest_types[q.type], d = D.difficulty[q.difficulty]; return {
         id: q.id, name: q.name, type_label: t.name, biome_name: D.biomes[q.biome].name, difficulty: q.difficulty, days: 1, party_min: t.party_min, party_max: t.party_max,
         rewards_label: '~' + div(d.gold_base * t.reward_gold_pct, 100) + ' or · ' + d.xp_base + ' XP · ' + div(d.resource_units * t.reward_res_pct, 100) + ' ' + D.resources[D.biomes[q.biome].primary].name.toLowerCase() + ' · niveau conseillé ' + d.rec_level,
@@ -2106,6 +2867,7 @@
       market: state.market.map(s => { const it = D.items[s.item_id]; return { item_id: s.item_id, name: it.name, rarity: it.rarity, slot_name: D.slots[it.slot].name, buy: it.price, sell: pct(it.price, sellPct), stock: s.stock, affordable: s.stock > 0 && state.purses[managerId] >= it.price }; }),
       inventory: inv.items.slice().sort((a, b) => (a.uid < b.uid ? -1 : 1)).map(x => { const it = D.items[x.item_id]; return { item_id: x.uid, name: it.name, slot_name: D.slots[it.slot].name, rarity: it.rarity, stats_label: statsLabel(D, it), equipped_by: equipped[x.uid] ? heroName(state.heroes[equipped[x.uid]]) : null, sell_price: pct(it.price, sellPct) }; }),
       chronicle: state.last_chronicle, history: state.history.slice(),
+      village: villageVm(D, state), threat: threatVm(D, state, plans),
       derby: { next_day: nextDerby === undefined ? null : nextDerby, last: state.derby.last },
       season_report: state.season_report, notices: state.notices.slice()
     };
@@ -2126,5 +2888,6 @@
   }
 
   return { newGame: newGame, listManagers: listManagers, planDefaults: planDefaults, validateAction: validateAction, resolveDay: resolveDay, hashState: hashState, viewModel: viewModel,
-    _internal: { makeRng: makeRng, fnvStr: fnvStr, fnvU32: fnvU32, canonical: canonical, combatProfile: combatProfile, probeExpedition: probeExpedition } };
+    _internal: { makeRng: makeRng, fnvStr: fnvStr, fnvU32: fnvU32, canonical: canonical, combatProfile: combatProfile, probeExpedition: probeExpedition,
+      apToday: function (state, h) { return apToday(index(state.__data || GLOBAL_DATA), state, h); }, craftLevel: function (state, xp) { return craftLevel(index(state.__data || GLOBAL_DATA), xp); } } };
 }));

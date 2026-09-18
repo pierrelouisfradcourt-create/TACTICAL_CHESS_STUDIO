@@ -23,8 +23,15 @@ node test/ui_v2_check.mjs
 Les captures et rapports vont dans `test/out/` (non versionné). Ouvert en local, index.html utilise les
 polices système : les polices Google ne se chargent qu'en http(s).
 
+## Versions
+- V2 (2026-09-18) : un héros par ami, tableau vivant, aperçu widget, trois écrans.
+- V3 : âges du village (campement → château), attaque de dragon, présage, défense.
+- V4 (GO Pierre) : dragons de fin de biome (réveil par maîtrise, légendaires, matériaux et recettes de dragon),
+  points d'action et journées composées, savoir-faire par l'usage, missions solo, mort et héritier, défaite.
+  Bancs : `test/engine_v4_check.mjs` (24), `test/ui_v4_check.mjs` (55), `ui_v3_check` (48), `ui_v2_check` (52).
+- V5 (GO Pierre, à construire) : raid tactique sur grille et lignée de classes — spec dans `design/V5_SPEC.md`.
+
 ## État
-software_verdict: OK (19/19 · 13/13 · 52/52 au 2026-09-18) · evidence_verdict: MECHANICAL_VALIDATION_ONLY ·
-claim_verdict: NO_CLAIM_ALLOWED. Aucun playtest humain. Coupes et non-vérifiés : voir CONTRACT.md et
-design/UI_BRIEF_V2.md. Pistes discutées, non codées : âges du village jusqu'au château, événements
-(dragon, morts-vivants, portail), fond d'écran animé Android.
+software_verdict: OK (19/19 · 13/13 · 24/24 · 55/55 au 2026-09-18) · evidence_verdict: MECHANICAL_VALIDATION_ONLY ·
+claim_verdict: NO_CLAIM_ALLOWED. Aucun playtest humain. Coupes, calibrages et non-vérifiés : voir CONTRACT.md
+(section V4) et design/UI_BRIEF_V2.md. Non codé : fond d'écran animé Android, morts-vivants, portail.

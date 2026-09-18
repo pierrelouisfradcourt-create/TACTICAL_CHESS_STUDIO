@@ -125,3 +125,90 @@ barre d'onglets fixée en bas (padding safe-area), la Chronique devient un ongle
 8 parcelles en 4×2, glyphe/couleur/taille par niveau, fumée et lumière selon decor, grille 4×4 du quartier
 en dessous. Aventuriers = cartes avec sélecteur d'activité et cible. Pas de carte pour tout : les listes de
 ressources et de recettes sont des tableaux denses.
+
+## V4 — dragons de biome, points d'action, savoir-faire, missions solo, mort, défaite
+Date : 2026-09-18. Source : mission « Moteur V4 » (GO Pierre 2026-09-18), implémentée par le moteur ; preuves dans
+`test/engine_v4_check.mjs` (remplace `engine_v3_check.mjs`). API publique inchangée ; `data.json` version 4.
+
+### Dragons (plus de calendrier)
+- `data.dragons[biome_id]` : un dragon nommé par biome (Sylvain corrompu ancestral · Drake des monts · Hydre des marais),
+  profil PV/ATQ/DÉF/VIT + `mechanic` du boss du biome (`roots` · `breath` · `heads`) + souffle de zone (`breath_every`, `breath_power`),
+  `materials` (2 ressources `gatherable:false`, `dragon:<biome>`), `legendary_pool` (3 objets `rarity:'legendary'`, pool `dragon_pool`,
+  `flavor` FR). Paramètres communs dans `data.threats.dragon` (fuite, gardes, muraille, or, prestige, XP, `material_min/max`).
+- Maîtrise : `state.biome_mastery[biome]` = +1 par quête réussie (`success`), +2 si le boss du donjon est vaincu. Les votes de quête
+  préfèrent le biome le mieux maîtrisé (égalité : id ASCII) — concentration naturelle.
+- Réveil (phase 11c, le soir) : `mastery ≥ constants.dragon_wake_mastery` (6) ET `day ≥ dragon_wake_day_min` (10) ET aucune menace
+  en cours → présage le soir même, attaque le lendemain (phase 7b). Un seul réveil par biome et par saison. Vaincu → `slain`
+  (jamais de retour) ; repoussé → revient `dragon_return_repelled` (5) jours plus tard ; ravage → `dragon_return_ravage` (3) jours.
+  `state.threats[]` = `{type:'dragon', biome, dragon_id, day, presage_day, outcome}` (planifiées à la volée, vide à la création).
+- Butin du vaincu : un légendaire (jamais deux fois le même par saison, `state.legendary_given`) au défenseur ayant fait le plus de
+  dégâts (à défaut premier manager) ; 4-8 matériaux à l'entrepôt — l'entrepôt fait de la place en vendant les ressources ordinaires
+  les moins chères (moitié du prix) ; or à la caisse ; `state.trophies.push({dragon_id, day})`. Recettes `category:'dragon'`
+  (forge niveau 3, 6 recettes, résultats épiques/légendaires, pool `dragon_craft`). Les IA retirent les matériaux nécessaires puis
+  commandent ; le désencombrement de l'entrepôt par les IA ne touche jamais aux matériaux de dragon.
+- Combat : le dragon porte `dragon:true` ; sa mort met fin au combat même si ses rejetons vivent ; la fuite ne regarde que lui.
+
+### Points d'action et journées composées
+- `ap_max` = 3 (+1 si trait `endurant` ou terrain d'entraînement ≥ 3) ; `ap_today` = ap_max − 1 si fatigue ≥ 60 ; minimum 1.
+  Coûts (`constants.ap_cost`) : train 1 · craft 1 · gather 1 · solo 2 · expedition 3 · defend 3 · rest 0. Expédition, défense et
+  repos sont des **journées entières** : seules dans le plan, toujours acceptées si le héros y a droit (quel que soit ap_today).
+- Action `plan` `{adventurer_id, slots:[{activity, target?}...]}` : somme des coûts des créneaux ≤ ap_today (raison sinon),
+  au plus une mission solo par jour, journée entière non combinable. `assign` reste accepté = journée pleine (train/craft/gather × ap,
+  expedition, rest, defend) ; `assign solo` est refusé (passer par `plan`). Blessé (sévérité ≥ 1) : repos ou forge seulement ;
+  épuisé (fatigue ≥ 100) : repos.
+- Résolution : phases 3-5 fusionnées en un passage « par créneau » (héros triés par id, créneaux dans l'ordre) ; rendement d'un
+  créneau = rendement journalier V3 / `slot_divisor` (3), entier, min 1 (XP et chance d'accident divisées de même). Un accident
+  interrompt les créneaux restants. Une ligne de chronique par héros et par activité (agrégée). Deltas du soir = Σ par activité
+  de delta_journalier × PA dépensés / 3 (journée vide = repos). Ordre du jour : 1 validation · 2 paie · 3-5 créneaux · 6 infirmerie ·
+  7 expédition · 7b menace · 7c missions solo · 8 marché · 9 taverne (héritiers) · 10 chantier · 11 soir (tableau solo renouvelé) ·
+  11b âge · 11c réveil des dragons + présage · 12 derby · 13 bilan.
+- Savoir-faire (`data.crafts`) : forge, herboristerie, archerie, discretion, endurance, erudition ; XP dans `hero.crafts[id]`,
+  niveaux 1-10 par `constants.craft_xp_table`, bonus = per_level × (niveau − 1) (`per_level_class` pour ranger/rogue) :
+  forge +5 %/niv points de travail · herboristerie +4 %/niv récolte · archerie +1 (+2 ranger) toucher · discretion +5 ‰ (+8 rogue)
+  esquive et protège en solo · endurance +3 %/niv PV · erudition +3 %/niv XP. Gains : train → savoir-faire de l'attribut
+  (`craft_by_attribute`), craft → forge, gather → herboristerie, solo → celui de la mission, expédition → endurance + savoir-faire
+  de classe (`craft_by_class`). Montée de niveau signalée dans « Soir ».
+- Missions solo (`data.solo_missions`, 16) : classe ou libre, difficulté 1-5, 2 PA, or + matériaux **personnels** (inventaire du
+  manager), XP, savoir-faire, chance d'objet (`item_permille`), blessure par jet (`injury_permille`, ×2 sur échec, sévérité 2 si
+  échec à difficulté ≥ 4). Réussite si aptitude (niveau×5 + attributs principal/secondaire + 4×niveau du savoir-faire + classe/traits,
+  × performance) + tirage(0-29) ≥ `constants.solo_dc[difficulté]`. `state.solo_board[manager]` = 2 missions/jour (ids triés),
+  éligibles à la classe des héros du manager et à leur niveau, renouvelées le soir.
+- Préréglages (`VM.roster[].presets`) : atelier (craft × (ap−1) + train ; nécessite une commande à la forge), aventure (expédition,
+  sinon solo + train), recuperation (repos), cueillette (gather × ap), defense (jour d'attaque). `planDefaults` : prudent =
+  solo facile (≤ 2) + atelier/cueillette ; audacieux = expédition sinon solo la plus dure + entraînement ; humain = expédition
+  (critères V3) sinon solo « raisonnable » + entraînement sinon atelier sinon entraînement/cueillette ; jour de dragon = defend V3.
+
+### Mort et défaite
+- Mort UNIQUEMENT : héros tombé à 0 PV face à un dragon (tirage `death_permille.dragon` = 400) ; ou parti en expédition/solo avec
+  une blessure grave (sévérité ≥ 2) et tombé à 0 PV (`death_permille.wounded` = 300) — chemin codé mais inatteignable tant que la
+  validation « blessé = repos ou forge » est en vigueur. Sinon KO classique. Mort : retiré de `state.heroes`,
+  `state.graves.push({hero_id, name, day, cause})`, équipement → `state.guild_chest[{uid, item_id, from}]`, section « Deuil »,
+  instant du jour 99. Héritier : offre à la taverne (phase 9 du même jour, visible le lendemain) `cost:0`, `heir_for:manager`,
+  niveau = niveau de guilde − 1 (min 1), classe et épithète du défunt, traits `heritier` + un trait du défunt ; réservée au manager
+  endeuillé, recrutable même effectif complet (max_heroes = 1 compris), expire après `heir_expires_days` (4).
+- Défaite : le hall ne perd un niveau que s'il est ≥ 2, ou (niveau 1) s'il est le seul bâtiment ≥ 1 ou s'il a déjà brûlé
+  (`state.hall_hits`). Hall à 0 après un ravage → `state.collapsed = {day, reason}`, `season_report` « Chute de la guilde »,
+  `resolveDay` retourne ensuite l'état inchangé (hash identique, jour non incrémenté) avec une chronique « La guilde est dispersée ».
+
+### viewModel — ajouts
+```
+VM.roster[] += { ap_max, ap_today, slots_planned:[{activity,target,label}], presets:[{id,label,slots:[{activity,target}],available,reason}],
+                 crafts:[{id,name,level,xp,xp_next,bonus_label}], is_dead:false }
+VM.roster[].activity_options[] += { cost_ap }   // defend (jour d'attaque, héros apte) et solo (tableau du manager, missions
+                                                 // compatibles avec la classe du héros, ap_today ≥ 2) inclus quand permis
+VM.solo_board = [{id,name,class_id|null,class_name|null,difficulty,cost_ap:2,rewards_label,risk_label}]
+VM.biomes = [{id,name,mastery,mastery_needed,dragon:{id,name,state:'dormant'|'awake'|'slain'|'repelled',next_day|null,legendary_left}}]
+VM.threat += { biome_id, biome_name, dragon_id }      // name = nom du dragon du biome
+VM.village += { graves:[{name,day,cause}], trophies:[{dragon_name,day}], hall_level }
+VM.guild += { chest:[{item_id,name,rarity}] }         // item_id = id de catalogue
+VM.defeat = {day, reason} | null ; VM.is_season_over vaut aussi true après une chute
+VM.chronicle.summary += { deaths:[noms], legendary:[noms], solo_results:[string] }
+VM.chronicle.threat += { biome_id, biome_name, dragon_id, dragon_name, legendary:string|null }  // loot inclut le légendaire
+VM.inventory[].rarity peut valoir 'legendary' (les 3 légendaires V3 sont désormais réservés aux dragons : pool dragon_pool).
+```
+Sections de chronique ajoutées : `solo` (« Missions solo »), `deuil` (« Deuil », jamais rognée). Ressource `scales` (V3) supprimée.
+
+### Calibrage mesuré (engine_v4_check, 30 graines × 30 jours, 5 managers, plans par défaut)
+Réveils : 28/30 graines (un seul biome à chaque fois) ; première attaque J13-J29 ; 54 attaques : 13 vaincus · 31 repoussés ·
+10 ravages ; 8 morts / 157 héros (5,1 %) ; 0 chute ; 953 missions solo (91 % réussies, 108 blessures) ; savoir-faire : 100 % des
+paires (même classe/niveau, graines différentes) divergent en XP, 86 % en niveaux.

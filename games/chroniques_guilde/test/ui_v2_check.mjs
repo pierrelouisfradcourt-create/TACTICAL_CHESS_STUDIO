@@ -1,4 +1,6 @@
 // Banc Playwright de la V2 « tableau vivant ». Usage : node test/ui_v2_check.mjs
+// Adapté V4 (2026-09-18) : les 5 boutons d'activité (#quick-<act>, #act-<act>, .act-btn) ont été remplacés par les préréglages du moteur
+// (#quick-<preset>, #preset-<preset>) et trois cases (#slot-1..3). Seuls les contrôles qui en dépendaient changent, marqués « V4 : ».
 // Contrôle l'horloge simulée via page.clock (aucune attente réelle), écrit les captures test/out/v2_*.png.
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -40,12 +42,12 @@ const browser = await pw.chromium.launch();
   check('aperçu widget : tuile carrée de 160 px', dims.w === 160 && dims.h === 160, JSON.stringify(dims));
   await shot(page, 'tableau_matin');
   const idleP1 = t.targets.p1;
-  await page.click('#quick-expedition');
+  await page.click('#quick-aventure'); // V4 : préréglage Aventure = expédition (jour 1, graine 4242)
   t = await tableau(page);
   check('clic Expédition : placed.p1 = expedition, played = 1', t.placed.p1 === 'expedition' && t.played === 1 && t.chosen === true, JSON.stringify(t.placed));
   check('clic Expédition : figurine déplacée vers la route', t.targets.p1.x !== idleP1.x && t.targets.p1.x > 500, JSON.stringify([idleP1, t.targets.p1]));
   check('clic Expédition : texte « 1 / 5 ont joué »', /1 \/ 5 ont joué/.test(await page.textContent('[data-testid="played-count"]')));
-  check('bouton Expédition pressé sur le raccourci', (await page.getAttribute('#quick-expedition', 'aria-pressed')) === 'true');
+  check('bouton Expédition pressé sur le raccourci', (await page.getAttribute('#quick-aventure', 'aria-pressed')) === 'true'); // V4 : préréglage
   await page.clock.runFor(300);
   t = await tableau(page);
   check('horloge : après 0,3 s un premier ami (8h) est révélé', t.revealed.length >= 1 && t.played === 2, JSON.stringify({ hour: t.hour, revealed: t.revealed, hours: t.hours }));
@@ -78,18 +80,21 @@ const browser = await pw.chromium.launch();
   check('Jour suivant : matin, 0 / 5, personne révélé', t.evening === false && t.played === 0 && t.revealed.length === 0 && t.hour === 8);
   // Mon héros
   await page.click('[data-testid="tab-heros"]');
-  check('Mon héros : carte + 5 boutons d’activité', await visible(page, '#hero-card') && (await page.$$('#hero-acts .act-btn')).length === 5);
+  check('Mon héros : carte + préréglages + 3 cases (V4 : remplace les 5 boutons)', await visible(page, '#hero-card') && (await page.$$('#presets .preset-btn')).length >= 3 && (await page.$$('#slots .day-slot')).length === 3);
   check('Mon héros : 3 cartes de quête au plus', (await page.$$('#quest-cards .quest-card')).length <= 3 && (await page.$$('#quest-cards .quest-card')).length > 0);
   check('Mon héros : équipement = 2 lignes (arme, armure)', (await page.$$('#equip-rows .equip-row')).length === 2);
-  const gatherBtn = await page.$('#act-gather:not([disabled])');
-  if (gatherBtn) {
-    await gatherBtn.click();
-    check('Récolte : rangée de cibles avec première puce présélectionnée', await visible(page, '#target-row') && (await page.$$('#target-row .chip-btn[aria-pressed="true"]')).length === 1);
-    const chipIds = await page.$$eval('#target-row .chip-btn', els => els.map(e => e.id));
-    if (chipIds.length > 1) { await page.click('#' + chipIds[1]); check('Récolte : changement de cible', (await page.getAttribute('#' + chipIds[1], 'aria-pressed')) === 'true'); }
+  // V4 : la cible se choisit dans le chooser d'une case (activity_options du moteur), plus dans une rangée de puces sous un bouton.
+  await page.click('[data-testid="slot-1"]');
+  // Le jour 2 de la graine 4242 le héros revient blessé (forge ou repos seulement, règle moteur) : on prend la première activité à cibles que le moteur propose.
+  let chipIds = await page.$$eval('#chooser [data-activity="gather"][data-target]', els => els.map(e => e.id)), act = 'gather';
+  if (!chipIds.length) { const first = await page.$('#chooser [data-target]'); if (first) { act = await first.getAttribute('data-activity'); chipIds = await page.$$eval('#chooser [data-activity="' + act + '"][data-target]', els => els.map(e => e.id)); } }
+  if (chipIds.length) {
+    check('cibles : le chooser de la case 1 propose des cibles (' + act + ')', await visible(page, '#chooser') && chipIds.length >= 1);
+    await page.click('#' + chipIds[Math.min(1, chipIds.length - 1)]);
     t = await tableau(page);
-    check('Récolte : figurine placée à la lisière', t.placed.p1 === 'gather' && t.targets.p1.x < 300, JSON.stringify(t.targets.p1));
-  } else check('Récolte disponible pour le test des cibles', false, 'héros indisponible ce jour');
+    check('cibles : la case 1 porte l’activité et sa cible, chooser refermé', t.slots[0] === act && (await page.textContent('[data-testid="slot-1"]')).trim().length > 8 && !(await visible(page, '#chooser')));
+    check('cibles : figurine placée sur le lieu de l’activité (lisière ou forge, x < 300)', t.placed.p1 === act && t.targets.p1.x < 300, JSON.stringify(t.targets.p1));
+  } else check('Une activité à cibles disponible pour le test du chooser', false, 'héros indisponible ce jour');
   const qid = '#' + (await page.$$eval('#quest-cards .quest-card', els => els.map(e => e.id)))[0];
   const pressed0 = (await page.getAttribute(qid, 'aria-pressed')) === 'true';
   await page.click(qid);
@@ -126,7 +131,7 @@ const browser = await pw.chromium.launch();
 {
   const { ctx, page, errors } = await newPage(browser, 400);
   check('mobile : pas de défilement horizontal au repos', await noHScroll(page));
-  await page.click('#quick-train');
+  await page.click('#quick-cueillette'); // V4 : préréglage Cueillette (récolte × PA)
   await page.clock.runFor(1200);
   await shot(page, 'mobile');
   await page.click('[data-testid="btn-launch"]');
@@ -145,7 +150,7 @@ const browser = await pw.chromium.launch();
 // ---- 3. Sombre 1280 : soir + aucune erreur
 {
   const { ctx, page, errors } = await newPage(browser, 1280, 'dark');
-  await page.click('#quick-expedition');
+  await page.click('#quick-aventure'); // V4 : préréglage Aventure
   await page.click('[data-testid="btn-launch"]');
   await page.clock.runFor(100);
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);

@@ -11,8 +11,13 @@ prototype). Sessions précédentes : 2026-09-03 refresh CLAUDE.md · 2026-09-01 
 - **Prototype V2 livré** : artefact https://claude.ai/artifact/KC9qsgEm2aj6hPxeXq2FJM · copie dans le dépôt
   `games/chroniques_guilde/` (GO Pierre 2026-09-18) : moteur `sim.js` (entiers, mulberry32), `data.json`,
   page, CONTRACT.md, design/, bancs `test/` (19/19 · 13/13 · 52/52). Aucun playtest humain.
-- Retours Pierre intégrés : V1 « trop compliquée » → V2 trois écrans + tiroir. Pistes discutées, non codées :
-  âges du village jusqu'au château, événements (dragon, morts-vivants, portail), fond d'écran animé.
+- Retours Pierre intégrés : V1 « trop compliquée » → V2 trois écrans + tiroir. **V3** : âges du village
+  (campement → château), dragon calendaire. **V4 (GO)** : dragons de fin de biome + légendaires + recettes dragon,
+  points d'action / journées composées, savoir-faire par l'usage, missions solo, mort + héritier, défaite.
+  Bancs 19/19 · 13/13 · 24/24 · 55/55. **V5 (GO, à construire)** : raid tactique sur grille + lignée de classes
+  base → hybride → 2 spés ; spec `games/chroniques_guilde/design/V5_SPEC.md` (26 spés retenues, 4 fusions
+  proposées, reco : 2e choix libre + affinité, une reconversion par saison) — recommandations NON ratifiées.
+  Non codé : fond d'écran animé Android, morts-vivants, portail.
 - Non fait : revues croisées de la V1 coupées par la limite de session ; conception village/journée jamais
   écrite (moteur l'a conçue seul). Hors Forge : aucun contrat scripts/forge, aucun IMP.
 

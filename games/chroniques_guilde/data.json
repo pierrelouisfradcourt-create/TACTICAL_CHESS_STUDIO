@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Chroniques de Guilde",
-    "version": 1,
-    "date": "2026-09-17",
-    "source": "design_aventuriers.md, design_quetes_donjons.md, design_objets_economie.md (§0-2) ; village, journée, objets, recettes, bâtiments et décorations conçus par le moteur"
+    "version": 4,
+    "date": "2026-09-18",
+    "source": "design_aventuriers.md, design_quetes_donjons.md, design_objets_economie.md (§0-2) ; village, journée, objets, recettes, bâtiments et décorations conçus par le moteur ; V3 (2026-09-18) : âges du village et menace du dragon ; V4 (2026-09-18) : dragons de biome (maîtrise), points d'action et journées composées, savoir-faire, missions solo, mort et héritier, défaite — conçus par le moteur."
   },
   "constants": {
     "season_length": 30,
@@ -187,6 +187,18 @@
         "form": -5,
         "morale": -3,
         "xp": 0
+      },
+      "defend": {
+        "fatigue": 20,
+        "form": 0,
+        "morale": 0,
+        "xp": 0
+      },
+      "solo": {
+        "fatigue": 24,
+        "form": 2,
+        "morale": 2,
+        "xp": 0
       }
     },
     "wage_base": 2,
@@ -205,7 +217,78 @@
       "legendary": 1500
     },
     "chronicle_min_lines": 25,
-    "chronicle_max_lines": 60
+    "chronicle_max_lines": 60,
+    "village_age_up_prestige": 20,
+    "ap_base": 3,
+    "ap_training_ground_level": 3,
+    "ap_fatigue_threshold": 60,
+    "ap_min": 1,
+    "ap_cost": {
+      "train": 1,
+      "craft": 1,
+      "gather": 1,
+      "solo": 2,
+      "expedition": 3,
+      "defend": 3,
+      "rest": 0
+    },
+    "slot_divisor": 3,
+    "dragon_wake_mastery": 6,
+    "dragon_wake_day_min": 10,
+    "dragon_return_repelled": 5,
+    "dragon_return_ravage": 3,
+    "mastery_success": 1,
+    "mastery_boss_bonus": 2,
+    "death_permille": {
+      "dragon": 400,
+      "wounded": 300
+    },
+    "heir_expires_days": 4,
+    "solo_per_day": 2,
+    "solo_dc": [
+      0,
+      44,
+      62,
+      80,
+      98,
+      116
+    ],
+    "solo_roll": 30,
+    "craft_xp_table": [
+      0,
+      0,
+      20,
+      50,
+      90,
+      140,
+      200,
+      270,
+      350,
+      440,
+      540
+    ],
+    "craft_xp": {
+      "train": 4,
+      "craft": 5,
+      "gather": 4,
+      "expedition_endurance": 8,
+      "expedition_class": 6
+    },
+    "craft_by_attribute": {
+      "strength": "forge",
+      "dexterity": "archerie",
+      "mind": "erudition",
+      "vigor": "endurance",
+      "will": "herboristerie",
+      "luck": "discretion"
+    },
+    "craft_by_class": {
+      "warrior": "forge",
+      "ranger": "archerie",
+      "mage": "erudition",
+      "cleric": "herboristerie",
+      "rogue": "discretion"
+    }
   },
   "attributes": [
     {
@@ -642,6 +725,19 @@
       "name": "Râleur",
       "polarity": -1,
       "hook": "se plaint du temps"
+    },
+    {
+      "id": "endurant",
+      "name": "Endurant",
+      "polarity": 1,
+      "hook": "en redemande"
+    },
+    {
+      "id": "heritier",
+      "name": "Héritier",
+      "polarity": 1,
+      "hook": "porte le nom d'un mort",
+      "generated": false
     }
   ],
   "trait_incompatible": [
@@ -660,6 +756,14 @@
     [
       "stoic",
       "hothead"
+    ],
+    [
+      "endurant",
+      "lazy"
+    ],
+    [
+      "endurant",
+      "fragile"
     ]
   ],
   "first_names_m": [
@@ -1036,7 +1140,8 @@
         "la chênaie noire"
       ],
       "trap": "une fosse à pieux",
-      "altar": "l'autel de la Sève"
+      "altar": "l'autel de la Sève",
+      "article": "la"
     },
     {
       "id": "mountain",
@@ -1070,7 +1175,8 @@
         "un pont de corde"
       ],
       "trap": "un éboulement",
-      "altar": "l'autel de la Braise"
+      "altar": "l'autel de la Braise",
+      "article": "le"
     },
     {
       "id": "marsh",
@@ -1104,7 +1210,8 @@
         "une île de roseaux"
       ],
       "trap": "des sables mouvants",
-      "altar": "l'autel des Noyés"
+      "altar": "l'autel des Noyés",
+      "article": "le"
     }
   ],
   "room_types": [
@@ -2133,6 +2240,66 @@
       "biome": "marsh",
       "sell": 10,
       "buy": 20
+    },
+    {
+      "id": "heartwood",
+      "name": "Bois de cœur",
+      "glyph": "🌳",
+      "biome": "forest",
+      "sell": 35,
+      "buy": 70,
+      "gatherable": false,
+      "dragon": "forest"
+    },
+    {
+      "id": "sylvan_sap",
+      "name": "Sève ancestrale",
+      "glyph": "🍯",
+      "biome": "forest",
+      "sell": 40,
+      "buy": 80,
+      "gatherable": false,
+      "dragon": "forest"
+    },
+    {
+      "id": "scales_iron",
+      "name": "Écailles de fer",
+      "glyph": "🐉",
+      "biome": "mountain",
+      "sell": 35,
+      "buy": 70,
+      "gatherable": false,
+      "dragon": "mountain"
+    },
+    {
+      "id": "drake_ember",
+      "name": "Braise de drake",
+      "glyph": "🔥",
+      "biome": "mountain",
+      "sell": 40,
+      "buy": 80,
+      "gatherable": false,
+      "dragon": "mountain"
+    },
+    {
+      "id": "hydra_venom",
+      "name": "Venin d'hydre",
+      "glyph": "☠",
+      "biome": "marsh",
+      "sell": 35,
+      "buy": 70,
+      "gatherable": false,
+      "dragon": "marsh"
+    },
+    {
+      "id": "hydra_fang",
+      "name": "Croc d'hydre",
+      "glyph": "🦷",
+      "biome": "marsh",
+      "sell": 40,
+      "buy": 80,
+      "gatherable": false,
+      "dragon": "marsh"
     }
   ],
   "slots": [
@@ -2294,13 +2461,14 @@
       "id": "w_marteau_ancetres",
       "name": "Marteau des Ancêtres",
       "slot": "weapon",
-      "pool": "weapon_pool",
+      "pool": "dragon_pool",
       "rarity": "legendary",
       "price": 1200,
       "stats": {
         "atk": 22,
         "def": 3
-      }
+      },
+      "flavor": "Taillé dans une racine du Sylvain, il pèse comme un siècle."
     },
     {
       "id": "a_gambison",
@@ -2404,13 +2572,14 @@
       "id": "a_peau_hydre",
       "name": "Peau d'hydre",
       "slot": "armor",
-      "pool": "armor_pool",
+      "pool": "dragon_pool",
       "rarity": "legendary",
       "price": 1300,
       "stats": {
         "def": 16,
         "hp": 40
-      }
+      },
+      "flavor": "Les têtes ont beau repousser, la peau, elle, reste."
     },
     {
       "id": "t_amulette_os",
@@ -2508,14 +2677,15 @@
       "id": "t_coeur_drake",
       "name": "Cœur de drake",
       "slot": "trinket",
-      "pool": "trinket_pool",
+      "pool": "dragon_pool",
       "rarity": "legendary",
       "price": 1100,
       "stats": {
         "atk": 8,
         "def": 5,
         "hp": 30
-      }
+      },
+      "flavor": "Il bat encore, tiède, dans sa cage de fer."
     },
     {
       "id": "c_potion_soin",
@@ -2588,6 +2758,175 @@
         "fatigue": -10
       },
       "use": "return"
+    },
+    {
+      "id": "a_ecorce_ancestrale",
+      "name": "Écorce ancestrale",
+      "slot": "armor",
+      "pool": "dragon_pool",
+      "rarity": "legendary",
+      "price": 1250,
+      "stats": {
+        "def": 15,
+        "hp": 45,
+        "heal": 6
+      },
+      "flavor": "Une cuirasse d'écorce noire qui se referme d'elle-même sur les plaies."
+    },
+    {
+      "id": "t_coeur_sylvain",
+      "name": "Cœur de sylvain",
+      "slot": "trinket",
+      "pool": "dragon_pool",
+      "rarity": "legendary",
+      "price": 1150,
+      "stats": {
+        "hp": 40,
+        "heal": 10,
+        "def": 6,
+        "magic": 6
+      },
+      "flavor": "Un nœud de bois vivant ; on l'entend pousser la nuit."
+    },
+    {
+      "id": "w_croc_drake",
+      "name": "Croc du drake",
+      "slot": "weapon",
+      "pool": "dragon_pool",
+      "rarity": "legendary",
+      "price": 1250,
+      "stats": {
+        "atk": 21,
+        "fire": 1,
+        "crit": 80
+      },
+      "flavor": "Une dent longue comme un avant-bras, encore chaude."
+    },
+    {
+      "id": "a_plates_ecailles",
+      "name": "Plates d'écailles de fer",
+      "slot": "armor",
+      "pool": "dragon_pool",
+      "rarity": "legendary",
+      "price": 1300,
+      "stats": {
+        "def": 18,
+        "hp": 30,
+        "spd": -1
+      },
+      "flavor": "Chaque écaille rivetée à la main ; le feu glisse dessus."
+    },
+    {
+      "id": "w_dent_hydre",
+      "name": "Dent de l'Hydre",
+      "slot": "weapon",
+      "pool": "dragon_pool",
+      "rarity": "legendary",
+      "price": 1200,
+      "stats": {
+        "atk": 20,
+        "crit": 150,
+        "spd": 2
+      },
+      "flavor": "Une lame courbe qui suinte un venin clair."
+    },
+    {
+      "id": "t_oeil_hydre",
+      "name": "Œil de l'Hydre",
+      "slot": "trinket",
+      "pool": "dragon_pool",
+      "rarity": "legendary",
+      "price": 1150,
+      "stats": {
+        "atk": 9,
+        "magic": 12,
+        "crit": 100,
+        "hp": 20
+      },
+      "flavor": "Il cligne quand on ment."
+    },
+    {
+      "id": "w_lame_coeur",
+      "name": "Lame de bois de cœur",
+      "slot": "weapon",
+      "pool": "dragon_craft",
+      "rarity": "epic",
+      "price": 520,
+      "stats": {
+        "atk": 16,
+        "hp": 10
+      },
+      "flavor": "Plus dure que l'acier, et elle ne rouille pas."
+    },
+    {
+      "id": "a_cuirasse_ecailles",
+      "name": "Cuirasse d'écailles",
+      "slot": "armor",
+      "pool": "dragon_craft",
+      "rarity": "epic",
+      "price": 560,
+      "stats": {
+        "def": 14,
+        "hp": 25
+      },
+      "flavor": "Des écailles de fer cousues sur du cuir bouilli."
+    },
+    {
+      "id": "t_amulette_braise",
+      "name": "Amulette de braise",
+      "slot": "trinket",
+      "pool": "dragon_craft",
+      "rarity": "epic",
+      "price": 480,
+      "stats": {
+        "atk": 7,
+        "fire": 1,
+        "crit": 60
+      },
+      "flavor": "Elle brûle un peu la peau ; on s'y fait."
+    },
+    {
+      "id": "w_dague_hydre",
+      "name": "Dague d'hydre",
+      "slot": "weapon",
+      "pool": "dragon_craft",
+      "rarity": "epic",
+      "price": 500,
+      "stats": {
+        "atk": 14,
+        "crit": 120,
+        "spd": 2
+      },
+      "flavor": "Un croc monté sur un manche de bois de marais."
+    },
+    {
+      "id": "a_manteau_marais",
+      "name": "Manteau des marais",
+      "slot": "armor",
+      "pool": "dragon_craft",
+      "rarity": "legendary",
+      "price": 1250,
+      "stats": {
+        "def": 17,
+        "hp": 35,
+        "spd": 1
+      },
+      "flavor": "Tissé de mousse et trempé dans le venin de l'Hydre : les lames y glissent."
+    },
+    {
+      "id": "t_couronne_dragons",
+      "name": "Couronne des trois dragons",
+      "slot": "trinket",
+      "pool": "dragon_craft",
+      "rarity": "legendary",
+      "price": 1500,
+      "stats": {
+        "atk": 10,
+        "def": 8,
+        "hp": 30,
+        "crit": 60
+      },
+      "flavor": "Écaille, bois de cœur et croc : les trois biomes tiennent dans un cercle de fer."
     }
   ],
   "loot_pools": [
@@ -2834,6 +3173,89 @@
       "work": 20,
       "forge_level": 1,
       "category": "potions"
+    },
+    {
+      "id": "r_d_lame_coeur",
+      "name": "Forger une lame de bois de cœur",
+      "result": "w_lame_coeur",
+      "cost": {
+        "heartwood": 3,
+        "sylvan_sap": 1,
+        "iron_ore": 6
+      },
+      "gold": 120,
+      "work": 180,
+      "forge_level": 3,
+      "category": "dragon"
+    },
+    {
+      "id": "r_d_cuirasse_ecailles",
+      "name": "Riveter une cuirasse d'écailles",
+      "result": "a_cuirasse_ecailles",
+      "cost": {
+        "scales_iron": 4,
+        "iron_ore": 8
+      },
+      "gold": 140,
+      "work": 200,
+      "forge_level": 3,
+      "category": "dragon"
+    },
+    {
+      "id": "r_d_amulette_braise",
+      "name": "Enchâsser une amulette de braise",
+      "result": "t_amulette_braise",
+      "cost": {
+        "drake_ember": 2,
+        "crystal": 2
+      },
+      "gold": 100,
+      "work": 150,
+      "forge_level": 3,
+      "category": "dragon"
+    },
+    {
+      "id": "r_d_dague_hydre",
+      "name": "Monter une dague d'hydre",
+      "result": "w_dague_hydre",
+      "cost": {
+        "hydra_fang": 2,
+        "hydra_venom": 2,
+        "iron_ore": 4
+      },
+      "gold": 120,
+      "work": 180,
+      "forge_level": 3,
+      "category": "dragon"
+    },
+    {
+      "id": "r_d_manteau_marais",
+      "name": "Tisser un manteau des marais",
+      "result": "a_manteau_marais",
+      "cost": {
+        "hydra_venom": 3,
+        "swamp_moss": 8,
+        "heartwood": 1
+      },
+      "gold": 260,
+      "work": 260,
+      "forge_level": 3,
+      "category": "dragon"
+    },
+    {
+      "id": "r_d_couronne_dragons",
+      "name": "Sertir la couronne des trois dragons",
+      "result": "t_couronne_dragons",
+      "cost": {
+        "scales_iron": 2,
+        "heartwood": 2,
+        "hydra_fang": 1,
+        "crystal": 3
+      },
+      "gold": 400,
+      "work": 300,
+      "forge_level": 3,
+      "category": "dragon"
     }
   ],
   "buildings": [
@@ -3858,6 +4280,122 @@
     "empty_guild": [
       "La taverne est vide, personne ne part.",
       "Aucun aventurier dans la guilde ; le village attend."
+    ],
+    "presage": [
+      "Une ombre ailée est passée devant la lune. Les bergers ont rentré les bêtes avant l'heure.",
+      "Au crépuscule, un cri rauque a roulé sur les cimes ; les chiens du village n'ont plus aboyé.",
+      "Une odeur de soufre traîne sur la place. Les anciens parlent tout bas d'un dragon.",
+      "Le ciel s'est teinté de rouge au couchant et une ombre immense a glissé sur les toits."
+    ],
+    "village_age_up": [
+      "Le village n'est plus un simple {old} : on parle désormais de {new}. {desc}",
+      "Les charpentiers posent la dernière poutre : {old} devient {new}. {desc}",
+      "Un héraut proclame la nouvelle : le village est reconnu comme {new}. {desc}"
+    ],
+    "threat_arrival": [
+      "{Threat_le} fond sur le village dans un fracas. {n} défenseur(s) tiennent la place{guards}.",
+      "Un rugissement, puis l'ombre : {threat_le} est là. Face à la bête, {n} défenseur(s){guards}.",
+      "Le sol tremble quand {threat_le} se pose sur la place. {n} défenseur(s) lèvent leurs armes{guards}."
+    ],
+    "threat_breath": [
+      "Le dragon gonfle sa gorge : une gerbe de feu balaie la place !",
+      "Souffle de feu ! La chaleur fait éclater les tuiles."
+    ],
+    "threat_wall": [
+      "La muraille encaisse le gros des flammes : les défenseurs ne prennent que la moitié du souffle.",
+      "Les créneaux fument, mais la pierre tient bon et abrite les défenseurs."
+    ],
+    "threat_guard_falls": [
+      "{a} s'écroule sous la patte du monstre.",
+      "{a} lâche sa pique et tombe, roussi."
+    ],
+    "threat_decisive": [
+      "Coup décisif : {a} plante sa lame sous l'écaille, et la bête s'effondre.",
+      "{a} porte le dernier coup ; {threat_le} s'abat dans un nuage de cendres."
+    ],
+    "threat_flee": [
+      "Trop de sang perdu : {threat_le} prend son envol et disparaît vers {biome_le}.",
+      "La bête recule et s'enfuit en hurlant vers {biome_le}.",
+      "{Threat_le} se lasse des piques et des flèches ; la bête repart vers {biome_le}, laissant la place fumante."
+    ],
+    "threat_burn": [
+      "{b} s'embrase et perd un niveau ; les seaux passent de main en main jusqu'à l'aube.",
+      "Les flammes dévorent {b} : un étage entier part en fumée."
+    ],
+    "threat_victory": [
+      "{Threat_le} est mort{e} ! Le village danse autour de la carcasse ; ses dépouilles finiront à l'entrepôt.",
+      "Victoire : {threat_le} gît sur la place. On boira longtemps à la santé des défenseurs."
+    ],
+    "threat_repel": [
+      "Le village est sauf : {threat_le} est repoussé{e}, la muraille noircie mais debout. La bête reviendra.",
+      "Repoussé{e} ! Les défenseurs, brûlés et fourbus, regardent l'ombre s'éloigner. Pour cinq jours."
+    ],
+    "threat_ravage": [
+      "Jour noir : {threat_le} ravage le village et pille la caisse avant de repartir. La bête reviendra dans trois jours.",
+      "Nul ne reste debout. {Threat_le} fouille les réserves, brûle ce qu'{il} ne prend pas et s'en va — pour trois jours."
+    ],
+    "threat_none": [
+      "Personne ne défend le village ; {threat_le} se sert et s'en va, et l'on compte les dégâts.",
+      "Sans défenseur ni muraille, le village n'a que ses prières ; {threat_le} n'en a cure."
+    ],
+    "threat_walls_hold": [
+      "Personne sur les remparts, mais les murailles suffisent : {threat_le} tourne, crache, et repart bredouille."
+    ],
+    "solo_success": [
+      "{a} réussit {mission} : {reward}.",
+      "Mission solo réussie pour {a} ({mission}) : {reward}.",
+      "{a} s'en tire avec les honneurs — {mission} : {reward}."
+    ],
+    "solo_fail": [
+      "{a} échoue : {mission}, ça n'a pas marché.",
+      "Échec de {a} ({mission}).",
+      "{a} rentre la tête basse — {mission}."
+    ],
+    "solo_item": [
+      "En chemin, {a} met la main sur {item}.",
+      "{a} rapporte aussi {item}."
+    ],
+    "craft_level_up": [
+      "{a} progresse en {craft} (niveau {n}).",
+      "Savoir-faire : {a} atteint le niveau {n} en {craft}."
+    ],
+    "dragon_wake": [
+      "Les anciens l'avaient dit : à force de fouiller {biome_le}, la guilde a réveillé {dragon_le}. {presage}",
+      "Un grondement monte {biome_de} : {dragon_le} s'éveille. {presage}",
+      "Silence soudain sur {biome_le} ; {dragon_le} a ouvert un œil. {presage}"
+    ],
+    "dragon_return": [
+      "{Dragon_le} n'a pas oublié : {il} revient. {presage}",
+      "On croyait {dragon_le} parti{e} ; l'ombre repasse sur les toits. {presage}"
+    ],
+    "death": [
+      "{a} ne se relèvera pas. On l'enterre au soir, {cause}.",
+      "Deuil : {a} est mort{e} {cause}. La guilde baisse ses bannières.",
+      "La guilde perd {a}, {cause}. Personne ne parle au repas."
+    ],
+    "heir_offer": [
+      "{a}, {link} de {dead}, se présente à la taverne : {il} reprendra la place, sans demander un sou.",
+      "À la taverne, {a} porte les couleurs de {dead} et attend {m}."
+    ],
+    "heir_recruit": [
+      "{m} accueille {a}, {link} de {dead}.",
+      "{a} prend la place laissée par {dead} chez {m}."
+    ],
+    "collapse": [
+      "La maison de guilde n'est plus que cendres : la guilde est dispersée.",
+      "Sans toit ni bannière, les derniers aventuriers s'en vont chacun de leur côté : la guilde est dispersée."
+    ],
+    "collapsed_day": [
+      "La guilde est dispersée. Le vent passe sur les cendres de la place.",
+      "La guilde est dispersée ; il ne reste que des tentes vides et des chiens."
+    ],
+    "trophy": [
+      "Le crâne {dragon_de} est hissé au fronton de la maison de guilde.",
+      "On cloue la dépouille {dragon_de} sur la place : trophée de la guilde."
+    ],
+    "legendary_grant": [
+      "Dans la carcasse, {a} trouve {item} : « {flavor} »",
+      "{item} revient à {a}, qui a versé le plus de sang. « {flavor} »"
     ]
   },
   "quest_names": {
@@ -3905,7 +4443,8 @@
       "buy_potions": false,
       "vote_quest": "easiest",
       "vote_build": "cheapest",
-      "recruit_gold_margin": 120
+      "recruit_gold_margin": 120,
+      "defend": "always"
     },
     {
       "id": "audacieux",
@@ -3919,7 +4458,8 @@
       "buy_potions": true,
       "vote_quest": "richest",
       "vote_build": "training_ground",
-      "recruit_gold_margin": 40
+      "recruit_gold_margin": 40,
+      "defend": "if_needed"
     }
   ],
   "human_manager": {
@@ -3974,5 +4514,483 @@
     "c_elixir_pierre",
     "c_baume",
     "c_ration"
+  ],
+  "village_ages": [
+    {
+      "id": "campement",
+      "name": "Campement",
+      "prestige_min": 0,
+      "levels_min": 0,
+      "defense": 0,
+      "guards": 0,
+      "description": "Des tentes autour d'un feu."
+    },
+    {
+      "id": "hameau",
+      "name": "Hameau",
+      "prestige_min": 60,
+      "levels_min": 5,
+      "defense": 10,
+      "guards": 0,
+      "description": "Des maisons de bois et une route de terre."
+    },
+    {
+      "id": "bourg",
+      "name": "Bourg",
+      "prestige_min": 140,
+      "levels_min": 7,
+      "defense": 25,
+      "guards": 2,
+      "description": "Une palissade et deux gardes à la porte."
+    },
+    {
+      "id": "ville",
+      "name": "Ville fortifiée",
+      "prestige_min": 240,
+      "levels_min": 8,
+      "defense": 45,
+      "guards": 4,
+      "description": "Une muraille de pierre, des gardes qui patrouillent."
+    },
+    {
+      "id": "chateau",
+      "name": "Château",
+      "prestige_min": 300,
+      "levels_min": 9,
+      "defense": 70,
+      "guards": 6,
+      "description": "Douve, pont-levis, tours et la bannière de la guilde."
+    }
+  ],
+  "threats": {
+    "dragon": {
+      "id": "dragon",
+      "name": "Dragon",
+      "verb": "lacère",
+      "gender": "m",
+      "description": "Les dragons dorment au fond de chaque biome ; à force d'y réussir des quêtes, la guilde finit par en réveiller un.",
+      "max_rounds": 12,
+      "flee_hp_pct": 50,
+      "flee_permille": 400,
+      "guard_hp_pct": 80,
+      "wall_age_min": 3,
+      "wall_alone_defense_min": 45,
+      "ravage_gold_pct": 20,
+      "prestige_win": 40,
+      "prestige_repel": 15,
+      "prestige_ravage": -10,
+      "xp_win_base": 30,
+      "xp_win_per_day": 3,
+      "xp_repel_base": 15,
+      "xp_repel_per_day": 1,
+      "xp_ravage": 5,
+      "gold_base": 40,
+      "gold_per_day": 4,
+      "material_min": 4,
+      "material_max": 8
+    }
+  },
+  "dragons": {
+    "forest": {
+      "id": "dragon_forest",
+      "biome": "forest",
+      "name": "Sylvain corrompu ancestral",
+      "verb": "fouette",
+      "gender": "m",
+      "description": "Un arbre-dragon aux racines noires, réveillé par les haches de la guilde. Ses racines enserrent le plus fort ; sa sève le régénère tant que rien ne brûle, et à mi-vie deux sylvains corrompus sortent de son écorce.",
+      "hp_base": 130,
+      "hp_per_day": 14,
+      "atk_base": 15,
+      "atk_per_day": 3,
+      "def_base": 15,
+      "def_per_day": 1,
+      "spd": 7,
+      "mechanic": "roots",
+      "breath_every": 4,
+      "breath_power": 90,
+      "breath_label": "Le Sylvain crache une nuée de spores brûlantes !",
+      "materials": [
+        "heartwood",
+        "sylvan_sap"
+      ],
+      "legendary_pool": [
+        "w_marteau_ancetres",
+        "a_ecorce_ancestrale",
+        "t_coeur_sylvain"
+      ],
+      "article": "le"
+    },
+    "mountain": {
+      "id": "dragon_mountain",
+      "biome": "mountain",
+      "name": "Drake des monts",
+      "verb": "mord",
+      "gender": "m",
+      "description": "Un drake de cendre aux écailles de fer, tiré de son sommeil par les pioches de la guilde. Il gonfle ses poumons puis souffle une nappe de cendres qui épargne les plus rapides ; ses écailles ignorent les coups critiques tant qu'il a plus de la moitié de ses forces.",
+      "hp_base": 120,
+      "hp_per_day": 14,
+      "atk_base": 19,
+      "atk_per_day": 3,
+      "def_base": 14,
+      "def_per_day": 1,
+      "spd": 9,
+      "mechanic": "breath",
+      "breath_every": 0,
+      "breath_power": 120,
+      "breath_label": "Une nappe de cendres brûlantes balaie la place !",
+      "materials": [
+        "scales_iron",
+        "drake_ember"
+      ],
+      "legendary_pool": [
+        "t_coeur_drake",
+        "w_croc_drake",
+        "a_plates_ecailles"
+      ],
+      "article": "le"
+    },
+    "marsh": {
+      "id": "dragon_marsh",
+      "biome": "marsh",
+      "name": "Hydre des marais",
+      "verb": "happe",
+      "gender": "f",
+      "description": "Une hydre à trois têtes montée des tourbières, réveillée par les bottes de la guilde. Chaque tête mord ; les têtes coupées repoussent si rien ne brûle, et la première crache son venin sur les plus faibles.",
+      "hp_base": 140,
+      "hp_per_day": 14,
+      "atk_base": 12,
+      "atk_per_day": 3,
+      "def_base": 12,
+      "def_per_day": 1,
+      "spd": 7,
+      "mechanic": "heads",
+      "breath_every": 5,
+      "breath_power": 80,
+      "breath_label": "L'Hydre exhale un nuage de venin sur la place !",
+      "materials": [
+        "hydra_venom",
+        "hydra_fang"
+      ],
+      "legendary_pool": [
+        "a_peau_hydre",
+        "w_dent_hydre",
+        "t_oeil_hydre"
+      ],
+      "article": "l'"
+    }
+  },
+  "crafts": [
+    {
+      "id": "forge",
+      "name": "Forge",
+      "bonus_kind": "craft_pct",
+      "per_level": 5,
+      "per_level_class": {},
+      "label": "+{n} % de points de travail"
+    },
+    {
+      "id": "herboristerie",
+      "name": "Herboristerie",
+      "bonus_kind": "gather_pct",
+      "per_level": 4,
+      "per_level_class": {},
+      "label": "+{n} % de récolte"
+    },
+    {
+      "id": "archerie",
+      "name": "Archerie",
+      "bonus_kind": "hit",
+      "per_level": 1,
+      "per_level_class": {
+        "ranger": 2
+      },
+      "label": "+{n} toucher"
+    },
+    {
+      "id": "discretion",
+      "name": "Discrétion",
+      "bonus_kind": "dodge",
+      "per_level": 5,
+      "per_level_class": {
+        "rogue": 8
+      },
+      "label": "+{n} ‰ d'esquive"
+    },
+    {
+      "id": "endurance",
+      "name": "Endurance",
+      "bonus_kind": "hp_pct",
+      "per_level": 3,
+      "per_level_class": {},
+      "label": "+{n} % de PV"
+    },
+    {
+      "id": "erudition",
+      "name": "Érudition",
+      "bonus_kind": "xp_pct",
+      "per_level": 3,
+      "per_level_class": {},
+      "label": "+{n} % d'XP"
+    }
+  ],
+  "solo_missions": [
+    {
+      "id": "s_ronde_chemins",
+      "name": "Ronde sur les chemins",
+      "class_id": null,
+      "difficulty": 1,
+      "craft_id": "endurance",
+      "gold": 12,
+      "resources": {
+        "wood": 3
+      },
+      "xp": 38,
+      "craft_xp": 12,
+      "item_permille": 130,
+      "injury_permille": 75,
+      "text": "une ronde sur les chemins du village"
+    },
+    {
+      "id": "s_cueillette_simples",
+      "name": "Cueillette de simples",
+      "class_id": null,
+      "difficulty": 1,
+      "craft_id": "herboristerie",
+      "gold": 8,
+      "resources": {
+        "herbs": 4
+      },
+      "xp": 38,
+      "craft_xp": 12,
+      "item_permille": 130,
+      "injury_permille": 75,
+      "text": "une cueillette de simples dans les haies"
+    },
+    {
+      "id": "s_livraison_village",
+      "name": "Livraison au hameau voisin",
+      "class_id": null,
+      "difficulty": 2,
+      "craft_id": "endurance",
+      "gold": 25,
+      "resources": {
+        "stone": 2
+      },
+      "xp": 56,
+      "craft_xp": 16,
+      "item_permille": 200,
+      "injury_permille": 120,
+      "text": "une livraison pressée au hameau voisin"
+    },
+    {
+      "id": "s_grotte_abandonnee",
+      "name": "La grotte abandonnée",
+      "class_id": null,
+      "difficulty": 3,
+      "craft_id": "discretion",
+      "gold": 30,
+      "resources": {
+        "stone": 4,
+        "iron_ore": 1
+      },
+      "xp": 74,
+      "craft_xp": 20,
+      "item_permille": 270,
+      "injury_permille": 165,
+      "text": "la fouille d'une grotte abandonnée"
+    },
+    {
+      "id": "s_tourbiere_sangsues",
+      "name": "La tourbière aux sangsues",
+      "class_id": null,
+      "difficulty": 4,
+      "craft_id": "herboristerie",
+      "gold": 40,
+      "resources": {
+        "swamp_moss": 5,
+        "venom": 1
+      },
+      "xp": 92,
+      "craft_xp": 24,
+      "item_permille": 340,
+      "injury_permille": 210,
+      "text": "la traversée de la tourbière aux sangsues"
+    },
+    {
+      "id": "s_col_enneige",
+      "name": "Le col enneigé",
+      "class_id": null,
+      "difficulty": 5,
+      "craft_id": "endurance",
+      "gold": 70,
+      "resources": {
+        "crystal": 2,
+        "iron_ore": 4
+      },
+      "xp": 110,
+      "craft_xp": 28,
+      "item_permille": 410,
+      "injury_permille": 255,
+      "text": "le passage du col enneigé"
+    },
+    {
+      "id": "s_vigie_route",
+      "name": "Vigie sur la route",
+      "class_id": "warrior",
+      "difficulty": 2,
+      "craft_id": "endurance",
+      "gold": 15,
+      "resources": {
+        "stone": 3
+      },
+      "xp": 56,
+      "craft_xp": 16,
+      "item_permille": 200,
+      "injury_permille": 120,
+      "text": "une vigie sur la route des marchands"
+    },
+    {
+      "id": "s_escorte_marchand",
+      "name": "Escorte d'un marchand de fer",
+      "class_id": "warrior",
+      "difficulty": 3,
+      "craft_id": "forge",
+      "gold": 30,
+      "resources": {
+        "iron_ore": 4
+      },
+      "xp": 74,
+      "craft_xp": 20,
+      "item_permille": 270,
+      "injury_permille": 165,
+      "text": "l'escorte d'un marchand de fer"
+    },
+    {
+      "id": "s_piste_braconnier",
+      "name": "La piste du braconnier",
+      "class_id": "ranger",
+      "difficulty": 2,
+      "craft_id": "archerie",
+      "gold": 15,
+      "resources": {
+        "hide": 3
+      },
+      "xp": 56,
+      "craft_xp": 16,
+      "item_permille": 200,
+      "injury_permille": 120,
+      "text": "la traque d'un braconnier"
+    },
+    {
+      "id": "s_concours_tir",
+      "name": "Concours de tir de la foire",
+      "class_id": "ranger",
+      "difficulty": 3,
+      "craft_id": "archerie",
+      "gold": 35,
+      "resources": {
+        "wood": 2
+      },
+      "xp": 74,
+      "craft_xp": 20,
+      "item_permille": 270,
+      "injury_permille": 165,
+      "text": "le concours de tir de la foire"
+    },
+    {
+      "id": "s_marche_nuit",
+      "name": "Marché de nuit",
+      "class_id": "rogue",
+      "difficulty": 2,
+      "craft_id": "discretion",
+      "gold": 30,
+      "resources": {},
+      "xp": 56,
+      "craft_xp": 16,
+      "item_permille": 200,
+      "injury_permille": 120,
+      "text": "une nuit au marché des receleurs"
+    },
+    {
+      "id": "s_cambriolage_gobelin",
+      "name": "Le coffre du chef gobelin",
+      "class_id": "rogue",
+      "difficulty": 4,
+      "craft_id": "discretion",
+      "gold": 60,
+      "resources": {
+        "iron_ore": 2
+      },
+      "xp": 92,
+      "craft_xp": 24,
+      "item_permille": 340,
+      "injury_permille": 210,
+      "text": "le vol du coffre d'un chef gobelin"
+    },
+    {
+      "id": "s_veillee_malade",
+      "name": "Veillée d'un malade",
+      "class_id": "cleric",
+      "difficulty": 2,
+      "craft_id": "herboristerie",
+      "gold": 20,
+      "resources": {
+        "herbs": 3
+      },
+      "xp": 56,
+      "craft_xp": 16,
+      "item_permille": 200,
+      "injury_permille": 120,
+      "text": "la veillée d'un malade du village"
+    },
+    {
+      "id": "s_exorcisme",
+      "name": "Exorcisme de la grange",
+      "class_id": "cleric",
+      "difficulty": 4,
+      "craft_id": "erudition",
+      "gold": 55,
+      "resources": {
+        "swamp_moss": 3
+      },
+      "xp": 92,
+      "craft_xp": 24,
+      "item_permille": 340,
+      "injury_permille": 210,
+      "text": "l'exorcisme d'une grange hantée"
+    },
+    {
+      "id": "s_bibliotheque",
+      "name": "La bibliothèque du prieuré",
+      "class_id": "mage",
+      "difficulty": 3,
+      "craft_id": "erudition",
+      "gold": 30,
+      "resources": {
+        "crystal": 1
+      },
+      "xp": 74,
+      "craft_xp": 20,
+      "item_permille": 270,
+      "injury_permille": 165,
+      "text": "un inventaire de la bibliothèque du prieuré"
+    },
+    {
+      "id": "s_feux_follets",
+      "name": "La chasse aux feux follets",
+      "class_id": "mage",
+      "difficulty": 4,
+      "craft_id": "erudition",
+      "gold": 45,
+      "resources": {
+        "venom": 2,
+        "crystal": 1
+      },
+      "xp": 92,
+      "craft_xp": 24,
+      "item_permille": 340,
+      "injury_permille": 210,
+      "text": "une chasse aux feux follets"
+    }
   ]
 }
