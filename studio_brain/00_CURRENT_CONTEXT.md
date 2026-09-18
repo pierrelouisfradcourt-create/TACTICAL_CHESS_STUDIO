@@ -1,8 +1,20 @@
 # Contexte courant TCS
-*(Handoff. Dernière session : 2026-09-03 — **refresh CLAUDE.md** (213 → 79 lignes). Sessions
-précédentes : 2026-09-01 Shadow Audit V1→V6 CLOS · 2026-09-01 requalification PAIRE 2 · 2026-08-30
-RUN 1 + paire pilote CLOS. Détail complet archivé :
-`journal/context-archive-2026-09-03-avant-refresh-claudemd.md`.)*
+*(Handoff. Dernière session : 2026-09-17/18 — **Chroniques de Guilde** (idéation jeux App Store →
+prototype). Sessions précédentes : 2026-09-03 refresh CLAUDE.md · 2026-09-01 Shadow Audit V1→V6 CLOS ·
+2026-09-01 requalification PAIRE 2. Détail archivé : `journal/context-archive-2026-09-03-avant-refresh-claudemd.md`.)*
+
+## Session 2026-09-17/18 — Chroniques de Guilde (branche claude/game-ideas-app-store-9dvk6p)
+- Idéation Pierre : jeu mobile **Android** de manager de guilde au jour le jour (façon Football Manager),
+  entre amis, **un héros par ami**, résolution déterministe à heure fixe, chronique du soir, **tableau vivant**
+  (widget / fond d'écran animé) qui montre qui a joué. Architecture sans code serveur : état à écrivain
+  unique, actions vérifiées et rejouées, expédition = graine + journal = preuve rejouable.
+- **Prototype V2 livré** : artefact https://claude.ai/artifact/KC9qsgEm2aj6hPxeXq2FJM · copie dans le dépôt
+  `games/chroniques_guilde/` (GO Pierre 2026-09-18) : moteur `sim.js` (entiers, mulberry32), `data.json`,
+  page, CONTRACT.md, design/, bancs `test/` (19/19 · 13/13 · 52/52). Aucun playtest humain.
+- Retours Pierre intégrés : V1 « trop compliquée » → V2 trois écrans + tiroir. Pistes discutées, non codées :
+  âges du village jusqu'au château, événements (dragon, morts-vivants, portail), fond d'écran animé.
+- Non fait : revues croisées de la V1 coupées par la limite de session ; conception village/journée jamais
+  écrite (moteur l'a conçue seul). Hors Forge : aucun contrat scripts/forge, aucun IMP.
 
 ## Session 2026-09-03 — refresh CLAUDE.md (GO Pierre « change », commit + push GO)
 - Analyse confrontée au dépôt : 2 doublons contradictoires dans le routage, chiffres faux (studioV2

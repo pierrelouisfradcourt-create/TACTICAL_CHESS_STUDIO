@@ -1,0 +1,1254 @@
+<title>Chroniques de Guilde</title>
+<style>
+/* Chroniques de Guilde — V2 « tableau vivant ». Date : 2026-09-18. Source : CONTRACT.md (plan graphique) + UI_BRIEF_V2.md. */
+:root {
+  --bg: #F3F4F0; --surface: #FFFFFF; --ink: #1B2620; --muted: #5D6B63; --line: #D6DBD3;
+  --accent: #1F6F78; --accent-ink: #FFFFFF; --gold: #B8892B; --good: #2F7D4F; --warn: #B7791F; --crit: #B23A3A; --epic: #7B5EA7;
+  --accent-soft: rgba(31, 111, 120, 0.10); --gold-soft: rgba(184, 137, 43, 0.12); --good-soft: rgba(47, 125, 79, 0.12);
+  --warn-soft: rgba(183, 121, 31, 0.14); --crit-soft: rgba(178, 58, 58, 0.12); --raised: #FAFBF8;
+  --shadow: 0 1px 2px rgba(27, 38, 32, 0.06), 0 10px 24px -14px rgba(27, 38, 32, 0.25);
+  --font-ui: 'IBM Plex Sans', 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  --font-title: 'Bricolage Grotesque', 'IBM Plex Sans', 'Segoe UI', system-ui, Helvetica, Arial, sans-serif;
+  --font-chron: 'Alegreya', Georgia, 'Times New Roman', serif;
+  --radius: 10px; --topbar-h: 96px; --tabbar-h: 58px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141A17; --surface: #1D2521; --ink: #E8ECE7; --muted: #9AA79F; --line: #2C3631;
+    --accent: #5FB3BC; --accent-ink: #0E1A1C; --gold: #D4A64A; --good: #5DBA83; --warn: #D9A441; --crit: #E06B6B; --epic: #B497E0;
+    --accent-soft: rgba(95, 179, 188, 0.14); --gold-soft: rgba(212, 166, 74, 0.14); --good-soft: rgba(93, 186, 131, 0.14);
+    --warn-soft: rgba(217, 164, 65, 0.16); --crit-soft: rgba(224, 107, 107, 0.16); --raised: #232C27;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 24px -14px rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141A17; --surface: #1D2521; --ink: #E8ECE7; --muted: #9AA79F; --line: #2C3631;
+  --accent: #5FB3BC; --accent-ink: #0E1A1C; --gold: #D4A64A; --good: #5DBA83; --warn: #D9A441; --crit: #E06B6B; --epic: #B497E0;
+  --accent-soft: rgba(95, 179, 188, 0.14); --gold-soft: rgba(212, 166, 74, 0.14); --good-soft: rgba(93, 186, 131, 0.14);
+  --warn-soft: rgba(217, 164, 65, 0.16); --crit-soft: rgba(224, 107, 107, 0.16); --raised: #232C27;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 24px -14px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 14px; line-height: 1.45;
+  font-variant-numeric: tabular-nums; -webkit-text-size-adjust: 100%; min-height: 100%; overflow-x: hidden; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3, h4 { font-family: var(--font-title); font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+p { margin: 0; }
+code { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+button, select, input, textarea { font: inherit; color: inherit; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- en-tête collant : flex à 3 lignes sur mobile, grille à zones sur bureau ---- */
+.topbar { position: sticky; top: 0; z-index: 30; background: var(--surface); border-bottom: 1px solid var(--line); padding: 8px 16px 8px; box-shadow: var(--shadow);
+  display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.topbar::before { content: ''; flex-basis: 100%; height: 0; order: 4; }
+.brand { order: 1; font-size: 15px; font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; }
+.day-counter { order: 2; font-family: var(--font-title); font-weight: 700; font-size: 16px; white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 500; background: var(--raised); border: 1px solid var(--line); white-space: nowrap; }
+.chip-gold { order: 3; margin-left: auto; color: var(--gold); border-color: transparent; background: var(--gold-soft); font-weight: 600; }
+#btn-launch { order: 5; }
+.guild-strip { order: 6; margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.tools { order: 7; flex-basis: 100%; display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); flex-wrap: wrap; min-width: 0; }
+.hash { padding: 2px 6px; border-radius: 5px; background: var(--raised); border: 1px solid var(--line); color: var(--muted); letter-spacing: 0.04em; font-size: 11px; }
+.replay-result { font-size: 11px; font-weight: 600; }
+.replay-result[data-status="ok"] { color: var(--good); }
+.replay-result[data-status="crit"] { color: var(--crit); }
+.guild-strip .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; margin-right: 2px; }
+.gbtn { padding: 4px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.gbtn:hover { border-color: var(--muted); }
+.gbtn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+@media (max-width: 420px) { .guild-strip .lbl { display: none; } .gbtn { padding: 4px 7px; font-size: 11px; } }
+@media (min-width: 900px) {
+  .topbar { display: grid; grid-template-columns: auto auto auto minmax(0, 1fr) auto; grid-template-areas: "brand day gold . launch" "tabs tools tools tools guild"; padding: 8px 16px 6px; }
+  .topbar::before { display: none; }
+  .brand { grid-area: brand; font-size: 17px; }
+  .day-counter { grid-area: day; }
+  .chip-gold { grid-area: gold; margin-left: 0; }
+  #btn-launch { grid-area: launch; justify-self: end; }
+  .tabs { grid-area: tabs; }
+  .tools { grid-area: tools; flex-basis: auto; }
+  .guild-strip { grid-area: guild; justify-self: end; margin-left: 0; }
+}
+
+/* ---- boutons ---- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font-weight: 500; font-size: 13px; line-height: 1.2; transition: background-color 0.15s, border-color 0.15s; }
+.btn:hover { background: var(--raised); border-color: var(--muted); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; padding: 9px 16px; }
+.btn-primary:hover { background: var(--accent); filter: brightness(1.08); border-color: var(--accent); }
+.btn-sm { padding: 4px 9px; font-size: 12px; border-radius: 6px; }
+.btn-xs { padding: 2px 7px; font-size: 11px; border-radius: 5px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+select, input[type="number"], input[type="text"], textarea { border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 6px 8px; font-size: 13px; max-width: 100%; }
+textarea { width: 100%; font-family: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.4; resize: vertical; }
+.field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.field > span { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* ---- onglets ---- */
+.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; gap: 4px; background: var(--surface); border-top: 1px solid var(--line); padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)); }
+.tab { flex: 1 1 0; min-width: 0; padding: 9px 4px; border: 0; background: transparent; color: var(--muted); font-family: var(--font-title); font-weight: 600; font-size: 13px; border-radius: 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tab[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+@media (min-width: 900px) {
+  .tabs { position: static; border: 0; padding: 0; gap: 2px; margin-right: 8px; }
+  .tab { flex: 0 0 auto; padding: 6px 12px; font-size: 13px; }
+}
+
+/* ---- mise en page ---- */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 16px 16px calc(var(--tabbar-h) + 24px + env(safe-area-inset-bottom, 0px)); max-width: 1440px; margin: 0 auto; }
+.col-main, .col-chronicle { min-width: 0; }
+@media (min-width: 900px) { .layout { padding-bottom: 32px; } }
+@media (min-width: 1100px) {
+  .layout { grid-template-columns: minmax(0, 1fr) minmax(340px, 440px); align-items: start; }
+  .col-chronicle { position: sticky; top: calc(var(--topbar-h) + 16px); max-height: calc(100vh - var(--topbar-h) - 32px); overflow: auto; }
+}
+.block { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px; min-width: 0; }
+.block > h2 { font-size: 16px; line-height: 1.25; margin-bottom: 10px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.block > h2 .count { color: var(--muted); font-family: var(--font-ui); font-weight: 500; font-size: 12px; }
+.banner { padding: 10px 14px; border-radius: 6px; margin: 12px 16px 0; font-size: 13px; }
+.banner-crit { background: var(--crit-soft); color: var(--crit); border: 1px solid var(--crit); }
+.lead { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+.section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; margin-top: 4px; }
+
+/* ---- tableau vivant ---- */
+.tableau-top { display: flex; flex-direction: column-reverse; gap: 12px; }
+@media (min-width: 700px) { .tableau-top { flex-direction: row; align-items: flex-start; } }
+.scene-wrap { flex: 1 1 auto; min-width: 0; }
+.scene-head { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.scene-head h2 { font-size: 17px; }
+.clock { font-family: var(--font-title); font-weight: 700; font-size: 15px; padding: 2px 10px; border-radius: 999px; background: var(--raised); border: 1px solid var(--line); white-space: nowrap; }
+.clock[data-phase="evening"] { background: var(--gold-soft); color: var(--gold); border-color: transparent; }
+.scene-head .spacer { flex: 1 1 auto; }
+canvas#scene { display: block; width: 100%; border-radius: var(--radius); border: 1px solid var(--line); background: var(--bg); }
+.widget-tile { flex: none; width: 160px; height: 160px; margin: 0 auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden; }
+@media (min-width: 700px) { .widget-tile { margin: 0; } }
+.widget-tile canvas { display: block; width: 158px; height: 92px; }
+.widget-tile .wl { padding: 3px 8px 0; font-size: 11px; line-height: 1.3; overflow: hidden; }
+.widget-tile .wl1 { font-weight: 700; font-family: var(--font-title); font-size: 12px; }
+.widget-tile .wl2 { color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.widget-tile .wl2.warn { color: var(--warn); font-weight: 600; }
+.widget-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; text-align: center; margin-bottom: 4px; }
+.played { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.played .txt { font-weight: 600; font-size: 13px; }
+.dots { display: flex; gap: 6px; }
+.dot { position: relative; width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; color: #fff; border: 2px solid transparent; }
+.dot.off { background: var(--raised); color: var(--muted); border-color: var(--line); border-style: dashed; }
+.dot i { position: absolute; right: -4px; bottom: -4px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--surface); background: var(--line); display: block; }
+.dot.on i { background: var(--good); }
+.dot.on i::after { content: ''; position: absolute; left: 3px; top: 1px; width: 3px; height: 6px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.instant { margin-top: 12px; padding: 12px 16px; border-left: 4px solid var(--gold); background: var(--gold-soft); border-radius: 0 8px 8px 0; font-family: var(--font-chron); font-size: 20px; line-height: 1.35; font-style: italic; }
+.instant .eyebrow { font-family: var(--font-ui); font-style: normal; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gold); font-weight: 700; display: block; margin-bottom: 2px; }
+.quick { margin-top: 12px; }
+.quick .lead { margin-bottom: 6px; }
+.act-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.act-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 10px 4px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; min-width: 0; text-align: center; }
+.act-btn:hover { border-color: var(--muted); background: var(--raised); }
+.act-btn .g { font-size: 20px; line-height: 1; }
+.act-btn .l { font-family: var(--font-title); font-weight: 600; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.act-btn .r { font-size: 10px; color: var(--muted); line-height: 1.2; }
+.act-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.act-btn[aria-pressed="true"] .r { color: inherit; }
+.act-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.act-big .act-btn { padding: 14px 6px; }
+.act-big .act-btn .g { font-size: 26px; }
+@media (max-width: 430px) { .act-btn .l { font-size: 11px; } .act-big .act-btn .g { font-size: 22px; } }
+.evening-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+
+/* ---- mon héros ---- */
+.hero-head { display: flex; align-items: center; gap: 12px; }
+.hero-glyph { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 28px; color: #fff; flex: none; }
+.hero-id { min-width: 0; flex: 1; }
+.hero-id h2 { font-size: 20px; margin: 0; }
+.hero-id p { font-size: 13px; color: var(--muted); }
+.gauges { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; margin-top: 10px; }
+.gauge { display: grid; grid-template-columns: auto 1fr auto; gap: 6px; align-items: center; font-size: 11px; }
+.gauge-l { color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.gauge-bar { height: 6px; background: var(--raised); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.gauge-bar i { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+.gauge-bar i.g-good { background: var(--good); } .gauge-bar i.g-warn { background: var(--warn); }
+.gauge-v { font-weight: 600; min-width: 2ch; text-align: right; }
+.bar { height: 8px; background: var(--raised); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--gold); }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.pill-good { background: var(--good-soft); color: var(--good); } .pill-warn { background: var(--warn-soft); color: var(--warn); }
+.pill-crit { background: var(--crit-soft); color: var(--crit); } .pill-accent { background: var(--accent-soft); color: var(--accent); }
+.pill-muted { background: var(--raised); color: var(--muted); border: 1px solid var(--line); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.chip-btn { padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 12px; cursor: pointer; }
+.chip-btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.targets { margin-top: 8px; }
+.quest-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.quest-card { text-align: left; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.quest-card:hover { border-color: var(--muted); }
+.quest-card[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.quest-card .n { font-family: var(--font-title); font-weight: 600; font-size: 13px; line-height: 1.25; }
+.quest-card .b { font-size: 12px; color: var(--muted); }
+.quest-card .stars { color: var(--gold); letter-spacing: 1px; font-size: 12px; }
+.quest-card .rw { font-size: 11px; color: var(--muted); }
+.quest-card .v { font-size: 11px; font-weight: 600; color: var(--accent); }
+.equip-rows { display: flex; flex-direction: column; gap: 8px; }
+.equip-row { display: grid; grid-template-columns: 60px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 13px; }
+.equip-row .slot { color: var(--muted); font-size: 12px; }
+.equip-row .cur { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.equip-row .cur strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.equip-row .pending { font-size: 11px; color: var(--accent); }
+.equip-row select { min-width: 0; max-width: 100%; }
+@media (max-width: 430px) { .equip-row { grid-template-columns: 52px minmax(0, 1fr); } .equip-row .ctl { grid-column: 1 / -1; display: flex; gap: 6px; } }
+.rar-common, .rar-commun { color: var(--muted); } .rar-rare { color: var(--accent); } .rar-epic, .rar-epique { color: var(--epic); } .rar-legendary, .rar-legendaire { color: var(--gold); }
+
+/* ---- chronique ---- */
+.col-chronicle.flash { animation: flash 0.9s ease-out; }
+@keyframes flash { 0% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.chron-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.chron-nav select { flex: 1 1 120px; }
+.chronicle { font-family: var(--font-chron); font-size: 17px; line-height: 1.5; max-width: 65ch; }
+.chron-eyebrow { font-family: var(--font-ui); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+.chron-title { font-size: 24px; font-weight: 800; line-height: 1.15; margin: 2px 0 10px; }
+.chron-headline { font-size: 19px; font-style: italic; line-height: 1.4; padding: 8px 14px; margin: 0 0 6px; border-left: 3px solid var(--gold); background: var(--gold-soft); border-radius: 0 6px 6px 0; }
+.chron-section h3 { font-family: var(--font-ui); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 16px 0 4px; }
+.chron-section p { margin: 0 0 3px; }
+.chron-empty { color: var(--muted); font-style: italic; }
+.expedition { margin-top: 16px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); }
+.expedition h3 { font-size: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.expedition .meta { font-family: var(--font-ui); font-size: 12px; color: var(--muted); margin: 4px 0 8px; }
+.expedition details summary { cursor: pointer; font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--accent); }
+.room { padding-left: 12px; border-left: 2px solid var(--line); margin: 8px 0; }
+.room h4 { font-size: 14px; margin-bottom: 2px; }
+.room p { margin: 0 0 2px; font-size: 16px; }
+.loot { font-family: var(--font-ui); font-size: 12px; margin-top: 8px; }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 16px; font-family: var(--font-ui); font-size: 12px; }
+.summary div { padding: 6px 8px; border-radius: 6px; background: var(--raised); border: 1px solid var(--line); min-width: 0; }
+.summary b { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.summary .up { color: var(--good); font-weight: 600; } .summary .down { color: var(--crit); font-weight: 600; }
+.season { border-color: var(--gold); background: var(--gold-soft); }
+.season h2 { color: var(--gold); }
+.season ul { margin: 6px 0 0; padding-left: 18px; font-family: var(--font-chron); font-size: 16px; }
+
+/* ---- tiroir Guilde ---- */
+.drawer-backdrop { position: fixed; left: 0; right: 0; bottom: 0; top: var(--topbar-h); z-index: 28; background: rgba(0, 0, 0, 0.35); }
+.drawer { position: fixed; top: var(--topbar-h); right: 0; bottom: 0; z-index: 29; width: min(100%, 460px); background: var(--bg); border-left: 1px solid var(--line); box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden; }
+.drawer-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.drawer-head h2 { font-size: 16px; flex: 1; }
+.drawer-body { overflow: auto; padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px)); flex: 1; }
+.bld-list { display: flex; flex-direction: column; gap: 6px; }
+.bld-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); }
+.bld-row.is-site { border-color: var(--gold); }
+.bld-row .g { font-size: 18px; text-align: center; }
+.bld-row .n { font-weight: 600; font-size: 13px; }
+.bld-row .e { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pips { display: inline-flex; gap: 2px; vertical-align: middle; margin-left: 4px; }
+.pips i { width: 7px; height: 7px; border-radius: 2px; background: var(--line); }
+.pips i.on { background: var(--gold); }
+.cards { display: flex; flex-direction: column; gap: 10px; }
+.adv-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; background: var(--surface); min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.adv-card.is-mine { border-color: var(--accent); }
+.adv-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.adv-glyph { font-size: 20px; width: 30px; text-align: center; flex: none; }
+.adv-id { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.adv-id strong { font-family: var(--font-title); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adv-id span { font-size: 12px; }
+.attr-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 8px; }
+.attr { display: flex; justify-content: space-between; padding: 3px 8px; border-radius: 4px; background: var(--raised); font-size: 12px; }
+.attr b { font-weight: 600; }
+.skills { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+.skills li { display: flex; justify-content: space-between; gap: 8px; }
+.skills li.locked { color: var(--muted); }
+.equip-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.equip-list li { display: flex; align-items: center; gap: 6px; }
+.equip-list .slot { color: var(--muted); min-width: 56px; }
+.day-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.day-list li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 4px 8px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); }
+.day-list li .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hashcell { font-family: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace; font-size: 11px; color: var(--muted); }
+.notices { margin: 0; padding-left: 18px; font-size: 13px; }
+.notices li { margin-bottom: 3px; }
+.notices li.crit { color: var(--crit); }
+
+/* ---- toasts ---- */
+.toasts { position: fixed; left: 16px; right: 16px; bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom, 0px)); z-index: 50; display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; }
+.toast { background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 13px; max-width: 100%; box-shadow: var(--shadow); animation: toastin 0.2s ease-out; }
+.toast.crit { background: var(--crit); color: #fff; }
+@keyframes toastin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (min-width: 900px) { .toasts { bottom: 16px; left: auto; right: 16px; align-items: flex-end; max-width: 420px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+</style>
+
+<header class="topbar" id="topbar">
+  <h1 class="brand">Chroniques de Guilde</h1>
+  <span class="day-counter" id="day-counter" data-testid="day-counter">Jour 1 / 30</span>
+  <span class="chip chip-gold" id="hud-gold" title="Or de guilde">Guilde — or</span>
+  <button type="button" class="btn btn-primary" id="btn-launch" data-testid="btn-launch" data-act="launch">Fin de journée</button>
+  <nav class="tabs" id="tabs" aria-label="Écrans">
+    <button type="button" class="tab" id="tab-tableau" data-testid="tab-tableau" data-act="tab" data-tab="tableau" aria-pressed="true">Tableau</button>
+    <button type="button" class="tab" id="tab-heros" data-testid="tab-heros" data-act="tab" data-tab="heros" aria-pressed="false">Mon héros</button>
+    <button type="button" class="tab" id="tab-chronique" data-testid="tab-chronique" data-act="tab" data-tab="chronique" aria-pressed="false">Chronique</button>
+  </nav>
+  <div class="tools">
+    <code class="hash" id="state-hash" data-testid="state-hash" title="Empreinte de l’état courant">--------</code>
+    <button type="button" class="btn btn-xs" id="btn-replay" data-testid="btn-replay" data-act="replay" title="Rejouer le journal depuis la graine et comparer l’empreinte">Rejouer</button>
+    <output class="replay-result" id="replay-result" data-testid="replay-result" for="btn-replay" aria-live="polite"></output>
+  </div>
+  <div class="guild-strip" id="guild-strip" role="group" aria-label="Guilde">
+    <span class="lbl">Guilde</span>
+    <button type="button" class="gbtn" id="tab-village" data-testid="tab-village" data-act="drawer" data-section="village" aria-pressed="false">Village</button>
+    <button type="button" class="gbtn" id="tab-effectif" data-testid="tab-effectif" data-act="drawer" data-section="effectif" aria-pressed="false">Compagnons</button>
+    <button type="button" class="gbtn" id="tab-journal" data-testid="tab-journal" data-act="drawer" data-section="journal" aria-pressed="false">Journal</button>
+  </div>
+</header>
+<div class="banner banner-crit" id="engine-missing" hidden>Le moteur (sim.js) ou les données (data.js) n’ont pas été chargés : la page ne peut rien simuler.</div>
+
+<main class="layout" id="layout">
+  <section class="col-main" id="col-main">
+    <div class="panel" id="panel-tableau" data-panel="tableau">
+      <section class="block" aria-labelledby="h-scene">
+        <div class="tableau-top">
+          <div class="scene-wrap">
+            <div class="scene-head">
+              <h2 id="h-scene">Le village aujourd’hui</h2>
+              <span class="clock" id="clock" data-phase="morning" aria-live="off">8h</span>
+              <span class="spacer"></span>
+              <button type="button" class="btn btn-sm" id="btn-skip" data-act="skip">Passer</button>
+            </div>
+            <canvas id="scene" width="800" height="460" role="img" aria-label="Le village : figurines des cinq héros placées selon leur activité du jour"></canvas>
+          </div>
+          <div>
+            <p class="widget-title">Aperçu widget</p>
+            <div class="widget-tile" id="widget-tile" aria-label="Aperçu widget">
+              <canvas id="widget-canvas" width="158" height="92" aria-hidden="true"></canvas>
+              <p class="wl wl1" id="widget-l1">0/5 ont joué</p>
+              <p class="wl wl2" id="widget-l2"></p>
+            </div>
+          </div>
+        </div>
+        <div class="played" id="played" aria-live="polite">
+          <div class="dots" id="dots"></div>
+          <span class="txt" id="played-text" data-testid="played-count">0 / 5 ont joué</span>
+        </div>
+        <div class="instant" id="instant" hidden><span class="eyebrow">L’instant du jour</span><span id="instant-text"></span></div>
+        <div class="evening-actions" id="evening-actions" hidden>
+          <button type="button" class="btn" id="btn-next-day" data-act="next-day">Jour suivant →</button>
+          <span class="small muted">Le matin, tout le monde repart devant le hall.</span>
+        </div>
+        <div class="quick" id="quick">
+          <p class="lead" id="quick-lead">Aujourd’hui, mon héros…</p>
+          <div class="act-row" id="quick-acts"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="panel" id="panel-heros" data-panel="heros" hidden>
+      <section class="block" aria-labelledby="h-hero">
+        <h2 id="h-hero" class="sr-only">Mon héros</h2>
+        <div id="hero-card"></div>
+      </section>
+      <section class="block" aria-labelledby="h-today">
+        <h2 id="h-today">Aujourd’hui je…</h2>
+        <div class="act-row act-big" id="hero-acts"></div>
+        <div class="targets" id="target-row" hidden></div>
+      </section>
+      <section class="block" aria-labelledby="h-quests">
+        <h2 id="h-quests">La guilde part où ? <span class="count" id="quest-count"></span></h2>
+        <div class="quest-cards" id="quest-cards"></div>
+      </section>
+      <section class="block" aria-labelledby="h-equip">
+        <h2 id="h-equip">Équipement</h2>
+        <div class="equip-rows" id="equip-rows"></div>
+      </section>
+    </div>
+  </section>
+
+  <aside class="col-chronicle" id="panel-chronique" aria-label="Chronique" hidden>
+    <section class="block season" id="season-report" hidden></section>
+    <section class="block">
+      <div class="chron-nav" id="chron-nav"></div>
+      <div class="chronicle" id="chronicle" data-testid="chronicle"></div>
+    </section>
+  </aside>
+</main>
+
+<div class="drawer-backdrop" id="drawer-backdrop" data-act="drawer-close" hidden></div>
+<aside class="drawer" id="drawer" role="region" aria-labelledby="drawer-title" hidden>
+  <div class="drawer-head">
+    <h2 id="drawer-title">Guilde</h2>
+    <button type="button" class="btn btn-sm" id="btn-drawer-close" data-act="drawer-close" aria-label="Fermer le tiroir">Fermer ✕</button>
+  </div>
+  <div class="drawer-body">
+    <div id="drawer-village" hidden>
+      <section class="block" aria-labelledby="h-site">
+        <h2 id="h-site">Chantier</h2>
+        <p class="lead" id="construction-line"></p>
+        <p class="small muted" id="vote-line"></p>
+      </section>
+      <section class="block" aria-labelledby="h-buildings">
+        <h2 id="h-buildings">Bâtiments <span class="count" id="village-count"></span></h2>
+        <div class="bld-list" id="bld-list"></div>
+      </section>
+    </div>
+    <div id="drawer-effectif" hidden>
+      <section class="block" aria-labelledby="h-effectif">
+        <h2 id="h-effectif">Compagnons <span class="count" id="effectif-count"></span></h2>
+        <div class="cards" id="effectif-list"></div>
+      </section>
+    </div>
+    <div id="drawer-journal" hidden>
+      <section class="block" aria-labelledby="h-journal">
+        <h2 id="h-journal">Journal <span class="count" id="journal-count"></span></h2>
+        <ul class="day-list" id="journal-rows"></ul>
+      </section>
+      <section class="block" aria-labelledby="h-exchange">
+        <h2 id="h-exchange">Rejeu, export, import</h2>
+        <p class="lead">Format : <code>{seed, managers, days:[{day, actions, hash}]}</code>. L’import repart de la graine et rejoue chaque journée.</p>
+        <div class="row" style="margin-bottom:8px">
+          <button type="button" class="btn btn-sm" id="btn-replay-journal" data-act="replay">Rejouer</button>
+          <button type="button" class="btn btn-sm" id="btn-export" data-act="export">Export</button>
+          <button type="button" class="btn btn-sm" id="btn-import" data-act="import">Import et rejeu</button>
+        </div>
+        <output id="import-result" for="btn-import" aria-live="polite" class="small"></output>
+        <label class="sr-only" for="journal-json">Journal au format JSON</label>
+        <textarea id="journal-json" rows="7" spellcheck="false" placeholder="Collez ici un journal JSON à importer, ou cliquez sur Export."></textarea>
+      </section>
+      <section class="block" aria-labelledby="h-new">
+        <h2 id="h-new">Nouvelle partie</h2>
+        <div class="row">
+          <label class="field" style="flex:0 1 140px"><span>Graine</span><input type="number" id="seed-input" value="4242" step="1" min="0" max="2147483647"></label>
+          <button type="button" class="btn" id="btn-new-game" data-act="new-game" style="align-self:flex-end">Nouvelle partie</button>
+        </div>
+        <p class="lead" id="storage-status" style="margin-top:8px"></p>
+      </section>
+      <section class="block" aria-labelledby="h-notices">
+        <h2 id="h-notices">Notices <span class="count" id="notice-count"></span></h2>
+        <ul class="notices" id="notices-list"></ul>
+      </section>
+    </div>
+  </div>
+</aside>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="data.js"></script>
+<script src="sim.js"></script>
+<script>
+(function () {
+'use strict';
+var SIM = window.GuildeSim, DATA = window.GUILDE_DATA;
+var ME = 'p1', DEFAULT_SEED = 4242, SAVE_KEY = 'guilde.v2.save', UI_KEY = 'guilde.v2.ui';
+var MANAGERS = [
+  { id: 'p1', name: 'Vous', kind: 'human', profile: 'humain', class_id: 'warrior' },
+  { id: 'f_anselme', name: 'Anselme', kind: 'ai', profile: 'prudent', class_id: 'cleric' },
+  { id: 'f_roxane', name: 'Roxane', kind: 'ai', profile: 'audacieux', class_id: 'ranger' },
+  { id: 'f_bastien', name: 'Bastien', kind: 'ai', profile: 'audacieux', class_id: 'rogue' },
+  { id: 'f_maelle', name: 'Maëlle', kind: 'ai', profile: 'prudent', class_id: 'mage' }
+];
+var ACTS = ['rest', 'gather', 'train', 'craft', 'expedition'];
+var ACT_LABEL = { rest: 'Repos', gather: 'Récolte', train: 'Entraînement', craft: 'Forge', expedition: 'Expédition' };
+var ACT_GLYPH = { rest: '☾', gather: '❦', train: '⚑', craft: '⚒', expedition: '⚔' };
+var ACT_VERB = { rest: 'se repose', gather: 'part récolter', train: 's’entraîne', craft: 'travaille à la forge', expedition: 'part en expédition' };
+var CLASS_COLOR = { warrior: '#B5452F', cleric: '#C9A227', ranger: '#3E8E4E', rogue: '#6E4C9E', mage: '#3C6FB2' };
+var FONTS_URL = 'https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap';
+var DAY_START = 8, DAY_END = 20, TICK_MS = 250, TICK_H = 0.25;
+var app = { seed: DEFAULT_SEED, managers: MANAGERS, state: null, vm: null, journal: [], chronicles: {}, plan: null, chosen: false,
+  tab: 'tableau', contentTab: 'tableau', viewDay: null, drawer: null, pageNotices: [], storageOk: true, raf: 0, lastDraw: 0, sceneScale: 1 };
+var tb = { phase: 'morning', hour: DAY_START, timer: 0, hours: {}, placed: {}, revealed: {}, bubbles: [], pos: {}, chron: null, markers: null, done: false };
+var wideMQ = window.matchMedia('(min-width: 1100px)');
+var motionMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
+function $(id) { return document.getElementById(id); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function pct(v) { return Math.max(0, Math.min(100, Math.round(Number(v) || 0))); }
+function ratio(a, b) { return b > 0 ? pct(100 * a / b) : 0; }
+function plural(n, one, many) { return n + ' ' + (n > 1 ? many : one); }
+function signed(n) { return (n > 0 ? '+' : '') + n; }
+function rarityClass(r) { return 'rar-' + String(r || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, ''); }
+function fnv1a(str) { var h = 0x811c9dc5; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h >>> 0; }
+function playHour(seed, day, id) { return DAY_START + (fnv1a(seed + ':' + day + ':' + id) % 12); }
+function friends() { return app.managers.filter(function (m) { return m.id !== ME; }); }
+function managerById(id) { return app.managers.filter(function (m) { return m.id === id; })[0] || { id: id, name: id }; }
+
+/* ---------- stockage local (toujours protégé) ---------- */
+function lsGet(key) { try { return window.localStorage.getItem(key); } catch (e) { app.storageOk = false; return null; } }
+function lsSet(key, val) { try { window.localStorage.setItem(key, val); app.storageOk = true; return true; } catch (e) { app.storageOk = false; return false; } }
+function lsDel(key) { try { window.localStorage.removeItem(key); } catch (e) { app.storageOk = false; } }
+function journalDoc() { return { seed: app.seed, managers: app.managers, days: app.journal.map(function (d) { return { day: d.day, actions: d.actions, hash: d.hash }; }) }; }
+function saveGame() { lsSet(SAVE_KEY, JSON.stringify(journalDoc())); }
+function saveUi() { lsSet(UI_KEY, JSON.stringify({ tab: app.tab })); }
+function loadUi() { var raw = lsGet(UI_KEY); if (!raw) return; try { var ui = JSON.parse(raw); if (ui && ui.tab && $('tab-' + ui.tab)) { app.tab = ui.tab; if (ui.tab !== 'chronique') app.contentTab = ui.tab; } } catch (e) { /* ui ignorée */ } }
+
+/* ---------- moteur : accès par viewModel et le modèle d'action seulement ---------- */
+function normalizeVM(vm) {
+  var v = vm || {};
+  ['managers', 'roster', 'quest_board', 'buildings', 'inventory', 'history', 'notices'].forEach(function (k) { if (!Array.isArray(v[k])) v[k] = []; });
+  v.manager = v.manager || { id: ME, name: 'Vous', kind: 'human', gold: 0 };
+  v.guild = v.guild || { gold: 0 };
+  v.derby = v.derby || { next_day: null, last: null };
+  v.roster.forEach(function (a) {
+    ['attributes', 'traits', 'skills', 'equipment', 'activity_options'].forEach(function (k) { if (!Array.isArray(a[k])) a[k] = []; });
+    a.activity_options.forEach(function (o) { if (!Array.isArray(o.targets)) o.targets = []; });
+  });
+  v.buildings.forEach(function (b) { b.decor = b.decor || {}; if (!Number.isInteger(b.max_level)) b.max_level = Math.max(1, b.level || 1); });
+  return v;
+}
+function computeVM() { app.vm = normalizeVM(SIM.viewModel(app.state, ME)); }
+function myHero() { return app.vm.roster.filter(function (a) { return a.is_mine; })[0] || null; }
+function heroOf(managerId) { return app.vm.roster.filter(function (a) { return a.manager_id === managerId; })[0] || null; }
+function mkAction(type, payload) { return { manager_id: ME, day: app.state.day, type: type, payload: payload }; }
+function planFromDefaults() {
+  var plan = { assign: null, vote_quest: null, vote_build: null, extras: [] }, acts;
+  try { acts = SIM.planDefaults(app.state, ME) || []; } catch (e) { acts = []; }
+  acts.forEach(function (a) {
+    if (!a || !a.payload) return;
+    if (a.type === 'assign') plan.assign = { activity: a.payload.activity, target: a.payload.target || null, adventurer_id: a.payload.adventurer_id };
+    else if (a.type === 'vote_quest') plan.vote_quest = a.payload.quest_id;
+    else if (a.type === 'vote_build') plan.vote_build = a.payload.building_id;
+    else if (a.type === 'equip' || a.type === 'unequip') plan.extras.push(mkAction(a.type, a.payload));
+  });
+  return plan;
+}
+function humanActions() {
+  var out = [], p = app.plan, h = myHero();
+  if (p.assign && h) { var payload = { adventurer_id: h.id, activity: p.assign.activity }; if (p.assign.target) payload.target = p.assign.target; out.push(mkAction('assign', payload)); }
+  if (p.vote_quest) out.push(mkAction('vote_quest', { quest_id: p.vote_quest }));
+  if (p.vote_build) out.push(mkAction('vote_build', { building_id: p.vote_build }));
+  return out.concat(p.extras.map(function (a) { return mkAction(a.type, a.payload); }));
+}
+function aiPlan(id) { try { return SIM.planDefaults(app.state, id) || []; } catch (e) { return []; } }
+function aiActivity(actions) { var a = actions.filter(function (x) { return x && x.type === 'assign' && x.payload; })[0]; return a ? a.payload.activity : 'rest'; }
+function allAiActions() { var out = []; friends().forEach(function (m) { out = out.concat(aiPlan(m.id)); }); return out; }
+
+/* ---------- partie, journée, rejeu ---------- */
+function startGame(seed, managers) {
+  app.seed = seed; app.managers = managers || MANAGERS; app.state = SIM.newGame(seed, DATA, { managers: app.managers });
+  app.journal = []; app.chronicles = {}; app.viewDay = null; computeVM(); prepareMorning();
+}
+function launchDay() {
+  if (!app.state || app.vm.is_season_over) return;
+  if (tb.phase === 'evening') prepareMorning();
+  stopClock();
+  friends().forEach(function (m) { if (!tb.revealed[m.id]) revealFriend(m.id, true); });
+  var day = app.state.day, actions = humanActions().concat(allAiActions());
+  var r = SIM.resolveDay(app.state, actions), hash = SIM.hashState(r.state);
+  if (app.plan.assign && !app.chosen) { tb.placed[ME] = app.plan.assign.activity; tb.autoPlayed = true; }
+  app.journal.push({ day: day, actions: actions, hash: hash });
+  app.chronicles[day] = r.chronicle;
+  app.state = r.state; app.viewDay = day; app.pageNotices = [];
+  computeVM(); enterEvening(r.chronicle); saveGame(); render();
+  toast('Jour ' + day + ' résolu' + (r.chronicle && r.chronicle.headline ? ' — ' + r.chronicle.headline : ''));
+}
+function replayFrom(seed, managers, days) {
+  var s = SIM.newGame(seed, DATA, { managers: managers }), chron = {}, out = [];
+  for (var i = 0; i < days.length; i++) {
+    var d = days[i], r = SIM.resolveDay(s, d.actions || []);
+    s = r.state;
+    var hash = SIM.hashState(s);
+    chron[d.day] = r.chronicle; out.push({ day: d.day, actions: d.actions || [], hash: hash });
+    if (d.hash && d.hash !== hash) return { ok: false, day: d.day, state: s, journal: out, chronicles: chron };
+  }
+  return { ok: true, state: s, journal: out, chronicles: chron };
+}
+function replayJournal() {
+  var res, text, ok = false;
+  try {
+    res = replayFrom(app.seed, app.managers, app.journal);
+    ok = res.ok && SIM.hashState(res.state) === SIM.hashState(app.state);
+    text = ok ? 'IDENTIQUE' : 'DIVERGENCE jour ' + (res.ok ? app.state.day : res.day);
+    if (ok) { app.chronicles = res.chronicles; renderChronicle(); }
+  } catch (e) { text = 'DIVERGENCE jour ' + app.state.day + ' (' + e.message + ')'; }
+  var out = $('replay-result'); out.textContent = text; out.dataset.status = ok ? 'ok' : 'crit';
+  $('import-result').textContent = 'Rejeu depuis la graine ' + app.seed + ' : ' + text;
+  return ok;
+}
+function validManagers(list) { return Array.isArray(list) && list.length && list.every(function (m) { return m && typeof m.id === 'string'; }) && list.some(function (m) { return m.id === ME; }) ? list : MANAGERS; }
+function importJournal(text) {
+  var parsed, res;
+  try { parsed = JSON.parse(text); } catch (e) { return importFail('JSON illisible : ' + e.message); }
+  if (!parsed || !Number.isInteger(parsed.seed) || !Array.isArray(parsed.days)) return importFail('Format attendu : {seed, managers, days:[{day, actions}]}.');
+  var managers = validManagers(parsed.managers), days = parsed.days.map(function (d) { return { day: d.day, actions: Array.isArray(d.actions) ? d.actions : [] }; });
+  try { res = replayFrom(parsed.seed, managers, days); } catch (e) { return importFail('Le moteur a échoué pendant le rejeu : ' + e.message); }
+  app.seed = parsed.seed; app.managers = managers; app.state = res.state; app.journal = res.journal; app.chronicles = res.chronicles;
+  app.viewDay = days.length ? days[days.length - 1].day : null; app.pageNotices = [];
+  computeVM(); prepareMorning(); saveGame(); render();
+  $('import-result').textContent = 'Importé : ' + plural(days.length, 'journée', 'journées') + ', graine ' + app.seed + ', empreinte ' + app.vm.hash + '.';
+  toast('Journal importé et rejoué');
+  return true;
+}
+function importFail(msg) { $('import-result').textContent = msg; toast(msg, 'crit'); return false; }
+function exportJournal() {
+  $('journal-json').value = JSON.stringify(journalDoc(), null, 1);
+  $('import-result').textContent = 'Journal exporté : ' + plural(app.journal.length, 'journée', 'journées') + '.';
+}
+function restoreGame() {
+  var raw = lsGet(SAVE_KEY), saved, res;
+  if (!raw) return false;
+  try { saved = JSON.parse(raw); } catch (e) { return false; }
+  if (!saved || !Number.isInteger(saved.seed) || !Array.isArray(saved.days)) return false;
+  var managers = validManagers(saved.managers);
+  try { res = replayFrom(saved.seed, managers, saved.days); } catch (e) { app.pageNotices.push('Sauvegarde locale ignorée : le moteur a échoué au rejeu (' + e.message + ').'); return false; }
+  if (!res.ok) { app.pageNotices.push('Sauvegarde locale ignorée : divergence au jour ' + res.day + ' (moteur modifié ?).'); return false; }
+  app.seed = saved.seed; app.managers = managers; app.state = res.state; app.journal = res.journal; app.chronicles = res.chronicles;
+  app.viewDay = saved.days.length ? saved.days[saved.days.length - 1].day : null;
+  computeVM(); prepareMorning();
+  if (saved.days.length) app.pageNotices.push('Partie restaurée depuis la sauvegarde locale : ' + plural(saved.days.length, 'journée', 'journées') + ', graine ' + saved.seed + '.');
+  return true;
+}
+function newGameFromInput() {
+  var v = parseInt($('seed-input').value, 10);
+  if (!Number.isInteger(v) || v < 0) { toast('Graine invalide : entier positif attendu.', 'crit'); return; }
+  lsDel(SAVE_KEY); app.pageNotices = []; startGame(v, MANAGERS); saveGame(); render();
+  $('replay-result').textContent = ''; $('import-result').textContent = '';
+  toast('Nouvelle partie, graine ' + v);
+}
+
+/* ---------- la journée simulée (horloge, révélations) ---------- */
+function prepareMorning() {
+  stopClock();
+  tb.phase = 'morning'; tb.hour = DAY_START; tb.hours = {}; tb.placed = {}; tb.revealed = {}; tb.bubbles = []; tb.chron = null; tb.markers = null; tb.autoPlayed = false;
+  app.plan = planFromDefaults(); app.chosen = false;
+  friends().forEach(function (m) { tb.hours[m.id] = playHour(app.seed, app.state.day, m.id); });
+  if (!app.vm.is_season_over) startClock();
+  publishTableau();
+}
+function startClock() { if (tb.timer) return; tb.timer = setInterval(tickClock, TICK_MS); }
+function stopClock() { if (tb.timer) { clearInterval(tb.timer); tb.timer = 0; } }
+function tickClock() {
+  if (tb.phase !== 'morning') { stopClock(); return; }
+  tb.hour = Math.min(DAY_END, tb.hour + TICK_H);
+  revealDue();
+  if (tb.hour >= DAY_END) stopClock();
+  renderClock(); publishTableau();
+  if (motionMQ.matches) drawAll();
+}
+function revealDue() { friends().forEach(function (m) { if (!tb.revealed[m.id] && tb.hour >= tb.hours[m.id]) revealFriend(m.id, false); }); }
+function revealFriend(id, silent) {
+  var act = aiActivity(aiPlan(id));
+  tb.revealed[id] = true; tb.placed[id] = act;
+  if (!silent) tb.bubbles.push({ id: id, text: managerById(id).name + ' ' + (ACT_VERB[act] || act), until: tb.hour + 2.5 });
+  renderPlayed();
+}
+function skipDay() {
+  if (tb.phase !== 'morning') return;
+  tb.hour = DAY_END; revealDue(); stopClock(); tb.bubbles = [];
+  renderClock(); renderPlayed(); publishTableau(); drawAll();
+}
+function chooseActivity(activity) {
+  var h = myHero(); if (!h) return false;
+  var opt = h.activity_options.filter(function (o) { return o.activity === activity; })[0];
+  if (!opt) { toast(reasonFor(h, activity), 'crit'); return false; }
+  if (tb.phase === 'evening') { toast('La journée est finie : passe au jour suivant pour choisir.'); return false; }
+  var target = opt.targets.length ? (opt.targets.some(function (t) { return t.id === (app.plan.assign && app.plan.assign.target); }) ? app.plan.assign.target : opt.targets[0].id) : null;
+  var payload = { adventurer_id: h.id, activity: activity }; if (target) payload.target = target;
+  var v = SIM.validateAction(app.state, mkAction('assign', payload));
+  if (!v || !v.ok) { toast((v && v.reason) || 'Action refusée par le moteur.', 'crit'); return false; }
+  app.plan.assign = { adventurer_id: h.id, activity: activity, target: target }; app.chosen = true;
+  tb.placed[ME] = activity;
+  renderHero(); renderQuick(); renderPlayed(); publishTableau(); drawAll();
+  return true;
+}
+function chooseTarget(id) {
+  if (!app.plan.assign) return;
+  var h = myHero(), payload = { adventurer_id: h.id, activity: app.plan.assign.activity, target: id };
+  var v = SIM.validateAction(app.state, mkAction('assign', payload));
+  if (!v || !v.ok) { toast((v && v.reason) || 'Cible refusée.', 'crit'); return; }
+  app.plan.assign.target = id; renderTargets();
+}
+function reasonFor(h, activity) {
+  if (!h.is_available && h.status_label) return h.status_label;
+  if (h.injury) return 'Blessé : ' + h.injury.label;
+  return 'Pas possible aujourd’hui';
+}
+function setVote(kind, id) {
+  var type = kind === 'quest' ? 'vote_quest' : 'vote_build', payload = kind === 'quest' ? { quest_id: id } : { building_id: id };
+  if (app.plan[type] === id) { app.plan[type] = null; }
+  else { var v = SIM.validateAction(app.state, mkAction(type, payload)); if (!v || !v.ok) { toast((v && v.reason) || 'Vote refusé.', 'crit'); return; } app.plan[type] = id; }
+  if (kind === 'quest') renderQuests(); else renderVillage();
+}
+function addOrder(type, payload) {
+  var a = mkAction(type, payload), v = SIM.validateAction(app.state, a);
+  if (!v || !v.ok) { var msg = (v && v.reason) || 'Action refusée par le moteur.'; toast(msg, 'crit'); return false; }
+  app.plan.extras = app.plan.extras.filter(function (x) { return !(x.type === type && x.payload.adventurer_id === payload.adventurer_id && (x.payload.slot === payload.slot || x.payload.item_id === payload.item_id)); });
+  app.plan.extras.push(a); renderEquip(); toast(type === 'equip' ? 'Équipé à la fin de la journée' : 'Retiré à la fin de la journée');
+  return true;
+}
+function removeOrder(i) { app.plan.extras.splice(i, 1); renderEquip(); }
+
+/* ---------- soir : marqueurs depuis la chronique (sans lire le texte) ---------- */
+function enterEvening(chron) {
+  tb.phase = 'evening'; tb.hour = DAY_END; tb.bubbles = []; tb.chron = chron || null; tb.markers = computeMarkers(chron);
+  Object.keys(tb.markers.injured).forEach(function (id) { tb.placed[id] = 'injured'; });
+  publishTableau();
+}
+function managerOfHeroName(label) {
+  var s = String(label || ''), best = null;
+  app.vm.roster.forEach(function (a) { if (a.name && s.indexOf(a.name) === 0 && (!best || a.name.length > best.name.length)) best = a; });
+  return best ? best.manager_id : null;
+}
+function computeMarkers(c) {
+  var m = { injured: {}, levelUp: {}, limping: {}, trophy: false, scaffold: null, banner: null }, sum = (c && c.summary) || {}, vm = app.vm;
+  (sum.injuries || []).forEach(function (s) { var id = managerOfHeroName(s); if (id) m.injured[id] = true; });
+  (sum.level_ups || []).forEach(function (s) { var id = managerOfHeroName(s); if (id) m.levelUp[id] = true; });
+  var e = c && c.expedition;
+  if (e && e.outcome === 'succès') m.trophy = true;
+  if (e && (e.outcome === 'échec' || e.outcome === 'retraite')) (e.participants || []).forEach(function (n) { var id = managerOfHeroName(n); if (id && !m.injured[id]) m.limping[id] = true; });
+  if (vm.construction) m.scaffold = vm.construction.building_id;
+  else if (sum.construction) vm.buildings.forEach(function (b) { if (String(sum.construction).indexOf(b.name) === 0) m.scaffold = b.id; });
+  if (vm.derby && vm.derby.last && c && vm.derby.last.day === c.day) m.banner = vm.derby.last.result;
+  return m;
+}
+function playedCount() { return app.managers.filter(function (m) { return !!tb.placed[m.id]; }).length; }
+function publishTableau() {
+  var placed = {}; Object.keys(tb.placed).forEach(function (k) { placed[k] = tb.placed[k]; });
+  window.__tableau = { day: app.state ? app.state.day : 0, hour: tb.hour, phase: tb.phase, evening: tb.phase === 'evening', placed: placed, played: playedCount(),
+    total: app.managers.length, revealed: Object.keys(tb.revealed), hours: tb.hours, chosen: app.chosen, targets: app.vm ? targetsFor() : {} };
+}
+
+/* ---------- scène : géométrie ---------- */
+var LW = 800, LH = 460, HORIZON = 190;
+var ROAD = [[430, 300], [540, 335], [660, 378], [800, 412]];
+var BSLOT = { chapel: [560, 232], hall: [400, 278], forge: [245, 285], warehouse: [578, 290], training_ground: [705, 335], infirmary: [118, 345], tavern: [300, 368], market: [470, 392] };
+var SPOTS = { idle: { x: 318, y: 314, dx: 44 }, gather: { x: 34, y: 284, dx: 46 }, train: { x: 650, y: 350, dx: 36 }, craft: { x: 180, y: 312, dx: 44 }, rest: { x: 62, y: 392, dx: 46 }, injured: { x: 60, y: 398, dx: 52 } };
+function roadPoint(t) {
+  var n = ROAD.length - 1, f = Math.max(0, Math.min(0.999, t)) * n, i = Math.floor(f), u = f - i, a = ROAD[i], b = ROAD[i + 1];
+  return { x: a[0] + (b[0] - a[0]) * u, y: a[1] + (b[1] - a[1]) * u };
+}
+function spotFor(activity, idx) {
+  if (activity === 'expedition') { var p = roadPoint(0.5 + idx * 0.09); return { x: p.x, y: p.y + 6 }; }
+  var s = SPOTS[activity] || SPOTS.idle;
+  return { x: s.x + idx * s.dx, y: s.y, row: idx % 2 };
+}
+function targetsFor() {
+  var counts = {}, out = {};
+  app.managers.forEach(function (m) {
+    var act = tb.placed[m.id] || 'idle', i = counts[act] || 0; counts[act] = i + 1;
+    out[m.id] = spotFor(act, i); out[m.id].row = i % (app.sceneScale < 0.6 ? 3 : 2);
+  });
+  return out;
+}
+function stepPositions(snap) {
+  var targets = targetsFor(), moving = false;
+  app.managers.forEach(function (m) {
+    var t = targets[m.id], p = tb.pos[m.id];
+    if (!p || snap) { tb.pos[m.id] = { x: t.x, y: t.y, row: t.row }; return; }
+    p.row = t.row;
+    var dx = t.x - p.x, dy = t.y - p.y;
+    if (Math.abs(dx) + Math.abs(dy) < 0.5) { p.x = t.x; p.y = t.y; return; }
+    p.x += dx * 0.16; p.y += dy * 0.16; moving = true;
+  });
+  return moving;
+}
+
+/* ---------- scène : dessin ---------- */
+function tokens() {
+  var cs = getComputedStyle(document.documentElement), out = {};
+  ['bg', 'surface', 'ink', 'muted', 'line', 'accent', 'gold', 'good', 'warn', 'crit', 'raised'].forEach(function (k) { out[k] = cs.getPropertyValue('--' + k).trim() || '#888'; });
+  return out;
+}
+function rgba(hex, a) {
+  var m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(hex || '');
+  return m ? 'rgba(' + parseInt(m[1], 16) + ',' + parseInt(m[2], 16) + ',' + parseInt(m[3], 16) + ',' + a + ')' : 'rgba(128,128,128,' + a + ')';
+}
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r); ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+}
+function uiFont(px, weight) { return (weight || 600) + ' ' + px + 'px ' + getComputedStyle(document.body).fontFamily; }
+function glyphFont(px) { return px + 'px "Segoe UI Symbol","Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Noto Sans Symbols2",sans-serif'; }
+function drawAll() {
+  var moving = stepPositions(motionMQ.matches);
+  drawScene($('scene'), false); drawScene($('widget-canvas'), true);
+  return moving;
+}
+function drawScene(canvas, mini) {
+  if (!canvas || !app.vm) return;
+  var dpr = window.devicePixelRatio || 1, W = canvas.clientWidth || (mini ? 158 : 600), H = mini ? Math.round(W * 0.58) : Math.round(W * (LH / LW));
+  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); canvas.style.height = H + 'px'; }
+  var ctx = canvas.getContext('2d'), s = W / LW, sy = H / LH, T = tokens(), evening = tb.phase === 'evening';
+  if (!mini) app.sceneScale = s;
+  var t = motionMQ.matches ? 0 : performance.now() / 1000, fs = mini ? 0.5 : Math.max(0.68, Math.min(1, s));
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  ctx.save(); ctx.scale(s, sy);
+  drawBackdrop(ctx, evening, t, T);
+  var order = Object.keys(BSLOT).sort(function (a, b) { return BSLOT[a][1] - BSLOT[b][1]; });
+  order.forEach(function (id) { var b = app.vm.buildings.filter(function (x) { return x.id === id; })[0]; if (b) drawBuilding(ctx, b, BSLOT[id], evening, t, T, mini); });
+  if (evening && tb.markers && tb.markers.trophy) drawTrophy(ctx, roadPoint(0.4), T);
+  ctx.restore();
+  drawFigures(ctx, s, sy, fs, T, mini, evening);
+  if (!mini) drawClock(ctx, W, H, evening, T);
+}
+function drawBackdrop(ctx, evening, t, T) {
+  var g = ctx.createLinearGradient(0, 0, 0, HORIZON);
+  if (evening) { g.addColorStop(0, '#171d2e'); g.addColorStop(1, '#4a3d5a'); } else { g.addColorStop(0, '#bcd4e2'); g.addColorStop(1, '#eef1e4'); }
+  ctx.fillStyle = g; ctx.fillRect(0, 0, LW, HORIZON + 4);
+  if (evening) { ctx.fillStyle = 'rgba(255,255,255,0.75)'; for (var i = 0; i < 26; i++) { var h = fnv1a('star' + i); ctx.fillRect(20 + (h % 760), 10 + ((h >>> 8) % 120), 1.6, 1.6); } }
+  else { var sx = 60 + (tb.hour - DAY_START) / 12 * (LW - 120), syy = HORIZON - 30 - Math.sin((tb.hour - DAY_START) / 12 * Math.PI) * 120; ctx.beginPath(); ctx.arc(sx, syy, 16, 0, 6.2832); ctx.fillStyle = '#f2c94c'; ctx.fill(); }
+  if (evening) { ctx.beginPath(); ctx.arc(700, 60, 14, 0, 6.2832); ctx.fillStyle = '#e8e4c8'; ctx.fill(); ctx.beginPath(); ctx.arc(692, 54, 12, 0, 6.2832); ctx.fillStyle = '#2a2f45'; ctx.fill(); }
+  ctx.fillStyle = evening ? '#26372b' : '#7ea86b'; ctx.beginPath(); ctx.moveTo(0, HORIZON + 4); ctx.quadraticCurveTo(200, HORIZON - 40, 420, HORIZON + 2); ctx.quadraticCurveTo(600, HORIZON - 30, LW, HORIZON + 6); ctx.lineTo(LW, HORIZON + 40); ctx.lineTo(0, HORIZON + 40); ctx.fill();
+  ctx.fillStyle = evening ? '#33482f' : '#9cc27d'; ctx.fillRect(0, HORIZON + 20, LW, LH - HORIZON - 20);
+  drawMountain(ctx, evening); drawForest(ctx, evening, t); drawRoad(ctx, evening); drawDungeon(ctx, evening);
+}
+function drawMountain(ctx, evening) {
+  ctx.fillStyle = evening ? '#4a4a55' : '#9a9aa6'; ctx.beginPath(); ctx.moveTo(30, 215); ctx.lineTo(120, 100); ctx.lineTo(215, 215); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = evening ? '#8b8b96' : '#f2f2f6'; ctx.beginPath(); ctx.moveTo(100, 126); ctx.lineTo(120, 100); ctx.lineTo(140, 126); ctx.lineTo(128, 130); ctx.lineTo(118, 122); ctx.lineTo(108, 130); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#2b2622'; ctx.beginPath(); ctx.moveTo(105, 215); ctx.quadraticCurveTo(120, 180, 137, 215); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = evening ? '#6b5a3a' : '#8a6d3b'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(98, 216); ctx.lineTo(146, 216); ctx.stroke();
+}
+function drawForest(ctx, evening, t) {
+  var trees = [[28, 268], [62, 250], [96, 275], [140, 262], [176, 280], [20, 300], [56, 312], [110, 306], [160, 318], [200, 300]];
+  trees.forEach(function (p, i) {
+    var h = 34 + (i % 3) * 8, w = 20 + (i % 2) * 6, sway = Math.sin(t * 1.3 + i) * 1.2;
+    ctx.fillStyle = '#5b4632'; ctx.fillRect(p[0] - 2, p[1] - 8, 4, 8);
+    ctx.fillStyle = evening ? (i % 2 ? '#1f3a2a' : '#25452f') : (i % 2 ? '#3e7a4a' : '#4c8f56');
+    ctx.beginPath(); ctx.moveTo(p[0] + sway, p[1] - h); ctx.lineTo(p[0] - w / 2, p[1] - 8); ctx.lineTo(p[0] + w / 2, p[1] - 8); ctx.closePath(); ctx.fill();
+  });
+}
+function drawRoad(ctx, evening) {
+  ctx.strokeStyle = evening ? '#5e5644' : '#d8c59a'; ctx.lineWidth = 26; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(ROAD[0][0], ROAD[0][1]); for (var i = 1; i < ROAD.length; i++) ctx.lineTo(ROAD[i][0], ROAD[i][1]); ctx.stroke();
+  ctx.strokeStyle = evening ? '#6b6350' : '#e6d6b0'; ctx.lineWidth = 14; ctx.stroke();
+  ctx.lineCap = 'butt';
+}
+function drawDungeon(ctx, evening) {
+  ctx.fillStyle = evening ? '#3a3540' : '#6f6a78'; ctx.beginPath(); ctx.moveTo(700, 215); ctx.lineTo(735, 130); ctx.lineTo(775, 150); ctx.lineTo(800, 120); ctx.lineTo(800, 215); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#1a1519'; ctx.beginPath(); ctx.moveTo(752, 215); ctx.lineTo(752, 185); ctx.quadraticCurveTo(770, 160, 788, 185); ctx.lineTo(788, 215); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = evening ? '#e06b6b' : '#b23a3a'; ctx.fillRect(768, 150, 2, 22); ctx.beginPath(); ctx.moveTo(770, 150); ctx.lineTo(786, 156); ctx.lineTo(770, 162); ctx.closePath(); ctx.fill();
+  ctx.font = uiFont(10, 700); ctx.fillStyle = evening ? '#cfc7d6' : '#3b3644'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillText('Donjon', 770, 232);
+}
+function bsize(b) { var size = Math.max(1, Math.min(3, Number(b.decor.size) || b.level || 1)); return { size: size, w: 44 + 24 * size, h: 26 + 13 * size }; }
+function cssColor(c, T) { return typeof c === 'string' && /^#[0-9a-f]{3,8}$/i.test(c) ? c : (T[c] || T.accent); }
+function drawBuilding(ctx, b, slot, evening, t, T, mini) {
+  var d = b.decor, dim = bsize(b), cx = slot[0], base = slot[1], bx = cx - dim.w / 2, by = base - dim.h;
+  if ((b.level | 0) === 0) { drawEmptyLot(ctx, b, cx, base, dim, T, evening, mini); return; }
+  if (b.id === 'training_ground') { drawYard(ctx, cx, base, dim, evening, t, T); return; }
+  var color = cssColor(d.color, T);
+  ctx.fillStyle = evening ? shade(color, 0.55) : color; roundRect(ctx, bx, by, dim.w, dim.h, 3); ctx.fill();
+  ctx.fillStyle = evening ? '#2a2323' : '#4a3a31'; ctx.beginPath(); ctx.moveTo(bx - 4, by + 1); ctx.lineTo(cx, by - dim.h * 0.55); ctx.lineTo(bx + dim.w + 4, by + 1); ctx.closePath(); ctx.fill();
+  if (b.id === 'chapel') { ctx.fillStyle = evening ? '#2a2323' : '#4a3a31'; ctx.fillRect(cx - 5, by - dim.h * 0.55 - 22, 10, 24); ctx.fillStyle = T.gold; ctx.fillRect(cx - 1, by - dim.h * 0.55 - 32, 2, 10); ctx.fillRect(cx - 4, by - dim.h * 0.55 - 29, 8, 2); }
+  ctx.fillStyle = evening ? '#1d1a18' : '#3a2e27'; ctx.fillRect(cx - 6, base - 16, 12, 16);
+  var lit = evening && d.light; ctx.fillStyle = lit ? '#ffd778' : (evening ? '#2a2a33' : '#dbe7ee');
+  ctx.fillRect(bx + 8, by + dim.h * 0.35, 9, 9); ctx.fillRect(bx + dim.w - 17, by + dim.h * 0.35, 9, 9);
+  if (lit) { var g = ctx.createRadialGradient(cx, base - 10, 4, cx, base - 10, dim.w * 0.7); g.addColorStop(0, 'rgba(255,200,90,0.35)'); g.addColorStop(1, 'rgba(255,200,90,0)'); ctx.fillStyle = g; ctx.fillRect(bx - 30, by - 20, dim.w + 60, dim.h + 50); }
+  if (d.smoke) drawSmoke(ctx, bx + dim.w * 0.78, by - dim.h * 0.4, t, evening);
+  if (!mini) { ctx.font = glyphFont(9 + 3 * dim.size); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fillText(String(d.glyph || ''), cx, by + dim.h * 0.32); }
+  if (evening && tb.markers && tb.markers.scaffold === b.id) drawScaffold(ctx, bx, by, dim, T);
+  if (evening && b.id === 'hall' && tb.markers && tb.markers.banner) drawBanner(ctx, cx, by - dim.h * 0.55, tb.markers.banner, T);
+}
+function shade(hex, k) { var m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(hex); if (!m) return hex; return 'rgb(' + Math.round(parseInt(m[1], 16) * k) + ',' + Math.round(parseInt(m[2], 16) * k) + ',' + Math.round(parseInt(m[3], 16) * k) + ')'; }
+function drawEmptyLot(ctx, b, cx, base, dim, T, evening, mini) {
+  var w = Math.max(dim.w, 98), h = dim.h * 0.8, x = cx - w / 2, y = base - h;
+  ctx.save(); ctx.setLineDash([4, 3]); ctx.strokeStyle = evening ? '#9aa79f' : '#5D6B63'; ctx.lineWidth = 1.2; roundRect(ctx, x, y, w, h, 4); ctx.stroke(); ctx.restore();
+  if (evening && tb.markers && tb.markers.scaffold === b.id) drawScaffold(ctx, x, y, { w: w, h: h }, T);
+  if (mini) return;
+  ctx.fillStyle = evening ? '#c9d1cc' : '#3d4a42'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  var lines = ctx.canvas.clientWidth >= 520 ? wrapName(ctx, b.name, w - 8, uiFont(9, 600)) : [];
+  lines.forEach(function (l, i) { ctx.font = uiFont(9, 600); ctx.fillText(l, cx, y + 8 + i * 10); });
+  ctx.font = uiFont(lines.length ? 8 : 9, 500); ctx.fillText('à bâtir', cx, base - 8);
+}
+function wrapName(ctx, name, maxW, font) {
+  ctx.font = font;
+  if (ctx.measureText(name).width <= maxW) return [name];
+  var words = String(name).split(' '), lines = [], cur = '';
+  words.forEach(function (wd) { var t = cur ? cur + ' ' + wd : wd; if (ctx.measureText(t).width <= maxW || !cur) cur = t; else { lines.push(cur); cur = wd; } });
+  if (cur) lines.push(cur);
+  return lines.slice(0, 2).map(function (l) { while (l.length > 2 && ctx.measureText(l).width > maxW) l = l.slice(0, -2) + '…'; return l; });
+}
+function drawYard(ctx, cx, base, dim, evening, t, T) {
+  var w = 104, h = 34, x = cx - w / 2, y = base - h;
+  ctx.fillStyle = evening ? '#5a5240' : '#d9c9a0'; roundRect(ctx, x, y, w, h, 4); ctx.fill();
+  ctx.strokeStyle = evening ? '#8a7a55' : '#7a5c3a'; ctx.lineWidth = 2; ctx.beginPath();
+  for (var i = 0; i <= 6; i++) { ctx.moveTo(x + i * (w / 6), y); ctx.lineTo(x + i * (w / 6), y + 10); }
+  ctx.moveTo(x, y + 5); ctx.lineTo(x + w, y + 5); ctx.stroke();
+  ctx.fillStyle = evening ? '#8a7a55' : '#7a5c3a'; ctx.fillRect(cx + 30, y + 8, 3, 22); ctx.beginPath(); ctx.arc(cx + 31.5, y + 6, 5, 0, 6.2832); ctx.fill();
+  if (evening && tb.markers && tb.markers.scaffold === 'training_ground') drawScaffold(ctx, x, y, { w: w, h: h }, T);
+}
+function drawSmoke(ctx, x, y, t, evening) {
+  for (var k = 0; k < 3; k++) {
+    var ph = (t * 0.22 + k / 3) % 1, r = 2.5 + ph * 5, cy = y - ph * 26, cx = x + Math.sin((ph + k) * 6.28) * 4;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.2832); ctx.fillStyle = evening ? 'rgba(200,200,210,' + (1 - ph) * 0.5 + ')' : 'rgba(90,100,95,' + (1 - ph) * 0.4 + ')'; ctx.fill();
+  }
+}
+function drawScaffold(ctx, bx, by, dim, T) {
+  ctx.save(); ctx.strokeStyle = T.gold; ctx.lineWidth = 1.5; ctx.beginPath();
+  for (var i = 0; i <= 3; i++) { var x = bx - 4 + i * ((dim.w + 8) / 3); ctx.moveTo(x, by - 6); ctx.lineTo(x, by + dim.h); }
+  for (var j = 0; j <= 2; j++) { var y = by - 6 + j * ((dim.h + 6) / 2); ctx.moveTo(bx - 4, y); ctx.lineTo(bx + dim.w + 4, y); }
+  ctx.stroke(); ctx.restore();
+}
+function drawBanner(ctx, cx, top, result, T) {
+  var col = result === 'victoire' ? T.good : result === 'défaite' ? T.crit : T.muted;
+  ctx.fillStyle = '#3a2e27'; ctx.fillRect(cx - 1, top - 34, 2, 36);
+  ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(cx + 1, top - 34); ctx.lineTo(cx + 26, top - 27); ctx.lineTo(cx + 1, top - 18); ctx.closePath(); ctx.fill();
+}
+function drawTrophy(ctx, p, T) {
+  ctx.fillStyle = T.gold; ctx.beginPath(); ctx.ellipse(p.x, p.y - 6, 9, 8, 0, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = '#7a5a12'; ctx.fillRect(p.x - 4, p.y - 16, 8, 3);
+  ctx.font = uiFont(9, 800); ctx.fillStyle = '#4a3400'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('or', p.x, p.y - 5);
+}
+function drawFigures(ctx, s, sy, fs, T, mini, evening) {
+  var order = app.managers.slice().sort(function (a, b) { return (tb.pos[a.id] || { y: 0 }).y - (tb.pos[b.id] || { y: 0 }).y; });
+  order.forEach(function (m) {
+    var p = tb.pos[m.id]; if (!p) return;
+    var h = heroOf(m.id), act = tb.placed[m.id], mk = tb.markers || { injured: {}, levelUp: {}, limping: {} };
+    drawFigure(ctx, { x: p.x * s, y: p.y * sy, fs: fs, color: CLASS_COLOR[h ? h.class_id : ''] || T.accent, initial: m.name.charAt(0).toUpperCase(), name: mini ? '' : m.name, row: p.row || 0,
+      ghost: !act, seated: act === 'rest', lying: act === 'injured', limping: !!mk.limping[m.id], star: !!mk.levelUp[m.id], cross: act === 'injured', mine: m.id === ME }, T, evening);
+  });
+  if (mini || evening) return;
+  tb.bubbles.filter(function (b) { return b.until > tb.hour; }).slice(-2).forEach(function (b) { var p = tb.pos[b.id]; if (p) drawBubble(ctx, p.x * s, p.y * sy - 46 * fs, b.text, T, s * LW); });
+}
+function drawFigure(ctx, f, T, evening) {
+  var u = f.fs, hr = 5.5 * u, bw = 13 * u, bh = 15 * u, lg = 8 * u;
+  ctx.save(); ctx.translate(f.x, f.y);
+  if (f.lying) { ctx.rotate(-Math.PI / 2); ctx.translate(-4 * u, 0); }
+  else if (f.limping) ctx.rotate(0.22);
+  ctx.lineWidth = 1.5;
+  if (f.ghost) { ctx.setLineDash([3, 2]); ctx.strokeStyle = evening ? '#9aa79f' : '#7c8a82'; ctx.fillStyle = 'rgba(128,128,128,0.15)'; }
+  else { ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.fillStyle = f.color; }
+  if (f.seated) { roundRect(ctx, -bw / 2, -lg - bh * 0.7, bw, bh * 0.7, 3 * u); ctx.fill(); ctx.stroke(); ctx.fillRect(-bw / 2, -lg, bw + 4 * u, lg * 0.6); }
+  else { roundRect(ctx, -bw / 2, -lg - bh, bw, bh, 3 * u); ctx.fill(); ctx.stroke(); ctx.fillStyle = f.ghost ? 'rgba(128,128,128,0.15)' : '#3a3232'; ctx.fillRect(-bw / 2 + 1, -lg, bw * 0.38, lg); ctx.fillRect(bw / 2 - bw * 0.38 - 1, -lg, bw * 0.38, lg); }
+  var hy = -lg - (f.seated ? bh * 0.7 : bh) - hr - 1;
+  ctx.beginPath(); ctx.arc(0, hy, hr, 0, 6.2832); ctx.fillStyle = f.ghost ? 'rgba(128,128,128,0.15)' : '#f1d3b6'; ctx.fill(); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font = uiFont(Math.max(8, 9 * u), 800); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = f.ghost ? (evening ? '#c9d1cc' : '#5D6B63') : '#fff';
+  ctx.fillText(f.ghost ? '?' : f.initial, 0, -lg - (f.seated ? bh * 0.35 : bh * 0.5));
+  if (f.limping) { ctx.strokeStyle = '#5b4632'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bw / 2 + 2 * u, -lg - bh * 0.6); ctx.lineTo(bw / 2 + 6 * u, 0); ctx.stroke(); }
+  ctx.restore();
+  drawFigureMarks(ctx, f, u, hr + bh + lg + 2, T, evening);
+}
+function drawFigureMarks(ctx, f, u, top, T, evening) {
+  if (f.cross) { ctx.fillStyle = T.crit; ctx.fillRect(f.x + 14 * u, f.y - 30 * u, 4 * u, 14 * u); ctx.fillRect(f.x + 9 * u, f.y - 25 * u, 14 * u, 4 * u); }
+  if (f.star) drawStar(ctx, f.x, f.y - top - 10 * u, 6 * u, T.gold);
+  if (f.mine && !f.ghost) { ctx.fillStyle = T.accent; ctx.beginPath(); ctx.moveTo(f.x, f.y - top - 4 * u); ctx.lineTo(f.x - 4 * u, f.y - top - 10 * u); ctx.lineTo(f.x + 4 * u, f.y - top - 10 * u); ctx.closePath(); ctx.fill(); }
+  if (!f.name) return;
+  var fy = f.y + (f.lying ? 10 : 12) * u + f.row * (app.sceneScale < 0.6 ? 9.5 : 11) * u;
+  ctx.font = uiFont(app.sceneScale < 0.6 ? 8.5 : Math.max(9, 10 * u), 600); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.lineWidth = 3; ctx.strokeStyle = evening ? 'rgba(20,26,23,0.75)' : 'rgba(243,244,240,0.85)'; ctx.lineJoin = 'round'; ctx.strokeText(f.name, f.x, fy);
+  ctx.fillStyle = evening ? '#e8ece7' : '#1B2620'; ctx.fillText(f.name, f.x, fy);
+}
+function drawStar(ctx, cx, cy, r, color) {
+  ctx.beginPath();
+  for (var i = 0; i < 10; i++) { var rr = i % 2 ? r * 0.45 : r, a = -Math.PI / 2 + i * Math.PI / 5; ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
+  ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+}
+function drawBubble(ctx, x, y, text, T, W) {
+  ctx.font = uiFont(11, 600); var w = ctx.measureText(text).width + 16, h = 22, bx = Math.max(4, Math.min(W - w - 4, x - w / 2)), by = y - h;
+  ctx.fillStyle = T.surface; ctx.strokeStyle = T.line; ctx.lineWidth = 1; roundRect(ctx, bx, by, w, h, 6); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x - 4, by + h); ctx.lineTo(x, by + h + 5); ctx.lineTo(x + 4, by + h); ctx.closePath(); ctx.fillStyle = T.surface; ctx.fill();
+  ctx.fillStyle = T.ink; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(text, bx + 8, by + h / 2 + 0.5);
+}
+function drawClock(ctx, W, H, evening, T) {
+  var label = evening ? 'Soir' : Math.floor(tb.hour) + 'h';
+  ctx.font = uiFont(12, 700); var w = ctx.measureText(label).width + 16;
+  ctx.fillStyle = evening ? 'rgba(20,26,23,0.6)' : 'rgba(255,255,255,0.7)'; roundRect(ctx, W - w - 8, 8, w, 22, 11); ctx.fill();
+  ctx.fillStyle = evening ? '#e8ece7' : '#1B2620'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, W - w / 2 - 8, 19);
+}
+function sceneLoop(now) {
+  app.raf = 0;
+  if (document.hidden) return;
+  var visible = !$('panel-tableau').hidden && !$('col-main').hidden;
+  if (visible && now - app.lastDraw >= 33) { app.lastDraw = now; drawAll(); }
+  if (!motionMQ.matches) app.raf = requestAnimationFrame(sceneLoop);
+}
+function startLoop() { if (!app.raf && !motionMQ.matches) app.raf = requestAnimationFrame(sceneLoop); else drawAll(); }
+
+/* ---------- rendu : en-tête, onglets, tiroir ---------- */
+function render() { renderHeader(); renderTableau(); renderHero(); renderVillage(); renderEffectif(); renderChronicle(); renderJournal(); renderTabs(); applyLayout(); publishTableau(); }
+function renderHeader() {
+  var vm = app.vm, over = vm.is_season_over;
+  $('day-counter').textContent = over ? 'Saison terminée — jour ' + vm.season_length + ' / ' + vm.season_length : 'Jour ' + vm.day + ' / ' + vm.season_length;
+  $('hud-gold').textContent = vm.guild.gold + ' or';
+  $('state-hash').textContent = vm.hash;
+  var btn = $('btn-launch'); btn.disabled = over; btn.textContent = over ? 'Saison terminée' : 'Fin de journée';
+}
+function renderTabs() {
+  document.querySelectorAll('.tab').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.tab === app.tab ? 'true' : 'false'); });
+  document.querySelectorAll('.gbtn').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.section === app.drawer ? 'true' : 'false'); });
+}
+function setTab(id) {
+  app.tab = id; if (id !== 'chronique') app.contentTab = id;
+  renderTabs(); applyLayout(); saveUi();
+  if (id === 'chronique' && wideMQ.matches) {
+    var col = $('panel-chronique'); col.scrollIntoView({ behavior: motionMQ.matches ? 'auto' : 'smooth', block: 'start' });
+    col.classList.remove('flash'); void col.offsetWidth; col.classList.add('flash');
+  }
+}
+function applyLayout() {
+  var wide = wideMQ.matches;
+  $('panel-chronique').hidden = !(wide || app.tab === 'chronique');
+  $('col-main').hidden = !wide && app.tab === 'chronique';
+  $('panel-tableau').hidden = app.contentTab !== 'tableau';
+  $('panel-heros').hidden = app.contentTab !== 'heros';
+  document.documentElement.style.setProperty('--topbar-h', $('topbar').offsetHeight + 'px');
+  if (!$('panel-tableau').hidden && !$('col-main').hidden) startLoop();
+}
+function openDrawer(section) {
+  app.drawer = section;
+  $('drawer').hidden = false; $('drawer-backdrop').hidden = false;
+  ['village', 'effectif', 'journal'].forEach(function (s) { $('drawer-' + s).hidden = s !== section; });
+  $('drawer-title').textContent = { village: 'Village', effectif: 'Compagnons', journal: 'Journal' }[section] || 'Guilde';
+  renderTabs(); $('btn-drawer-close').focus();
+}
+function closeDrawer() { app.drawer = null; $('drawer').hidden = true; $('drawer-backdrop').hidden = true; renderTabs(); }
+
+/* ---------- rendu : tableau ---------- */
+function renderTableau() { renderClock(); renderPlayed(); renderQuick(); renderInstant(); }
+function renderClock() {
+  var el = $('clock'), evening = tb.phase === 'evening';
+  el.textContent = evening ? 'Soir' : Math.floor(tb.hour) + 'h'; el.dataset.phase = evening ? 'evening' : 'morning';
+  $('btn-skip').hidden = evening || tb.hour >= DAY_END;
+}
+function renderPlayed() {
+  var n = playedCount(), total = app.managers.length;
+  $('dots').innerHTML = app.managers.map(function (m) {
+    var h = heroOf(m.id), on = !!tb.placed[m.id], col = CLASS_COLOR[h ? h.class_id : ''] || '#888';
+    return '<span class="dot ' + (on ? 'on' : 'off') + '" style="' + (on ? 'background:' + col : '') + '" title="' + esc(m.name) + (on ? ' a joué' : ' n’a pas encore joué') + '">' + esc(m.name.charAt(0).toUpperCase()) + '<i></i></span>';
+  }).join('');
+  $('played-text').textContent = n + ' / ' + total + ' ont joué';
+  $('widget-l1').textContent = n + '/' + total + ' ont joué';
+  var l2 = $('widget-l2'), c = tb.chron;
+  if (tb.phase === 'evening' && c) { l2.textContent = c.headline || c.title || ''; l2.className = 'wl wl2'; }
+  else if (!app.chosen) { l2.textContent = 'Tu n’as pas encore joué'; l2.className = 'wl wl2 warn'; }
+  else { l2.textContent = 'Journée en cours · ' + Math.floor(tb.hour) + 'h'; l2.className = 'wl wl2'; }
+}
+function renderInstant() {
+  var c = tb.chron, evening = tb.phase === 'evening';
+  $('instant').hidden = !(evening && c); $('instant-text').textContent = c ? (c.headline || c.title || '') : '';
+  $('evening-actions').hidden = !evening || app.vm.is_season_over;
+  $('quick').hidden = evening;
+}
+function actButtons(prefix, big) {
+  var h = myHero(), cur = app.chosen && app.plan.assign ? app.plan.assign.activity : null;
+  return ACTS.map(function (act) {
+    var opt = h && h.activity_options.filter(function (o) { return o.activity === act; })[0], ok = !!opt && tb.phase !== 'evening';
+    var reason = !opt && h ? reasonFor(h, act) : '';
+    return '<button type="button" class="act-btn" id="' + prefix + act + '" data-act="choose" data-activity="' + act + '" aria-pressed="' + (cur === act) + '"' + (ok ? '' : ' disabled title="' + esc(reason) + '"') + '>' +
+      '<span class="g" aria-hidden="true">' + ACT_GLYPH[act] + '</span><span class="l">' + ACT_LABEL[act] + '</span>' + (big && reason ? '<span class="r">' + esc(reason) + '</span>' : '') + '</button>';
+  }).join('');
+}
+function renderQuick() {
+  var h = myHero();
+  $('quick-lead').textContent = h ? (app.chosen ? h.name + ' : ' + ACT_LABEL[app.plan.assign.activity] + (app.plan.assign.target ? ' · ' + targetLabel(h, app.plan.assign) : '') : 'Aujourd’hui, ' + h.name + '…') : 'Aucun héros.';
+  $('quick-acts').innerHTML = actButtons('quick-', false);
+}
+
+/* ---------- rendu : mon héros ---------- */
+function gaugeHtml(label, val, cls) { return '<div class="gauge"><span class="gauge-l">' + label + '</span><span class="gauge-bar"><i class="' + cls + '" style="width:' + pct(val) + '%"></i></span><span class="gauge-v">' + esc(val) + '</span></div>'; }
+function gaugesHtml(a) { return '<div class="gauges">' + gaugeHtml('Forme', a.form, 'g-good') + gaugeHtml('Fatigue', a.fatigue, 'g-warn') + gaugeHtml('Moral', a.morale, '') + '</div>'; }
+function xpBar(a) { return '<div style="margin-top:8px"><div class="section-label">XP ' + esc(a.xp) + ' / ' + esc(a.xp_next) + '</div><div class="bar"><i style="width:' + ratio(a.xp, a.xp_next) + '%"></i></div></div>'; }
+function traitsChips(a) { return '<div class="chips">' + (a.traits.map(function (t) { return '<span class="pill pill-muted">' + esc(t.name) + '</span>'; }).join('') || '<span class="muted small">Aucun trait</span>') + '</div>'; }
+function targetLabel(h, assign) {
+  var o = h.activity_options.filter(function (x) { return x.activity === assign.activity; })[0], t = o && o.targets.filter(function (x) { return x.id === assign.target; })[0];
+  return t ? t.label : '';
+}
+function renderHero() {
+  var h = myHero();
+  if (!h) { $('hero-card').innerHTML = '<p class="muted">Aucun héros à votre nom.</p>'; $('hero-acts').innerHTML = ''; return; }
+  var injury = h.injury ? '<p style="margin-top:8px"><span class="pill pill-crit">' + esc(h.injury.label) + ' · ' + plural(h.injury.days, 'jour', 'jours') + '</span></p>' : '';
+  $('hero-card').innerHTML = '<div class="hero-head"><span class="hero-glyph" style="background:' + (CLASS_COLOR[h.class_id] || 'var(--accent)') + '" aria-hidden="true">' + esc(h.class_glyph) + '</span>' +
+    '<div class="hero-id"><h2>' + esc(h.name) + '</h2><p>' + esc(h.class_name) + ' · niveau ' + esc(h.level) + ' · ' + esc(h.status_label) + '</p></div></div>' + xpBar(h) + gaugesHtml(h) + injury + traitsChips(h);
+  $('hero-acts').innerHTML = actButtons('act-', true);
+  renderTargets(); renderQuests(); renderEquip();
+}
+function renderTargets() {
+  var h = myHero(), row = $('target-row'), a = app.chosen ? app.plan.assign : null;
+  var o = h && a ? h.activity_options.filter(function (x) { return x.activity === a.activity; })[0] : null;
+  if (!o || !o.targets.length) { row.hidden = true; row.innerHTML = ''; return; }
+  row.hidden = false;
+  row.innerHTML = '<p class="section-label">' + (a.activity === 'gather' ? 'Quelle ressource ?' : a.activity === 'train' ? 'Quel attribut ?' : 'Quelle recette ?') + '</p><div class="chips">' +
+    o.targets.map(function (t) { return '<button type="button" class="chip-btn" id="tgt-' + esc(t.id) + '" data-act="target" data-id="' + esc(t.id) + '" aria-pressed="' + (a.target === t.id) + '">' + esc(t.label) + '</button>'; }).join('') + '</div>';
+}
+function stars(n) { var s = ''; for (var i = 0; i < 5; i++) s += i < n ? '★' : '☆'; return s; }
+function renderQuests() {
+  var list = app.vm.quest_board.slice(0, 3), mine = app.plan.vote_quest;
+  if (mine && !list.some(function (q) { return q.id === mine; })) { var q0 = app.vm.quest_board.filter(function (q) { return q.id === mine; })[0]; if (q0) list[2] = q0; }
+  $('quest-count').textContent = mine ? 'mon vote : ' + (list.filter(function (q) { return q.id === mine; })[0] || { name: mine }).name : 'un tap = mon vote';
+  $('quest-cards').innerHTML = list.map(function (q) {
+    return '<button type="button" class="quest-card" id="quest-' + esc(q.id) + '" data-act="vote-quest" data-id="' + esc(q.id) + '" aria-pressed="' + (mine === q.id) + '">' +
+      '<span class="n">' + esc(q.name) + '</span><span class="b">' + esc(q.type_label) + ' · ' + esc(q.biome_name) + '</span><span class="stars" aria-label="difficulté ' + q.difficulty + '">' + stars(q.difficulty) + '</span>' +
+      '<span class="rw">' + esc(q.rewards_label) + '</span><span class="v">' + plural(q.votes, 'vote', 'votes') + (q.expires_in <= 1 ? ' · expire ce soir' : '') + '</span></button>';
+  }).join('') || '<p class="muted">Aucune quête affichée.</p>';
+}
+function renderEquip() {
+  var h = myHero(), rows = [];
+  if (!h) { $('equip-rows').innerHTML = ''; return; }
+  h.equipment.filter(function (e) { return e.slot === 'weapon' || e.slot === 'armor'; }).forEach(function (e) {
+    var pending = null, idx = -1;
+    app.plan.extras.forEach(function (a, i) { if (a.payload.adventurer_id === h.id && ((a.type === 'unequip' && a.payload.slot === e.slot) || (a.type === 'equip' && itemSlot(a.payload.item_id) === e.slot_name))) { pending = a; idx = i; } });
+    var items = app.vm.inventory.filter(function (it) { return it.slot_name === e.slot_name && (!it.equipped_by || it.equipped_by === h.name); });
+    var opts = '<option value="">Équiper…</option>' + items.map(function (it) { return '<option value="' + esc(it.item_id) + '">' + esc(it.name) + ' (' + esc(it.stats_label) + ')</option>'; }).join('');
+    var pend = pending ? '<span class="pending">→ ' + (pending.type === 'equip' ? 'équipe ' + esc(itemName(pending.payload.item_id)) : 'retire') + ' ce soir <button type="button" class="btn btn-xs" data-act="remove-order" data-i="' + idx + '" aria-label="Annuler">×</button></span>' : '';
+    rows.push('<div class="equip-row"><span class="slot">' + esc(e.slot_name) + '</span><span class="cur"><strong class="' + rarityClass(e.rarity) + '">' + (e.item_name ? esc(e.item_name) : '—') + '</strong>' + pend + '</span>' +
+      '<span class="ctl"><label class="sr-only" for="eq-' + e.slot + '">Équiper ' + esc(e.slot_name) + '</label><select id="eq-' + e.slot + '" data-slot="' + e.slot + '"' + (items.length ? '' : ' disabled') + '>' + opts + '</select>' +
+      (e.item_name ? '<button type="button" class="btn btn-sm" id="unequip-' + e.slot + '" data-act="unequip" data-slot="' + e.slot + '">Retirer</button>' : '') + '</span></div>');
+  });
+  $('equip-rows').innerHTML = rows.join('') || '<p class="muted">Aucun emplacement.</p>';
+}
+function itemSlot(id) { var it = app.vm.inventory.filter(function (x) { return x.item_id === id; })[0]; return it ? it.slot_name : ''; }
+function itemName(id) { var it = app.vm.inventory.filter(function (x) { return x.item_id === id; })[0]; return it ? it.name : String(id); }
+
+/* ---------- rendu : tiroir Village / Compagnons ---------- */
+function pipsHtml(level, max) { var s = ''; for (var i = 0; i < max; i++) s += '<i class="' + (i < level ? 'on' : '') + '"></i>'; return '<span class="pips" aria-hidden="true">' + s + '</span>'; }
+function renderVillage() {
+  var vm = app.vm, c = vm.construction, mine = app.plan.vote_build;
+  $('construction-line').textContent = c ? c.name + ' → niveau ' + c.to_level + ' : ' + c.progress + ' / ' + c.needed + ' (' + plural(c.days_left, 'jour restant', 'jours restants') + ')' : 'Aucun chantier en cours : le bâtiment le plus voté ce soir sera lancé si les ressources suffisent.';
+  $('vote-line').textContent = mine ? 'Mon vote : ' + nameOf(vm.buildings, mine) + '. Un tap sur un autre bâtiment change le vote.' : 'Un tap sur « Voter » = mon vote du jour.';
+  $('village-count').textContent = 'prestige ' + vm.guild.prestige;
+  $('bld-list').innerHTML = vm.buildings.map(function (b) {
+    var site = c && c.building_id === b.id;
+    var btn = b.upgradable ? '<button type="button" class="btn btn-sm" id="vote-' + esc(b.id) + '" data-act="vote-build" data-id="' + esc(b.id) + '" aria-pressed="' + (mine === b.id) + '">' + (mine === b.id ? 'Voté' : 'Voter') + (b.votes ? ' · ' + b.votes : '') + '</button>' : '<span class="small muted">' + (site ? 'en chantier' : b.level >= b.max_level ? 'max' : '—') + '</span>';
+    return '<div class="bld-row' + (site ? ' is-site' : '') + '"><span class="g" aria-hidden="true">' + esc(b.decor.glyph) + '</span><span><span class="n">' + esc(b.name) + '</span>' + pipsHtml(b.level, b.max_level) + '<br><span class="e">' + esc(b.effect_label) + '</span></span>' + btn + '</div>';
+  }).join('');
+}
+function nameOf(list, id) { var x = (list || []).filter(function (o) { return o.id === id; })[0]; return x ? x.name : String(id); }
+function attrGrid(a) { return '<div class="attr-grid">' + a.attributes.map(function (x) { return '<div class="attr"><span>' + esc(x.name) + '</span><b>' + esc(x.value) + '</b></div>'; }).join('') + '</div>'; }
+function skillsList(a) { return '<ul class="skills">' + a.skills.map(function (s) { return '<li class="' + (s.unlocked ? '' : 'locked') + '"><span>' + (s.unlocked ? '✓ ' : '· ') + esc(s.name) + '</span><span class="muted">niv. ' + esc(s.level_req) + '</span></li>'; }).join('') + '</ul>'; }
+function equipList(a) { return '<ul class="equip-list">' + a.equipment.map(function (e) { return '<li><span class="slot">' + esc(e.slot_name) + '</span>' + (e.item_name ? '<strong class="' + rarityClass(e.rarity) + '">' + esc(e.item_name) + '</strong>' : '<span class="muted">—</span>') + '</li>'; }).join('') + '</ul>'; }
+function effectifCard(a) {
+  var m = managerById(a.manager_id), cls = a.injury ? 'pill-crit' : !a.is_available ? 'pill-warn' : 'pill-good';
+  return '<article class="adv-card' + (a.is_mine ? ' is-mine' : '') + '" id="eff-' + esc(a.id) + '"><header class="adv-head"><span class="adv-glyph" aria-hidden="true">' + esc(a.class_glyph) + '</span><div class="adv-id"><strong>' + esc(a.name) + '</strong><span class="muted">' +
+    esc(a.class_name) + ' · niv. ' + a.level + ' · ' + (a.is_mine ? 'mon héros' : 'héros de ' + esc(m.name)) + '</span></div><span class="pill ' + cls + '">' + esc(a.status_label) + '</span></header>' +
+    gaugesHtml(a) + xpBar(a) + '<div class="section-label">Attributs</div>' + attrGrid(a) + '<div class="section-label">Traits</div>' + traitsChips(a) +
+    '<div class="section-label">Compétences</div>' + skillsList(a) + '<div class="section-label">Équipement</div>' + equipList(a) + '</article>';
+}
+function renderEffectif() {
+  var list = app.managers.map(function (m) { return heroOf(m.id); }).filter(Boolean);
+  $('effectif-count').textContent = plural(list.length, 'héros', 'héros');
+  $('effectif-list').innerHTML = list.map(effectifCard).join('') || '<p class="muted">Aucun héros.</p>';
+}
+
+/* ---------- rendu : chronique ---------- */
+function titleHasDay(t) { return /^\s*jour\s+\d+/i.test(String(t || '')); }
+function chronicleDays() { return Object.keys(app.chronicles).map(Number).sort(function (a, b) { return a - b; }); }
+function renderChronicle() {
+  var days = chronicleDays();
+  var day = app.viewDay !== null && app.chronicles[app.viewDay] ? app.viewDay : (days.length ? days[days.length - 1] : null);
+  app.viewDay = day;
+  renderSeasonReport(); renderChronNav(days, day);
+  var c = day !== null ? app.chronicles[day] : app.vm.chronicle;
+  $('chronicle').innerHTML = c ? chronicleHtml(c) : '<p class="chron-empty">Aucune journée résolue pour l’instant. Choisis l’activité de ton héros, puis « Fin de journée » : la chronique s’écrira ici.</p>';
+}
+function renderSeasonReport() {
+  var r = app.vm.season_report, el = $('season-report');
+  el.hidden = !r;
+  if (r) el.innerHTML = '<h2>' + esc(r.title) + '</h2><ul>' + (r.lines || []).map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>';
+}
+function renderChronNav(days, day) {
+  var nav = $('chron-nav');
+  if (!days.length) { nav.innerHTML = '<span class="chron-eyebrow">Chronique</span>'; return; }
+  var i = days.indexOf(day);
+  var opts = days.map(function (d) { var c = app.chronicles[d]; return '<option value="' + d + '"' + (d === day ? ' selected' : '') + '>' + (c && c.title ? (titleHasDay(c.title) ? '' : 'Jour ' + d + ' — ') + esc(c.title) : 'Jour ' + d) + '</option>'; }).join('');
+  nav.innerHTML = '<button type="button" class="btn btn-sm" id="chron-prev" data-act="chron-prev"' + (i <= 0 ? ' disabled' : '') + ' aria-label="Jour précédent">←</button>' +
+    '<label class="sr-only" for="chron-select">Choisir une journée</label><select id="chron-select">' + opts + '</select>' +
+    '<button type="button" class="btn btn-sm" id="chron-next" data-act="chron-next"' + (i >= days.length - 1 ? ' disabled' : '') + ' aria-label="Jour suivant">→</button>';
+}
+function shiftChronicle(delta) {
+  var days = chronicleDays(), i = days.indexOf(app.viewDay) + delta;
+  if (i < 0 || i >= days.length) return;
+  app.viewDay = days[i]; renderChronicle();
+}
+function chronicleHtml(c) {
+  var html = '<article class="chron">' + (titleHasDay(c.title) ? '' : '<p class="chron-eyebrow">Jour ' + esc(c.day) + '</p>') + '<h2 class="chron-title">' + esc(c.title || 'Jour ' + c.day) + '</h2>' + (c.headline ? '<p class="chron-headline">' + esc(c.headline) + '</p>' : '');
+  var placed = false;
+  (c.sections || []).forEach(function (s) {
+    html += '<section class="chron-section"><h3>' + esc(s.title || s.phase) + '</h3>' + (s.lines || []).map(function (l) { return '<p>' + esc(l) + '</p>'; }).join('') + '</section>';
+    if (!placed && c.expedition && /exp/i.test(String(s.phase))) { html += expeditionHtml(c.expedition); placed = true; }
+  });
+  if (!placed && c.expedition) html += expeditionHtml(c.expedition);
+  return html + summaryHtml(c.summary) + '</article>';
+}
+function outcomePill(o) {
+  var cls = o === 'succès' ? 'pill-good' : o === 'échec' ? 'pill-crit' : o === 'retraite' ? 'pill-warn' : 'pill-muted';
+  return '<span class="pill ' + cls + '">' + esc(o === 'aucune' ? 'en cours' : o) + '</span>';
+}
+function expeditionHtml(e) {
+  var html = '<section class="expedition"><h3>Expédition : ' + esc(e.quest_name) + ' ' + outcomePill(e.outcome) + '</h3>';
+  html += '<p class="meta">' + esc(e.biome_name) + ' · ' + (e.participants || []).map(esc).join(', ') + '</p>';
+  var rooms = (e.rooms || []).map(function (r) { return '<div class="room"><h4>' + esc(r.name) + '</h4>' + (r.lines || []).map(function (l) { return '<p>' + esc(l) + '</p>'; }).join('') + '</div>'; }).join('');
+  if (rooms) html += '<details><summary>Salle par salle (' + e.rooms.length + ')</summary>' + rooms + '</details>';
+  if ((e.loot && e.loot.length) || e.xp) html += '<p class="loot"><strong>Butin :</strong> ' + ((e.loot || []).map(esc).join(', ') || 'rien') + ' · <strong>XP :</strong> ' + esc(e.xp || 0) + '</p>';
+  return html + '</section>';
+}
+function summaryHtml(s) {
+  if (!s) return '';
+  var gold = Number(s.gold_delta) || 0;
+  return '<div class="summary"><div><b>Or de guilde</b><span class="' + (gold > 0 ? 'up' : gold < 0 ? 'down' : '') + '">' + signed(gold) + '</span></div>' +
+    '<div><b>Blessés</b>' + ((s.injuries || []).map(esc).join(', ') || '—') + '</div><div><b>Niveaux</b>' + ((s.level_ups || []).map(esc).join(', ') || '—') + '</div>' +
+    '<div><b>Chantier</b>' + (esc(s.construction) || '—') + '</div></div>';
+}
+
+/* ---------- rendu : journal ---------- */
+function renderJournal() {
+  $('journal-count').textContent = plural(app.journal.length, 'journée', 'journées') + ' · graine ' + app.seed;
+  $('journal-rows').innerHTML = app.journal.map(function (d) {
+    var c = app.chronicles[d.day];
+    return '<li><span>Jour ' + d.day + '</span><span class="t" title="' + esc(c ? c.headline : '') + '">' + esc(c ? c.title : '') + '</span><code class="hashcell">' + esc(d.hash) + '</code></li>';
+  }).join('') || '<li class="muted" style="display:block">Aucune journée jouée. Empreinte de départ : ' + esc(app.vm.hash) + '.</li>';
+  $('seed-input').value = app.seed;
+  $('storage-status').textContent = app.storageOk ? 'Sauvegarde locale active : le journal et la graine sont conservés dans ce navigateur.' : 'Sauvegarde locale indisponible : la partie vit le temps de cette page (export possible).';
+  var items = app.vm.notices.map(function (n) { return '<li class="crit">' + esc(n) + '</li>'; }).concat(app.pageNotices.map(function (n) { return '<li>' + esc(n) + '</li>'; }));
+  $('notice-count').textContent = items.length;
+  $('notices-list').innerHTML = items.join('') || '<li class="muted">Aucune notice : toutes les actions de la dernière journée ont été acceptées.</li>';
+}
+function toast(msg, kind) {
+  var box = $('toasts'), el = document.createElement('div');
+  el.className = 'toast' + (kind ? ' ' + kind : ''); el.textContent = msg; box.appendChild(el);
+  while (box.children.length > 1) box.removeChild(box.firstChild);
+  setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 3500);
+}
+
+/* ---------- événements ---------- */
+function onAction(btn) {
+  var act = btn.dataset.act, id = btn.dataset.id;
+  switch (act) {
+    case 'tab': setTab(btn.dataset.tab); break;
+    case 'drawer': openDrawer(btn.dataset.section); break;
+    case 'drawer-close': closeDrawer(); break;
+    case 'launch': launchDay(); break;
+    case 'next-day': prepareMorning(); render(); break;
+    case 'skip': skipDay(); break;
+    case 'choose': chooseActivity(btn.dataset.activity); break;
+    case 'target': chooseTarget(id); break;
+    case 'replay': replayJournal(); break;
+    case 'export': exportJournal(); break;
+    case 'import': importJournal($('journal-json').value); break;
+    case 'new-game': newGameFromInput(); break;
+    case 'vote-quest': setVote('quest', id); break;
+    case 'vote-build': setVote('build', id); break;
+    case 'unequip': addOrder('unequip', { adventurer_id: myHero().id, slot: btn.dataset.slot }); break;
+    case 'remove-order': removeOrder(parseInt(btn.dataset.i, 10)); break;
+    case 'chron-prev': shiftChronicle(-1); break;
+    case 'chron-next': shiftChronicle(1); break;
+    default: break;
+  }
+}
+function wireEvents() {
+  document.addEventListener('click', function (ev) { var btn = ev.target.closest('[data-act]'); if (btn && !btn.disabled) onAction(btn); });
+  document.addEventListener('change', function (ev) {
+    var el = ev.target;
+    if (el.id === 'chron-select') { app.viewDay = parseInt(el.value, 10); renderChronicle(); }
+    else if (el.dataset && el.dataset.slot && el.value) { addOrder('equip', { adventurer_id: myHero().id, item_id: el.value }); }
+  });
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && app.drawer) closeDrawer(); });
+  window.addEventListener('resize', function () { applyLayout(); drawAll(); });
+  if (wideMQ.addEventListener) wideMQ.addEventListener('change', function () { renderTabs(); applyLayout(); });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) applyLayout(); });
+}
+function loadFonts() {
+  if (!/^https?:$/.test(window.location.protocol)) return;
+  var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = FONTS_URL; document.head.appendChild(l);
+}
+function init() {
+  loadFonts();
+  if (!SIM || !DATA || typeof SIM.newGame !== 'function') {
+    $('engine-missing').hidden = false; $('btn-launch').disabled = true; $('btn-replay').disabled = true; $('panel-chronique').hidden = false;
+    $('chronicle').innerHTML = '<p class="chron-empty">Sans moteur, aucune chronique ne peut être écrite.</p>';
+    return;
+  }
+  loadUi();
+  if (!restoreGame()) startGame(DEFAULT_SEED, MANAGERS);
+  wireEvents();
+  render(); drawAll();
+  if (app.pageNotices.length) toast(app.pageNotices[app.pageNotices.length - 1]);
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
