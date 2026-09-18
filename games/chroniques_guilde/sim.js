@@ -6,6 +6,9 @@
  * (action plan), savoir-faire par l'usage, missions solo, mort et héritier, défaite (guilde dispersée).
  * V5 T1 (2026-09-18) : raid tactique persistant du Sylvain (tactic.js : grille 9×11, six classes de base dont l'Invocateur),
  * activité `raid`, action `raid_pass`, VM.raid ; seule dépendance : tactic.js (require sous node, window.GuildeTactic dans la page).
+ * V5 T2 (2026-09-18) : lignée — 13 hybrides (data.hybrids, data.lineage), seuil « niveau ≥ 5 ou jour ≥ 8 », proposition le soir
+ * (section « Voie »), action `choose_hybrid`, affinité §6.3 option B (libre + affinité), choix automatique après deux jours,
+ * besoins du groupe (§6.2) ; raid tactique pour les trois dragons (fiches data.raids : Sylvain, Drake des monts, Hydre des marais).
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./tactic.js'));
@@ -197,10 +200,86 @@
       wall_shield_pct: div(age.defense * ((D.raid && D.raid.wall_shield_pct_of_defense) || 50), 100) };
     for (const h of allHeroes(state)) {
       const p = combatProfile(D, state, h);
-      env.heroes[h.id] = { id: h.id, name: p.name, owner: h.owner, class_id: h.class_id, level: h.level, gender: h.gender, hp_max: p.hp_max, atk: p.atk, def: p.def, heal: p.heal, crit: p.crit, spd: p.spd,
+      env.heroes[h.id] = { id: h.id, name: p.name, owner: h.owner, class_id: h.class_id, hybrid: h.hybrid || null, hybrid_bonus: h.hybrid_bonus || 0, level: h.level, gender: h.gender, hp_max: p.hp_max, atk: p.atk, def: p.def, heal: p.heal, crit: p.crit, spd: p.spd,
         magic: p.magic, morale: h.morale, fatigue: h.fatigue, dexterity: attrEff(D, h, 'dexterity'), vigor: attrEff(D, h, 'vigor'), traits: h.traits.slice(), injury_severity: h.injury.severity };
     }
     return env;
+  }
+  // ---- V5 T2 : lignée (hybrides) — tables data.hybrids / data.lineage, affinité §6.3 option B, besoins du groupe §6.2 ----
+  function tacticSpell(D, id) { for (const sp of (D.raw.tactic_spells || [])) if (sp.id === id) return sp; return null; }
+  function lineageC(D) { return D.raw.lineage && D.raw.lineage.need_columns ? D.raw.lineage : null; }
+  function hybridList(D) { return (D.raw.hybrids || []).slice().sort((a, b) => (a.id < b.id ? -1 : 1)); }
+  function hybridById(D, id) { for (const H of (D.raw.hybrids || [])) if (H.id === id) return H; return null; }
+  function pairsOf(H) { return H.pairs && H.pairs.length ? H.pairs : [H.bases]; }
+  function hybridPairFor(H, classId) { for (const pr of pairsOf(H)) if (pr.indexOf(classId) >= 0) return pr; return null; }
+  function hybridsForClass(D, classId) { return hybridList(D).filter(H => !!hybridPairFor(H, classId)); }       // deux paires peuvent mener au même hybride (fusions §5.4)
+  function secondBaseOf(H, classId) { const pr = hybridPairFor(H, classId); return pr ? (pr[0] === classId ? pr[1] : pr[0]) : null; }
+  function hybridReady(D, state, h) { const L = lineageC(D); return !!L && (h.level >= L.hybrid_level_min || state.day >= L.hybrid_day_min); }
+  // Affinité (§6.3 option B) : savoir-faire de la 2e base ≥ 3 (+1), ≥ 4 expéditions avec un héros de la 2e base (+1), trait compatible (+1).
+  function affinityOf(D, state, h, H) {
+    const L = lineageC(D);
+    if (!L) return 0;
+    const second = secondBaseOf(H, h.class_id);
+    if (!second) return 0;
+    let n = 0;
+    const craftId = (D.C.craft_by_class || {})[second];
+    if (craftId && craftLevel(D, craftXp(h, craftId)) >= L.affinity_craft_level) n += 1;
+    if (((h.companions || {})[second] || 0) >= L.affinity_expeditions) n += 1;
+    if ((H.traits || []).some(t => hasTrait(h, t))) n += 1;
+    return Math.min(L.affinity_max, n);
+  }
+  // Besoins du groupe (§6.2) : chaque base apporte sa colonne (§3.8), chaque hybride ajoute +2 dans la sienne ; les 2 plus basses sont écrites en clair.
+  function groupNeeds(D, state) {
+    const L = lineageC(D);
+    if (!L) return { columns: [], missing: [], labels: [] };
+    const cols = L.need_columns.map(c => ({ id: c.id, name: c.name, value: 0 }));
+    const idx = {};
+    cols.forEach((c, i) => { idx[c.id] = i; });
+    for (const h of allHeroes(state)) {
+      const base = L.base_needs[h.class_id] || {};
+      for (const k of sortedKeys(base)) if (idx[k] !== undefined) cols[idx[k]].value += base[k];
+      if (h.hybrid) { const H = hybridById(D, h.hybrid); if (H && idx[H.need] !== undefined) cols[idx[H.need]].value += L.hybrid_need_bonus; }
+    }
+    for (const c of cols) { const w = (L.need_columns.filter(x => x.id === c.id)[0] || {}).weight || 1; c.filled = div(c.value * 100, w); }   // rempli en % de ce qu'une table des six bases apporte
+    const ordered = cols.slice().sort((a, b) => a.filled - b.filled || (a.id < b.id ? -1 : 1));   // à remplissage égal, l'ordre des colonnes est fixe (départage stable)
+    const missing = ordered.slice(0, L.need_missing);
+    return { columns: cols, ordered: ordered.map(c => c.id), missing: missing.map(c => c.id), labels: missing.map(c => c.name) };
+  }
+  // Classement des hybrides ouverts à un héros : besoin manquant le plus bas, puis affinité, puis identifiant ASCII (§6.3 « Auto »).
+  function rankHybrids(D, state, h) {
+    const G = groupNeeds(D, state), rank = {}, taken = {};
+    for (const c of G.columns) rank[c.id] = div(c.filled, 10);                              // rang par tranche de 10 % de remplissage : la table comble d'abord sa colonne la moins remplie ; à égalité de tranche, le vécu et la complémentarité tranchent
+    for (const x of allHeroes(state)) if (x.hybrid) taken[x.hybrid] = (taken[x.hybrid] || 0) + 1;      // émulation d'équipe : à besoin égal, la table préfère une voie qu'elle n'a pas encore
+    return hybridsForClass(D, h.class_id).map(H => ({ id: H.id, hybrid: H, need_rank: rank[H.need] === undefined ? G.missing.length : rank[H.need], taken: taken[H.id] || 0, affinity: affinityOf(D, state, h, H) }))
+      .sort((a, b) => a.need_rank - b.need_rank || a.taken - b.taken || b.affinity - a.affinity || (a.id < b.id ? -1 : 1));
+  }
+  function pickHybrid(D, state, h) { const r = rankHybrids(D, state, h); return r.length ? r[0].hybrid : null; }
+  function hybridWhy(D, state, h, hybridId) {
+    const L = lineageC(D);
+    if (!L) return 'les voies ne sont pas ouvertes';
+    if (h.hybrid) return heroName(h) + ' a déjà une voie (' + (hybridById(D, h.hybrid) || { name: h.hybrid }).name + ')';
+    if (!hybridReady(D, state, h)) return 'il faut le niveau ' + L.hybrid_level_min + ' ou le jour ' + L.hybrid_day_min + ' (niveau ' + h.level + ', jour ' + state.day + ')';
+    const H = hybridById(D, hybridId);
+    if (!H) return 'voie inconnue';
+    if (!hybridPairFor(H, h.class_id)) return H.name + ' n\'est pas ouvert à un ' + D.classes[h.class_id].name.toLowerCase();
+    return null;
+  }
+  // Application du choix : ressource, bonus d'affinité (l'hybride d'affinité maximale démarre à +1), chronique « Voie ».
+  function applyHybrid(ctx, h, H, how) {
+    const state = ctx.state, D = ctx.D, L = lineageC(D);
+    const ranked = rankHybrids(D, state, h);
+    let maxAff = 0;
+    for (const r of ranked) if (r.affinity > maxAff) maxAff = r.affinity;
+    const aff = affinityOf(D, state, h, H);
+    h.hybrid = H.id;
+    h.hybrid_day = state.day;
+    h.hybrid_offer_day = null;
+    h.hybrid_bonus = aff > 0 && aff >= maxAff ? (L ? L.affinity_resource_bonus : 1) : 0;
+    say(ctx, 'voie', tpl(ctx, how === 'auto' ? 'voie_auto' : 'voie_choice', h.id, gv(h, { a: heroName(h), hybride: H.name, identity: H.identity, son: 'son' })));
+    if (h.hybrid_bonus) say(ctx, 'voie', tpl(ctx, 'voie_affinity', h.id, gv(h, { a: heroName(h), ressource: (H.resource_name || H.resource).toLowerCase() })));
+    moment(ctx, 62, heroName(h) + ' a choisi sa voie : ' + H.name + '.');
+    ctx.summary.hybrids.push(heroName(h) + ' → ' + H.name);
+    ctx.log.push('voie ' + h.id + ' -> ' + H.id + ' (' + how + ', affinité ' + aff + ')');
   }
   function slotsCost(D, slots) { let n = 0; for (const s of slots) if (!isFullDay(s.activity)) n += apCost(D, s.activity); return n; }
   function itemStats(D, state, h) {
@@ -343,7 +422,8 @@
       age_seasons: age, traits: traits, wage: opts.wage !== undefined ? opts.wage : wageOf(D, level, rarity),
       unpaid_days: 0, equipment: { weapon: null, armor: null, trinket: null, potion: null },
       history: { expeditions: 0, victories: 0, injuries: 0, level_ups: 0 }, last_activity: 'rest', last_team: [],
-      crafts: emptyCrafts(D)
+      crafts: emptyCrafts(D),
+      hybrid: null, hybrid_day: null, hybrid_offer_day: null, hybrid_bonus: 0, companions: {}   // V5 T2 : lignée (hybride, offre du soir, bonus d'affinité, compagnons d'expédition par classe)
     };
     return h;
   }
@@ -655,6 +735,13 @@
         if (state.quarters[a.manager_id].some(q => q.x === p.x && q.y === p.y)) return bad('case déjà occupée');
         if (state.purses[a.manager_id] < d.cost_gold) return bad('or insuffisant');
         return { ok: true };
+      }
+      case 'choose_hybrid': {
+        // V5 T2 : choix de la voie (héros vivant et à vous, seuil atteint, pas déjà hybride, hybride ouvert à sa classe de base).
+        const h = mine(p.adventurer_id);
+        if (!h) return bad('aventurier inconnu ou pas à vous');
+        const why = hybridWhy(D, state, h, p.hybrid_id);
+        return why ? bad(why) : { ok: true };
       }
       case 'raid_pass': {
         // V5 : passage tactique d'un héros (héros vivant et à vous, raid actif, apte, actions rejouées sur une copie du raid du matin).
@@ -1006,7 +1093,7 @@
   // ===================================================================================
   const PHASES = [['matin', 'Matin'], ['paie', 'Trésorerie'], ['recolte', 'Récolte'], ['entrainement', 'Entraînement'],
     ['forge', 'Forge'], ['infirmerie', 'Infirmerie'], ['expedition', 'Expédition'], ['menace', 'Menace'], ['raid', 'Raid'], ['solo', 'Missions solo'], ['deuil', 'Deuil'],
-    ['marche', 'Marché'], ['taverne', 'Taverne'], ['chantier', 'Chantier'], ['soir', 'Soir'], ['village', 'Village'], ['presage', 'Présage'],
+    ['marche', 'Marché'], ['taverne', 'Taverne'], ['chantier', 'Chantier'], ['soir', 'Soir'], ['voie', 'Voie'], ['village', 'Village'], ['presage', 'Présage'],
     ['derby', 'Derby'], ['bilan', 'Bilan de saison']];
   const UNTRIMMED = { expedition: 1, menace: 1, raid: 1, deuil: 1, village: 1, presage: 1, derby: 1, bilan: 1 };   // sections jamais rognées par le budget de lignes
   function say(ctx, phase, text) { if (text) ctx.sections[phase].lines.push(text); }
@@ -1019,7 +1106,7 @@
       votes_quest: {}, votes_build: {}, queued: { craft: [], buy: [], sell: [], recruit: [], raid: {} }, effective: {}, forced: {},
       notices: [], log: [], expedition: null, exp_result: null, quest: null, xp: {}, build_vote: null, threat: null, raid: null,
       deaths: [], solo_results: [], legendary: [],
-      summary: { gold_delta: 0, injuries: [], level_ups: [], recruits: [], construction: '', village_age_up: null, presage: null, threat_outcome: null, deaths: [], legendary: [], solo_results: [] }, gold_start: 0 };
+      summary: { gold_delta: 0, injuries: [], level_ups: [], recruits: [], construction: '', village_age_up: null, presage: null, threat_outcome: null, deaths: [], legendary: [], solo_results: [], hybrids: [] }, gold_start: 0 };
     for (const p of PHASES) ctx.sections[p[0]] = { phase: p[0], title: p[1], lines: [] };
     return ctx;
   }
@@ -1062,6 +1149,7 @@
       case 'sell': ctx.queued.sell.push(a); break;
       case 'recruit': ctx.queued.recruit.push(a); break;
       case 'raid_pass': ctx.queued.raid[p.adventurer_id] = { manager: a.manager_id, actions: p.actions.slice() }; break;   // V5 : le dernier passage reçu gagne
+      case 'choose_hybrid': { const h = state.heroes[p.adventurer_id], H = hybridById(D, p.hybrid_id); if (h && H && !h.hybrid) applyHybrid(ctx, h, H, 'choice'); break; }   // V5 T2
       case 'equip': {
         const h = state.heroes[p.adventurer_id], it = findItem(state, a.manager_id, p.item_id);
         h.equipment[D.items[it.item_id].slot] = it.uid;
@@ -2053,6 +2141,8 @@
       h.history.expeditions++;
       if (exp.outcome === 'success' || exp.outcome === 'partial') h.history.victories++;
       h.last_team = exp.party.filter(x => x.id !== f.id).map(x => x.id);
+      if (!h.companions) h.companions = {};                                    // V5 T2 : une expédition menée avec un héros de classe C compte pour l'affinité
+      for (const x of exp.party) { const c = state.heroes[x.id]; if (c && x.id !== f.id) h.companions[c.class_id] = (h.companions[c.class_id] || 0) + 1; }
       if (!f.deserted) { addCraftXp(ctx, h, 'endurance', D.C.craft_xp.expedition_endurance); addCraftXp(ctx, h, (D.C.craft_by_class || {})[h.class_id] || 'endurance', D.C.craft_xp.expedition_class); }
     }
     // Mort possible (V4) : parti en expédition avec une blessure grave (sévérité ≥ 2) et tombé à 0 PV — TIRAGE death_permille.wounded.
@@ -2117,7 +2207,8 @@
     return { id: 'guard_' + pad2(i), owner: 'village', first_name: 'Garde', epithet: names[(i * 7 + state.day) % names.length], gender: 'm',
       class_id: 'warrior', rarity: 'common', level: level, xp: 0, bonus_attrs: emptyAttrs(D), trained: emptyAttrs(D), train_points: {},
       form: 50, fatigue: 0, morale: 60, injury: { severity: 0, days_left: 0 }, scars: 0, age_seasons: 8, traits: [], wage: 0, unpaid_days: 0,
-      equipment: { weapon: null, armor: null, trinket: null, potion: null }, history: { expeditions: 0, victories: 0, injuries: 0, level_ups: 0 }, last_activity: 'rest', last_team: [], crafts: {} };
+      equipment: { weapon: null, armor: null, trinket: null, potion: null }, history: { expeditions: 0, victories: 0, injuries: 0, level_ups: 0 }, last_activity: 'rest', last_team: [], crafts: {},
+      hybrid: null, hybrid_day: null, hybrid_offer_day: null, hybrid_bonus: 0, companions: {} };
   }
   function makeDragon(D, T, DR, day) {
     return { id: DR.id, biome: DR.biome, name: dragonVars(DR).threat_le, verb: DR.verb, level: 1 + div(day, 2), slot: 0, boss: false, dragon: true, mechanic: DR.mechanic, elite: false, siege: false,
@@ -2372,7 +2463,8 @@
   function raidThreatOf(state) { return (state.threats || []).filter(t => t.outcome === null && state.raid && t.dragon_id === state.raid.dragon_id)[0] || null; }
   function archiveRaid(state, R, dayEnd) {
     if (!state.raid_history) state.raid_history = [];
-    state.raid_history.push({ id: R.id, dragon_id: R.dragon_id, day_start: R.day_start, day_end: dayEnd, status: R.status, nights: R.nights, passes: R.passes_done.length, ko: R.passes_done.filter(p => p.ko).length, damage_total: R.damage_total, won_by: R.won_by || null });
+    state.raid_history.push({ id: R.id, dragon_id: R.dragon_id, day_start: R.day_start, day_end: dayEnd, status: R.status, nights: R.nights, passes: R.passes_done.length, ko: R.passes_done.filter(p => p.ko).length, damage_total: R.damage_total, won_by: R.won_by || null,
+      stats: { mech: R.stats.mech, res_values: R.stats.res_values, casts: R.stats.casts, zones: R.stats.zones, adds_spawned: R.stats.adds_spawned, burn_turns: R.stats.burn_turns, regen_total: R.stats.regen_total, night_regen: R.stats.night_regen, shield_absorbed: R.stats.shield_absorbed } });   // V5 T2 : les compteurs du raid survivent à l'archivage (bancs et tableau)
     state.raid = null;
   }
   function raidXpBase(D, state) { const T = D.threats.dragon; return T.xp_win_base + T.xp_win_per_day * state.day; }
@@ -2685,6 +2777,34 @@
     }
     return out;
   }
+  // ===================================================================================
+  // 11a'. LIGNÉE (V5 T2) — seuil du soir, proposition, affinité (§6.3 option B), choix automatique après deux jours
+  // ===================================================================================
+  function phaseLineage(ctx) {
+    const state = ctx.state, D = ctx.D, L = lineageC(D);
+    if (!L) return;
+    let offered = 0;
+    for (const h of allHeroes(state)) {
+      if (h.hybrid || !hybridReady(D, state, h)) continue;
+      if (h.hybrid_offer_day === null || h.hybrid_offer_day === undefined) {
+        h.hybrid_offer_day = state.day;                                        // proposition le soir du seuil : la réponse vient le lendemain (copains) ou automatiquement à J+2
+        say(ctx, 'voie', tpl(ctx, 'voie_offer', h.id, gv(h, { a: heroName(h) })));
+        offered++;
+        continue;
+      }
+      const m = managerOf(state, h.owner);
+      const friend = m && m.kind === 'ai' && state.day > h.hybrid_offer_day;   // un ami simulé répond le lendemain de la proposition
+      const late = state.day - h.hybrid_offer_day >= L.hybrid_auto_days;       // deux jours sans réponse : le héros tranche seul
+      if (friend || late) {
+        const H = pickHybrid(D, state, h);                                     // besoin du groupe le plus bas, puis voie absente de la table, puis affinité, puis identifiant
+        if (H) applyHybrid(ctx, h, H, friend ? 'ami' : 'auto');
+      }
+    }
+    if (offered) {
+      const G = groupNeeds(D, state);
+      say(ctx, 'voie', tpl(ctx, 'voie_needs', 'n' + state.day, { besoins: joinFr(G.labels) }));
+    }
+  }
   // ---- Phase 11b : âge du village (au plus un âge par jour, jamais de recul) ----
   function phaseVillageAge(ctx) {
     const state = ctx.state, D = ctx.D;
@@ -2798,7 +2918,7 @@
   // ===================================================================================
   // 12. CHRONIQUE : assemblage, budget de lignes, instant du jour
   // ===================================================================================
-  const SECTION_CAP = { matin: 6, paie: 2, recolte: 8, entrainement: 6, forge: 6, infirmerie: 5, expedition: 13, menace: 22, raid: 26, solo: 8, deuil: 4, marche: 6, taverne: 6, chantier: 3, soir: 14, village: 1, presage: 1, derby: 3, bilan: 12 };
+  const SECTION_CAP = { matin: 6, paie: 2, recolte: 8, entrainement: 6, forge: 6, infirmerie: 5, expedition: 13, menace: 22, raid: 26, solo: 8, deuil: 4, marche: 6, taverne: 6, chantier: 3, soir: 14, voie: 16, village: 1, presage: 1, derby: 3, bilan: 12 };
   function ambianceLines(ctx, need) {
     const state = ctx.state, D = ctx.D, out = [];
     const heroes = allHeroes(state).sort((a, b) => (fnvStr(state.day + a.id) % 97) - (fnvStr(state.day + b.id) % 97) || (a.id < b.id ? -1 : 1));
@@ -2836,7 +2956,8 @@
     return { day: state.day, title: title, headline: headline, sections: sections, expedition: ctx.expedition, threat: ctx.threat, raid: ctx.raid,
       summary: { gold_delta: ctx.summary.gold_delta, injuries: ctx.summary.injuries, level_ups: ctx.summary.level_ups, recruits: ctx.summary.recruits, construction: ctx.summary.construction,
         village_age_up: ctx.summary.village_age_up, presage: ctx.summary.presage, threat_outcome: ctx.summary.threat_outcome,
-        deaths: ctx.summary.deaths, legendary: ctx.summary.legendary, solo_results: ctx.summary.solo_results, raid_status: ctx.raid ? ctx.raid.status : null } };
+        deaths: ctx.summary.deaths, legendary: ctx.summary.legendary, solo_results: ctx.summary.solo_results, raid_status: ctx.raid ? ctx.raid.status : null,
+        hybrids: ctx.summary.hybrids } };
   }
 
   // ===================================================================================
@@ -2847,7 +2968,7 @@
     const line = pickTpl(D, 'collapsed_day', String(state.day), {});
     return { day: state.day, title: 'Jour ' + state.day + ' — la guilde est dispersée', headline: 'La guilde est dispersée.',
       sections: [{ phase: 'bilan', title: 'Bilan de saison', lines: [line, 'Chute le jour ' + state.collapsed.day + ' : ' + state.collapsed.reason + '.'] }], expedition: null, threat: null, raid: null,
-      summary: { gold_delta: 0, injuries: [], level_ups: [], recruits: [], construction: '', village_age_up: null, presage: null, threat_outcome: null, deaths: [], legendary: [], solo_results: [], raid_status: null } };
+      summary: { gold_delta: 0, injuries: [], level_ups: [], recruits: [], construction: '', village_age_up: null, presage: null, threat_outcome: null, deaths: [], legendary: [], solo_results: [], raid_status: null, hybrids: [] } };
   }
   function resolveDay(input, actions) {
     const data = input.__data || GLOBAL_DATA;
@@ -2869,6 +2990,7 @@
     phaseTavern(ctx);                                                   // 9 (héritiers compris)
     phaseConstruction(ctx);                                             // 10
     phaseEvening(ctx);                                                  // 11
+    phaseLineage(ctx);                                                  // 11a' lignée (V5 T2) : proposition du soir, choix automatique à J+2
     phaseRaidNight(ctx);                                                // 11' nuit du raid (V5) : régénération, enrage, échec au 4e soir
     phaseVillageAge(ctx);                                               // 11b âge du village
     phaseDragons(ctx);                                                  // 11c réveil des dragons + présage
@@ -2942,8 +3064,52 @@
       const DR = D.dragons[b.id] || null, dr = state.dragons[b.id] || { state: 'dormant', next_day: null };
       const left = DR ? DR.legendary_pool.filter(id => state.legendary_given.indexOf(id) < 0).length : 0;
       return { id: b.id, name: b.name, mastery: state.biome_mastery[b.id] || 0, mastery_needed: D.C.dragon_wake_mastery || 8,
-        dragon: DR ? { id: DR.id, name: DR.name, state: dragonVmState(dr), next_day: dr.next_day === undefined ? null : dr.next_day, legendary_left: left } : null };
+        dragon: DR ? { id: DR.id, name: DR.name, state: dragonVmState(dr), next_day: dr.next_day === undefined ? null : dr.next_day, legendary_left: left, raid: raidSheetVm(D, state, DR) } : null };
     });
+  }
+  // V5 T2 : fiche de raid du dragon (les trois biomes l'ont) — de quoi annoncer le problème tactique avant le réveil.
+  function raidSheetVm(D, state, DR) {
+    const f = raidTableFor(D, DR.id);
+    if (!f || !raidEnabled(D)) return null;
+    const active = !!(state.raid && state.raid.dragon_id === DR.id && state.raid.status === 'active');
+    return { id: f.id, name: f.name || DR.name, kind: f.kind || 'sylvain', layout_id: f.layout_id,
+      hp_base: f.hp_base, hp_per_day: f.hp_per_day, phases: (f.phases || []).slice(), max_nights: (D.raid && D.raid.raid_max_nights) || 0,
+      needs: (f.needs || []).slice(), active: active, nights: active ? state.raid.nights : 0,
+      hp_pct: active ? div(state.raid.boss.hp * 100, Math.max(1, state.raid.boss.hp_max)) : 100 };
+  }
+  // V5 T2 : hybride d'un héros pour l'interface (null tant qu'il n'a pas choisi).
+  function hybridVm(D, h) {
+    const H = h.hybrid ? hybridById(D, h.hybrid) : null;
+    if (!H) return null;
+    return { id: H.id, name: H.name, resource: H.resource, resource_label: H.resource_label };
+  }
+  // V5 T2 : proposition de voie en attente pour un manager (une carte par hybride ouvert, §6.2).
+  function choiceVm(D, state, managerId) {
+    const L = lineageC(D);
+    if (!L) return null;
+    const h = heroesOf(state, managerId).filter(x => !x.hybrid && x.hybrid_offer_day !== null && x.hybrid_offer_day !== undefined && hybridReady(D, state, x))
+      .sort((a, b) => (a.id < b.id ? -1 : 1))[0];
+    if (!h) return null;
+    const ranked = rankHybrids(D, state, h);
+    let maxAff = 0;
+    for (const r of ranked) if (r.affinity > maxAff) maxAff = r.affinity;
+    const best = ranked.length ? ranked[0].id : null;
+    return { kind: 'hybrid', adventurer_id: h.id, adventurer_name: heroName(h),
+      deadline_day: h.hybrid_offer_day + L.hybrid_auto_days,
+      options: ranked.map(r => ({ id: r.id, name: r.hybrid.name, identity: r.hybrid.identity, verb: r.hybrid.verb || '',
+        resource: r.hybrid.resource, resource_label: r.hybrid.resource_label, mechanic: r.hybrid.mechanic,
+        affinity: r.affinity, affinity_max: L.affinity_max, resource_bonus: r.affinity > 0 && r.affinity >= maxAff ? L.affinity_resource_bonus : 0,
+        recommended: r.id === best,
+        spells: (r.hybrid.spells || []).map(id => { const sp = tacticSpell(D, id); return sp ? { id: sp.id, name: sp.name, cost_pa: sp.cost_pa, range_label: sp.range_min === sp.range_max ? String(sp.range_max) : sp.range_min + '-' + sp.range_max, description: sp.description } : { id: id, name: id, cost_pa: 0, range_label: '', description: '' }; }),
+        answers: (r.hybrid.answers || []).map(rid => { const f = (D.raw.raids || {})[rid]; const dr = f ? dragonById(D, f.dragon_id) : null; return dr ? dr.name : rid; }) })) };
+  }
+  // V5 T2 : besoins du groupe en clair (§6.2) — les deux colonnes les plus basses.
+  function groupNeedsVm(D, state) {
+    const G = groupNeeds(D, state);
+    if (!G.columns.length) return null;
+    return { columns: G.columns.map(c => ({ id: c.id, name: c.name, value: c.value, filled_pct: c.filled })),
+      missing: G.missing.slice(), missing_labels: G.labels.slice(),
+      label: G.labels.length ? 'Ce qui manque à la table : ' + joinFr(G.labels) + '.' : '' };
   }
   function villageVm(D, state) {
     const idx = clamp(state.village_age || 0, 0, D.ages.length - 1), age = D.ages[idx], next = D.ages[idx + 1] || null;
@@ -2995,7 +3161,8 @@
         ap_max: apMax(D, state, h), ap_today: apToday(D, state, h),
         slots_planned: slots.map(s => ({ activity: s.activity, target: s.target === undefined ? null : s.target, label: slotLabel(D, state, s) })),
         presets: presetsFor(D, state, h).map(p => ({ id: p.id, label: p.label, slots: p.slots.map(s => ({ activity: s.activity, target: s.target === undefined ? null : s.target })), available: p.available, reason: p.reason })),
-        crafts: craftsVm(D, h), is_dead: false
+        crafts: craftsVm(D, h), is_dead: false,
+        hybrid: hybridVm(D, h)
       };
     });
   }
@@ -3027,7 +3194,8 @@
         storage: D.raw.resources.map(r => ({ resource_id: r.id, name: r.name, glyph: r.glyph, qty: state.warehouse[r.id] || 0, value: r.sell })),
         chest: state.guild_chest.map(x => ({ item_id: x.item_id, name: D.items[x.item_id] ? D.items[x.item_id].name : x.item_id, rarity: D.items[x.item_id] ? D.items[x.item_id].rarity : 'common' })) },
       roster: rosterVm(D, state, managerId, planned, plannedSlots),
-      solo_board: soloBoardVm(D, state, managerId), biomes: biomesVm(D, state), defeat: state.collapsed ? { day: state.collapsed.day, reason: state.collapsed.reason } : null,
+      solo_board: soloBoardVm(D, state, managerId), biomes: biomesVm(D, state),
+      choice: choiceVm(D, state, managerId), group_needs: groupNeedsVm(D, state), defeat: state.collapsed ? { day: state.collapsed.day, reason: state.collapsed.reason } : null,
       quest_board: state.quests.slice().sort((a, b) => (a.id < b.id ? -1 : 1)).map(q => { const t = D.quest_types[q.type], d = D.difficulty[q.difficulty]; return {
         id: q.id, name: q.name, type_label: t.name, biome_name: D.biomes[q.biome].name, difficulty: q.difficulty, days: 1, party_min: t.party_min, party_max: t.party_max,
         rewards_label: '~' + div(d.gold_base * t.reward_gold_pct, 100) + ' or · ' + d.xp_base + ' XP · ' + div(d.resource_units * t.reward_res_pct, 100) + ' ' + D.resources[D.biomes[q.biome].primary].name.toLowerCase() + ' · niveau conseillé ' + d.rec_level,

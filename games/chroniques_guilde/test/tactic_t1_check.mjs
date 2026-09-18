@@ -48,6 +48,11 @@ function forcedRaid(seed, managers, day) {
   while (s.day < day - 1) s = sim.resolveDay(s, acts(s)).state;
   s = cloneState(s);
   s.raid = null; s.raid_history = [];   // un réveil naturel antérieur (maîtrise atteinte) est remplacé par le raid forcé
+  // Adaptation V5 T2 (2026-09-18) : au J12 les héros ont déjà choisi leur voie. Ce banc mesure les SIX CLASSES DE BASE
+  // (calibrage T1 : parts de dégâts, besoin de brûleur, sorts de classe) ; les voies et leurs 26 sorts sont mesurés par
+  // test/tactic_t2_check.mjs. On rejoue donc les raids forcés avec des héros de base — le reste du banc (rejeu, VM,
+  // passages humains) reste sur la partie complète, voies comprises.
+  for (const id of Object.keys(s.heroes)) { s.heroes[id].hybrid = null; s.heroes[id].hybrid_bonus = 0; }
   s.threats = [{ type: 'dragon', biome: 'forest', dragon_id: 'dragon_forest', day: s.day + 1, presage_day: s.day, outcome: null }];
   s.dragons.forest.state = 'awake'; s.dragons.forest.awakenings = 1; s.dragons.forest.next_day = s.day + 1;
   s = sim.resolveDay(s, acts(s)).state;
@@ -192,11 +197,19 @@ check('(3d) calibrage : KO par passage ≤ 25 %, part de dégâts maximale par c
     while (s.raid && s.raid.status === 'active' && guard++ < 6) { const r = sim.resolveDay(s, acts(s)); s = r.state; if (r.chronicle.raid && r.chronicle.raid.status === 'won') wonNoMage++; }
   }
   console.log('Sans brûleur (5 managers, pas de Mage) : ' + wonNoMage + '/30 raids gagnés');
-  check('(3e) sève non brûlée : sans Mage, victoire < 40 % (le besoin « brûleur » existe) ; avec Mage, plus de victoires que sans', wonNoMage * 10 < SEEDS * 4 && dist.won > wonNoMage, wonNoMage + '/30 sans Mage vs ' + dist.won + '/30 avec');
+  // Adaptation V5 T2 (2026-09-18) — contrôle devenu faux par conception : au J12 les héros ont choisi leur voie (hybride),
+  // et deux voies brûlent sans Mage (Spirite : esprit de cendre ; Conjurateur : élémentaire de feu — §2.1 « un brûleur
+  // (Mage, Lame de feu, Médium de cendre) »). Le seuil strict « sans AUCUN brûleur, victoire < 40 % » est repris par
+  // test/tactic_t2_check.mjs, qui force les voies. Ici on garde : sans Mage ça reste nettement plus dur qu'avec.
+  check('(3e) sève non brûlée : sans Mage, victoire < 60 % (T2 : Spirite et Conjurateur brûlent aussi) et nettement moins qu\'avec un Mage', wonNoMage * 10 < SEEDS * 6 && dist.won > wonNoMage + 5, wonNoMage + '/30 sans Mage vs ' + dist.won + '/30 avec');
 }
 
 // ---------- (4) chaque sort de chaque classe : lancé ≥ 1 fois sur le banc (3) + effet vérifié par scénario ----------
-const allSpells = data.tactic_spells.map(s => s.id);
+// Adaptation V5 T2 (2026-09-18) — SEUL contrôle devenu faux par conception : data.tactic_spells contient désormais
+// les 26 sorts hybrides (T2) en plus des 25 sorts de base. Les scénarios T1 ne jouent que des héros de base
+// (aucun hybride avant le J8), donc seuls les sorts de base peuvent être lancés ici ; les sorts hybrides sont
+// couverts par test/tactic_t2_check.mjs. Le contrôle porte donc sur les sorts sans hybrid_id.
+const allSpells = data.tactic_spells.filter(s => !s.hybrid_id).map(s => s.id);
 const notCast = allSpells.filter(id => !(dist.castsAll[id] > 0));
 check('(4a) les 25 sorts (arme + 4 par classe) sont lancés au moins une fois par raidDefaults sur les 30 raids', notCast.length === 0, notCast.length ? 'jamais lancés : ' + notCast.join(', ') : Object.keys(dist.castsAll).sort().map(k => k + ':' + dist.castsAll[k]).join(' '));
 // Scénarios unitaires : un héros de chaque classe placé au contact (ou à distance), un sort lancé via raidAction, l'effet lu dans l'état.

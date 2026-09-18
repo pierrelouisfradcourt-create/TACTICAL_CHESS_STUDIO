@@ -348,3 +348,116 @@ Les 25 sorts sont lancés par la politique par défaut (`ice_wall` 1 fois, `sacr
 - Spec §1.12.1 (passages non joués = 2 tours prudents le soir) : en T1 tout se résout en 7b', `raidDefaults` joue les 3 tours.
 - Non vérifié : jeu sur téléphone, page index.html (T4), hybrides/spés (T2/T3), Drake et Hydre (auto-combat V4 inchangé), rejeu du journal
   de la page avec des `raid_pass` humains réels (seule la voie moteur est prouvée), raid encore actif au J30 (laissé non résolu).
+
+---
+
+## V5 T2 — les treize voies (hybrides), Drake des monts et Hydre des marais
+Date : 2026-09-18. Source : mission « V5 tranche T2 » (GO Pierre 2026-09-18) d'après V5_SPEC.md §2.2, §2.3, §4, §5.4, §6, §7, §8 ;
+HumanGates ratifiés le 2026-09-18 : (1) quatre branches fusionnées — Guerrier+Mage → **Chasseur de monstres**, Voleur+Invocateur →
+**Illusionniste**, donc **13 hybrides** ; (2) second choix **libre avec affinité** (§6.3 option B) : l'affinité met une voie en avant,
+ne l'impose jamais ; choix automatique après deux jours sans réponse. Preuves : `test/tactic_t2_check.mjs` (nouveau),
+`test/tactic_t1_check.mjs` et `test/engine_v4_check.mjs` (adaptés, en-têtes documentés). API publique de sim.js inchangée
+(`newGame · planDefaults · validateAction · resolveDay · hashState · viewModel · listManagers`) ; `data.js` régénéré depuis `data.json`.
+
+### Données (`data.json`)
+- `hybrids` : 13 fiches `{id, name, bases:[2], pairs:[[base,base]…], resource, resource_name, resource_max, resource_label, mechanic,
+  verb, need, identity, territory, spells:[2], answers:[raid_id…], traits:[…]}`. `pairs` couvre les **15** paires de bases :
+  `chasseur_monstres` porte `warrior+ranger` **et** `warrior+mage`, `illusionniste` porte `rogue+mage` **et** `rogue+summoner`.
+- `tactic_spells` : 51 entrées (25 de base + **26 hybrides**, `hybrid_id` renseigné, `class_id` nul).
+- `lineage` : `hybrid_level_min 5`, `hybrid_day_min 8`, `hybrid_auto_days 2`, `affinity_craft_level 3`, `affinity_expeditions 4`,
+  `affinity_max 3`, `affinity_resource_bonus 1`, `need_missing 2`, `need_columns` (7 colonnes §3.8, chacune avec son `weight` = ce
+  qu'une table des six bases apporte naturellement), `base_needs` par classe, `hybrid_need_bonus 2`, `spec_*` (réservé T3).
+- `raids.raid_mountain` (Drake, `kind:'drake'`) et `raids.raid_marsh` (Hydre, `kind:'hydre'`) ; `layouts.eboulis` (4 rochers,
+  2 gouffres) et `layouts.tourbiere` (4 souches, 12 cases d'eau). 20 gabarits `raid_*` de plus, 5 gabarits `voie_*`.
+- Héros : `hybrid`, `hybrid_day`, `hybrid_offer_day`, `hybrid_bonus`, `companions{class_id:n}` (expéditions menées avec un héros de
+  cette classe — compteur d'affinité). `raid_history[].stats` conserve les compteurs du raid clos (mécanismes, ressources, sorts, zones).
+
+### Choix de la voie (sim.js)
+- **Seuil** : niveau ≥ 5 **ou** jour ≥ 8. Phase 11a' (`phaseLineage`, après le soir, avant la nuit du raid) : proposition le soir du
+  seuil, section de chronique **« Voie »** (gabarits `voie_offer · voie_choice · voie_auto · voie_affinity · voie_needs`, ≥ 6 chacun).
+- **Action** `choose_hybrid {adventurer_id, hybrid_id}` : refusée avec sa raison si le héros n'est pas à vous / inconnu, si le seuil
+  n'est pas atteint, s'il a déjà une voie, si la voie est inconnue ou fermée à sa classe de base. Appliquée en phase 1 (comme `equip`).
+- **Amis simulés** : un héros d'un manager IA tranche le **lendemain** de la proposition, dans `phaseLineage`, héros par héros par
+  identifiant ASCII (chaque choix change les besoins du suivant) ; aucun tirage. Le héros d'un manager humain sans réponse tranche
+  **exactement 2 jours** après la proposition (`hybrid_auto_days`).
+- **Règle de choix** (auto et amis, §6.3 « Auto ») : colonne de besoin la moins remplie d'abord (`value × 100 / weight`, par tranches
+  de 10 %), puis une voie que la table n'a pas encore, puis l'affinité, puis l'identifiant ASCII.
+- **Affinité** (§6.3 option B) : `+1` savoir-faire de la 2e base ≥ 3, `+1` ≥ 4 expéditions avec un héros de la 2e base, `+1` trait
+  compatible (0-3). La voie d'affinité maximale (> 0) démarre avec **+1** dans sa ressource (`hybrid_bonus`, ligne `voie_affinity`).
+- **Besoins du groupe** (§6.2) : chaque base apporte sa colonne (§3.8), chaque hybride **+2** dans la sienne ; les deux colonnes les
+  moins remplies sont écrites en clair.
+
+### viewModel (ajouts, aucun champ retiré)
+- `VM.roster[].hybrid` = `{id, name, resource, resource_label}` ou `null`.
+- `VM.choice` = `{kind:'hybrid', adventurer_id, adventurer_name, deadline_day, options:[{id, name, identity, verb, resource,
+  resource_label, mechanic, affinity, affinity_max, resource_bonus, recommended, spells:[{id,name,cost_pa,range_label,description}]×2,
+  answers:[nom de dragon…]}]}` ou `null` (une seule pastille `recommended`).
+- `VM.group_needs` = `{columns:[{id,name,value,filled_pct}]×7, missing:[2 ids], missing_labels:[2 noms], label}`.
+- `VM.biomes[].dragon.raid` = `{id, name, kind, layout_id, hp_base, hp_per_day, phases, max_nights, needs, active, nights, hp_pct}`
+  pour **les trois biomes** (le repli auto-combat V4 ne sert plus que si tactic.js est absent ou si personne ne monte sur la grille).
+
+### Drake des monts (`kind:'drake'`, §2.2)
+Réserve 400 + 13/jour (pool × (managers+2)/6), PM 3, `target_rule:'strongest'`, phases 50 % / 25 %.
+1. **Souffle télégraphié** : riposte → annonce `line 6` large de 3 vers la case du héros (`souffle_annonce`) ; il tombe au **début du
+   passage suivant** (`souffle`, 120 % magique, les boucliers < 40 ne tiennent pas) et laisse des **cendres** 2 ripostes (12 dégâts à
+   l'entrée, +1 PM). 2. **Écailles de fer** : DEF +20, `crit_immune` tant que PV > 50 % ; chaque `fissure` (Chasseur de monstres, sur
+   cible marquée) rend 5 de DEF, cap 4. 3. **Envol** (entrée en P2) : un passage entier hors de portée ; seules une ancre (Filet,
+   Appel d'air) ou une portée ≥ 4 sans LdV l'atteignent ; à l'atterrissage `etourdi` 1 + `chancelant` 2. 4. **Fournaise** (P3, une
+   riposte sur deux) : `circle 2`, 100 %, puis il fond de 3 cases sur sa cible. 5. **Morsure** 110 % / **coup de queue** `ring 1`
+   poussée 1 quand deux héros sont au contact.
+
+### Hydre des marais (`kind:'hydre'`, §2.3)
+Réserve 500 + 17/jour, PM 2, `target_rule:'weakest'`, phases 66 % / 33 %.
+1. **Trois gueules** : une attaque par tête vivante (70 %, portée 1-2), cibles séparées — les corps posés (recrues, doubles, bête,
+   élémentaire, invocations) absorbent. 2. **Têtes** : `head_hp = hp_pool/6` ; une tête à 0 est coupée (`tete_coupee`) et repousse en
+   2 tours **sauf souche cautérisée** (`brule`/`gele` → `cauterisation`) ; deux têtes dans le même passage → corps `chancelant` 2 tours
+   (`decapitation_double`, masse 0 : poussée sur un pieu = 60). 3. **Venin** (riposte) : 2 `circle 1` autour du héros, zone 2 ripostes.
+   4. **Immersion** (P2+) : elle rejoint l'eau — DEF +10, +6 % de régénération, −1 PM pour les héros dans l'eau. 5. **Sangsues** :
+   2 `giant_leech` par riposte en P2 (cap 4), `drain` 8.
+
+### Politique par défaut (`raidDefaults`) et voies
+La voie parle **avant** la routine de classe : ses sorts de dégâts (Coup de grâce, Sentence, Embuscade, Rafale) à volonté, ses sorts de
+corps (Lever une recrue, Double, Bête, Élémentaire) dans la limite de leurs caps, et **une seule installation par passage**, jamais au
+prix d'un coup (il faut 3 PA de reste ou un tour entier devant soi). Sans cette règle, les héros hybrides cessaient de frapper : la part
+de dégâts du Mage montait à 47 % et une journée de raid pouvait tomber à 0 dégât.
+
+### Calibrage retenu (T2) et écarts au spec
+| Paramètre | Spec | Retenu | Motif |
+|---|---|---|---|
+| Drake `hp_base / hp_per_day` | 800 / 55 | 400 / 13 | même échelle que le Sylvain T1 (450 / 20) ; à 18/jour, un réveil au J22 n'était plus gagnable (2/8 en partie naturelle) |
+| Hydre `hp_base / hp_per_day` | 1 000 / 65 | 500 / 17 | idem : le combat d'endurance reste le plus long sans devenir impossible tard |
+| Têtes / repousse | 3 / 2 tours | inchangé | — |
+| Venin | 2 cases `circle 1` | inchangé (`venom_cells 2`, `venom_range 3`) | — |
+| Immersion | +6 % régén., DEF +10 | inchangé | — |
+| Souffle | 120 %, `line 6` large 3 | inchangé (`breath_shield_ignore 40`, `ash_damage 12`) | — |
+| Affinité | +1 ressource | inchangé | la pastille « recommandé » ne verrouille rien : les 13 voies restent proposées |
+| Départage du besoin | colonne la plus basse | colonne la **moins remplie** (÷ `weight`), par tranches de 10 % | en valeur absolue, « dégâts » et « contrôle » n'étaient jamais les plus bas : quatre voies (Chasseur, Inquisiteur, Oracle, Traqueur) n'étaient jamais choisies |
+| Complémentarité | — | à besoin égal, une voie absente de la table passe devant | sinon six héros prenaient la même voie le même soir |
+
+Mesuré (`tactic_t2_check`, 2026-09-18) : 13 voies choisies au moins une fois sur 40 graines ; **72/72 héros hybrides au J10** ; choix
+automatique à J+2 ; 117 raids forcés (13 voies × 3 dragons × 3 graines) → chaque ressource prend ≥ 2 valeurs distinctes et les 26 sorts
+hybrides sont lancés ; Drake 15/20 (J14) et 12/20 (J21), Hydre 10/20 (J14) et 9/20 (J21), aucune journée de raid à 0 dégât, aucun raid
+non clos ; sans brûleur (ni Mage, ni Spirite, ni Conjurateur) le Sylvain tombe 9/20 contre 17/20 avec — le besoin existe toujours ;
+déterminisme 30 graines × 30 jours ; `VM.choice`, `VM.roster[].hybrid`, `VM.group_needs`, `VM.biomes[].dragon.raid` sans `undefined`
+(504 vues). Saison naturelle (40 graines, 6 managers) : Sylvain 21 gagnés / 20 perdus, Drake 3/5, Hydre 2/5.
+
+### Contrôles adaptés (devenus faux par conception, en-têtes documentés dans les bancs)
+- `engine_v4_check` : le trophée/`slain` et le retour du dragon après un raid perdu sont lus sur **le biome du raid** (les trois dragons
+  se jouent en raid, plus seulement la forêt) ; l'issue `repoussé` n'existe plus avec les plans par défaut (elle appartient à
+  l'auto-combat V4) ; plus aucun « jour d'attaque » d'auto-combat, le refus de `defend` hors menace et pendant un raid reste vérifié.
+- `tactic_t1_check` : la liste « tous les sorts lancés » ne porte que sur les **sorts de base** (les 26 hybrides sont couverts par
+  `tactic_t2_check`) ; les **raids forcés du banc T1 rejouent des héros de base** (`hybrid = null`), puisque T1 mesure le calibrage des
+  six classes ; le seuil « sans Mage, victoire < 40 % » devient « < 60 % et nettement moins qu'avec un Mage » car deux voies brûlent
+  sans Mage (Spirite : esprit de cendre ; Conjurateur : élémentaire de feu, §2.1).
+
+### Décisions et limites T2 (non couvertes par les bancs)
+- Le choix des amis simulés est résolu **dans le moteur** (phase 11a'), pas par une action `choose_hybrid` de `planDefaults` : les héros
+  tranchent l'un après l'autre, chaque choix déplaçant les besoins du suivant (une liste d'actions calculée le matin les aurait tous
+  figés sur le même besoin). L'action reste le chemin du joueur et est prouvée par le banc.
+- La proposition n'est pas obligatoire pour agir : un joueur peut envoyer `choose_hybrid` dès le seuil atteint, avant la ligne du soir.
+- `hybrid_bonus` ne vaut que +1 dans la ressource au début de chaque passage ; il ne change ni les PA, ni les PV, ni les sorts.
+- Les sorts hybrides sont refusés par `previewCast` avec la même raison que `raidAction` (ressource insuffisante, cap de corps atteint,
+  cible illégale, Drake en vol) : l'aperçu ne ment pas.
+- Le `taken` de complémentarité regarde toute la guilde (les héros des autres managers compris) : c'est « la table des copains ».
+- Non vérifié : la page (T4), les 26 spécialisations et la reconversion (T3), le Derby des Lames (§2.5), le gate fun, l'équilibre d'une
+  saison complète à 5 managers avec des voies choisies à la main, la lisibilité des cartes de choix sur téléphone.
