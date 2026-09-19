@@ -11,14 +11,19 @@ défaut qui détruit le multijoueur sans serveur sans jamais lever d'erreur.
 
 ---
 
-## Le contrôle qui compte, en une commande
+## Le contrôle qui compte
 
 ```bash
 cd games/chroniques_guilde/port/godot
-godot --headless --script run_selftest.gd
+godot --headless --path . --import                      # une seule fois
+godot --headless --path . --script res://run_selftest.gd
 ```
 
-Sortie attendue : **`58/58 — PRIMITIVES CONFORMES`**, code de sortie 0.
+Sortie attendue : **`65/65 — PRIMITIVES CONFORMES`**, code de sortie 0.
+
+**Le passage `--import` n'est pas décoratif** : tant que le projet n'a pas été scanné une fois,
+Godot n'enregistre pas les `class_name` et le banc échoue sur « Identifier "DetInt" not declared ».
+Ça ressemble à une erreur de code, ce n'en est pas une.
 Le premier échec nomme la primitive qui diverge (division tronquée vers zéro, multiplication
 32 bits, FNV-1a, mulberry32, JSON canonique) : c'est là qu'il faut s'arrêter et corriger.
 
@@ -33,7 +38,8 @@ Le premier échec nomme la primitive qui diverge (division tronquée vers zéro,
 | `det_hash.gd` | FNV-1a 32 bits, sur entier et sur chaîne |
 | `det_rng.gd` | mulberry32 et les tirages dérivés (`roll`, `chance`, `pickWeighted`) |
 | `det_canonical.gd` | JSON canonique (clés triées) — l'entrée du hachage d'état |
-| `det_selftest.gd` | les 58 contrôles, valeurs attendues produites par `port/gen_primitives.mjs` |
+| `det_json.gd` | **lecture JSON qui rend des entiers** — voir ci-dessous, ce n'est pas optionnel |
+| `det_selftest.gd` | les 65 contrôles, valeurs attendues produites par `port/gen_primitives.mjs` |
 | `run_selftest.gd` | lanceur en ligne de commande (SceneTree) |
 | `golden_check.gd` | rejeu des sept vecteurs de référence contre TON moteur porté |
 | `project.godot` | projet minimal, uniquement pour que les `class_name` se résolvent |
@@ -47,9 +53,36 @@ Ils seront régénérés **une seule fois** (`node port/gen_golden.mjs`), après
 
 `det_selftest.gd`, lui, ne dépend d'aucune donnée : il reste valable et c'est celui à lancer.
 
-## Avertissement honnête
+## Le défaut trouvé : `JSON.parse_string` rend des flottants
 
-**Aucun de ces fichiers GDScript n'a jamais été exécuté.** Ils ont été écrits sans Godot sur la
-machine d'écriture. Le même rejeu, écrit en JavaScript (`port/gen_golden.mjs`), passe 7 vecteurs
-sur 7 et 161 journées sur 161 contre le moteur d'origine — mais ça ne dit rien de GDScript.
-C'est exactement ce que la commande ci-dessus va trancher, et c'est la raison d'être de ce dossier.
+Mesuré sur **Godot 4.6.stable.official.89cea1439**, pas supposé :
+
+```gdscript
+JSON.parse_string('{"n":1000,"m":-7}')   # n et m sont des TYPE_FLOAT, pas TYPE_INT
+```
+
+Le moteur JavaScript rend des entiers. En Godot, tout `data.json` arriverait donc en flottants.
+
+Ce n'est pas cosmétique. `DetCanonical.canonical()` ramène déjà un flottant entier (`3.0`) à `"3"`,
+donc l'empreinte d'un état fraîchement chargé serait juste — et on pourrait croire que tout va bien.
+Mais entre le chargement et le hachage il y a **le jeu** : dès que le moteur calcule
+`hp_base + hp_per_day * jour`, deux flottants donnent un flottant, `div()` ne tronque plus de la
+même façon, et la discipline entière est perdue sans que rien ne le signale. Pire : les `assert`
+de garde sont **retirés en build release** — sur le téléphone, la divergence serait muette.
+
+**`det_json.gd` est la réparation.** `DetJson.parse()` / `DetJson.parse_file()` convertissent tout
+flottant de valeur entière en entier, récursivement, **à la lecture**, une fois, avant que le moteur
+ne touche à quoi que ce soit. Un vrai fractionnaire (`1.5`) est laissé visible plutôt que tronqué en
+douce : il n'a rien à faire dans l'état, et `DetCanonical` le refusera bruyamment.
+
+Le moteur porté doit lire ses données par `DetJson`, jamais par `JSON.parse_string` directement.
+
+## État des fichiers
+
+| | |
+|---|---|
+| primitives + banc | **exécutés sur Godot 4.6.stable le 2026-09-19 : 65/65, code de sortie 0** |
+| `golden_check.gd` | **jamais exécuté** — il lui faut un moteur porté, qui n'existe pas encore |
+
+Le rejeu équivalent en JavaScript (`port/gen_golden.mjs`) passe 7 vecteurs sur 7 et 161 journées
+sur 161 contre le moteur d'origine. C'est ce que le portage devra reproduire.

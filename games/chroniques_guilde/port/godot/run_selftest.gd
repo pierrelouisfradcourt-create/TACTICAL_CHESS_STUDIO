@@ -8,13 +8,17 @@
 #  ne fait rien d'autre qu'appeler `run_all()` sur le banc.
 #
 #  Usage, depuis games/chroniques_guilde/port/godot/ :
-#      godot --headless --script run_selftest.gd
-#  Sortie attendue : « 58/58 — PRIMITIVES CONFORMES », code de sortie 0.
+#      godot --headless --path . --import            # une fois : sans ce passage
+#                                                    # les `class_name` ne sont pas
+#                                                    # enregistrés et le script
+#                                                    # échoue sur « DetInt inconnu »
+#      godot --headless --path . --script res://run_selftest.gd
+#  Sortie attendue : « 65/65 — PRIMITIVES CONFORMES », code de sortie 0.
 #  Le premier échec nomme la primitive qui diverge : c'est là que le portage
 #  casse, et il casse en silence si on ne le regarde pas.
 #
 #  ---------------------------------------------------------------------------
-#  CE FICHIER N'A PAS ÉTÉ EXÉCUTÉ (pas de Godot sur la machine d'écriture).
+#  EXÉCUTÉ LE 2026-09-19 SUR GODOT 4.6.stable : 65/65, code de sortie 0.
 #  Si `--script` refuse le projet, le chemin à la souris marche toujours :
 #  ouvre ce dossier comme projet, pose `det_selftest.gd` sur un Node, F6.
 #  ---------------------------------------------------------------------------

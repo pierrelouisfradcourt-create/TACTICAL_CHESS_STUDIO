@@ -7,7 +7,9 @@
 #  n'affiche pas 100 %, le multijoueur sans serveur ne tient pas.
 #
 #  ---------------------------------------------------------------------------
-#  CE CODE N'A PAS ÉTÉ EXÉCUTÉ (pas de Godot sur la machine d'écriture).
+#  CE CODE N'A PAS ENCORE ÉTÉ EXÉCUTÉ : il lui faut un moteur porté, qui
+#  n'existe pas. Les PRIMITIVES dont il dépend, elles, sont vérifiées sur
+#  Godot 4.6.stable (det_selftest.gd, 65/65 le 2026-09-19).
 #  Le MÊME rejeu, écrit en JavaScript (port/gen_golden.mjs), passe 7 vecteurs
 #  sur 7 et 161 journées sur 161 contre le moteur d'origine.
 #  ---------------------------------------------------------------------------
@@ -141,7 +143,11 @@ func _load_json(p: String) -> Variant:
 		return null
 	var txt := f.get_as_text()   # get_as_text() lit en UTF-8 : c'est ce qu'il faut
 	f.close()
-	var parsed: Variant = JSON.parse_string(txt)
+	# V5 T9, MESURÉ : JSON.parse_string rend des FLOTTANTS pour des nombres entiers.
+	# DetJson les ramène à des entiers AVANT que le moteur ne calcule quoi que ce
+	# soit — sans ça, `div()` ne tronque plus pareil et la divergence est muette
+	# en build release, où les `assert` de garde sont retirés.
+	var parsed: Variant = DetJson.parse(txt)
 	if parsed == null:
 		printerr("JSON invalide : " + p)
 	return parsed

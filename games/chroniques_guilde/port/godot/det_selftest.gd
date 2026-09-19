@@ -4,14 +4,19 @@
 #
 #  À FAIRE EN PREMIER, AVANT D'ÉCRIRE UNE SEULE RÈGLE DE JEU.
 #  Toutes les valeurs attendues ci-dessous sont produites par le moteur
-#  JavaScript de référence (port/gen_primitives.mjs, 2026-09-19). Ce fichier
-#  GDScript, lui, n'a PAS été exécuté : c'est précisément ce que tu vérifies.
+#  JavaScript de référence (port/gen_primitives.mjs, 2026-09-19).
 #
-#  Usage le plus court, depuis ce dossier (il contient un project.godot) :
-#      godot --headless --script run_selftest.gd
+#  EXÉCUTÉ LE 2026-09-19 SUR GODOT 4.6.stable.official.89cea1439 : 65/65.
+#  Un seul défaut réel trouvé au passage — JSON.parse_string rend des
+#  flottants — réparé par det_json.gd, qui est désormais la seule façon
+#  correcte de lire data.json. Voir PORT_GODOT.md, piège 11.
+#
+#  Usage, depuis ce dossier (il contient un project.godot) :
+#      godot --headless --path . --import            # une fois, cf. README
+#      godot --headless --path . --script res://run_selftest.gd
 #  Sinon, à la souris : ouvre ce dossier comme projet, pose ce script sur le
 #  nœud racine d'une scène vide, puis F6.
-#  Sortie attendue : « 58/58 — PRIMITIVES CONFORMES ».
+#  Sortie attendue : « 65/65 — PRIMITIVES CONFORMES ».
 #  Le premier échec dit lequel : c'est là que le portage diverge.
 # =============================================================================
 extends Node
@@ -140,9 +145,26 @@ func _t_canonical() -> void:
 	var k: Array = ["b", "A", "10", "2", "é", "a"]
 	k.sort()
 	_eq("tri par point de code", str(k), str(["10", "2", "A", "a", "b", "é"]))
-	# Le parseur JSON de Godot rend-il des ENTIERS pour les nombres entiers ?
-	# Si cette ligne échoue, tout data.json arrive en flottants et il faut le
-	# convertir à la lecture (voir PORT_GODOT.md, piège 11).
-	var parsed: Variant = JSON.parse_string('{"n":1000,"m":-7}')
-	_eq("JSON.parse_string rend des int", "%d/%d" % [typeof(parsed["n"]), typeof(parsed["m"])],
+	# PIÈGE 11, MESURÉ SUR GODOT 4.6.stable : le parseur JSON rend des FLOTTANTS.
+	# Ce contrôle n'attend donc plus des entiers — il constate le défaut, pour que
+	# personne ne croie un jour qu'il a disparu sans l'avoir vérifié.
+	var brut: Variant = JSON.parse_string('{"n":1000,"m":-7}')
+	_eq("JSON.parse_string rend des flottants (défaut connu de Godot)",
+		"%d/%d" % [typeof(brut["n"]), typeof(brut["m"])], "%d/%d" % [TYPE_FLOAT, TYPE_FLOAT])
+	# ... et DetJson est ce qui le répare. C'est LUI qui doit lire data.json.
+	var net: Variant = DetJson.parse('{"n":1000,"m":-7,"a":[1,2,[3]],"o":{"k":4},"s":"x","b":true,"z":null}')
+	_eq("DetJson.parse : entiers à la racine", "%d/%d" % [typeof(net["n"]), typeof(net["m"])],
 		"%d/%d" % [TYPE_INT, TYPE_INT])
+	_eq("DetJson.parse : valeurs", "%d/%d" % [net["n"], net["m"]], "1000/-7")
+	_eq("DetJson.parse : entiers dans un tableau imbriqué",
+		"%d/%d" % [typeof(net["a"][0]), typeof(net["a"][2][0])], "%d/%d" % [TYPE_INT, TYPE_INT])
+	_eq("DetJson.parse : entiers dans un dictionnaire imbriqué", typeof(net["o"]["k"]), TYPE_INT)
+	_eq("DetJson.parse : chaîne, booléen et nul intacts",
+		"%d/%d/%d" % [typeof(net["s"]), typeof(net["b"]), typeof(net["z"])],
+		"%d/%d/%d" % [TYPE_STRING, TYPE_BOOL, TYPE_NIL])
+	# Un vrai fractionnaire n'est PAS tronqué en douce : il reste visible, et
+	# DetCanonical le refusera bruyamment s'il arrive jusqu'au hachage.
+	var frac: Variant = DetJson.parse('{"x":1.5}')
+	_eq("DetJson.parse : un fractionnaire reste flottant", typeof(frac["x"]), TYPE_FLOAT)
+	# Et le canonique d'une table passée par DetJson est identique à celui de JS.
+	_eq("canonical après DetJson", DetCanonical.canonical(DetJson.parse('{"b":2,"a":1}')), '{"a":1,"b":2}')

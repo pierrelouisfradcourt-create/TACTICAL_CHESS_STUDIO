@@ -457,6 +457,20 @@ des `float`. Aucun n'a sa place dans une règle.
 
 ### Piège 11 — Le parseur JSON de Godot et les entiers de `data.json`
 
+> **✅ MESURÉ LE 2026-09-19 SUR GODOT 4.6.stable.official.89cea1439 — LE PIÈGE EST RÉEL.**
+> `JSON.parse_string('{"n":1000,"m":-7}')` rend **deux `TYPE_FLOAT`**. Ce n'était pas une
+> précaution théorique : c'est le seul défaut trouvé en exécutant les 65 contrôles du banc.
+> **Réparation livrée** : `port/godot/det_json.gd`. `DetJson.parse()` et `DetJson.parse_file()`
+> ramènent récursivement tout flottant de valeur entière à un entier, **à la lecture**, avant
+> que le moteur ne calcule quoi que ce soit. Le moteur porté lit ses données par `DetJson`,
+> jamais par `JSON.parse_string` directement. Un vrai fractionnaire est laissé visible plutôt
+> que tronqué en douce — `DetCanonical` le refusera bruyamment.
+>
+> Pourquoi ça ne pardonne pas : `canonical()` ramène déjà `3.0` à `"3"`, donc l'empreinte d'un
+> état fraîchement chargé serait juste et on croirait que tout va bien. Mais dès que le moteur
+> calcule, `div()` ne tronque plus pareil — et les `assert` de garde **disparaissent en build
+> release**, donc sur le téléphone la divergence serait muette.
+
 **Ce qu'il faut vérifier avant tout le reste.** `data.json` fait 229 Ko et **53 tables**, toutes en entiers
 (probabilités en pour mille, multiplicateurs en centièmes). Si `JSON.parse_string` de Godot rend `1000.0` là où
 le fichier porte `1000`, alors :
@@ -778,9 +792,13 @@ une valeur manque dans `VM`, c'est `viewModel` qu'il faut compléter, pas Godot.
 
 **Les fondations**
 
-- [ ] `det_selftest.gd` affiche **58/58 — PRIMITIVES CONFORMES** (division, `imul32`, FNV entier, FNV chaîne
-      UTF-8 avec accents, mulberry32, canonique, empreinte, tri par point de code).
-- [ ] `JSON.parse_string` rend des `int` pour les nombres entiers de `data.json` (piège 11).
+- [x] `det_selftest.gd` affiche **65/65 — PRIMITIVES CONFORMES** (division, `imul32`, FNV entier, FNV chaîne
+      UTF-8 avec accents, mulberry32, canonique, empreinte, tri par point de code, lecture JSON entière).
+      **Fait le 2026-09-19 sur Godot 4.6.stable, code de sortie 0.** Deux commandes, cf.
+      `port/godot/README.md` — le passage `--import` est obligatoire une fois, sinon les
+      `class_name` ne sont pas enregistrés.
+- [x] Le piège 11 est CONFIRMÉ (`JSON.parse_string` rend des flottants) et réparé par `det_json.gd`.
+      Le moteur porté doit lire par `DetJson`, jamais par `JSON.parse_string`.
 - [ ] `data_fnv` calculé sur `data.json` vaut **`97a2d68a`**.
 - [ ] Aucun `float` ne peut entrer dans l'état : `canonical()` lève une assertion (piège 10).
 - [ ] Toutes les copies d'état sont des `duplicate(true)` (piège 8).
