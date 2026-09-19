@@ -36,9 +36,6 @@ polices système : les polices Google ne se chargent qu'en http(s).
 - V5 T4 : écran Raid dans la page — grille tactile, bandeau du boss avec sa riposte annoncée, barre de sorts,
   aperçu de zone en deux temps, journal des passages, jauge du boss sur le tableau et l'aperçu widget.
   La page charge `tactic.js`. Banc `test/ui_v5_check.mjs` (39).
-  Limite connue, à arbitrer : le passage humain se compose sur la grille du matin alors que le moteur le rejoue
-  après ceux des amis (managers triés par identifiant, le joueur passe dernier). La page prévient en clair quand
-  un passage sera interrompu, et les traces laissées par les amis le jour même n'apparaissent que le lendemain.
 - V5 T2 : treize voies hybrides choisies vers le jour 8, Drake et Hydre en raid.
 - V5 T2b : passages de raid rejoués dans l'ordre de réception (interruptions 71 % → 0 %), huit bugs de
   l'audit corrigés, code mort retiré.
@@ -52,6 +49,8 @@ polices système : les polices Google ne se chargent qu'en http(s).
   des accès bruts à l'état dans la page) ; réveils de dragon très tardifs encore difficiles.
 
 ## État
-software_verdict: OK (19/19 · 13/13 · 24/24 · 20/20 · 52/52 · 48/48 · 55/55 · 39/39 au 2026-09-18) · evidence_verdict: MECHANICAL_VALIDATION_ONLY ·
-claim_verdict: NO_CLAIM_ALLOWED. Aucun playtest humain. Coupes, calibrages et non-vérifiés : voir CONTRACT.md
-(section V4) et design/UI_BRIEF_V2.md. Non codé : fond d'écran animé Android, morts-vivants, portail.
+software_verdict: OK — treize bancs verts au 2026-09-19 : 10, 19, 16, 28, 26, 14, 14, 12, 52, 36, 55, 48, 90.
+evidence_verdict: MECHANICAL_VALIDATION_ONLY · claim_verdict: NO_CLAIM_ALLOWED.
+**Aucun playtest humain** : rien n'est prouvé sur le plaisir de jeu, seulement sur le comportement mécanique.
+Coupes, calibrages, décisions et non-vérifiés : voir CONTRACT.md (une section par tranche) et design/.
+Non codé : fond d'écran animé Android, portage, morts-vivants, portail.
