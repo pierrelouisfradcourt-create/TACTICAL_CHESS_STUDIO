@@ -125,6 +125,10 @@ textarea { width: 100%; font-family: 'IBM Plex Mono', ui-monospace, Menlo, Conso
 .scene-head h2 { font-size: 17px; }
 .clock { font-family: var(--font-title); font-weight: 700; font-size: 15px; padding: 2px 10px; border-radius: 999px; background: var(--raised); border: 1px solid var(--line); white-space: nowrap; }
 .clock[data-phase="evening"] { background: var(--gold-soft); color: var(--gold); border-color: transparent; }
+/* « le jour attend » : la course du soleil est retenue tant que mon héros n'a pas joué (le * global de la
+   ligne prefers-reduced-motion plus bas coupe l'animation). */
+.clock[data-blocked="1"] { background: var(--gold-soft); color: var(--gold); border-color: transparent; animation: clock-wait 2.6s ease-in-out infinite; }
+@keyframes clock-wait { 0%, 100% { opacity: .74; } 50% { opacity: 1; } }
 .scene-head .spacer { flex: 1 1 auto; }
 canvas#scene { display: block; width: 100%; border-radius: var(--radius); border: 1px solid var(--line); background: var(--bg); }
 .widget-tile { flex: none; width: 160px; height: 160px; margin: 0 auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden; }
@@ -908,7 +912,7 @@ function newGameFromInput() {
 function prepareMorning() {
   stopClock();
   tb.phase = 'morning'; tb.hour = DAY_START; tb.hours = {}; tb.placed = {}; tb.revealed = {}; tb.bubbles = []; tb.chron = null; tb.markers = null; tb.autoPlayed = false; tb.craftUp = {};
-  app.plan = planFromDefaults(); app.chosen = false; app.slotOpen = -1;
+  app.plan = planFromDefaults(); app.chosen = false; app.slotOpen = -1; sunReset();   /* le soleil repart de l'aube, sans glisser à rebours */
   friends().forEach(function (m) { tb.hours[m.id] = playHour(app.seed, app.state.day, m.id); });
   raidReset();
   if (raidToday()) { app.tab = 'raid'; app.contentTab = 'raid'; }
@@ -931,7 +935,7 @@ function revealFriend(id, silent) {
   var act = heroOf(id) ? aiActivity(aiPlan(id)) : 'dead';
   tb.revealed[id] = true; tb.placed[id] = act;
   if (!silent) tb.bubbles.push({ id: id, text: managerById(id).name + ' ' + (ACT_VERB[act] || act), until: tb.hour + 2.5 });
-  renderPlayed();
+  renderPlayed(); renderClock();          /* un ami révélé fait avancer le soleil : la pastille suit */
 }
 function skipDay() {
   if (tb.phase !== 'morning') return;
@@ -959,7 +963,7 @@ function commitDay(full, slots) {
   if (!v.ok) { toast(v.reason, 'crit'); return false; }
   app.plan.full = full; app.plan.slots = slots; app.chosen = true; app.slotOpen = -1;
   tb.placed[ME] = primaryActivity(full, slots);
-  renderHero(); renderQuick(); renderPlayed(); publishTableau(); drawAll();
+  renderHero(); renderQuick(); renderPlayed(); renderClock(); publishTableau(); drawAll();   /* je joue : le soleil achève sa course */
   return true;
 }
 function presetFull(p) { return p.slots.length ? (FULL_DAY[p.slots[0].activity] ? p.slots[0].activity : null) : 'rest'; }
@@ -1509,9 +1513,10 @@ function raidTableau() {
 }
 /* ---------- scène : LE DOMAINE QUI GRANDIT (CHATEAU_SPEC §1 à §8) ----------
    Un seul tableau sert l'écran, la vignette et le futur fond d'écran. Tout vient du modèle de vue
-   (âge, bâtiments, niveaux, gardes, chantier, trophées, menace) et de l'heure simulée : la page ne
-   calcule aucune règle, ne lit jamais l'état brut et ne tire rien au hasard — les variantes de décor
-   viennent de fnv1a(clé stable), les soldats d'une fonction entière de l'heure et de leur index. */
+   (âge, bâtiments, niveaux, gardes, chantier, trophées, menace) et de LA COURSE DU SOLEIL, qui est
+   l'avancement du tour de table (§7) : la page ne calcule aucune règle, ne lit jamais l'état brut et ne
+   tire rien au hasard — les variantes de décor viennent de fnv1a(clé stable), les soldats d'une fonction
+   entière de l'heure du soleil et de leur index. */
 var LW = 800, LH = 460, GROUND0 = 300, HORIZON = 190;
 /* §1 — caméra par âge : zoom en centièmes, ligne de sol. Le repère logique historique (sol 300) EST
    l'âge 0 : la caméra ne fait que reculer et descendre le sol pendant que la silhouette monte. */
@@ -1576,13 +1581,17 @@ var ROOFS = { hall: '#5d6672', chapel: '#5a6472', forge: '#4a4340', warehouse: '
 var MAT = { stone: '#b9b3a4', stoneSide: '#948d80', stoneDark: '#6d6860', crest: '#cfc9ba',
   wood: '#a5875c', woodSide: '#7d6544', woodDark: '#54432e', roof: '#7c4a3a', roofSide: '#5b3527',
   thatch: '#bda05f', thatchSide: '#8e7442', water: '#3a6b76', waterDark: '#1e3b45' };
-/* §7 — quatre gammes interpolées sur l'heure simulée : aube froide, plein jour, soir doré, nuit bleue. */
+/* §7 — quatre gammes interpolées sur l'heure DU SOLEIL (= l'avancement du tour de table) : aube froide,
+   plein jour, soir doré, nuit bleue. */
 var TONE = [
   { h: 5, sky: ['#1b2440', '#3c4566'], grass: '#2e3f36', far: '#414a60', night: 1, warm: '#7a86b8' },
   { h: 8, sky: ['#8fa8c8', '#f0d3ba'], grass: '#7c9e74', far: '#8894a6', night: 0.34, warm: '#ffd9a8' },
   { h: 11, sky: ['#bcd4e2', '#eef1e4'], grass: '#9cc27d', far: '#9a9aa6', night: 0, warm: '#fff0cf' },
   { h: 16, sky: ['#b2cfe2', '#f2efdd'], grass: '#9abe76', far: '#9a9aa6', night: 0, warm: '#ffe9bd' },
   { h: 19, sky: ['#6c5b93', '#f0a86a'], grass: '#7e8f5f', far: '#7d7489', night: 0.42, warm: '#ffc074' },
+  /* 20 h = TOUT LE MONDE A JOUÉ : le couchant doit être un vrai couchant doré, pas un fondu au noir — sans ce
+     palier, l'état « 5 / 5 » et le soir de la résolution se ressemblaient. */
+  { h: 20, sky: ['#4b3f70', '#f09a5c'], grass: '#6d7d55', far: '#6b647c', night: 0.58, warm: '#ffb268' },
   { h: 21, sky: ['#171d2e', '#4a3d5a'], grass: '#33482f', far: '#4a4a55', night: 1, warm: '#ffce7a' },
   { h: 28, sky: ['#141a2a', '#33304c'], grass: '#26372b', far: '#3f3f4c', night: 1, warm: '#ffce7a' }
 ];
@@ -1592,6 +1601,7 @@ function lerp(a, b, p) { return a + (b - a) * p; }
 function ease(p) { return p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; }
 function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 function r1(v) { return Math.round(v * 10) / 10; }
+function r3(v) { return Math.round(v * 1000) / 1000; }
 function hex2rgb(h) {
   var m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(h || '');
   if (m) return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
@@ -1675,8 +1685,47 @@ function exitAnchor(cam) {
   return { x: lerp(out.x, g.x, w), y: lerp(out.y, g.y, w) };
 }
 
-/* ---------- §7 : heure simulée, gammes du jour et de la nuit ---------- */
-function sceneHour() { return tb.phase === 'evening' ? NIGHT_HOUR : Math.max(0, Math.min(24, tb.hour)); }
+/* ---------- §7 : LE SOLEIL COMPTE LES JOUEURS (2026-09-19), gammes du jour et de la nuit ----------
+   La course du soleil N'EST PLUS l'horloge simulée : c'est l'avancement du tour de table.
+   t = joueurs ayant joué / joueurs de la guilde. t = 0 → aube rasante à l'est (8 h) ; t = 1 → soleil
+   couchant à l'ouest (20 h) ; le soir de la résolution bascule la scène à la nuit (23 h).
+   L'horloge simulée garde son seul rôle : dire QUAND chaque ami est révélé (heure déterministe) ; c'est la
+   révélation qui fait avancer le compteur, donc le soleil.
+   LE JOUR T'ATTEND : tant que mon héros n'a pas joué, la course s'arrête au seuil bas SUN_HOLD (0,8 → 17 h 36,
+   marge nette au-dessus de l'horizon) et la scène y reste, halo pulsé sous le soleil et pastille « le jour
+   attend » au lieu d'une heure figée. Dès que je joue, la course s'achève et le soir peut tomber.
+   Le passage d'une position à l'autre GLISSE en SUN_MS (instantané sous prefers-reduced-motion). */
+var SUN_HOLD = 0.8, SUN_MS = 900, SUN_X0 = 212, SUN_X1 = 676;
+var sunS = { from: 0, to: 0, t0: 0, set: false };
+function sunReset() { sunS = { from: 0, to: 0, t0: 0, set: false }; sunC = null; }
+/* avancement VOULU par le tour de table, avant glissement */
+function sunWant() {
+  var total = Math.max(1, app.managers.length), played = playedCount(), mine = !!tb.placed[ME];
+  var raw = clamp01(played / total);
+  return { played: played, total: total, mine: mine, raw: raw, want: mine ? raw : Math.min(raw, SUN_HOLD),
+    blocked: !mine && (raw >= SUN_HOLD || played >= total - 1) };
+}
+function sunEased() {
+  var p = motionMQ.matches || !sunS.t0 ? 1 : ease(clamp01((Date.now() - sunS.t0) / SUN_MS));
+  return lerp(sunS.from, sunS.to, p);
+}
+function sunCompute() {
+  var g = sunWant(), evening = tb.phase === 'evening';
+  if (!sunS.set) sunS = { from: g.want, to: g.want, t0: 0, set: true };
+  else if (sunS.to !== g.want) sunS = { from: sunEased(), to: g.want, t0: Date.now(), set: true };
+  var t = evening ? 1 : sunEased();
+  return { played: g.played, total: g.total, mine_played: g.mine, t: t, target: g.want, raw: g.raw,
+    hour: evening ? NIGHT_HOUR : DAY_START + t * (DAY_END - DAY_START), blocked: !evening && g.blocked,
+    evening: evening, moving: !evening && Math.abs(t - g.want) > 0.001 };
+}
+/* Un seul soleil par image : toutes les couches (ciel, ombres, pont-levis, soldats) lisent la même valeur. */
+var sunC = null;
+function sunFrame() { if (!sunC) sunC = sunCompute(); return sunC; }
+/* La course elle-même : arc d'est en ouest, dégagé de la montagne (x < 206) et du donjon lointain (x > 706).
+   La garde au-dessus de l'horizon est PROPORTIONNELLE à la hauteur de ciel disponible : l'horizon descend dans
+   l'image quand la caméra recule (§1), et sans cela le soleil d'aube passait derrière la ligne d'arbres. */
+function sunXY(t, hz) { return { x: SUN_X0 + clamp01(t) * (SUN_X1 - SUN_X0), y: Math.max(26, hz - (0.2 * hz + 16) - Math.sin(clamp01(t) * Math.PI) * (hz * 0.52)) }; }
+function sceneHour() { return sunFrame().hour; }
 function toneAt(hour) {
   var i = 0, h = hour < TONE[0].h ? TONE[0].h : hour;
   while (i < TONE.length - 2 && TONE[i + 1].h <= h) i++;
@@ -1694,11 +1743,21 @@ function drawShadow(ctx, cx, base, w, tone) {
 
 /* ---------- §9 : registre de scène, image fidèle de ce qui est dessiné (lecture seule) ---------- */
 function sceneNew(age, lod, cam, tone) {
+  var sn = sunFrame(), sp = sunXY(sn.t, camY(cam, HORIZON));
   return { age: age, lod: lod, hour: r1(tone.hour), night: tone.night > 0.55, camera: { zoom: Math.round(cam.z * 100), ground: r1(cam.g) },
+    /* §7 — LE SOLEIL COMPTE LES JOUEURS : t = avancement du tour de table, x/y = sa position dessinée
+       (repère logique 800 × 460, y vers le bas), blocked = la course attend mon héros au seuil bas. */
+    sun: { played: sn.played, total: sn.total, mine_played: sn.mine_played, t: r3(sn.t),
+      hour: r1(sn.hour), blocked: sn.blocked, evening: sn.evening, moving: sn.moving, x: r1(sp.x), y: r1(sp.y),
+      hold: SUN_HOLD, label: clockLabel() },
     buildings: [], lots: [], soldiers: [], wall: null, drawbridge: null, silhouette_h: 0, construction: null, banners: 0, guards: 0,
     courtyard: null, moat: null, labels: [], figures: [], front_occlusion: null, canvas: { w: 0, h: 0 },
     /* les teintes réellement posées : le banc compare le sol de cour à la prairie sans deviner */
-    palette: { grass: tone.grass, court_back: matOf('#8f7f5e', tone), court_front: matOf('#d0c09a', tone), water: matOf(MAT.water, tone) } };
+    palette: { grass: tone.grass, court_back: matOf('#8f7f5e', tone), court_front: matOf('#d0c09a', tone), water: matOf(MAT.water, tone),
+      sky0: tone.sky0, sky1: tone.sky1, warm: tone.warm, night_k: r3(tone.night),
+      /* l'ombre portée telle que drawShadow la pose : direction (dx > 0 = l'ombre part à l'est, le soleil est à l'ouest), longueur, opacité */
+      shadow: { dx: r3(sunK(tone).dx), len: r3(sunK(tone).len), a: r3(sunK(tone).a) }, gold: r3(goldK(tone)),
+      lamps: tone.night > 0.45 } };   /* fenêtres en or et torches : le seuil réellement utilisé par le dessin */
 }
 function sceneTop(sc, y) { if (sc) sc.silhouette_h = Math.max(sc.silhouette_h, r1(GROUND0 - y)); }
 function sceneAdd(sc, cam, id, cx, base, w, topY, level) {
@@ -1744,6 +1803,7 @@ function hallB() { return app.vm.buildings.filter(function (x) { return x.id ===
 
 /* ---------- le tableau ---------- */
 function drawAll() {
+  sunC = null;                                   /* le soleil est recalculé une fois par image, lu par toutes les couches */
   var moving = stepPositions(motionMQ.matches);
   drawScene($('scene'), false); drawScene($('widget-canvas'), true);
   return moving;
@@ -1820,7 +1880,7 @@ function drawForeground(ctx, tone, lod) {
 /* ---------- ciel, sol, lointain ---------- */
 function drawBackdrop(ctx, cam, tone, t, lod) {
   var th = threatPhase(), out = threatOutcome(), ruin = !!app.vm.defeat, hz = camY(cam, HORIZON);
-  drawSky(ctx, tone, hz, th === 'today', ruin, lod);
+  drawSky(ctx, tone, hz, th === 'today', ruin, lod, t);
   ctx.fillStyle = ruin ? '#6a6e62' : mix(tone.grass, tone.far, 0.4 * (1 - tone.night * 0.6));
   ctx.beginPath(); ctx.moveTo(0, hz + 2); ctx.quadraticCurveTo(190, hz - 5, 390, hz + 1); ctx.quadraticCurveTo(600, hz - 4, LW, hz + 2); ctx.lineTo(LW, LH); ctx.lineTo(0, LH); ctx.fill();
   drawHills(ctx, tone, hz, ruin);
@@ -1831,8 +1891,8 @@ function drawBackdrop(ctx, cam, tone, t, lod) {
   if (!ruin) { ctx.font = uiFont(10, 700); ctx.fillStyle = tone.night > 0.5 ? '#cfc7d6' : '#3b3644'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillText('Donjon', 764, hz + 34); }
   if (!ruin) drawSkyDragon(ctx, tone, t, th, out, hz);
 }
-function drawSky(ctx, tone, hz, red, ruin, lod) {
-  var g = ctx.createLinearGradient(0, 0, 0, hz + 6), u = clamp01((tone.hour - 8) / 12);
+function drawSky(ctx, tone, hz, red, ruin, lod, t) {
+  var g = ctx.createLinearGradient(0, 0, 0, hz + 6), sn = sunFrame(), u = clamp01(sn.t);
   if (ruin) { g.addColorStop(0, '#585c60'); g.addColorStop(1, '#9a9a96'); }
   else if (red) { g.addColorStop(0, mix(tone.sky0, '#7e2f2c', 0.6)); g.addColorStop(1, mix(tone.sky1, '#e8b48a', 0.55)); }
   else { g.addColorStop(0, tone.sky0); g.addColorStop(1, tone.sky1); }
@@ -1841,13 +1901,31 @@ function drawSky(ctx, tone, hz, red, ruin, lod) {
   if (tone.night > 0.5) {
     ctx.fillStyle = 'rgba(255,255,255,' + (0.3 + 0.5 * tone.night).toFixed(2) + ')';
     for (var i = 0; i < 30; i++) { var h = fnv1a('star' + i); ctx.fillRect(16 + (h % 768), 8 + ((h >>> 8) % Math.max(40, Math.round(hz) - 40)), 1.6, 1.6); }
+  }
+  /* La lune n'arrive qu'à la nuit tombée (le soir de la résolution) : tant que le tour de table dure, le ciel
+     garde SON SOLEIL, même au couchant — c'est lui qui porte le compteur. */
+  if (tone.night > 0.9) {
     ctx.beginPath(); ctx.arc(694, 56, 15, 0, 6.2832); ctx.fillStyle = '#e8e4c8'; ctx.fill();
     ctx.beginPath(); ctx.arc(686, 49, 12.5, 0, 6.2832); ctx.fillStyle = mix(tone.sky0, '#000000', 0.12); ctx.fill();
-  } else {
-    var sx = 60 + u * (LW - 120), sy = Math.max(26, hz - 34 - Math.sin(u * Math.PI) * (hz * 0.6));
+  }
+  if (tone.night < 0.92) {
+    /* §6 — le disque grossit d'un tiers à la vignette (160 px) : la HAUTEUR du soleil doit rester lisible
+       d'un coup d'œil à cette taille. Même position, même teinte : seul le rayon change. */
+    var sp = sunXY(u, hz), sx = sp.x, sy = sp.y, R = lod === 2 ? 24 : 16;
     var gl = ctx.createRadialGradient(sx, sy, 6, sx, sy, 80); gl.addColorStop(0, rgba(tone.warm, 0.5)); gl.addColorStop(1, rgba(tone.warm, 0));
     ctx.fillStyle = gl; ctx.fillRect(sx - 82, sy - 82, 164, 164);
-    ctx.beginPath(); ctx.arc(sx, sy, 16, 0, 6.2832); ctx.fillStyle = red ? '#f0a050' : mix('#f7dd8a', tone.warm, 0.45); ctx.fill();
+    /* LE JOUR T'ATTEND : la course est retenue au seuil bas ; un halo respire sous le soleil (immobile
+       sous prefers-reduced-motion, où `t` vaut 0) pour dire que la journée attend quelqu'un. */
+    if (sn.blocked) {
+      var puls = 0.5 + 0.5 * Math.sin((t || 0) * 2.1), rr = R + 6 + 7 * puls;
+      ctx.save(); ctx.strokeStyle = rgba(tone.warm, 0.16 + 0.26 * puls); ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.arc(sx, sy, rr, 0, 6.2832); ctx.stroke();
+      ctx.strokeStyle = rgba(tone.warm, 0.1 + 0.14 * (1 - puls)); ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(sx, sy, rr + 9, 0, 6.2832); ctx.stroke(); ctx.restore();
+    }
+    /* Le disque se charge d'orange quand la course s'achève : un couchant se lit à sa couleur autant qu'à sa hauteur. */
+    var disc = mix(mix('#f7dd8a', tone.warm, 0.45), '#ef8a42', clamp01((tone.night - 0.2) / 0.6) * 0.75);
+    ctx.beginPath(); ctx.arc(sx, sy, R, 0, 6.2832); ctx.fillStyle = red ? '#f0a050' : disc; ctx.fill();
   }
   drawClouds(ctx, tone, hz);
   if (lod < 2 && tone.night < 0.4) drawBirds(ctx, hz);
@@ -1866,7 +1944,8 @@ function drawMeadow(ctx, tone, hz, lod) {
 }
 function drawClouds(ctx, tone, hz) {
   var a = 0.42 - tone.night * 0.3; if (a <= 0.04) return;
-  [[130, 0.4, 1], [420, 0.26, 0.8], [648, 0.48, 1.15]].forEach(function (c) {
+  /* Les nuages se tiennent HORS de l'arc du soleil : c'est le soleil qui porte le compteur, on ne le voile pas. */
+  [[126, 0.40, 1], [306, 0.17, 0.8], [700, 0.36, 1.05]].forEach(function (c) {
     var x = c[0], y = hz * c[1], k = c[2] * 24;
     ctx.fillStyle = 'rgba(255,255,255,' + a.toFixed(2) + ')'; ctx.beginPath();
     ctx.ellipse(x, y, k * 1.7, k * 0.5, 0, 0, 6.2832); ctx.ellipse(x - k * 0.9, y + k * 0.16, k * 0.85, k * 0.38, 0, 0, 6.2832);
@@ -2365,7 +2444,7 @@ function drawTrophyBanners(ctx, e, tone, sc, t, gh) {
     ctx.fillStyle = rgba('#e8c86a', 0.9); ctx.fillRect(x + 2.6, y + 4, 2.8, 2.8);
   }
 }
-/* Pont-levis : abaissé de 8 h à 20 h d'heure simulée, relevé la nuit, bascule en 1 500 ms, chaînes au plus fin. */
+/* Pont-levis : abaissé de 8 h à 20 h d'heure du soleil, relevé la nuit, bascule en 1 500 ms, chaînes au plus fin. */
 var brS = { down: null, t0: 0 };
 function bridgeWanted(hour) { return hour >= BRIDGE_DOWN && hour < BRIDGE_UP; }
 function bridgeState(hour) {
@@ -2455,7 +2534,7 @@ function drawStall(ctx, x, y, tone) {
   for (var i = 0; i < 4; i++) quad(ctx, [x - 14 + i * 7, y - 12, x - 7 + i * 7, y - 12, x - 8 + i * 7, y - 18, x - 15 + i * 7, y - 18], i % 2 ? a : b);
 }
 /* §5 — soldats : nombre = gardes de l'âge ; faction à la porte, ronde sur le chemin de ronde,
-   position entière dérivée de l'heure simulée et de l'index (identique sur tous les téléphones). */
+   position entière dérivée de l'heure du soleil et de l'index (identique sur tous les téléphones). */
 function soldierSpots(e, guards, hour) {
   var out = [], n = Math.max(0, guards | 0), i;
   if (!e || !n) return out;
@@ -2793,7 +2872,9 @@ function drawSkyDragon(ctx, tone, t, th, out, hz) {
     g.addColorStop(0, rgba(c[0], 0)); g.addColorStop(0.55, rgba(c[0], 0.3)); g.addColorStop(1, rgba(c[1], 0.62));
     ctx.fillStyle = g; ctx.fillRect(0, top, LW, hz + 4 - top);
   }
-  if (!night && (th === 'today' || raid)) { var a = t * 0.45, x = 430 + Math.cos(a) * 190, y = hz * 0.5 + Math.sin(a) * 28; drawDragon(ctx, x, y, 1.15, flap, 'rgba(60,18,18,0.92)', -Math.sin(a) >= 0 ? 1 : -1); }
+  /* Le dragon tourne SOUS l'arc du soleil : depuis que le soleil porte le compteur du tour de table, il ne
+     doit être voilé par rien (il l'était au-dessus des murs les jours d'attaque). */
+  if (!night && (th === 'today' || raid)) { var a = t * 0.45, x = 430 + Math.cos(a) * 190, y = hz * 0.63 + Math.sin(a) * 22; drawDragon(ctx, x, y, 1.15, flap, 'rgba(60,18,18,0.92)', -Math.sin(a) >= 0 ? 1 : -1); }
   else if (night && th === 'presage') drawDragon(ctx, 703, hz * 0.34, 0.8, 0.35 + flap * 0.15, '#0f121e', -1);
   else if (night && out === 'repoussé') drawDragon(ctx, 560 + Math.sin(t * 0.5) * 12, hz * 0.4, 0.72, flap, '#2a1a2a', 1);
 }
@@ -2993,7 +3074,8 @@ function labelLayout(ctx, W, H, sc) {
   /* V5 T3b (correctif) : une PARCELLE À BÂTIR est un obstacle dur elle aussi — la plaque qui la nomme se pose
      au-dessus ou à côté, jamais sur son assise (on ne lit pas « Chapelle à bâtir » posé sur la chapelle absente). */
   if (sc) (sc.lots || []).forEach(function (b) { hard.push({ x: b.x * kx, y: b.y * ky, w: b.w * kx, h: b.h * ky, k: 1 }); });
-  hard.push({ x: W - 72, y: 4, w: 68, h: 28, k: 1 });              /* la pastille d'heure */
+  var cw = clockWidth(ctx);                                       /* la pastille d'heure : « le jour attend » est plus large qu'« 12h » */
+  hard.push({ x: W - cw - 12, y: 4, w: cw + 8, h: 28, k: 1 });
   /* V5 T3b : l'ENCEINTE et le CIEL sont des obstacles eux aussi. Sans eux, une bulle « X se repose » se posait
      sur le mur du fond (illisible sur la pierre) ou flottait dans le ciel, sans rien derrière elle. */
   if (sc && sc.wall) {
@@ -3071,8 +3153,12 @@ function drawLabels(ctx, W, H, T, night, sc) {
   });
   ctx.restore();
 }
+/* La pastille suit la course du soleil, pas l'horloge simulée : une heure lisible (8 h → 20 h), « Soir » à la
+   résolution, et « le jour attend » quand la course est retenue parce que mon héros n'a pas joué. */
+function clockLabel(sn) { sn = sn || sunFrame(); return sn.evening ? 'Soir' : sn.blocked ? 'le jour attend' : Math.floor(sn.hour) + 'h'; }
+function clockWidth(ctx) { ctx.save(); ctx.font = uiFont(12, 700); var w = ctx.measureText(clockLabel()).width + 16; ctx.restore(); return w; }
 function drawClock(ctx, W, H, night, T) {
-  var label = tb.phase === 'evening' ? 'Soir' : Math.floor(tb.hour) + 'h';
+  var label = clockLabel();
   ctx.font = uiFont(12, 700); var w = ctx.measureText(label).width + 16;
   ctx.fillStyle = night ? 'rgba(20,26,23,0.6)' : 'rgba(255,255,255,0.7)'; roundRect(ctx, W - w - 8, 8, w, 22, 11); ctx.fill();
   ctx.fillStyle = night ? '#e8ece7' : '#1B2620'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, W - w / 2 - 8, 19);
@@ -3170,8 +3256,11 @@ function raidBanners(out) {
   if (evening && c && c.status === 'active') out.push(bannerHtml('raid', 'is-crit', '⚔️', c.name + ' reste debout à ' + c.hp_pct + ' % : il se soigne cette nuit (nuit ' + c.nights + ' / ' + (v ? v.max_nights : 4) + ').'));
 }
 function renderClock() {
-  var el = $('clock'), evening = tb.phase === 'evening';
-  el.textContent = evening ? 'Soir' : Math.floor(tb.hour) + 'h'; el.dataset.phase = evening ? 'evening' : 'morning';
+  var el = $('clock'), sn = sunCompute(), evening = sn.evening;
+  el.textContent = clockLabel(sn); el.dataset.phase = evening ? 'evening' : 'morning';
+  el.dataset.blocked = sn.blocked ? '1' : '0';
+  el.title = evening ? 'Le jour est résolu' : sn.blocked ? 'Le soleil attend ton héros : ' + sn.played + ' / ' + sn.total + ' ont joué'
+    : 'Course du soleil : ' + sn.played + ' / ' + sn.total + ' ont joué';
   $('btn-skip').hidden = evening || tb.hour >= DAY_END;
 }
 function renderPlayed() {
@@ -3189,7 +3278,7 @@ function renderPlayed() {
   else if (threatPhase() === 'today') { l2.textContent = '🐉 Dragon aujourd’hui' + (app.chosen ? '' : ' · tu n’as pas joué'); l2.className = 'wl wl2 crit'; }
   else if (!myHero()) { l2.textContent = 'Ton héros est tombé'; l2.className = 'wl wl2 crit'; }
   else if (!app.chosen) { l2.textContent = 'Tu n’as pas encore joué'; l2.className = 'wl wl2 warn'; }
-  else { l2.textContent = 'Journée en cours · ' + Math.floor(tb.hour) + 'h'; l2.className = 'wl wl2'; }
+  else { l2.textContent = 'Journée en cours · ' + Math.floor(sunCompute().hour) + 'h'; l2.className = 'wl wl2'; }
 }
 function raidPlayedLabel(v) {
   var done = v.passes_today.length, total = done + v.waiting_on.length;   /* mon passage entre dans passes_today dès qu'il est joué */

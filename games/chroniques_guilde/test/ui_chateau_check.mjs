@@ -10,6 +10,20 @@
 //    `window.__scene`, image en lecture seule de ce qui vient d'être dessiné (âge, caméra, boîtes des bâtiments, enceinte,
 //    hauteur de silhouette, pont-levis, soldats). Les contrôles portent sur __scene et sur des pixels, jamais sur l'état.
 // Captures : test/out/dom_*.png. Code de sortie 1 si un contrôle échoue.
+//
+// ADAPTÉ 2026-09-19 — « LE SOLEIL COMPTE LES JOUEURS » (trois contrôles devenus FAUX PAR CONCEPTION).
+// La scène n'est plus rendue à l'heure simulée : l'heure de la scène est celle du SOLEIL, et le soleil est
+// l'avancement du tour de table (joueurs ayant joué / joueurs de la guilde, retenu au seuil bas tant que mon
+// héros n'a pas joué). L'horloge simulée ne fait plus que RÉVÉLER les amis à leur heure déterministe.
+//   1. « pont-levis abaissé à 12 h » : le contrôle comparait sc.hour à l'heure simulée poussée par le banc.
+//      La propriété vérifiée reste la même (le pont est abaissé tant que le tour de table dure) et le banc
+//      contrôle en plus que l'heure de la scène EST celle du soleil.
+//   2. « deux rendus à la même heure simulée » : le soleil GLISSE (900 ms) quand un joueur entre dans le compte ;
+//      deux images prises pendant le glissement diffèrent, exactement comme pour la caméra d'âge. Le banc laisse
+//      le glissement se poser (settleSun) avant de mesurer le déterminisme.
+//   3. « 18 h 30 : lumière rasante » : l'heure de la scène ne se pousse plus à la main. Le contrôle porte
+//      maintenant sur la valeur réellement utilisée par le dessin (palette.gold) dans l'état « le jour attend ».
+// Le banc dédié est test/ui_soleil_check.mjs.
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -28,6 +42,7 @@ const MANAGERS = new Function('return [' + /var MANAGERS = \[([\s\S]*?)\];/.exec
 const MAXSIL = new Function('return [' + /var MAXSIL = \[([^\]]*)\]/.exec(html)[1] + '];')();
 const CAM = new Function('return [' + /var CAM = \[([\s\S]*?)\];/.exec(html)[1] + '];')();
 const GUARDS = data.village_ages.map(a => a.guards | 0);
+const DAY_END = Number(/var [A-Z_, 0-9=]*\bDAY_END = ([0-9]+)/.exec(html)[1]);
 const AGE_NAMES = data.village_ages.map(a => a.name);
 
 const results = [];
@@ -87,6 +102,8 @@ async function loadDay(page, days) {
 }
 // L'horloge simulée n'avance que dans un sens : on la pousse de l'heure courante jusqu'à l'heure visée.
 const setHour = async (page, h) => { const cur = (await tableau(page)).hour; await page.clock.runFor(Math.max(0, Math.round((h - cur) / 0.25) * 250) + 40); return scene(page); };
+// Le soleil glisse (900 ms) quand le compteur bouge : on laisse l'image se poser avant de mesurer.
+const settleSun = async (page) => { for (let i = 0; i < 8 && (await scene(page)).sun.moving; i++) await page.clock.runFor(250); };
 const shot = async (page, name, sel) => {
   await page.clock.runFor(200);
   const target = sel ? await page.$(sel) : page;
@@ -184,12 +201,16 @@ const sil = {};
   const { ctx, page, errors } = await newPage(browser, 1280);
   let sc = await loadDay(page, found.ages[4].days);
   check('château : enceinte fermée, quatre tours d\'angle et pont-levis publiés (§4)', !!sc.wall && !!sc.drawbridge, JSON.stringify(sc.drawbridge));
-  sc = await setHour(page, 12);
-  check('château à 12 h : pont-levis ABAISSÉ (§4 : 8 h → 20 h)', sc.hour === 12 && sc.drawbridge.down === true && sc.drawbridge.a === 1, JSON.stringify(sc.drawbridge));
-  await page.clock.runFor(60);            // nouvelles images rendues, heure simulée inchangée
+  await setHour(page, 12);
+  await settleSun(page);
+  sc = await scene(page);
+  check('château, horloge simulée à 12 h : l\'heure de la scène EST celle du soleil (' + sc.hour + ' h, ' + sc.sun.played + ' / ' + sc.sun.total + ' ont joué) et le pont-levis est ABAISSÉ (§4 : 8 h → 20 h)',
+    sc.hour === sc.sun.hour && sc.hour >= 8 && sc.hour < 20 && sc.drawbridge.down === true && sc.drawbridge.a === 1,
+    JSON.stringify([sc.hour, sc.sun.hour]) + ' ' + JSON.stringify(sc.drawbridge));
+  await page.clock.runFor(60);            // nouvelles images rendues, soleil posé, heure simulée inchangée
   const s12b = await scene(page);
-  check('château : deux rendus à la même heure simulée donnent la MÊME scène (déterminisme, §5)',
-    s12b.hour === sc.hour && JSON.stringify(s12b.soldiers) === JSON.stringify(sc.soldiers) && s12b.silhouette_h === sc.silhouette_h && JSON.stringify(s12b.buildings) === JSON.stringify(sc.buildings),
+  check('château : deux rendus à la même heure de scène donnent la MÊME scène (déterminisme, §5)',
+    s12b.hour === sc.hour && JSON.stringify(s12b.sun) === JSON.stringify(sc.sun) && JSON.stringify(s12b.soldiers) === JSON.stringify(sc.soldiers) && s12b.silhouette_h === sc.silhouette_h && JSON.stringify(s12b.buildings) === JSON.stringify(sc.buildings),
     JSON.stringify(s12b.soldiers) + ' vs ' + JSON.stringify(sc.soldiers));
   await shot(page, 'chateau_jour', '#scene');
   const s19 = await setHour(page, 19.75);
@@ -381,10 +402,18 @@ for (const age of [3, 4]) {
     width: Math.min(LOGW, Math.max(...xs) - Math.min(...xs) + 60) * (bb.width / LOGW), height: (bot - top) * (bb.height / LOGH) };
   if (age === 4) {
     await page.screenshot({ path: path.join(OUT, 'dom_cour_jour.png'), clip });
-    const gold = await setHour(page, 18.5);
-    check('château à 18 h 30 : gamme du soir, lumière rasante sur les tours (pas encore la nuit)',
-      gold.hour === 18.5 && gold.night === false, JSON.stringify([gold.hour, gold.night]));
-    await page.screenshot({ path: path.join(OUT, 'dom_cour_soir.png'), clip });
+    // La lumière rasante se mesure sur une page À PART : y arriver demande de pousser l'horloge simulée
+    // jusqu'à 20 h (tous les amis révélés), ce qui masque le bouton « Passer » dont la suite du bloc a besoin.
+    const g = await newPage(browser, 1280, 'light', { deviceScaleFactor: 2 });
+    await loadDay(g.page, found.ages[4].days);
+    await setHour(g.page, DAY_END); await settleSun(g.page);
+    const gold = await scene(g.page);
+    check('château, tour de table fini côté amis (« le jour attend », ' + gold.hour + ' h) : gamme du soir, lumière rasante sur les tours (pas encore la nuit)',
+      gold.sun.blocked === true && gold.palette.gold > 0.3 && gold.night === false && gold.hour > 15,
+      JSON.stringify([gold.hour, gold.night, gold.palette.gold]));
+    await g.page.screenshot({ path: path.join(OUT, 'dom_cour_soir.png'), clip });
+    check('château : aucune erreur console/page en lumière rasante', g.errors.length === 0, g.errors.slice(0, 3).join(' | '));
+    await g.ctx.close();
   }
 
   // 5. les figurines : au village = DANS la cour ; parti en expédition ou en raid = dehors ou sur le pont

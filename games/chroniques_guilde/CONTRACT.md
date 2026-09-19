@@ -1254,3 +1254,122 @@ grille du matin est bien celle qu'on joue.
   dépendent que de l'âge et de la caméra, pas de la graine — vérifié en lecture, pas mesuré sur plusieurs graines) ;
   l'équilibre avec des passages humains de PLUSIEURS managers à la fois (seul p1 a été simulé) ; le rendement des
   nouvelles bandes de besoin quand un joueur choisit ses voies à la main.
+
+## V5 T6 — LE SOLEIL COMPTE LES JOUEURS (2026-09-19)
+
+Source : demande de Pierre — « le soleil devrait descendre en fonction du nombre de joueurs en attente de jouer
+ou ayant déjà joué » — plus l'addition retenue par l'orchestrateur : « le jour t'attend ». Périmètre : `index.html`
+(§7 de la scène), `CHATEAU_SPEC.md` §7, bancs `test/ui_soleil_check.mjs` (nouveau) et `test/ui_chateau_check.mjs`
+(trois contrôles adaptés). Aucune règle de jeu déplacée : `sim.js`, `tactic.js`, `data.json` et `data.js` ne sont
+pas touchés.
+
+### 1. La règle, avec ses chiffres
+
+Deux signaux se faisaient concurrence : une horloge simulée qui allait de 8 h à 20 h en douze secondes et pilotait
+le ciel, et un compteur en texte « N / 5 ont joué ». **Le soleil est devenu ce compteur.**
+
+* `t = joueurs ayant joué / joueurs de la guilde` (mon héros compris), publié dans `window.__scene.sun`.
+* `heure de scène = DAY_START + t × (DAY_END − DAY_START)` = `8 + 12 t`. À cinq joueurs :
+  **0/5 = 8 h · 1/5 = 10 h 24 · 2/5 = 12 h 48 · 3/5 = 15 h 12 · 4/5 = 17 h 36 · 5/5 = 20 h** ; le soir de la
+  résolution bascule la scène à la nuit (`NIGHT_HOUR = 23`).
+* **Seuil bas `SUN_HOLD = 0,8` (17 h 36).** Tant que mon héros n'a pas joué, `t = min(t_brut, SUN_HOLD)` et la
+  course est déclarée retenue (`sun.blocked`) dès que `t_brut ≥ SUN_HOLD` **ou** que tous les autres ont joué.
+  À cinq managers les deux conditions tombent ensemble, sur 4/5 ; la borne `min` ne mord que si la guilde compte
+  plus de cinq joueurs, elle est là pour ce cas-là.
+* **Glissement.** Le passage d'une position à l'autre est interpolé en `SUN_MS = 900 ms` (`ease`), instantané sous
+  `prefers-reduced-motion`. « Passer » ne fait donc pas sauter le soleil : il l'y amène en glissant.
+* **Course.** Arc d'est en ouest : `x = 212 + t × 464` (dégagé de la montagne, qui finit à 206, et du donjon
+  lointain, qui commence à 706), `y = hz − (0,2 hz + 16) − sin(π t) × 0,52 hz`, `hz` = ligne d'horizon de la
+  caméra de l'âge. La garde au-dessus de l'horizon est proportionnelle : l'horizon descend dans l'image quand la
+  caméra recule (§1), et une garde fixe faisait passer le soleil d'aube derrière la ligne d'arbres aux âges 3 et 4.
+* **Lecture retenue sur « il descend ».** La course est un ARC : c'est la seule forme qui fasse TOURNER les ombres
+  (direction ET longueur, §7) et qui donne une « aube rasante à l'est ». Sur un arc, la hauteur monte puis descend.
+  Ce qui croît strictement à chaque joueur, c'est l'avancement `t`, la position est-ouest `x` et l'heure ; la
+  hauteur descend strictement sur la seconde moitié du tour de table. Le banc contrôle les deux propriétés
+  séparément et le dit en tête de fichier.
+
+### 2. Ce que la page publie
+
+`window.__scene.sun = { played, total, mine_played, t, hour, blocked, evening, moving, x, y, hold, label }` —
+`x`/`y` en repère logique 800 × 460, `label` = le texte réellement posé dans la pastille.
+`window.__scene.palette` gagne `sky0`, `sky1`, `warm`, `night_k`, `shadow {dx, len, a}`, `gold`, `lamps` : les
+valeurs **réellement utilisées par le dessin**, pour que le banc n'ait rien à recalculer ni à deviner.
+`window.__tableau` n'a pas changé (`hour` y reste l'horloge simulée, c'est-à-dire l'échéancier des révélations).
+
+### 3. Ce qui suit désormais le soleil, et ce qui reste à l'horloge simulée
+
+`sceneHour()` rend l'heure du soleil : le ciel, la prairie, les ombres portées (`sunK`), la lumière rasante
+(`goldK`), les fenêtres et torches (`tone.night > 0,45`), le pont-levis (`bridgeWanted`), la position des soldats
+de ronde et la pastille en dérivent. Un seul soleil est calculé par image (`sunC`, remis à zéro en tête de
+`drawAll`) : toutes les couches lisent la même valeur.
+L'horloge simulée (`tb.hour`) garde un seul rôle : **révéler les amis à leur heure déterministe**
+(`8 h + fnv1a(graine:jour:manager) % 12`), borner la durée des bulles, et masquer « Passer » à 20 h.
+
+### 4. Retouches d'image faites au passage (toutes dans §7)
+
+* **Palier de gamme à 20 h** (`sky ['#4b3f70','#f09a5c']`, `night 0,58`) : sans lui, « 5 / 5 » et le soir de la
+  résolution se ressemblaient — le couchant était un fondu au noir. Le disque se charge d'orange à mesure que la
+  nuit monte.
+* **La lune n'apparaît plus qu'à `night > 0,9`** (le soir), le soleil reste dessiné jusqu'à `night < 0,92` : le
+  jour garde son soleil jusqu'au couchant, sans quoi l'état « tout le monde a joué » n'avait plus d'astre.
+* **Nuages déplacés hors de l'arc** (126 / 306 / 700) et **dragon des jours d'attaque descendu à `hz × 0,63`** :
+  rien ne voile le compteur.
+* **Disque un tiers plus gros au LOD 2** (vignette 160 px) : même position, même teinte, seul le rayon change —
+  c'est là que se juge la lisibilité de la hauteur.
+* **Pastille de largeur mesurée** : « le jour attend » est plus large qu'« 12h », et le placeur d'étiquettes
+  réserve maintenant la boîte réelle au lieu d'un gabarit de 68 px.
+
+### 5. Écarts assumés dans les bancs existants
+
+`ui_chateau_check.mjs` (3 contrôles devenus faux par conception, écart écrit en tête du fichier) :
+1. « pont-levis abaissé à 12 h » comparait `__scene.hour` à l'heure simulée poussée par le banc ; le contrôle
+   porte maintenant sur la propriété visée (pont abaissé tant que la course dure) **et** sur le fait que l'heure
+   de la scène EST celle du soleil.
+2. « deux rendus à la même heure simulée » : le soleil glisse quand le compteur bouge, exactement comme la caméra
+   d'âge ; le banc laisse le glissement se poser (`settleSun`) avant de mesurer le déterminisme, et compare en
+   plus `__scene.sun` au caractère près.
+3. « 18 h 30 : lumière rasante » : l'heure ne se pousse plus à la main ; le contrôle porte sur `palette.gold`
+   dans l'état « le jour attend », sur une page à part (y arriver masque le bouton « Passer » dont la suite du
+   bloc a besoin). Le banc passe de 90 à **91** contrôles (un contrôle d'erreurs console en plus).
+
+### 6. Preuves d'exécution (2026-09-19)
+
+| Banc | Résultat |
+|---|---|
+| `ENGINE_ONLY=1 node test/harness.mjs` | 10/10 |
+| `node test/harness.mjs` | 19/19 |
+| `node test/engine_extra.mjs` | 16/16 |
+| `node test/engine_v4_check.mjs` | 28/28 |
+| `node test/tactic_t1_check.mjs` | 26/26 |
+| `node test/tactic_t2_check.mjs` | 14/14 |
+| `node test/tactic_t3_check.mjs` | 14/14 |
+| `node test/season_t5_check.mjs` | 12/12 |
+| `node test/ui_v2_check.mjs` | 52/52 |
+| `node test/ui_v3_check.mjs` | 36/36 |
+| `node test/ui_v4_check.mjs` | 55/55 |
+| `node test/ui_v5_check.mjs` | 48/48 |
+| `node test/ui_chateau_check.mjs` | **91/91** (90 avant, un contrôle ajouté) |
+| `node test/ui_soleil_check.mjs` | **57/57** (nouveau) |
+
+Captures : `test/out/sun_0_joueur.png`, `sun_2_joueurs.png`, `sun_4_joueurs_bloque.png`, `sun_5_joueurs.png`,
+`sun_soir.png`, `sun_sombre_bloque.png`, `sun_400px.png`, les vignettes 160 px `sun_2_joueurs_vignette.png`,
+`sun_4_joueurs_bloque_vignette.png`, `sun_5_joueurs_vignette.png`, et la même histoire sur un village fortifié
+(jour 26, âge 3) : `sun_chateau_0_joueur.png`, `sun_chateau_milieu.png`, `sun_chateau_bloque.png`,
+`sun_chateau_5_joueurs.png`, `sun_chateau_bloque_vignette.png`, `sun_chateau_5_joueurs_vignette.png`.
+
+### 7. Limites et non vérifié (T6)
+
+* **Le palier du zénith.** À cinq joueurs, `t = 0,4` et `t = 0,6` donnent la même hauteur (`sin` est symétrique) :
+  entre 2/5 et 3/5 le soleil avance en est-ouest mais ne change pas de hauteur. C'est une propriété de l'arc, pas
+  un défaut de la règle ; le banc le dit et contrôle la descente stricte à partir du zénith.
+* **La borne `min(t, SUN_HOLD)` n'est pas exerçée à cinq joueurs** (4/5 = 0,8 tombe pile sur le seuil) : seule la
+  déclaration `blocked` l'est. Elle ne mordrait qu'avec une guilde de six joueurs ou plus, cas que la page ne sait
+  pas produire aujourd'hui.
+* **Le halo pulsé n'est pas mesuré en pixels** : le banc contrôle l'état (`sun.blocked`, `data-blocked` dans le
+  DOM, la pastille) et le rendu est jugé sur les captures. Sous `prefers-reduced-motion` il est immobile, donc les
+  contrôles de déterminisme au pixel près restent valables.
+* **La pastille et le soleil se frôlent à 400 px** quand la course est retenue (« le jour attend » est large, le
+  soleil est haut à droite) : recouvrement mesuré de l'ordre de 2 px, visible sur `sun_400px.png`. Pas corrigé.
+* **Non vérifié** : le rendu sur un vrai téléphone ; le fond d'écran animé (il n'existe pas encore) ; le ressenti
+  du glissement de 900 ms manette en main ; le comportement avec une guilde dont la taille change en cours de
+  saison ; le gate fun (Pierre seul) — est-ce que la journée se lit d'un coup d'œil, sans le texte ?

@@ -73,8 +73,34 @@ La silhouette est la MÊME aux trois niveaux : on ajoute du détail, on ne chang
 rend la vignette fidèle à l'écran.
 
 ## 7. Jour, nuit, saisons de la partie
-Aube froide, plein jour, soir doré, nuit bleue : quatre gammes dérivées des tokens existants, interpolées sur
-l'heure simulée. La nuit, fenêtres en or, torches aux tours, forge rougeoyante si une commande est en cours,
+**Mise à jour 2026-09-19 — LE SOLEIL COMPTE LES JOUEURS (demande de Pierre).** Le soleil n'est plus piloté par
+l'heure seule : **sa course EST l'avancement du tour de table**. La scène porte le compteur sans qu'on lise un mot.
+
+* **La règle.** `t = joueurs ayant joué / joueurs de la guilde` (mon héros compris). `t = 0` → aube rasante à
+  l'est ; `t = 1` → soleil couchant à l'ouest ; la résolution du soir bascule la scène à la nuit. L'heure
+  affichée dans la pastille suit la même valeur : `heure = 8 + 12 t`, donc 8 h → 20 h, une heure lisible.
+  À cinq joueurs : 0/5 = 8 h · 1/5 = 10 h 24 · 2/5 = 12 h 48 · 3/5 = 15 h 12 · 4/5 = 17 h 36 · 5/5 = 20 h.
+* **Le jour t'attend.** Tant que MON héros n'a pas joué, la course est retenue au seuil bas `SUN_HOLD = 0,8`
+  (17 h 36, marge nette au-dessus de l'horizon) : le soleil s'y arrête et y reste, un halo respire sous lui
+  (immobile sous `prefers-reduced-motion`) et la pastille dit « le jour attend » au lieu d'une heure figée.
+  Dès que je joue, la course s'achève et le soir peut tomber.
+* **L'horloge simulée garde un seul rôle** : révéler les amis à leur heure déterministe
+  (`8 h + fnv1a(graine:jour:manager) % 12`). C'est la révélation qui fait avancer le compteur, donc le soleil.
+  « Passer » révèle tout le monde d'un coup ; le soleil rejoint sa position finale **en glissant** (900 ms,
+  instantané sous `prefers-reduced-motion`).
+* **La course.** Arc d'est en ouest, `x` de 212 à 676 (dégagé de la montagne et du donjon lointain), hauteur
+  `hz − (0,2 hz + 16) − sin(π t) × 0,52 hz`, où `hz` est la ligne d'horizon de la caméra de l'âge : la garde
+  au-dessus de l'horizon reste proportionnelle quand la caméra recule. Les nuages se tiennent hors de cet arc et
+  le dragon des jours d'attaque tourne sous lui : rien ne voile le compteur.
+* **Tout suit cette valeur** : gamme du ciel (aube froide, plein jour, soir doré à 20 h, nuit bleue), direction
+  ET longueur des ombres portées, lumière rasante sur la face des tours et des courtines, fenêtres en or,
+  torches, pont-levis, position des soldats de ronde. Un ami qui joue fait bouger la lumière sur le château.
+* **Trois distances, un seul soleil.** L'aperçu widget et les trois niveaux de détail rendent la même course, à
+  la même position relative ; à la vignette (LOD 2) le disque est dessiné un tiers plus gros pour que la HAUTEUR
+  du soleil reste lisible à 160 px.
+* Le texte « N / 5 ont joué » reste, mais en confirmation : la source d'information est le ciel.
+
+La nuit, fenêtres en or, torches aux tours, forge rougeoyante si une commande est en cours,
 douve sombre. Les jours de dragon, le ciel prend la teinte du biome et la silhouette se découpe en contre-jour.
 Jour noir après un ravage : un bâtiment brûlé garde sa cicatrice jusqu'à sa reconstruction.
 
@@ -88,4 +114,10 @@ conforme au tableau du §3 ; bâtiments effectivement à l'intérieur de l'encei
 contenance des boîtes) ; pont-levis abaissé à 12 h et relevé à 23 h ; nombre de soldats = gardes de l'âge ;
 scène identique à deux exécutions (déterminisme) ; lisible à 400 px et à 160 px sans débordement ;
 aucune erreur console en thème clair et sombre ; silhouette identique entre les trois niveaux de détail.
+`ui_soleil_check.mjs` (2026-09-19) : la course du soleil EST le tour de table — aube à l'est quand personne n'a
+joué, avancement (`t`, `x`, heure) strictement croissant à chaque joueur révélé, arc dont la hauteur monte puis
+descend, course retenue au seuil bas tant que mon héros n'a pas joué (pastille « le jour attend »), course
+achevée dès qu'il joue, « Passer » qui glisse au lieu de sauter, ombres qui tournent et s'allongent, gamme du
+ciel, lumière rasante et lampes qui suivent la même valeur, vignette 160 px mesurée dans les pixels au même
+endroit que la grande scène, deux chargements identiques au pixel près.
 Gate fun, réservé à Pierre : au jour 30, la capture du château donne-t-elle envie de la montrer à quelqu'un ?
