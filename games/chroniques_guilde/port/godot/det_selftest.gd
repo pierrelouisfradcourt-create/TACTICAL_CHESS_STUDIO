@@ -7,8 +7,10 @@
 #  JavaScript de référence (port/gen_primitives.mjs, 2026-09-19). Ce fichier
 #  GDScript, lui, n'a PAS été exécuté : c'est précisément ce que tu vérifies.
 #
-#  Usage : projet Godot 4 → Project > Project Settings > Autoload, ou plus
-#  simple, une scène vide avec ce script sur le nœud racine, puis F6.
+#  Usage le plus court, depuis ce dossier (il contient un project.godot) :
+#      godot --headless --script run_selftest.gd
+#  Sinon, à la souris : ouvre ce dossier comme projet, pose ce script sur le
+#  nœud racine d'une scène vide, puis F6.
 #  Sortie attendue : « 58/58 — PRIMITIVES CONFORMES ».
 #  Le premier échec dit lequel : c'est là que le portage diverge.
 # =============================================================================
@@ -34,6 +36,10 @@ func run_all() -> void:
 		print("%d/%d — PRIMITIVES CONFORMES" % [_ok, _ok])
 	else:
 		print("%d/%d — %d ÉCHEC(S) : le portage diverge, ne va pas plus loin" % [_ok, _ok + _ko, _ko])
+
+# Nombre d'échecs, pour le lanceur en ligne de commande (run_selftest.gd).
+func failures() -> int:
+	return _ko
 
 func _eq(name: String, got: Variant, want: Variant) -> void:
 	if str(got) == str(want):

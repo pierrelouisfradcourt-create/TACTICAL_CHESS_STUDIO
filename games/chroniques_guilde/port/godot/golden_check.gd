@@ -54,8 +54,13 @@ func run() -> int:
 	var want_fnv: String = str(doc.get("data_fnv", "")).lpad(8, "0")
 	if data_fnv != want_fnv:
 		printerr("data.json DIFFÉRENT : empreinte %s, attendu %s" % [data_fnv, want_fnv])
-		printerr("  -> cause la plus probable : le parseur JSON de Godot rend des flottants (1000.0)")
-		printerr("     là où le JSON porte des entiers (1000). Vérifie avec det_selftest.gd.")
+		printerr("  -> AU 2026-09-19 (tranche V5 T9), C'EST ATTENDU ET CE N'EST PAS TON PORTAGE :")
+		printerr("     golden/vectors.json est PÉRIMÉ. data.json a changé (six emplacements,")
+		printerr("     recalibrage des raids). Les vecteurs seront régénérés une seule fois,")
+		printerr("     après les tranches restantes : node port/gen_golden.mjs. D'ici là, ce")
+		printerr("     script n'a rien à dire — lance det_selftest.gd, lui reste valable.")
+		printerr("  -> l'autre cause possible, une fois les vecteurs à jour : le parseur JSON de")
+		printerr("     Godot rend des flottants (1000.0) là où le JSON porte des entiers (1000).")
 		return 1
 
 	var vec_ok := 0
