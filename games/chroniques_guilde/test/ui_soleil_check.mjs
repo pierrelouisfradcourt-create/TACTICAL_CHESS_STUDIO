@@ -32,12 +32,12 @@ const SUN_HOLD = NUM('SUN_HOLD'), SUN_X0 = NUM('SUN_X0'), SUN_X1 = NUM('SUN_X1')
 const DAY_START = NUM('DAY_START'), DAY_END = NUM('DAY_END');
 const TOTAL = MANAGERS.length;
 
-// Moteur sous node : on rejoue la graine par défaut jusqu'au jour où le village est FORTIFIÉ, et on importe
-// ce journal dans la page. La lumière qui bouge se juge sur des murs et des tours, pas sur trois tentes.
+// Moteur sous node : on cherche une graine qui atteint un village FORTIFIÉ, on rejoue ses journées et on
+// importe ce journal dans la page. La lumière qui bouge se juge sur des murs et des tours, pas sur trois tentes.
 const sim = require(path.join(ROOT, 'sim.js'));
 const data = JSON.parse(fs.readFileSync(path.join(ROOT, 'data.json'), 'utf8'));
 const SEED = 4242;
-function daysUntilAge(target, seed = SEED) {
+function daysUntilAge(target, seed) {
   let st = sim.newGame(seed, data, { managers: MANAGERS }), days = [];
   for (let d = 0; d < 30; d++) {
     const vm = sim.viewModel(st, 'p1');
@@ -57,7 +57,7 @@ function findAge(target) {
   }
   return null;
 }
-const journalOf = (days, seed = SEED) => JSON.stringify({ seed, managers: MANAGERS, days: days.map(d => ({ day: d.day, actions: d.actions })) });
+const journalOf = (days, seed) => JSON.stringify({ seed, managers: MANAGERS, days: days.map(d => ({ day: d.day, actions: d.actions })) });
 
 const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`); };
@@ -333,14 +333,32 @@ const browser = await pw.chromium.launch();
     await page.fill('#journal-json', journalOf(fort.days, fort.seed)); await page.click('#btn-import');
     await page.keyboard.press('Escape');
     await page.click('[data-testid="tab-tableau"]');
-    await page.clock.runFor(1600);                       // la caméra d'âge a fini son glissement
+    // V5 T7 — MESURE, et pourquoi ce détour. Ce banc attendait ici 1600 ms « le temps que la caméra d'âge se
+    // pose ». Mais l'horloge simulée du matin tourne dès l'import (250 ms = un quart d'heure de jeu) : ces
+    // 1600 ms avançaient le matin de 1 h 30 et révélaient les amis dont l'heure de jeu tombe à 8 h et 9 h.
+    // La scène était donc lue à 3 / 5 joueurs (t = 0,6) — plus du tout à l'aube, d'où les deux échecs.
+    // La page, elle, est juste : lue sans faire avancer l'horloge, elle rend jour 27, âge 3, 0 / 5, t = 0,
+    // ombre à l'est (dx 1,1), caméra DÉJÀ posée (zoom 78, sol 345 — camNow() part à p = 1 au premier rendu,
+    // et prefers-reduced-motion la fige de toute façon). prepareMorning() remet bien le tour de table à zéro.
+    // On mesure donc les deux bouts : on laisse d'abord le matin s'écouler en entier (tous les amis jouent),
+    // puis on REPOSE un matin neuf en réimportant le même journal. Le tour de table doit repartir de zéro et
+    // la caméra ne doit pas bouger — c'est l'invariant « un nouveau matin = aube », contrôlé ici même.
+    await setHour(page, DAY_END);                        // le matin s'écoule en entier : les quatre amis jouent
+    const scMid = await scene(page);
+    await page.click('[data-testid="tab-journal"]'); await page.click('#btn-import');
+    await page.keyboard.press('Escape');
+    await page.click('[data-testid="tab-tableau"]');
     const sc0 = await scene(page);
+    check('château : un matin neuf remet le tour de table à zéro (le matin avait couru jusqu\'à ' + scMid.sun.played + ' / ' + scMid.sun.total + ')',
+      scMid.sun.played === scMid.sun.total - 1 && sc0.sun.played === 0 && sc0.sun.t === 0
+      && sc0.camera.zoom === scMid.camera.zoom && sc0.camera.ground === scMid.camera.ground,
+      JSON.stringify([scMid.sun.played, sc0.sun.played, sc0.camera, scMid.camera]));
     check(`château (jour ${fort.day}, âge ${fort.age}) chargé : enceinte et pont-levis rendus, soleil à l'aube`,
       sc0.age >= 3 && !!sc0.wall && sc0.sun.t === 0 && sc0.sun.played === 0, JSON.stringify([sc0.age, sc0.sun.t]));
     await shot(page, 'chateau_0_joueur', '#scene');
-    const mid = await setHour(page, 14);
+    await setHour(page, 14);
     await shot(page, 'chateau_milieu', '#scene');
-    const late = await setHour(page, DAY_END);
+    await setHour(page, DAY_END);
     const scL = await scene(page);
     await shot(page, 'chateau_bloque', '#scene');
     await shot(page, 'chateau_bloque_vignette', '#widget-tile');
