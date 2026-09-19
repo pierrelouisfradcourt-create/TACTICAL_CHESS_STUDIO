@@ -114,11 +114,16 @@ function runRaid(s) {
         }
         if (h.hybrid && chosen[id] === undefined) { chosen[id] = d; if (offer[id] !== undefined && h.owner === 'p1') autoDelays[d - offer[id]] = (autoDelays[d - offer[id]] || 0) + 1; }
       }
-      if (d === 10) { const ids = Object.keys(s.heroes); heroes10 += ids.length; hybrid10 += ids.filter(id => s.heroes[id].hybrid).length; }
+      // V5 T6 (D8) : le Barde est une septième base SANS voie associée (les paires hybrides sont une tranche à part).
+      // La mesure porte donc sur les héros dont la CLASSE ouvre au moins une voie — sinon le contrôle mesurerait la
+      // part de Bardes à la table, pas le fonctionnement du choix de voie. Mesuré en T6 : 61/72 tous héros confondus,
+      // 61/61 une fois les Bardes écartés.
+      if (d === 10) { const ids = Object.keys(s.heroes).filter(id => data.hybrids.some(H => ((H.pairs && H.pairs.length) ? H.pairs : [H.bases]).some(pr => pr.indexOf(s.heroes[id].class_id) >= 0)));
+        heroes10 += ids.length; hybrid10 += ids.filter(id => s.heroes[id].hybrid).length; }
     }
   }
   const delays = Object.keys(autoDelays).map(Number).sort((a, b) => a - b);
-  check('(2a) 90 % des héros ont choisi leur voie au jour 10 (plans par défaut)', hybrid10 * 10 >= heroes10 * 9, hybrid10 + '/' + heroes10 + ' héros hybrides au J10');
+  check('(2a) 90 % des héros dont la classe ouvre une voie l\'ont choisie au jour 10 (plans par défaut)', hybrid10 * 10 >= heroes10 * 9, hybrid10 + '/' + heroes10 + ' héros hybrides au J10');
   check('(2b) proposition le soir du seuil (niveau ≥ ' + L.hybrid_level_min + ' ou jour ≥ ' + L.hybrid_day_min + ') ; section « Voie » dans la chronique avec ses gabarits', offerBad.length === 0 && voieSections > 0 && Object.keys(gabarits).length >= 6, voieSections + ' sections, ' + Object.keys(gabarits).length + ' formulations distinctes' + (offerBad.length ? ' | ' + offerBad[0] : ''));
   check('(2c) sans réponse du joueur, le choix automatique tombe exactement ' + L.hybrid_auto_days + ' jours après la proposition', delays.length === 1 && delays[0] === L.hybrid_auto_days, 'délais observés : ' + delays.join(',') + ' (héros du manager humain)');
 }

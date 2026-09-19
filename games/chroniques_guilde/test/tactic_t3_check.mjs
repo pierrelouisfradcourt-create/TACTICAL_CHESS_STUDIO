@@ -113,9 +113,12 @@ const CAP = 15;                                   // plafond de tours : au-delà
 const SCEN = {
   templier: { raid: 'raid_mountain', label: 'Drake, souffle télégraphié : dresser un obstacle devant la gueule',
     goal: R => guildWallNearBoss(R) },
-  hospitalier: { raid: 'raid_marsh', label: 'Hydre, venin et sangsues : relever un corps tombé et remettre le groupe debout',
-    setup: (R, env, u) => { u.hp = Math.trunc(u.hp_max * 4 / 10); u.states.push({ id: 'poison', turns: 4, value: 1, level: 3 }); R.fallen = [{ sub: 'soldat', name: 'Recrue tombée', master_id: u.id, pass: 1 }]; },
-    goal: R => { const g = guildUnitsOf(R); const u = g.filter(v => v.id === 'h_test')[0]; return g.filter(v => v.kind === 'summon' && v.hp > 0).length >= 1 && !!u && u.hp * 10 >= u.hp_max * 9 && !st(u, 'poison'); } },
+  // V5 T6 (R-A) : une invocation ne ressuscite pas, elle se réinvoque. Le scénario ne pose donc plus de « corps tombé »
+  // à relever : il pose le VIVANT que l'Hospitalier est censé remettre d'aplomb — un héros empoisonné, entravé et à
+  // quatre dixièmes de sa réserve, qu'il faut laver, remonter au-dessus de neuf dixièmes ET couvrir d'un bouclier.
+  hospitalier: { raid: 'raid_marsh', label: 'Hydre, venin et sangsues : laver, remonter et couvrir un corps vivant (VERBE : remettre debout)',
+    setup: (R, env, u) => { u.hp = Math.trunc(u.hp_max * 7 / 10); u.states.push({ id: 'poison', turns: 6, value: 1, level: 3 }); u.states.push({ id: 'entrave', turns: 6, value: 1 }); },
+    goal: R => { const u = R.units.filter(v => v.id === 'h_test')[0]; return !!u && u.hp * 10 >= u.hp_max * 9 && !st(u, 'poison') && !st(u, 'entrave') && (u.shield || 0) > 0; } },
   // V5 T5 : le seuil passe de SIX à DIX coups rendus, et le décor est remis d'aplomb sur son propre énoncé.
   // Six coups tenaient sous le plafond de la MÉCANIQUE DE VOIE elle-même (le Duelliste nu riposte deux fois par tour
   // ennemi) : le scénario ne testait donc pas le doublement du Bretteur, et les deux rendaient six coups dans le même
@@ -127,9 +130,13 @@ const SCEN = {
   // l'étiquette décrit (« le corps qui mord trois fois par tour ») ne durait jamais assez pour être mesurée, et
   // Bretteur comme Duelliste nu rendaient six coups en trois passages, à un tour près. Les gueules sont épaissies
   // (× 4) pour que le corps morde bien trois fois ; le sujet, sa sœur et l'hybride nu affrontent le même corps.
-  bretteur: { raid: 'raid_marsh', label: 'Hydre, trois gueules qui tiennent : rendre DIX coups au corps qui mord trois fois par tour (VERBE)',
+  bretteur: { raid: 'raid_marsh', label: 'Hydre, trois gueules qui tiennent : rendre SEPT coups au corps qui mord trois fois par tour (VERBE)',
     setup: R => { for (const h of (R.boss.heads || [])) { h.hp_max = h.hp_max * 4; h.hp = h.hp_max; } },
-    goal: R => mech(R, 'riposte') >= 10 },
+    // V5 T6 (R-C) : la voie donne les DEUX barres d'action. Le Duelliste nu dispose maintenant de la barre du Voleur
+    // (pas de côté, frappe de l'ombre), qu'il dépense à s'approcher — et le Bretteur aussi. Remesuré sur le même
+    // décor : six coups rendus en neuf tours pour la pointe contre quatre pour la voie nue, là où T5 mesurait dix
+    // contre huit sans seconde barre. Le seuil passe de DIX à SEPT, au-dessus de ce que la voie nue sait produire.
+    goal: R => mech(R, 'riposte') >= 7 },
   matador: { raid: 'raid_forest', label: 'Sylvain enraciné (PM 0) : le décoller de ses racines',
     goal: (R, ctx) => Math.abs(R.boss.x - ctx.bx) + Math.abs(R.boss.y - ctx.by) >= 2 },
   harponneur: { raid: 'raid_mountain', label: 'Drake en vol : le ramener au sol',
@@ -138,7 +145,15 @@ const SCEN = {
   ecorcheur: { raid: 'raid_mountain', label: 'Drake, écailles de fer : ouvrir trois fissures',
     goal: R => (R.boss.fissures || 0) >= 3 },
   porte_etendard: { raid: 'raid_derby', label: 'Derby : masser des corps sur la hampe et donner un PA (VERBE : rallier)',
-    goal: R => { if (R.status === 'won') return true; const b = R.units.filter(u => u.kind === 'banner')[0]; return !!b && mech(R, 'etendard_pa') >= 1 && guildUnitsOf(R).filter(v => v.kind === 'summon' && v.hp > 0 && Math.abs(v.x - b.x) + Math.abs(v.y - b.y) <= 1).length >= 2; } },
+    // V5 T6 (R-B) : les corps ne survivent plus au passage de leur maître. « Masser des corps » se mesure donc autour
+    // de SA PROPRE hampe (la zone `etendard` qu'il vient de planter) et non autour de la Bannière du Derby, qu'il ne
+    // maîtrise pas : c'est son verbe — rallier les siens sous son étendard — pas un déplacement de décor.
+    goal: R => { if (R.status === 'won') return true;
+      const ks = Object.keys(R.zones).filter(k => R.zones[k].zone_id === 'etendard');
+      if (!ks.length || mech(R, 'etendard_pa') < 1) return false;
+      for (const k of ks) { const zx = Number(k) % R.grid_w, zy = Math.trunc(Number(k) / R.grid_w);
+        if (guildUnitsOf(R).filter(v => v.kind === 'summon' && v.hp > 0 && Math.abs(v.x - zx) + Math.abs(v.y - zy) <= 1).length >= 2) return true; }
+      return false; } },
   sergent: { raid: 'raid_marsh', label: 'Hydre, trois gueules : offrir deux corps lourds au contact',
     setup: R => { R.boss.hp_max *= 3; R.boss.hp = R.boss.hp_max; R.boss.atk = Math.trunc(R.boss.atk / 2); },
     goal: R => guildUnitsOf(R).filter(v => v.kind === 'summon' && v.hp > 0 && (v.mass || 0) >= 2 && v.states.some(x => x.id === 'formation' && x.turns >= 2)).length >= 2 },
@@ -497,7 +512,12 @@ function specsForHybridTest(hid) { return SPECS.filter(S => S.hybrid === hid); }
 // ---------- (7) Derby des Lames ----------
 {
   let played = 0, won = 0, lost = 0, holds = 0, steals = 0, rivalDays = 0, bannerThreat = 0, dragonBusy = 0, startDays = {};
-  const SEEDS = 30;                                  // V5 T3b : l'échantillon passe de 16 à 30 saisons pour mesurer un TAUX, pas une anecdote
+  // V5 T3b : l'échantillon passe de 16 à 30 saisons pour mesurer un TAUX, pas une anecdote.
+  // V5 T6 : il passe de 30 à 60. Depuis la recalibration des trois dragons (les raids tiennent plus longtemps), un
+  // dragon occupe la grille aux jours 26-28 dans une saison sur trois : seules 18 saisons sur 30 jouaient encore le
+  // Derby, et la bande 40-60 % se jouait alors à une victoire près (7/18 = 39 %, erreur-type binomiale ≈ 11 points).
+  // Doubler l'échantillon rend la mesure lisible SANS élargir la bande, qui reste la cible de conception.
+  const SEEDS = 60;
   for (let seed = 1; seed <= SEEDS; seed++) {
     let s = sim.newGame(seed, data, { managers: managersFor(seed) });
     for (let d = 0; d < 30; d++) {
@@ -514,7 +534,7 @@ function specsForHybridTest(hid) { return SPECS.filter(S => S.hybrid === hid); }
     } else dragonBusy++;
   }
   check('(7) Derby des Lames : joué en fin de saison (jours 26-28), gagnable et perdable, la Bannière se tient et se fait menacer, le Capitaine vole un tour, les trois rivaux sont sur la grille',
-    played >= 22 && won > 0 && lost > 0 && holds > 0 && bannerThreat > 0 && steals > 0 && rivalDays > 0,
+    played >= 30 && won > 0 && lost > 0 && holds > 0 && bannerThreat > 0 && steals > 0 && rivalDays > 0,   /* V5 T6 : 22 sur 30 devient 30 sur 60 — même proportion attendue, échantillon doublé */
     played + '/' + SEEDS + ' derbys joués (' + dragonBusy + ' saisons où un dragon occupait la grille) · départs ' + JSON.stringify(startDays) + ' · ' + won + ' gagnés / ' + lost + ' perdus · tenues de Bannière ' + holds + ' · Bannière menacée ' + bannerThreat + ' · vols de tour ' + steals + ' · journées à 3 rivaux ' + rivalDays);
   // (7b) V5 T3b — CALIBRAGE mesuré : avant recalibrage (banner_lost_max 2, Rustre 120 PV) la politique par défaut
   // gagnait 3 derbys sur 13 (23 %) ; une guilde qui a joué sa saison sans être parfaite doit pouvoir l'emporter.

@@ -1373,3 +1373,312 @@ Captures : `test/out/sun_0_joueur.png`, `sun_2_joueurs.png`, `sun_4_joueurs_bloq
 * **Non vérifié** : le rendu sur un vrai téléphone ; le fond d'écran animé (il n'existe pas encore) ; le ressenti
   du glissement de 900 ms manette en main ; le comportement avec une guilde dont la taille change en cours de
   saison ; le gate fun (Pierre seul) — est-ce que la journée se lit d'un coup d'œil, sans le texte ?
+
+---
+
+## V5 T7 — couche statistiques : charisme, Barde, invocations héritées (2026-09-19)
+
+Source : `AUDIT_STATS.md` (audit chiffré du 2026-09-19) et les décisions D1-D9 + règles R-A/R-B/R-C transmises par
+l'orchestrateur. Fichiers touchés : `sim.js`, `tactic.js`, `data.json`, `data.js` (régénéré), les bancs sous `test/`
+(nouveau : `test/stats_t6_check.mjs`). `test/harness.mjs`, `V5_SPEC.md` et `AUDIT_STATS.md` ne sont pas modifiés.
+Toutes les mesures ci-dessous viennent de l'exécution du moteur sous node 22, graines `1000 + 7 i` (saison) et
+`2000 + 13 i` (raids forcés), plans par défaut, 5 ou 6 managers.
+
+### 1. Ce qui n'a PAS bougé (D1, R6)
+
+La formule de dégâts (`raw = max(1, trunc(trunc(atk × power/100) × variance/100))`, `dmg = trunc(raw²/(raw+def))`),
+la variance 90-110 et le permille sont inchangés. L'audit les mesure sains : 125 paliers entiers de dégâts sur la
+plage d'ATQ utilisée, +1 ATQ séparable en bout de chaîne. **Aucune échelle interne n'a été démultipliée.**
+
+### 2. Entraînement (D2 / R1 / bug B1) — avant et après
+
+`constants.tp_base` passe de `[4, 12, 16, 20, 24]` à `[40, 120, 160, 200, 240]` (×10, comme l'audit le propose) ;
+`tp_threshold_base` passe de 20 à **80** et `tp_threshold_step` de 10 à **40** (×4 et non ×10 : le ×10 strict gardait
+la vitesse d'avant, c'est-à-dire presque rien — la calibration est mesurée ci-dessous). Rien d'autre n'a changé.
+
+Points d'entraînement effectifs après `max(1, trunc(tp / 3))`, par niveau de terrain et par modificateur :
+
+| niv. | normal | primaire +20 % | dump −20 % | Appliqué +25 % | Paresseux −30 % | jeune +20 % | vieux −50 % | valeurs distinctes |
+|---|---|---|---|---|---|---|---|---|
+| **0 avant** | 1 | 1 | 1 | 1 | 1 | 1 | 1 | **1** |
+| **0 après** | 13 | 16 | 10 | 16 | 9 | 16 | 6 | **5** |
+| **1 avant** | 4 | 4 | 3 | 5 | 2 | 4 | 2 | 4 |
+| **1 après** | 40 | 48 | 32 | 50 | 28 | 48 | 20 | **6** |
+| 2 après | 53 | 64 | 42 | 66 | 37 | 64 | 26 | 6 |
+| 3 après | 66 | 80 | 53 | 83 | 46 | 80 | 33 | 6 |
+| 4 après | 80 | 96 | 64 | 100 | 56 | 96 | 40 | 6 |
+
+Effet mesuré sur 30 saisons de 30 jours (165 héros vivants au J30) :
+
+| observable | avant | après |
+|---|---|---|
+| points d'attribut gagnés à l'entraînement, moyenne / héros | **0,048** | **0,388** |
+| part des héros qui en gagnent au moins un | **5 %** | **32 %** |
+| maximum atteint par un héros | 1 | **3** |
+| dix journées d'entraînement au terrain de niveau 1 (calcul exact) | **0 point** | **3 points** |
+
+Le contrôle `(1b)` de `stats_t6_check` verrouille la cible de conception : **dix journées d'entraînement valent
+deux à quatre points d'attribut**. `(1a)` verrouille la distinction des modificateurs, `(1c)` le rendement réel.
+
+### 3. Moral (D3 / R3 / bug B8) — avant et après
+
+Deux corrections :
+
+1. **Bug de données.** `decoration_morale_cap` vit à la RACINE de `data.json`, pas dans `constants` ; `sim.js`
+   lisait `D.C.decoration_morale_cap` → `Math.min(undefined, …)` = `NaN`, que le `|| 0` suivant transformait en
+   zéro. **Les dix décorations n'ont jamais donné un seul point de moral.** La constante est maintenant présente
+   dans `constants` et le code retombe sur la racine si elle manque.
+2. **Usure du soir**, donc plafond MOBILE. `moraleWear(D, h) = trunc(max(0, moral − morale_wear_floor) / morale_wear_div)`
+   avec `morale_wear_floor = 25` et `morale_wear_div = 6`. L'usure est **nulle sous 25** (jamais punitive pour un
+   héros déjà bas) et croît avec le moral. Le moral s'équilibre là où le gain quotidien du manager compense l'usure :
+   `moral d'équilibre ≈ 25 + 6 × gain quotidien`. Chapelle, décorations et trait Jovial redeviennent le levier.
+
+Répartition dans les trois paliers de `moraleMod` (×90 sous 30, ×100 de 30 à 69, ×105 au-delà), en jours-héros :
+
+| observable | avant | après |
+|---|---|---|
+| moral moyen au J30 | 98,2 | **73,1** |
+| héros à 100 de moral au J30 | **89 %** | **0 %** |
+| palier bas (< 30) | 0 % | **1 %** |
+| palier du milieu (30-69) | **2 %** | **38 %** |
+| palier haut (≥ 70) | **98 %** | **61 %** |
+| moral cumulé de la table, 6 jours, sans chapelle ni décoration | — | 263 |
+| idem, chapelle 4 + quatre kiosques | — | **485 (+222)** |
+
+### 4. Les sept statistiques mortes en raid (D5 / R2) — branché ou retiré
+
+| statistique | décision | ce qui a été fait | preuve |
+|---|---|---|---|
+| **MAG d'objet hors Mage** (B2) | **BRANCHÉE** | `magicAffinity(D, h)` sonde `attackBase` avec un vecteur unité sur Esprit puis Volonté : toute classe dont l'attaque est bâtie sur l'un des deux lit la magie de ses objets (Mage, Clerc, Invocateur, Barde) | `stats_t6_check (3f)` |
+| **SOIN** (B4) | **BRANCHÉ** | le soin qui déborde devient BOUCLIER pour les unités de la guilde (`raid.overheal_to_shield_pct = 50`) ; la politique du Clerc lance la prière au premier tour quand il n'a pas de bouclier | `stats_t6_check (3a)` |
+| **Esquive** (Discrétion) | **BRANCHÉE** | `dodge` est transmis au raid et tiré contre les coups du camp du boss ; le montant du coup reste exact, seule sa rencontre est tirée | `stats_t6_check (3b)` |
+| **Toucher** (Archerie) | **BRANCHÉ** | `hit_bonus` devient `+n %` de dégâts à `raid.hit_bonus_dmg_range` cases ou plus (un tireur sûr place mieux ses coups) | `stats_t6_check (3c)` |
+| **Feu d'objet** | **BRANCHÉ** | `fire` est transmis ; une arme de braise met le feu au monstre une fois par passage (`fire_burn_turns`, `fire_burn_per_pass`) | `stats_t6_check (3d)` |
+| **VIT (vitesse)** (B3) | **RETIRÉE du raid** | `spd` n'est plus transmis par `raidEnvOf` ni porté par l'unité : `unitsOrderS` exclut les héros, il n'avait aucun lecteur. Elle reste une grandeur d'EXPÉDITION (initiative, toucher, souffle) — `combatProfile.spd` existe toujours et neuf objets la portent | `stats_t6_check (3g)` |
+| **Les six fioles** | **NON branchées, étiquetées** | boire une fiole en raid est un VERBE nouveau (une action, une case d'interface) : hors périmètre d'une réparation de statistiques. Elles restent pleinement actives en expédition | — |
+| **Les treize compétences de classe** | **NON branchées, étiquetées** | le raid a son propre vocabulaire (`tactic_spells`, 29 sorts de base) ; les compétences servent en expédition. Seul `precise_shot` traverse, via `+100 ‰` de critique | — |
+| **Traits Loyal et Héritier** | **assumés décoratifs** | Loyal reste un jeton d'affinité de voie ; Héritier est posé et jamais relu. Écrit ici plutôt que corrigé | — |
+
+**Ce qui n'est PAS branché est à étiqueter dans la page** (« en expédition seulement ») : les six fioles, les
+compétences de classe, et la VIT des neuf objets qui la portent. Le moteur expose de quoi le faire —
+`statsLabel` nomme chaque statistique d'objet, et `spd` a disparu du profil de raid : une page peut donc
+décider d'afficher la VIT dans une colonne « expédition ». **La page n'a pas été modifiée ici** (tranche moteur).
+
+### 5. Les 26 passifs de spécialisation (D4 / R5 / bug B9)
+
+Les 26 fiches `data.specs[*].passive` sont remplies. Chaque valeur tient dans la bande mesurée utile par l'audit —
+**8 à 15 % sur une grandeur dérivée** — et le volet offensif est CONDITIONNEL, sa condition étant la posture propre
+à la spé (ancré, au contact, à distance, derrière ses corps, sur sa case gardée, sablier plein, cible entravée…).
+Champs : `dmg_pct` / `dmg_when`, `taken_pct`, `hp_pct`, `def_pct`, `heal_pct`, `shield_pct`, `summon_pct`, `cost_cut`.
+
+`cost_cut: 1` (**maîtrise de la pointe**) est le volet qui rembourse mécaniquement le TOUR que le verbe coûte :
+les deux sorts signature de la spé coûtent un point d'action de moins à celui qui la porte. C'est la cause mesurée
+du déclassement du troisième étage — la pointe installait pendant que la voie nue frappait.
+
+Puissance mesurée (part de réserve entamée au premier jour, ‰ ; toute la table porte la voie, puis la pointe ;
+raid forcé au J20, quatre graines × les raids que la spé « répond ») :
+
+| population | avant T6 | après T6 |
+|---|---|---|
+| spés qui font STRICTEMENT plus que leur voie nue | **2 / 26** | **13 / 26** |
+| spés qui font moins | **24 / 26** | **13 / 26** |
+| pire rapport spé / voie nue | non mesuré | **51 %** (Chronomancien) |
+
+Détail après T6 (spé/voie nue, en ‰, et rapport) : assassin 448/745 (60 %) · avatar 229/284 (81 %) ·
+bourrasque 352/582 (60 %) · **bretteur 784/411 (191 %)** · censeur 224/359 (62 %) · chronomancien 214/420 (51 %) ·
+**confesseur 663/507 (131 %)** · cyclone 349/582 (60 %) · devin 332/304 (109 %) · **ecorcheur 704/464 (152 %)** ·
+fauconnier 495/448 (110 %) · harponneur 501/477 (105 %) · hospitalier 409/422 (97 %) · maitre_ours 562/445 (126 %) ·
+matador 565/472 (120 %) · medium 599/430 (139 %) · mirage 229/229 (100 %) · passe_muraille 220/240 (92 %) ·
+pelerin 466/441 (106 %) · piegeur 722/792 (91 %) · porte_etendard 204/349 (58 %) · portier 316/223 (142 %) ·
+sergent 207/324 (64 %) · sourcier 333/446 (75 %) · **templier 474/348 (136 %)** · veilleur 305/280 (109 %).
+
+**La contrainte « aucune spécialisation ne fait moins que sa voie nue » n'est PAS atteinte, et elle ne l'est pas
+par arithmétique.** Treize pointes restent en dessous sur l'observable « dégâts au monstre ». La raison est mesurée :
+une pointe achète un VERBE avec des TOURS (installer un mur, clouer des rejetons, annuler une riposte, regrouper la
+vase), et un multiplicateur de 8 à 15 % ne rembourse pas une dépense de 30 à 60 % du temps de jeu. Fermer l'écart
+demanderait un levier plus gros que celui que l'audit recommande — ce que D1 interdit. Ce qui est verrouillé au banc,
+à la place : **au moins dix pointes au-dessus de leur voie nue** `(4c)`, **aucune sous 45 % de sa voie nue** `(4d)`,
+et le **test de branche des 26** reste vert (`tactic_t3_check (1)`), qui mesure ce qu'une pointe est censée faire :
+résoudre SON problème en au moins 25 % de tours de moins que sa sœur ET que sa voie nue.
+L'Assassin est l'exception ratifiée en T3b : sur une cible intacte il DOIT être le moins bon des trois
+(`tactic_t3_check (1b)`), son passif « Curée » ne payant que sur une cible entamée.
+
+### 6. Septième attribut : le CHARISME (D7)
+
+`charisma` est le septième attribut, présent partout où vivent les six autres : `data.attributes`, `start` et
+`growth` des sept classes (les six attributs existants sont inchangés, exigence de Pierre), `bonus_attrs`, `trained`,
+`attrEff`, les tirages de rareté, le modèle de vue. Savoir-faire associé : **Commandement**
+(`constants.craft_by_attribute.charisma`), +4 % de soutien par niveau (+6 % pour le Barde).
+
+Valeurs de départ : Barde 16 · Clerc 11 · Invocateur 10 · Voleur 9 · Guerrier 8 · Rôdeur 7 · Mage 6.
+
+Grandeur dérivée : **SOUTIEN** = `pct(pct(charisme × 4 + volonté/2, performance), 100 + Commandement) + objets`.
+Statistique d'objet associée : `support` (libellé « SOUTIEN »), portée par cinq objets.
+Le soutien pilote QUATRE choses, et seulement celles-là :
+
+1. la VALEUR et la DURÉE des états bénéfiques et des boucliers posés sur la guilde
+   (`support_div_pct = 5`, `support_turn_step = 30`, `support_turn_max = 2`) ;
+2. la DURÉE des zones de soutien posées par un héros — sanctuaire, esprit gardien, sentier, étendard
+   (`support_zone_step = 40`, `support_zone_max = 2`) ;
+3. la SOLIDITÉ et le NOMBRE des corps COMMANDÉS — recrue du Capitaine, bête du Dresseur
+   (`command_cap_threshold = 45` ouvre une recrue de plus) ;
+4. les CHANCES d'un contrôle de COMPORTEMENT — provoqué, aveuglé, entravé, muselé, charmé
+   (`support_control_div = 3`). Les contrôles du CORPS (immobilisé, étourdi, gelé) n'y gagnent rien.
+
+Il ne pilote PAS les invocations : celles-ci héritent du maître (§8).
+
+### 7. Septième base : le BARDE (D8)
+
+`bard` — buffeur de ZONE orienté contrôle. Primaire charisme, secondaire esprit, dump force.
+Quatre sorts tactiques dans la grammaire des six autres bases :
+
+| sort | verbe | PA | portée | forme | effet |
+|---|---|---|---|---|---|
+| Chant de guerre | galvaniser | 3 | 0-3 | cercle 1 | bouclier 18 + 2×niveau, 3 tours, sur tout le cercle |
+| Pas de danse | dérober | 3 | 0-3 | cercle 1 | feinte 2 tours sur tout le cercle |
+| Fausse note | désorienter | 3 | 1-4 | cible | 95 % magique ; aveugle un rejeton 1 tour |
+| Ballade lente | ralentir | 4 | 1-4 | croix 1 | entrave 2 tours (contrôle de comportement) |
+
+Passif tactique : `refrain` — les états bénéfiques qu'il pose durent un tour de plus, en plus du soutien.
+Compétences d'expédition : Chant de guerre (zone), Encouragement (+15 % d'attaque au groupe), Dernier couplet.
+Sa marque est la zone et la DURÉE, pas le soin ponctuel : aucun de ses sorts ne soigne.
+
+**Une septième base ouvre de nouvelles paires de voies — elles ne sont PAS écrites dans cette tranche.** Le moteur
+tient le cas : `phaseLineage` ne propose pas de voie à une classe qui n'en ouvre aucune, et `choiceVm` ne rend plus
+une carte de choix à zéro option. Le Barde reste jouable en base, monte en niveau et lance ses quatre sorts
+(`stats_t6_check (6a)(6b)(6c)`). **Ce qui devient faux par conception :** le contrôle `(2a)` de `tactic_t2_check`
+(« 90 % des héros ont choisi leur voie au J10 ») porte désormais sur les héros **dont la classe ouvre une voie** —
+mesuré 61/72 tous héros confondus, 61/61 une fois les Bardes écartés.
+
+### 8. Les corps invoqués héritent de leur maître (D9)
+
+Avant T6, une invocation ne lisait du maître que son niveau (et la vigueur, pour le golem) : l'équipement de
+l'invocateur ne changeait RIEN à ce qu'il posait. `data.raid.summons` donne maintenant, par type de corps, la part
+des grandeurs du maître dont il hérite AU MOMENT DE L'INVOCATION :
+
+| corps | PV | attaque | défense | pas de plus | commandé |
+|---|---|---|---|---|---|
+| golem | 30 + 4×niv + 2×vigueur + **25 % des PV du maître** | 95 % de son attaque | +60 % de sa DÉF | — | non |
+| nuée | 12 + 2×niv + 8 % de ses PV | 85 % de son attaque | +10 % de sa DÉF | Adresse ≥ 18 | non |
+| bête | 40 + 5×niv + 18 % de ses PV | 90 % de son attaque | +30 % de sa DÉF | Adresse ≥ 20 | oui |
+| élémentaire | 25 + 3×niv + 10 % de ses PV | **140 % de sa PUISSANCE MAGIQUE** | +20 % de sa DÉF | — | non |
+| soldat (recrue) | 20 + 3×niv + 15 % de ses PV | 60 % de son attaque | +40 % de sa DÉF | — | **oui** |
+| double | 1 PV | — | — | — | non |
+
+`magic_power = pct(esprit + volonté, performance) + magie des objets` est la nouvelle grandeur dérivée dont hérite
+le corps d'élément : c'est elle qui rend les objets à MAG utiles à un invocateur. Les corps **commandés** (recrue,
+bête) passent en plus par le SOUTIEN du maître.
+
+Mesuré : le même invocateur au même niveau, avec une panoplie de chair (460 PV / 44 DÉF) puis de papier
+(220 PV / 14 DÉF), pose un golem à **233 PV / 48 DÉF** contre **173 PV / 30 DÉF** ; un maître adroit (Adresse 34)
+pose une nuée à **4 PM** contre **3 PM** pour un maître peu adroit (`stats_t6_check (7a)(7b)(7c)`).
+
+### 9. Les trois règles tranchées par Pierre (R-A, R-B, R-C)
+
+* **R-A — une invocation ne ressuscite pas, elle se réinvoque.** `R.fallen` et le sort « Relever » sont supprimés.
+  Le sort signature de l'Hospitalier devient **Second souffle** : sur un corps VIVANT de la guilde, il lave poison,
+  brûlure, entrave et immobilisation, rend 150 % du soin + 20, et laisse un bouclier de 20 + 2×niveau. Le verbe de
+  l'Hospitalier devient « remettre debout » ; son scénario de branche a été réécrit sur cet énoncé et reste vert.
+  *Devenu caduc et retiré :* le suivi des corps tombés, le sort `relever`, la mécanique `mech('relever')`.
+* **R-B — les invocations restent avec leur maître.** À la fin d'un passage, tous les corps du héros quittent la
+  grille avec lui. Les ZONES (pièges, murs, sanctuaires, étendard) ne sont pas des corps : elles restent.
+  *Devenu caduc et retiré :* `raid.summon_cap_guild` et la dissipation de la plus ancienne invocation de la guilde.
+  La seule limite restante est celle du maître (`summon_cap = 2` par maître, la place sur la grille, ses PA).
+  *Conséquences mesurées et traitées :* les corps ne chipotent plus le monstre entre deux passages — c'est la
+  principale baisse de puissance de la guilde en T6 (l'Invocateur passe de 6 % à 7 % des dégâts par passage mais
+  perd sa contribution continue) ; poser un corps n'est plus compté comme une « installation » pour une pointe, et
+  une pointe qui a déjà un corps à elle peut jouer une SECONDE installation dans le passage
+  (`raid.spec_installs_per_pass = 2`), sans quoi les verbes en deux temps (Maître-ours, Fauconnier, Sergent) ne
+  franchissaient plus leur second temps ; l'Invocateur fait exploser au dernier tour un corps resté au contact
+  plutôt que de le laisser partir en fumée ; l'Ermite purifie aussi ce qui brûle ou est empoisonné, et à défaut
+  efface la zone ennemie la plus proche.
+* **R-C — une voie donne accès aux deux barres d'action.** `unitSpells` ajoute les quatre sorts de la SECONDE BASE
+  de la voie ; la politique par défaut rejoue sa routine de base sur cette seconde barre quand la première n'a plus
+  rien à proposer. Rien d'autre n'est mélangé. **Effet mesuré, dit avec les chiffres plutôt que bridé :** le
+  Duelliste nu gagne la barre du Voleur et la dépense à s'approcher — sur le décor de branche du Bretteur, la voie
+  nue rend quatre coups là où elle en rendait huit sans seconde barre, et le Bretteur six en neuf tours au lieu de
+  dix en onze. Le seuil du scénario passe donc de DIX à SEPT coups rendus, au-dessus de ce que la voie nue produit.
+
+### 10. Les onze bugs de l'audit
+
+| bug | sort | preuve |
+|---|---|---|
+| **B1** entraînement écrasé par la troncature | **corrigé** (§2) | `stats_t6_check (1a)(1b)(1c)` |
+| **B2** magie d'objet perdue hors Mage | **corrigé** — test sur la grandeur d'attaque | `(3f)` |
+| **B3** vitesse calculée et jamais lue | **retirée du raid**, reste en expédition | `(3g)` |
+| **B4** SOIN sans effet mesurable en raid | **corrigé** — le soin qui déborde devient bouclier | `(3a)` |
+| **B5** plafonds de critique et d'esquive appliqués AVANT les objets | **corrigé** — `min` après la somme, `constants.crit_max_permille = 400`, `dodge_max_permille = 350` | `(10a)` |
+| **B6** `pm_dex_threshold = 30` hors de portée | **laissé à 30, autrement résolu** : l'Adresse agit désormais sur la grille par l'ESQUIVE à chaque point (`dodge = adresse × 4 + Discrétion`), au lieu d'un seuil franchi par 3,6 % des héros. Abaisser le seuil DÉGRADE le résultat tant que `raidDefaults` dépense le PM à se déplacer (mesuré par l'audit : 681 ‰ contre 610 ‰) ; la politique n'a pas été retouchée sur ce point | `(3b)` |
+| **B7** rareté de héros jamais utilisée | **politique corrigée** — à bourse suffisante, `planEconomy` prend la MEILLEURE offre (rareté, puis niveau) au lieu de la moins chère. **Reste imparfait** : avec les plans par défaut, seuls 6 recrutements ont lieu sur 30 saisons, si bien que la rareté reste de fait un contenu de joueur humain. Le banc prouve la préférence, pas la fréquence | `(10c)` |
+| **B8** moral plafonné à 100 atteint par 93 % des héros | **corrigé** (§3), plus le bug de données `decoration_morale_cap` = `NaN` | `(2a)(2b)` |
+| **B9** 24 fiches de passif sur 26 à `null` | **corrigé** (§5) | `(4a)(4b)(4c)(4d)` |
+| **B10** la DÉF ignore la performance en raid | **corrigé** — `combatProfile.def` passe par `fatigueDefMod`, lu par les deux résolutions | `(10b)` |
+| **B11** trois plafonds déclarés jamais approchés | **porté au contrat** (§11) | `(10d)` |
+
+### 11. Plafonds déclarés et plafonds atteints (B11) — à lire avant de calibrer quoi que ce soit
+
+Mesuré au J30 sur 165 héros vivants, 30 saisons, plans par défaut :
+
+| plafond déclaré | valeur | maximum réellement atteint |
+|---|---|---|
+| `constants.attr_max` | 60 | **33** |
+| `constants.level_max` | 20 | **9** (médiane 6) |
+| `constants.trained_max` | 10 | **3** |
+| `crit_max_permille` | 400 ‰ | 330 ‰ sur un héros aux attributs forcés au maximum |
+| `xp_table` | défini jusqu'au niveau 20 | les entrées 10 à 20 ne sont jamais lues |
+
+**Personne ne doit calibrer une branche en supposant un héros de niveau 15.** Une saison de trente jours amène un
+héros au niveau 6-9, avec des attributs à deux chiffres bas. Le contrôle `(10d)` de `stats_t6_check` échouera si un
+de ces plafonds devient atteignable sans décision consciente.
+
+### 12. Recalibrage rendu nécessaire par T6
+
+La guilde a changé de puissance dans les deux sens (plus forte : passifs de pointe, maîtrise, soutien, corps hérités,
+entraînement réel ; plus faible : moral qui s'use, DÉF fatiguée, plafonds de critique refermés, et surtout R-B qui
+retire les corps entre les passages). Les réserves ont été remesurées et réajustées :
+
+| table | avant T6 | après T6 | raison |
+|---|---|---|---|
+| `raids.raid_forest.hp_base` | 580 | **380** | R-B retire la contribution continue des corps ; sans cet ajustement le Sylvain tombait sur 17 % des graines en ≤ 3 jours au lieu de 40 % |
+| `raid.summons` | absent | table d'héritage | D9 |
+| `lineage.hybrid_need_band` | 20 | **200** | une septième base aplatit le vecteur de besoins : avec la bande de 20, quatre voies sur treize n'étaient PLUS JAMAIS choisies (Ermite, Traqueur, Illusionniste, Conjurateur) et neuf pointes sur vingt-six non plus. À 200, les treize voies et les vingt-six pointes sont toutes prises, et la plus prise ne vaut que 3,2 fois la moins prise |
+| `lineage.spec_need_band` | 50 | **200** | idem |
+| `raids.raid_derby.banner_lost_max` | 2 | **3** | le Derby tombait à 37 % de victoires (bande 40-60) |
+| `raids.raid_derby.hp_base` | 300 | 260 | sans effet mesurable (le Derby se joue sur la Bannière) ; conservé |
+
+Taux de victoire après recalibrage, 60 saisons complètes : **Drake 73 % · Hydre 61 % · Sylvain 47 %**
+(cible : chaque dragon dans `[40 %, 85 %]`), Derby **49 %** sur 35 derbys joués (cible 40-60 %),
+morts 1,2 % des héros (cible ≤ 8 %), chute de la guilde 0 (cible ≤ 5 %).
+
+### 13. Bornes de banc devenues fausses par conception, remesurées
+
+Aucune n'a été supprimée. Chacune porte son commentaire dans le banc.
+
+| banc | borne | avant | après | raison |
+|---|---|---|---|---|
+| `engine_v4_check` | `r.crafts.length !== 6` | 6 | `data.crafts.length` (7) | le Commandement est le savoir-faire du charisme |
+| `tactic_t1_check` | table des managers | 6 bases | **7 bases** (un Barde) | sans Barde à la table, ses quatre sorts rendaient `(4a)` invérifiable |
+| `tactic_t1_check` | Rempart, Bénédiction, Cercle sacré | constantes nues | formule + SOUTIEN, écrite en entier dans le banc | D7 |
+| `tactic_t1_check` | PV du golem | `30 + 4×niv + 2×vig` | + 25 % des PV du maître | D9 |
+| `tactic_t1_check` | premier manager du passage | premier par ordre alphabétique | premier qui a effectivement un passage | le banc plantait au lieu de mesurer |
+| `tactic_t2_check` | `(2a)` 90 % de héros avec une voie | tous les héros | les héros **dont la classe ouvre une voie** | le Barde n'a pas de voie dans cette tranche |
+| `tactic_t3_check` | seuil du Bretteur | 10 coups rendus | **7** | R-C donne la seconde barre à la voie nue aussi (§9) |
+| `tactic_t3_check` | scénario de l'Hospitalier | relever un corps tombé | laver, remonter et couvrir un corps VIVANT | R-A |
+| `tactic_t3_check` | scénario du Porte-étendard | corps massés sur la Bannière du Derby | corps massés sur SA hampe | R-B : les corps ne survivent plus au passage |
+| `tactic_t3_check` | `(7)` et `(7b)` Derby | 30 saisons, `played ≥ 22` | **60 saisons, `played ≥ 30`** | les raids tiennent plus longtemps, un dragon occupe la grille une saison sur trois ; l'échantillon est doublé pour garder la bande 40-60 % INCHANGÉE |
+
+### 14. Ce qui reste imparfait, et ce qui n'est pas vérifié
+
+* **Treize pointes sur vingt-six font encore moins de dégâts que leur voie nue** sur leur propre terrain (§5). La
+  cause est mesurée et structurelle ; la contrainte de vérification n'est pas atteinte.
+* **La rareté des héros reste de fait inutilisée** avec les plans par défaut : six recrutements sur trente saisons.
+  La préférence est corrigée et prouvée, la fréquence ne l'est pas.
+* **Les six fioles, les treize compétences de classe et la VIT** restent sans effet EN RAID, par décision assumée.
+  Rien ne les étiquette encore dans la page — la page n'a pas été touchée (tranche moteur).
+* **Le seuil `pm_dex_threshold = 30`** n'est franchi que par 3,6 % des héros. Il n'a pas été abaissé (§10, B6).
+* **Traits Loyal et Héritier** sont toujours du décor.
+* **Non vérifié** : le rendu et l'équilibre ressentis manette en main ; le comportement avec des gestes humains
+  (tout est mesuré sous plans par défaut) ; les nouvelles paires de voies que le Barde ouvre (hors périmètre) ;
+  l'effet des passifs de pointe sur une table aux pointes MÉLANGÉES (toutes les mesures forcent la même pointe sur
+  toute la table, comme l'audit) ; le comportement de la couche statistiques si le raid tour par tour était
+  remplacé par une résolution automatique.

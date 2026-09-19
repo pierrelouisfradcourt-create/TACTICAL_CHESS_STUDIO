@@ -160,6 +160,19 @@
   function perfPct(h) {
     return clamp(50 + div(h.form * 2, 5) + div(h.morale, 5) - div(Math.max(0, h.fatigue - 50) * 3, 5), 20, 110);
   }
+  // ---- V5 T6 (R3 / bug B8) : USURE DU SOIR DU MORAL, donc PLAFOND MOBILE ----
+  // Avant T6 le moral ne pouvait que monter jusqu'au clamp à 100 : 93 % des héros y étaient au J30 et 357 sur 359
+  // tenaient dans le seul palier haut de `moraleMod`. Chapelle, décorations et trait Jovial étaient donc gratuits.
+  // L'usure vaut `(moral − plancher) / diviseur`, arrondi vers le bas : elle est NULLE sous le plancher (jamais
+  // punitive pour un héros déjà bas) et croît avec le moral. Le moral s'équilibre donc là où le gain quotidien du
+  // manager (repos, atelier, missions, chapelle, décorations, copain Jovial) compense l'usure :
+  //     moral d'équilibre ≈ plancher + diviseur × gain quotidien.
+  // Un manager qui n'investit rien plafonne dans le palier du milieu ; le palier haut (×105) se paie.
+  function moraleWear(D, h) {
+    const floor = D.C.morale_wear_floor === undefined ? 30 : D.C.morale_wear_floor;
+    const dv = Math.max(1, D.C.morale_wear_div === undefined ? 8 : D.C.morale_wear_div);
+    return div(Math.max(0, h.morale - floor), dv);
+  }
   // ---- Savoir-faire (V4) : XP par l'usage, niveaux 1-10, bonus chiffré par niveau ----
   function craftXp(h, id) { return (h.crafts && h.crafts[id]) || 0; }
   function craftLevel(D, xp) {
@@ -205,7 +218,12 @@
       wall_shield_pct: div(age.defense * ((D.raid && D.raid.wall_shield_pct_of_defense) || 50), 100) };
     for (const h of allHeroes(state)) {
       const p = combatProfile(D, state, h);
-      env.heroes[h.id] = { id: h.id, name: p.name, owner: h.owner, class_id: h.class_id, hybrid: h.hybrid || null, spec: h.spec || null, hybrid_bonus: h.hybrid_bonus || 0, level: h.level, gender: h.gender, hp_max: p.hp_max, atk: p.atk, def: p.def, heal: p.heal, crit: p.crit, spd: p.spd,
+      // V5 T6 (R2/B3) : `spd` n'est PLUS transmis — `unitsOrderS` exclut les héros, la vitesse n'avait aucun lecteur
+      // sur la grille (mesuré : spd +5 et spd +100 identiques au bit près). Elle reste une grandeur d'EXPÉDITION.
+      // En échange, `dodge`, `hit_bonus` et `fire` descendent sur la grille où ils ont maintenant un lecteur.
+      env.heroes[h.id] = { id: h.id, name: p.name, owner: h.owner, class_id: h.class_id, hybrid: h.hybrid || null, spec: h.spec || null, hybrid_bonus: h.hybrid_bonus || 0, level: h.level, gender: h.gender, hp_max: p.hp_max, atk: p.atk, def: p.def, heal: p.heal, crit: p.crit,
+        dodge: p.dodge, hit_bonus: p.hit_bonus, fire: p.fire,
+        support: p.support, magic_power: p.magic_power, charisma: attrEff(D, h, 'charisma'),
         magic: p.magic, morale: h.morale, fatigue: h.fatigue, dexterity: attrEff(D, h, 'dexterity'), vigor: attrEff(D, h, 'vigor'), traits: h.traits.slice(), injury_severity: h.injury.severity };
     }
     return env;
@@ -378,12 +396,25 @@
     }
     return tot;
   }
+  // V5 T6 (B2 / R2) : la statistique `magic` d'un objet ne doit plus dépendre de l'IDENTIFIANT de classe mais de la
+  // GRANDEUR D'ATTAQUE. On dérive l'affinité en sondant `attackBase` avec un vecteur unité sur Esprit puis Volonté :
+  // toute classe dont l'attaque est bâtie sur l'un des deux (Mage, Clerc, Invocateur) lit la magie de ses objets.
+  // Avant T6 : 37 héros sur 144 portaient un objet dont la magie était entièrement perdue (227 points).
+  function magicAffinity(D, h) {
+    const Z = {};
+    for (const a of D.attrs) Z[a] = 0;
+    const base = attackBase(D, h, Z);
+    let n = 0;
+    for (const a of ['mind', 'will']) { const V = Object.assign({}, Z); V[a] = 1; n += attackBase(D, h, V) - base; }
+    return n > 0 ? 1 : 0;
+  }
   function attackBase(D, h, A) {
     switch (h.class_id) {
       case 'warrior': return A.strength * 2 + A.dexterity;
       case 'ranger': case 'rogue': return A.dexterity * 2 + A.strength;
       case 'mage': return A.mind * 2 + A.will;
       case 'summoner': return A.will + A.mind;
+      case 'bard': return A.charisma * 2 + A.mind;                              // V5 T6 (D8) : la voix porte le coup
       default: return A.will + A.strength;
     }
   }
@@ -396,15 +427,28 @@
     const p = {
       id: h.id, name: heroName(h), class_id: h.class_id, level: h.level, owner: h.owner, gender: h.gender,
       hp_max: pct(pct(20 + A.vigor * 3 + h.level * 2, perf), 100 + craftBonus(D, h, 'endurance')) + (it.hp || 0),
-      atk: pct(attackBase(D, h, A), perf) + (it.atk || 0) + (h.class_id === 'mage' ? (it.magic || 0) : 0),
+      atk: pct(attackBase(D, h, A), perf) + (it.atk || 0) + (magicAffinity(D, h) ? (it.magic || 0) : 0),
       heal: pct(A.will * 2 + A.mind, perf) + (it.heal || 0),
-      def: A.vigor + div(A.strength, 2) + (it.def || 0),
+      // V5 T6 (B10) : la fatigue module la DÉFENSE comme elle module l'attaque. L'expédition l'appliquait déjà au
+      // défenseur (`fatigueDefMod`), le raid copiait `def` tel quel : un héros épuisé frappait à 75 % mais se
+      // défendait comme au repos. Le profil porte désormais la valeur fatiguée, lue par les DEUX résolutions.
+      def: pct(A.vigor + div(A.strength, 2) + (it.def || 0), fatigueDefMod(h)),
       spd: 7 + div(h.level, 2) + div(A.dexterity, 8) + (it.spd || 0),
-      crit: Math.min(400, 30 + A.luck * 5) + (it.crit || 0) + (hasSkill(D, h, 'precise_shot') ? 100 : 0),
-      dodge: Math.min(350, A.dexterity * 4) + craftBonus(D, h, 'discretion'),
+      // V5 T6 (B5) : les plafonds sont appliqués APRÈS la somme des objets et du savoir-faire, sinon l'équipement
+      // les contourne (un Voleur à `w_dent_hydre` + `t_oeil_hydre` + tir précis atteignait 750 ‰ sous un cap de 400).
+      crit: Math.min(D.C.crit_max_permille || 400, 30 + A.luck * 5 + (it.crit || 0) + (hasSkill(D, h, 'precise_shot') ? 100 : 0)),
+      dodge: Math.min(D.C.dodge_max_permille || 350, A.dexterity * 4 + craftBonus(D, h, 'discretion')),
+      // V5 T6 (D7) : SOUTIEN — la grandeur dérivée du CHARISME. Rien n'alimentait les états bénéfiques, les auras,
+      // les zones de soutien, les corps commandés et les contrôles de comportement : la Volonté servait à la fois de
+      // soin et de commandement, et le Paladin se confondait avec le Clerc. Le soutien est au charisme ce que
+      // l'attaque est à la force. Savoir-faire associé : Commandement.
+      support: pct(pct(A.charisma * 4 + div(A.will, 2), perf), 100 + craftBonus(D, h, 'commandement')) + (it.support || 0),
+      // V5 T6 (D9) : PUISSANCE MAGIQUE — grandeur dérivée dont héritent les corps d'élément. Elle dépend de
+      // l'équipement du maître (`magic` des objets), c'est ce qui rend les invocations sensibles au butin.
+      magic_power: pct(A.mind + A.will, perf) + (it.magic || 0),
       hit_bonus: craftBonus(D, h, 'archerie'), xp_pct: craftBonus(D, h, 'erudition'),
       fire: it.fire ? 1 : 0, morale: h.morale, fatigue: h.fatigue, traits: h.traits.slice(),
-      magic: h.class_id === 'mage' ? 1 : 0, priority: (hasSkill(D, h, 'taunt') ? 100 : 0) + (hasTrait(h, 'brave') ? 50 : 0) - (hasTrait(h, 'coward') ? 50 : 0),
+      magic: magicAffinity(D, h), priority: (hasSkill(D, h, 'taunt') ? 100 : 0) + (hasTrait(h, 'brave') ? 50 : 0) - (hasTrait(h, 'coward') ? 50 : 0),
       presence: hasSkill(D, h, 'presence') ? 1 : 0,
       skills: (D.skills_by_class[h.class_id] || []).filter(s => s.type === 'active' && h.level >= s.unlock_level).map(s => s.id),
       potion: null
@@ -479,14 +523,14 @@
     const sec = { common: 0, uncommon: 2, rare: 2, legendary: 4 }[rarity];
     const rnd = { common: 0, uncommon: 0, rare: 1, legendary: 2 }[rarity];
     b[cls.primary] += prim; b[cls.secondary] += sec;
-    for (let i = 0; i < rnd; i++) b[D.attrs[rng.roll(6)]] += 2;
+    for (let i = 0; i < rnd; i++) b[D.attrs[rng.roll(D.attrs.length)]] += 2;             // V5 T6 (D7) : sept attributs, plus de 6 en dur
     return b;
   }
   function emptyAttrs(D) { const o = {}; for (const a of D.attrs) o[a] = 0; return o; }
 
   // Génère un héros (tirages T3..T9 du document Aventuriers §9.3 ; la rareté et le niveau sont fournis).
   function genHero(D, rng, state, opts) {
-    const classId = opts.class_id || D.raw.classes[rng.roll(5)].id;
+    const classId = opts.class_id || D.raw.classes[rng.roll(D.raw.classes.length)].id;   // V5 T6 (D8) : sept classes, plus de 5 en dur
     const gender = rng.roll(2) === 0 ? 'm' : 'f';
     const names = gender === 'm' ? D.raw.first_names_m : D.raw.first_names_f;
     const first = names[rng.roll(names.length)];
@@ -639,7 +683,7 @@
       state.max_heroes = heroesPer;
       for (const m of customManagers) {
         for (let i = 0; i < heroesPer; i++) {
-          const cls = (i === 0 && m.class_id && D.classes[m.class_id]) ? m.class_id : D.raw.classes[rng.roll(5)].id;
+          const cls = (i === 0 && m.class_id && D.classes[m.class_id]) ? m.class_id : D.raw.classes[rng.roll(D.raw.classes.length)].id;
           addHero(D, state, m.id, genHero(D, rng, state, { class_id: cls, level: 2, age_seasons: 5 + rng.roll(8), wage: 0 }));
         }
       }
@@ -647,8 +691,8 @@
     for (const mid of customManagers ? [] : ['ai_audacieux', 'ai_prudent']) {
       const used = {};
       for (let i = 0; i < 3; i++) {
-        let ci = rng.roll(5);
-        while (used[ci]) ci = (ci + 1) % 5;
+        let ci = rng.roll(D.raw.classes.length);
+        while (used[ci]) ci = (ci + 1) % D.raw.classes.length;
         used[ci] = 1;
         const lvl = 1 + rng.roll(3), age = 5 + rng.roll(8);
         addHero(D, state, mid, genHero(D, rng, state, { class_id: D.raw.classes[ci].id, level: lvl, age_seasons: age, wage: 0 }));
@@ -1173,8 +1217,17 @@
     const mid = m.id, inv = state.inventories[mid];
     const heir = state.tavern.filter(o => o.heir_for === mid)[0];
     if (heir) act('recruit', { recruit_id: heir.id });
+    // V5 T6 (B7) : la RARETÉ des héros ne servait à rien. `rollRarity` sait tirer peu commun, rare et légendaire à la
+    // taverne (+2/+4/+6 sur l'attribut primaire), mais la politique par défaut prenait TOUJOURS l'offre la moins chère
+    // — et une offre rare coûte 250 or de plus. Mesuré avant T6 : 354 communs, 5 peu communs, 0 rare, 0 légendaire sur
+    // 359 héros ; `bonus_attrs` non nul pour 5 héros sur 359. La politique choisit désormais la MEILLEURE offre qu'elle
+    // peut réellement s'offrir (rareté, puis niveau), et retombe sur la moins chère quand la bourse ne suit pas.
+    const RARITY_RANK = { common: 0, uncommon: 1, rare: 2, legendary: 3 };
     const offers = state.tavern.filter(o => !o.heir_for).sort((a, b) => a.cost - b.cost);
-    if (!heir && offers.length && heroes.length < rosterCap(D, state) && state.purses[mid] >= offers[0].cost + P.recruit_gold_margin) act('recruit', { recruit_id: offers[0].id });
+    const affordable = offers.filter(o => state.purses[mid] >= o.cost + P.recruit_gold_margin);
+    const best = affordable.slice().sort((a, b) =>
+      (RARITY_RANK[b.hero.rarity] || 0) - (RARITY_RANK[a.hero.rarity] || 0) || b.hero.level - a.hero.level || a.cost - b.cost || (a.id < b.id ? -1 : 1))[0];
+    if (!heir && best && heroes.length < rosterCap(D, state)) act('recruit', { recruit_id: best.id });
     planDragonCraft(D, state, m, act);
     if (P.buy_potions && state.purses[mid] >= 100) {
       const potions = inv.items.filter(x => x.item_id === 'c_potion_soin').length;
@@ -1973,6 +2026,9 @@
         case 'healing_prayer': if (conscious(exp).some(x => x.hp * 2 < x.hp_max)) return id; break;
         case 'bulwark': if (conscious(exp).some(x => x.hp * 2 < x.hp_max) && ms.length >= 2) return id; break;
         case 'storm': case 'volley': if (ms.length >= (id === 'storm' ? 2 : 3)) return id; break;
+        case 'war_chant': if (ms.length >= 2) return id; break;                       // V5 T6 (D8) : le Barde frappe la salle
+        case 'encouragement': if (cb.round === 1 && conscious(exp).length >= 2) return id; break;
+        case 'final_verse': if (conscious(exp).some(x => x.hp * 2 < x.hp_max)) return id; break;
         case 'swarm': if (ms.length >= 2) return id; break;                          // Invocateur (V5) : nuée sur tous les ennemis
         case 'frost_hold': if (ms.some(m => m.boss) || ms.length >= 2) return id; break;
         case 'shadow_strike': if (cb.round === 1) return id; break;
@@ -1993,9 +2049,12 @@
     if (skill === 'last_breath') { const t = exp.party.filter(x => x.ko && !x.deserted).sort((a, b) => a.slot - b.slot)[0]; t.ko = false; t.was_ko = true; t.hp = pct(t.hp_max, 30); f.used_once[skill] = 1; roomLog(exp, f.name + ' souffle la prière ultime : ' + t.name + ' se relève !'); return; }
     if (skill === 'healing_prayer') { const t = lowestAlly(exp); const amt = f.heal + 10; t.hp = Math.min(t.hp_max, t.hp + amt); f.healing += amt; f.cooldowns[skill] = sk.cooldown; roomLog(exp, f.name + ' soigne ' + t.name + ' de ' + amt + ' PV.'); return; }
     if (skill === 'bulwark') { cb.shield = 1; f.used_once[skill] = 1; roomLog(exp, f.name + ' dresse le rempart : les coups glissent.'); return; }
+    // V5 T6 (D8) : les deux appuis du Barde. Tous deux modifient l'état du groupe, aucun n'est décoratif.
+    if (skill === 'encouragement') { for (const c2 of conscious(exp)) { c2.atk_pct_mod += sk.value; c2.morale = clamp(c2.morale + 3, 0, 100); } f.cooldowns[skill] = sk.cooldown; roomLog(exp, f.name + ' entonne un encouragement : le groupe frappe plus fort.'); return; }
+    if (skill === 'final_verse') { for (const c2 of conscious(exp)) { c2.feat_crit += sk.value; c2.morale = clamp(c2.morale + 10, 0, 100); } f.used_once[skill] = 1; roomLog(exp, f.name + ' lance le dernier couplet : le groupe reprend cœur.'); return; }
     if (skill === 'frost_hold') { const t = enemyHighestAtk(cb); f.cooldowns[skill] = sk.cooldown; if (!t.boss || rng.chance(500)) { t.status.entangled = 1; roomLog(exp, f.name + ' fige ' + t.name + ' dans le givre.'); } else roomLog(exp, t.name + ' secoue le givre de ' + f.name + '.'); return; }
     let targets, power = 100, tags = { magic: f.magic === 1, fire: f.fire === 1, ignore_half: false, stealth: false };
-    if (skill === 'storm' || skill === 'volley' || skill === 'swarm') { targets = activeMonsters(cb); power = sk.value; }
+    if (skill === 'storm' || skill === 'volley' || skill === 'swarm' || skill === 'war_chant') { targets = activeMonsters(cb); power = sk.value; }
     else if (skill === 'sunder_strike') { targets = [enemyHighestAtk(cb)]; power = 150; tags.ignore_half = true; }
     else if (skill === 'sacrifice') { targets = [enemyHighestAtk(cb)]; power = sk.value; }
     else if (skill === 'shadow_strike') { targets = [enemyLowestHp(cb)]; power = 200; tags.stealth = true; f.used_once[skill] = 1; }
@@ -2904,7 +2963,10 @@
     for (const mid of sortedKeys(state.solo_board)) state.solo_board[mid] = rollSoloBoard(D, state, ctx.rng, mid);   // tableau solo renouvelé le soir (V4)
     const chapel = D.C.chapel_morale[bLevel(D, state, 'chapel')];
     const decoMorale = {};
-    for (const m of sortedKeys(state.quarters)) decoMorale[m] = Math.min(D.C.decoration_morale_cap, sum(state.quarters[m].map(q => D.decorations[q.decoration_id].morale)));
+    // V5 T6 (B8') : `decoration_morale_cap` vivait à la racine de data.json, pas dans `constants` — `Math.min(undefined, …)`
+    // valait NaN, et le `|| 0` plus bas le transformait en zéro : les dix décorations n'ont JAMAIS donné un point de moral.
+    const decoCap = D.C.decoration_morale_cap !== undefined ? D.C.decoration_morale_cap : (D.raw.decoration_morale_cap || 0);
+    for (const m of sortedKeys(state.quarters)) decoMorale[m] = Math.min(decoCap, sum(state.quarters[m].map(q => D.decorations[q.decoration_id].morale)));
     const cheerful = {};
     for (const h of allHeroes(state)) if (hasTrait(h, 'cheerful')) cheerful[h.owner] = 1;
     for (const h of allHeroes(state)) {
@@ -2919,6 +2981,7 @@
       if (fat > 0 && hasTrait(h, 'stoic')) fat = pct(fat, 80);
       mor += chapel + (decoMorale[h.owner] || 0) + (cheerful[h.owner] && !hasTrait(h, 'cheerful') ? 1 : 0) - (hasTrait(h, 'whiner') ? 1 : 0);
       if (hasTrait(h, 'stoic')) mor = div(mor, 2);
+      mor -= moraleWear(D, h);                                                 // V5 T6 (R3/B8) : usure du soir — plafond MOBILE, voir moraleWear
       h.fatigue = clamp(h.fatigue + fat, 0, 100);
       h.form = clamp(h.form + dl.form, 0, 100);
       h.morale = clamp(h.morale + mor, hasTrait(h, 'cheerful') ? 20 : 0, 100);
@@ -2956,6 +3019,9 @@
     let offered = 0;
     for (const h of allHeroes(state)) {
       if (h.hybrid || !hybridReady(D, state, h)) continue;
+      // V5 T6 (D8) : une classe qui n'ouvre AUCUNE voie (le Barde, tant que les paires ne sont pas écrites) ne reçoit
+      // pas de proposition : sans ce garde-fou, le modèle de vue rendait une carte de choix à zéro option.
+      if (!hybridsForClass(D, h.class_id).length) continue;
       if (h.hybrid_offer_day === null || h.hybrid_offer_day === undefined) {
         h.hybrid_offer_day = state.day;                                        // proposition le soir du seuil : la réponse vient le lendemain (copains) ou automatiquement à J+2
         say(ctx, 'voie', tpl(ctx, 'voie_offer', h.id, gv(h, { a: heroName(h) })));
@@ -3271,7 +3337,7 @@
   // 14. MODÈLE DE VUE — forme exacte du contrat, tout prêt à afficher
   // ===================================================================================
   function statsLabel(D, it) {
-    const names = { atk: 'ATQ', def: 'DÉF', hp: 'PV', spd: 'VIT', crit: 'CRIT ‰', magic: 'MAG', heal: 'SOIN', fire: 'feu', gather_forest: 'récolte forêt %', gather_mountain: 'récolte montagne %', heal_pct: 'soin %', poison_immune: 'antipoison', atk_pct: 'ATQ %', def_pct: 'DÉF %', injury_days: 'jours de blessure', fatigue: 'fatigue' };
+    const names = { atk: 'ATQ', def: 'DÉF', hp: 'PV', spd: 'VIT', crit: 'CRIT ‰', magic: 'MAG', heal: 'SOIN', support: 'SOUTIEN', fire: 'feu', gather_forest: 'récolte forêt %', gather_mountain: 'récolte montagne %', heal_pct: 'soin %', poison_immune: 'antipoison', atk_pct: 'ATQ %', def_pct: 'DÉF %', injury_days: 'jours de blessure', fatigue: 'fatigue' };
     return sortedKeys(it.stats).map(k => (names[k] || k) + ' ' + (it.stats[k] > 0 && k !== 'injury_days' && k !== 'fatigue' ? '+' : '') + it.stats[k]).join(' · ');
   }
   function costList(D, cost, have) { return sortedKeys(cost).map(r => ({ resource_id: r, name: D.resources[r].name, qty: cost[r], have: have[r] || 0 })); }
@@ -3379,7 +3445,7 @@
   function choiceVm(D, state, managerId) {
     const L = lineageC(D);
     if (!L) return null;
-    const h = heroesOf(state, managerId).filter(x => !x.hybrid && x.hybrid_offer_day !== null && x.hybrid_offer_day !== undefined && hybridReady(D, state, x))
+    const h = heroesOf(state, managerId).filter(x => !x.hybrid && x.hybrid_offer_day !== null && x.hybrid_offer_day !== undefined && hybridReady(D, state, x) && hybridsForClass(D, x.class_id).length)
       .sort((a, b) => (a.id < b.id ? -1 : 1))[0];
     if (!h) return specChoiceVm(D, state, managerId);
     const ranked = rankHybrids(D, state, h);

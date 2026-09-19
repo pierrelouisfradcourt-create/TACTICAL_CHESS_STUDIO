@@ -2,8 +2,8 @@
  "meta": {
   "title": "Chroniques de Guilde",
   "version": 5,
-  "date": "2026-09-18",
-  "source": "design_aventuriers.md, design_quetes_donjons.md, design_objets_economie.md (§0-2) ; village, journée, objets, recettes, bâtiments et décorations conçus par le moteur ; V3 (2026-09-18) : âges du village et menace du dragon ; V4 (2026-09-18) : dragons de biome (maîtrise), points d'action et journées composées, savoir-faire, missions solo, mort et héritier, défaite — conçus par le moteur. ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer).",
+  "date": "2026-09-19",
+  "source": "design_aventuriers.md, design_quetes_donjons.md, design_objets_economie.md (§0-2) ; village, journée, objets, recettes, bâtiments et décorations conçus par le moteur ; V3 (2026-09-18) : âges du village et menace du dragon ; V4 (2026-09-18) : dragons de biome (maîtrise), points d'action et journées composées, savoir-faire, missions solo, mort et héritier, défaite — conçus par le moteur. ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T6 (2026-09-19) : couche statistiques — entraînement ×10, usure du soir du moral, sept statistiques mortes tranchées, 26 passifs de spécialisation, septième attribut (charisme), septième base (Barde), corps invoqués hérités du maître, règles R-A/R-B/R-C.",
   "tranche": "V5 T2 — hybrides, Drake des monts, Hydre des marais"
  },
  "constants": {
@@ -18,14 +18,14 @@
   "retreat_threshold_permille": 300,
   "combat_round_cap": 30,
   "tp_base": [
-   4,
-   12,
-   16,
-   20,
-   24
+   40,
+   120,
+   160,
+   200,
+   240
   ],
-  "tp_threshold_base": 20,
-  "tp_threshold_step": 10,
+  "tp_threshold_base": 80,
+  "tp_threshold_step": 40,
   "infirmary_heal": [
    0,
    1,
@@ -289,7 +289,8 @@
    "mind": "erudition",
    "vigor": "endurance",
    "will": "herboristerie",
-   "luck": "discretion"
+   "luck": "discretion",
+   "charisma": "commandement"
   },
   "craft_by_class": {
    "warrior": "forge",
@@ -297,10 +298,16 @@
    "mage": "erudition",
    "cleric": "herboristerie",
    "rogue": "discretion",
-   "summoner": "erudition"
+   "summoner": "erudition",
+   "bard": "commandement"
   },
   "derby_raid_day": 26,
-  "derby_raid_skip_day": 28
+  "derby_raid_skip_day": 28,
+  "morale_wear_floor": 25,
+  "morale_wear_div": 6,
+  "decoration_morale_cap": 4,
+  "crit_max_permille": 400,
+  "dodge_max_permille": 350
  },
  "attributes": [
   {
@@ -326,6 +333,10 @@
   {
    "id": "luck",
    "name": "Chance"
+  },
+  {
+   "id": "charisma",
+   "name": "Charisme"
   }
  ],
  "classes": [
@@ -342,7 +353,8 @@
     "mind": 5,
     "vigor": 14,
     "will": 9,
-    "luck": 6
+    "luck": 6,
+    "charisma": 8
    },
    "growth": {
     "strength": 200,
@@ -350,7 +362,8 @@
     "mind": 25,
     "vigor": 150,
     "will": 100,
-    "luck": 50
+    "luck": 50,
+    "charisma": 60
    },
    "gather_affinity": {
     "forest": 0,
@@ -374,7 +387,8 @@
     "mind": 7,
     "vigor": 11,
     "will": 8,
-    "luck": 8
+    "luck": 8,
+    "charisma": 7
    },
    "growth": {
     "strength": 75,
@@ -382,7 +396,8 @@
     "mind": 50,
     "vigor": 125,
     "will": 75,
-    "luck": 75
+    "luck": 75,
+    "charisma": 50
    },
    "gather_affinity": {
     "forest": 50,
@@ -406,7 +421,8 @@
     "mind": 16,
     "vigor": 8,
     "will": 14,
-    "luck": 9
+    "luck": 9,
+    "charisma": 6
    },
    "growth": {
     "strength": 25,
@@ -414,7 +430,8 @@
     "mind": 200,
     "vigor": 75,
     "will": 150,
-    "luck": 100
+    "luck": 100,
+    "charisma": 40
    },
    "gather_affinity": {
     "forest": 0,
@@ -438,7 +455,8 @@
     "mind": 12,
     "vigor": 10,
     "will": 16,
-    "luck": 8
+    "luck": 8,
+    "charisma": 11
    },
    "growth": {
     "strength": 50,
@@ -446,7 +464,8 @@
     "mind": 150,
     "vigor": 100,
     "will": 200,
-    "luck": 50
+    "luck": 50,
+    "charisma": 110
    },
    "gather_affinity": {
     "forest": 10,
@@ -470,7 +489,8 @@
     "mind": 7,
     "vigor": 9,
     "will": 6,
-    "luck": 16
+    "luck": 16,
+    "charisma": 9
    },
    "growth": {
     "strength": 50,
@@ -478,7 +498,8 @@
     "mind": 50,
     "vigor": 75,
     "will": 50,
-    "luck": 225
+    "luck": 225,
+    "charisma": 70
    },
    "gather_affinity": {
     "forest": 20,
@@ -502,7 +523,8 @@
     "mind": 12,
     "vigor": 11,
     "will": 16,
-    "luck": 7
+    "luck": 7,
+    "charisma": 10
    },
    "growth": {
     "strength": 50,
@@ -510,7 +532,8 @@
     "mind": 125,
     "vigor": 125,
     "will": 200,
-    "luck": 50
+    "luck": 50,
+    "charisma": 90
    },
    "gather_affinity": {
     "forest": 10,
@@ -519,6 +542,40 @@
    },
    "craft_attr": "mind",
    "craft_affinity": 10,
+   "craft_specialty": "none"
+  },
+  {
+   "id": "bard",
+   "name": "Barde",
+   "glyph": "♪",
+   "primary": "charisma",
+   "secondary": "mind",
+   "dump": "strength",
+   "start": {
+    "strength": 6,
+    "dexterity": 11,
+    "mind": 10,
+    "vigor": 9,
+    "will": 10,
+    "luck": 7,
+    "charisma": 16
+   },
+   "growth": {
+    "strength": 40,
+    "dexterity": 80,
+    "mind": 100,
+    "vigor": 80,
+    "will": 100,
+    "luck": 60,
+    "charisma": 200
+   },
+   "gather_affinity": {
+    "forest": 30,
+    "mountain": 0,
+    "marsh": 20
+   },
+   "craft_attr": "charisma",
+   "craft_affinity": 20,
    "craft_specialty": "none"
   }
  ],
@@ -725,6 +782,36 @@
    "value": 150,
    "cooldown": 4,
    "description": "Une invocation explose sur l'ennemi le plus fort (x1,5)."
+  },
+  {
+   "id": "war_chant",
+   "class_id": "bard",
+   "name": "Chant de guerre",
+   "unlock_level": 1,
+   "type": "active",
+   "value": 80,
+   "cooldown": 2,
+   "description": "Frappe tous les ennemis de la salle à 80 % de puissance."
+  },
+  {
+   "id": "encouragement",
+   "class_id": "bard",
+   "name": "Encouragement",
+   "unlock_level": 4,
+   "type": "active",
+   "value": 15,
+   "cooldown": 3,
+   "description": "Les alliés conscients frappent 15 % plus fort jusqu'à la fin du donjon."
+  },
+  {
+   "id": "final_verse",
+   "class_id": "bard",
+   "name": "Dernier couplet",
+   "unlock_level": 9,
+   "type": "active",
+   "value": 150,
+   "cooldown": 99,
+   "description": "Une fois par expédition : le groupe reprend cœur (critique et moral)."
   }
  ],
  "traits": [
@@ -2576,7 +2663,8 @@
    "price": 50,
    "stats": {
     "def": 2,
-    "magic": 3
+    "magic": 3,
+    "support": 3
    }
   },
   {
@@ -2626,7 +2714,8 @@
    "stats": {
     "def": 4,
     "magic": 6,
-    "heal": 4
+    "heal": 4,
+    "support": 5
    }
   },
   {
@@ -2719,7 +2808,8 @@
    "price": 160,
    "stats": {
     "hp": 15,
-    "heal": 5
+    "heal": 5,
+    "support": 6
    }
   },
   {
@@ -2731,7 +2821,8 @@
    "price": 170,
    "stats": {
     "magic": 8,
-    "crit": 40
+    "crit": 40,
+    "support": 4
    }
   },
   {
@@ -2858,7 +2949,8 @@
     "hp": 40,
     "heal": 10,
     "def": 6,
-    "magic": 6
+    "magic": 6,
+    "support": 10
    },
    "flavor": "Un nœud de bois vivant ; on l'entend pousser la nuit."
   },
@@ -5111,6 +5203,16 @@
    "per_level": 3,
    "per_level_class": {},
    "label": "+{n} % d'XP"
+  },
+  {
+   "id": "commandement",
+   "name": "Commandement",
+   "per_level": 4,
+   "per_level_class": {
+    "bard": 6
+   },
+   "label": "+{n} % de soutien",
+   "bonus_kind": "craft_pct"
   }
  ],
  "solo_missions": [
@@ -5399,11 +5501,91 @@
   "death_permille_raid": 100,
   "wall_shield_pct_of_defense": 50,
   "summon_cap": 2,
-  "summon_cap_guild": 4,
   "trap_cap": 3,
   "zone_cap_per_hero": 3,
   "roots_damage": 8,
-  "raid_enabled": true
+  "raid_enabled": true,
+  "overheal_to_shield_pct": 50,
+  "dodge_max_permille": 350,
+  "hit_bonus_dmg_range": 3,
+  "fire_burn_turns": 1,
+  "fire_burn_per_pass": 1,
+  "support_div_pct": 5,
+  "support_turn_step": 30,
+  "support_turn_max": 2,
+  "support_zone_step": 40,
+  "support_zone_max": 2,
+  "support_control_div": 3,
+  "command_cap_threshold": 45,
+  "summons": {
+   "golem": {
+    "hp_flat": 30,
+    "hp_lvl": 4,
+    "hp_vigor": 2,
+    "hp_pct": 25,
+    "atk_pct": 95,
+    "atk_from": "atk",
+    "def_pct": 60,
+    "dex_pm": 30,
+    "command": 0
+   },
+   "nuee": {
+    "hp_flat": 12,
+    "hp_lvl": 2,
+    "hp_vigor": 0,
+    "hp_pct": 8,
+    "atk_pct": 85,
+    "atk_from": "atk",
+    "def_pct": 10,
+    "dex_pm": 18,
+    "command": 0
+   },
+   "soldat": {
+    "hp_flat": 20,
+    "hp_lvl": 3,
+    "hp_vigor": 0,
+    "hp_pct": 15,
+    "atk_pct": 60,
+    "atk_from": "atk",
+    "def_pct": 40,
+    "dex_pm": 99,
+    "command": 1
+   },
+   "double": {
+    "hp_flat": 1,
+    "hp_lvl": 0,
+    "hp_vigor": 0,
+    "hp_pct": 0,
+    "atk_pct": 0,
+    "atk_from": "atk",
+    "def_pct": 0,
+    "dex_pm": 99,
+    "command": 0
+   },
+   "bete": {
+    "hp_flat": 40,
+    "hp_lvl": 5,
+    "hp_vigor": 0,
+    "hp_pct": 18,
+    "atk_pct": 90,
+    "atk_from": "atk",
+    "def_pct": 30,
+    "dex_pm": 20,
+    "command": 1
+   },
+   "elementaire": {
+    "hp_flat": 25,
+    "hp_lvl": 3,
+    "hp_vigor": 0,
+    "hp_pct": 10,
+    "atk_pct": 140,
+    "atk_from": "magic",
+    "def_pct": 20,
+    "dex_pm": 99,
+    "command": 0
+   }
+  },
+  "spec_installs_per_pass": 2
  },
  "layouts": {
   "clairiere": {
@@ -5963,7 +6145,7 @@
   "raid_forest": {
    "id": "raid_forest",
    "dragon_id": "dragon_forest",
-   "hp_base": 580,
+   "hp_base": 380,
    "hp_per_day": 14,
    "pm": 0,
    "pa": 6,
@@ -6127,7 +6309,7 @@
    "dragon_id": null,
    "kind": "derby",
    "name": "Le Derby des Lames",
-   "hp_base": 300,
+   "hp_base": 260,
    "hp_per_day": 10,
    "pm": 2,
    "pa": 6,
@@ -6153,7 +6335,7 @@
    "steal_pa": 2,
    "banner_hp": 200,
    "banner_hold_win": 3,
-   "banner_lost_max": 2,
+   "banner_lost_max": 3,
    "rivals": [
     {
      "role": "warrior",
@@ -6209,7 +6391,8 @@
   "rogue": "chanceux",
   "ranger": "pistage",
   "mage": "arcanes",
-  "summoner": "presence"
+  "summoner": "presence",
+  "bard": "refrain"
  },
  "tactic_spells": [
   {
@@ -7647,31 +7830,53 @@
    "description": "Soigne 60 en cercle 1, retire le poison et la brûlure, et laisse un sanctuaire qui tient une riposte."
   },
   {
-   "id": "relever",
+   "id": "second_souffle",
    "class_id": null,
    "hybrid_id": null,
    "spec_id": "hospitalier",
-   "name": "Relever",
-   "verb": "relever",
-   "cost_pa": 5,
-   "range_min": 1,
-   "range_max": 2,
+   "name": "Second souffle",
+   "verb": "remettre debout",
+   "cost_pa": 4,
+   "range_min": 0,
+   "range_max": 3,
    "los": false,
    "line_only": false,
    "shape": "single",
    "r": 0,
    "power": 0,
    "magic": false,
-   "target": "cell",
-   "cooldown": 99,
-   "daily": true,
+   "target": "ally",
+   "cooldown": 2,
+   "daily": false,
    "anchor": false,
-   "effects": [],
-   "effect_labels": [
-    "une invocation, recrue ou bête tombée ce passage revient à 50 %",
-    "journalier"
+   "effects": [
+    {
+     "kind": "purify",
+     "states": [
+      "poison",
+      "brule",
+      "entrave",
+      "immobilise"
+     ]
+    },
+    {
+     "kind": "heal",
+     "power": 150,
+     "flat": 20
+    },
+    {
+     "kind": "shield",
+     "value": 20,
+     "per_level": 2,
+     "turns": 2
+    }
    ],
-   "description": "Un corps tombé pendant le passage se relève à la moitié de ses PV (une fois par passage)."
+   "effect_labels": [
+    "lave poison, brûlure et entrave",
+    "soin 150 % + 20",
+    "bouclier 20 + 2×niveau, 2 tours"
+   ],
+   "description": "Sur un corps VIVANT de la guilde : lave poison, brûlure et entrave, rend 150 % du soin + 20, et laisse un bouclier de 20 + 2×niveau. Une invocation tombée ne se relève pas : elle se réinvoque."
   },
   {
    "id": "riposte_double",
@@ -8992,6 +9197,125 @@
     "étourdi 1 tour"
    ],
    "description": "Le rejeton disparaît d'un côté du portail et ressort de l'autre, étourdi."
+  },
+  {
+   "id": "chant_guerre",
+   "class_id": "bard",
+   "name": "Chant de guerre",
+   "verb": "galvaniser",
+   "cost_pa": 3,
+   "range_min": 0,
+   "range_max": 3,
+   "los": false,
+   "line_only": false,
+   "shape": "circle",
+   "r": 1,
+   "power": 0,
+   "magic": false,
+   "target": "any",
+   "cooldown": 1,
+   "effects": [
+    {
+     "kind": "shield",
+     "value": 18,
+     "per_level": 2,
+     "turns": 3
+    }
+   ],
+   "effect_labels": [
+    "bouclier 18 + 2×niveau, 3 tours, sur tout le cercle"
+   ],
+   "description": "Cercle 1 : bouclier 18 + 2×niveau pendant 3 tours à tous les corps de la guilde. Le soutien du Barde en augmente la valeur et la durée."
+  },
+  {
+   "id": "pas_de_danse",
+   "class_id": "bard",
+   "name": "Pas de danse",
+   "verb": "dérober",
+   "cost_pa": 3,
+   "range_min": 0,
+   "range_max": 3,
+   "los": false,
+   "line_only": false,
+   "shape": "circle",
+   "r": 1,
+   "power": 0,
+   "magic": false,
+   "target": "any",
+   "cooldown": 2,
+   "effects": [
+    {
+     "kind": "state",
+     "id": "feinte",
+     "turns": 2,
+     "hostile": false
+    }
+   ],
+   "effect_labels": [
+    "feinte 2 tours sur tout le cercle"
+   ],
+   "description": "Cercle 1 : chaque corps de la guilde esquive le prochain coup (feinte, 2 tours). Le soutien en allonge la durée."
+  },
+  {
+   "id": "fausse_note",
+   "class_id": "bard",
+   "name": "Fausse note",
+   "verb": "désorienter",
+   "cost_pa": 3,
+   "range_min": 1,
+   "range_max": 4,
+   "los": true,
+   "line_only": false,
+   "shape": "single",
+   "r": 0,
+   "power": 95,
+   "magic": true,
+   "target": "unit",
+   "cooldown": 0,
+   "effects": [
+    {
+     "kind": "state",
+     "id": "aveugle",
+     "turns": 1,
+     "adds_only": true
+    }
+   ],
+   "effect_labels": [
+    "95 % magique sur un ennemi",
+    "aveugle un rejeton 1 tour"
+   ],
+   "description": "95 % magique ; aveugle un rejeton pendant 1 tour."
+  },
+  {
+   "id": "ballade_lente",
+   "class_id": "bard",
+   "name": "Ballade lente",
+   "verb": "ralentir",
+   "cost_pa": 4,
+   "range_min": 1,
+   "range_max": 4,
+   "los": true,
+   "line_only": false,
+   "shape": "cross",
+   "r": 1,
+   "power": 0,
+   "magic": false,
+   "target": "unit",
+   "cooldown": 2,
+   "effects": [
+    {
+     "kind": "state",
+     "id": "entrave",
+     "turns": 2,
+     "control": true,
+     "value": 1,
+     "enemy_only": true
+    }
+   ],
+   "effect_labels": [
+    "entrave 2 tours (contrôle) en croix"
+   ],
+   "description": "Croix 1 : entrave 2 tours sur ce qui l'écoute. C'est un contrôle du COMPORTEMENT : le charisme du Barde en augmente les chances."
   }
  ],
  "lineage": {
@@ -9014,22 +9338,22 @@
    {
     "id": "soigner",
     "name": "soigner et purifier",
-    "weight": 4
+    "weight": 5
    },
    {
     "id": "controler",
     "name": "contrôle",
-    "weight": 7
+    "weight": 10
    },
    {
     "id": "degats",
     "name": "dégâts",
-    "weight": 10
+    "weight": 11
    },
    {
     "id": "zones",
     "name": "zones et terrain",
-    "weight": 6
+    "weight": 9
    },
    {
     "id": "corps",
@@ -9039,7 +9363,7 @@
    {
     "id": "mobilite",
     "name": "mobilité",
-    "weight": 4
+    "weight": 5
    }
   ],
   "base_needs": {
@@ -9096,6 +9420,15 @@
     "zones": 0,
     "corps": 3,
     "mobilite": 0
+   },
+   "bard": {
+    "tenir": 0,
+    "soigner": 1,
+    "controler": 3,
+    "degats": 1,
+    "zones": 3,
+    "corps": 0,
+    "mobilite": 1
    }
   },
   "hybrid_need_bonus": 2,
@@ -9210,8 +9543,8 @@
     "raid_derby"
    ]
   },
-  "hybrid_need_band": 20,
-  "spec_need_band": 50
+  "hybrid_need_band": 200,
+  "spec_need_band": 200
  },
  "hybrids": [
   {
@@ -9696,25 +10029,43 @@
    "spells": [
     "bouclier_plante",
     "charge_foi"
-   ]
+   ],
+   "passive": {
+    "id": "ancrage",
+    "name": "Ancrage",
+    "dmg_pct": 15,
+    "dmg_when": "boss",
+    "cost_cut": 1,
+    "taken_pct": 12,
+    "label": "Ancrage : tant qu'il n'a pas quitté sa case dans le tour, ses coups portent 15 % de plus et il encaisse 12 % de moins. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "hospitalier",
    "hybrid": "paladin",
    "sister": "templier",
    "name": "Hospitalier",
-   "verb": "relever",
+   "verb": "remettre debout",
    "need": "soigner",
    "answers": [
     "raid_marsh",
     "raid_forest"
    ],
-   "identity": "Il remet debout ce qui est tombé : les corps, les recrues, les copains.",
-   "distinction": "Le Templier bloque le terrain, l'Hospitalier relève les corps.",
+   "identity": "Il remet debout ce qui tient encore : il lave, il rend les PV et il laisse un bouclier — un corps tombé, lui, se réinvoque.",
+   "distinction": "Le Templier bloque le terrain, l'Hospitalier remet les corps vivants d'aplomb.",
    "spells": [
     "onction_zone",
-    "relever"
-   ]
+    "second_souffle"
+   ],
+   "passive": {
+    "id": "onction_large",
+    "name": "Onction large",
+    "dmg_pct": 10,
+    "dmg_when": "with_ally",
+    "cost_cut": 1,
+    "heal_pct": 15,
+    "label": "Onction large : ses soins rendent 15 % de plus, et il frappe 10 % plus fort tant qu'un corps de la guilde est à deux cases. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "bretteur",
@@ -9734,10 +10085,16 @@
     "botte_secrete"
    ],
    "passive": {
+    "id": "garde_doublee",
+    "name": "Garde doublée",
     "cap": 6,
     "per_hit": 2,
     "power_pct": 70,
-    "reach": 3
+    "reach": 3,
+    "dmg_pct": 10,
+    "dmg_when": "hit_taken",
+    "cost_cut": 1,
+    "label": "Garde doublée : deux ripostes par coup reçu jusqu'au plafond, et 10 % de dégâts en plus dans le tour où il a été touché. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
    }
   },
   {
@@ -9756,7 +10113,16 @@
    "spells": [
     "cape",
     "esquive"
-   ]
+   ],
+   "passive": {
+    "id": "cape_longue",
+    "name": "Cape longue",
+    "dmg_pct": 12,
+    "dmg_when": "adjacent",
+    "cost_cut": 1,
+    "taken_pct": 10,
+    "label": "Cape longue : au contact, 12 % de dégâts en plus et 10 % de dégâts en moins encaissés. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "harponneur",
@@ -9774,7 +10140,16 @@
    "spells": [
     "harpon",
     "chaine_givre"
-   ]
+   ],
+   "passive": {
+    "id": "prise_solide",
+    "name": "Prise solide",
+    "dmg_pct": 12,
+    "dmg_when": "controlled",
+    "cost_cut": 1,
+    "hp_pct": 8,
+    "label": "Prise solide : 12 % de dégâts en plus sur une cible entravée, immobilisée ou chancelante, et 8 % de PV en plus. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "ecorcheur",
@@ -9792,7 +10167,16 @@
    "spells": [
     "entaille",
     "depecage"
-   ]
+   ],
+   "passive": {
+    "id": "depecage_net",
+    "name": "Dépeçage net",
+    "dmg_pct": 10,
+    "dmg_when": "marked",
+    "cost_cut": 1,
+    "hp_pct": 8,
+    "label": "Dépeçage net : 10 % de dégâts en plus sur une cible marquée, et 8 % de PV en plus. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "porte_etendard",
@@ -9810,7 +10194,16 @@
    "spells": [
     "etendard",
     "ralliement"
-   ]
+   ],
+   "passive": {
+    "id": "hampe_haute",
+    "name": "Hampe haute",
+    "dmg_pct": 15,
+    "dmg_when": "with_summon",
+    "cost_cut": 1,
+    "summon_pct": 12,
+    "label": "Hampe haute : ses corps posés ont 12 % de PV et de dégâts en plus, et il frappe 15 % plus fort tant qu'il en reste un debout. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "sergent",
@@ -9828,7 +10221,16 @@
    "spells": [
     "mur_boucliers",
     "sacrifice_ordonne"
-   ]
+   ],
+   "passive": {
+    "id": "mur_serre",
+    "name": "Mur serré",
+    "dmg_pct": 10,
+    "dmg_when": "with_summon",
+    "cost_cut": 1,
+    "taken_pct": 10,
+    "label": "Mur serré : derrière ses corps posés, 10 % de dégâts en plus et 10 % de dégâts en moins encaissés. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "confesseur",
@@ -9846,7 +10248,16 @@
    "spells": [
     "vol_bouclier",
     "vol_seve"
-   ]
+   ],
+   "passive": {
+    "id": "dime",
+    "name": "Dîme",
+    "dmg_pct": 12,
+    "dmg_when": "boss",
+    "cost_cut": 1,
+    "heal_pct": 10,
+    "label": "Dîme : 12 % de dégâts en plus sur le monstre, et ce qu'il rend aux siens vaut 10 % de plus. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "censeur",
@@ -9864,7 +10275,16 @@
    "spells": [
     "interdit",
     "silence"
-   ]
+   ],
+   "passive": {
+    "id": "interdit_froid",
+    "name": "Interdit froid",
+    "dmg_pct": 15,
+    "dmg_when": "controlled",
+    "cost_cut": 1,
+    "def_pct": 10,
+    "label": "Interdit froid : 15 % de dégâts en plus sur ce qui est scellé ou entravé, et 10 % de défense. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "pelerin",
@@ -9882,7 +10302,16 @@
    "spells": [
     "grande_purification",
     "pas_leger"
-   ]
+   ],
+   "passive": {
+    "id": "pas_du_pelerin",
+    "name": "Pas du pèlerin",
+    "dmg_pct": 15,
+    "dmg_when": "boss",
+    "cost_cut": 1,
+    "hp_pct": 10,
+    "label": "Pas du pèlerin : 15 % de dégâts en plus sur le monstre et 10 % de PV en plus — la route est longue. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "sourcier",
@@ -9900,7 +10329,16 @@
    "spells": [
     "source",
     "assechement"
-   ]
+   ],
+   "passive": {
+    "id": "veine_vive",
+    "name": "Veine vive",
+    "dmg_pct": 12,
+    "dmg_when": "ranged",
+    "cost_cut": 1,
+    "heal_pct": 10,
+    "label": "Veine vive : 12 % de dégâts en plus à trois cases ou plus, et ses soins rendent 10 % de plus. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "devin",
@@ -9918,7 +10356,16 @@
    "spells": [
     "vision",
     "detourner"
-   ]
+   ],
+   "passive": {
+    "id": "lecture",
+    "name": "Lecture",
+    "dmg_pct": 15,
+    "dmg_when": "ranged",
+    "cost_cut": 1,
+    "def_pct": 10,
+    "label": "Lecture : il voit venir — 15 % de dégâts en plus à trois cases ou plus et 10 % de défense. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "chronomancien",
@@ -9936,7 +10383,16 @@
    "spells": [
     "sablier_renverse",
     "legs"
-   ]
+   ],
+   "passive": {
+    "id": "sable_fin",
+    "name": "Sable fin",
+    "dmg_pct": 15,
+    "dmg_when": "boss",
+    "cost_cut": 1,
+    "hp_pct": 10,
+    "label": "Sable fin : sablier plein, ses coups portent 15 % de plus ; et 10 % de PV en plus. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "medium",
@@ -9954,7 +10410,16 @@
    "spells": [
     "esprit_cendre_majeur",
     "hantise"
-   ]
+   ],
+   "passive": {
+    "id": "hantise_longue",
+    "name": "Hantise longue",
+    "dmg_pct": 10,
+    "dmg_when": "boss",
+    "cost_cut": 1,
+    "summon_pct": 12,
+    "label": "Hantise longue : 10 % de dégâts en plus sur le monstre, et ses esprits ont 12 % de PV et de dégâts en plus. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "veilleur",
@@ -9972,7 +10437,16 @@
    "spells": [
     "esprit_gardien_majeur",
     "veille"
-   ]
+   ],
+   "passive": {
+    "id": "veille_haute",
+    "name": "Veille haute",
+    "dmg_pct": 15,
+    "dmg_when": "zone_own",
+    "cost_cut": 1,
+    "shield_pct": 15,
+    "label": "Veille haute : sur une case qu'il garde, 15 % de dégâts en plus ; tout bouclier qu'il reçoit vaut 15 % de plus. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "assassin",
@@ -9996,7 +10470,10 @@
     "name": "Curée",
     "full_pct": 60,
     "step_pct": 13,
-    "label": "Curée : 60 % de ses dégâts sur une cible intacte, +13 points par tranche de dix pour cent de réserve perdue (190 % sur une cible à terre)."
+    "label": "Curée : 60 % de ses dégâts sur une cible intacte, +13 points par tranche de dix pour cent de réserve perdue (190 % sur une cible à terre) ; et 15 % de dégâts en plus quand il frappe seul, à l'écart des siens. Maîtrise : ses deux sorts signature coûtent un point d'action de moins.",
+    "dmg_pct": 15,
+    "dmg_when": "wounded",
+    "cost_cut": 1
    }
   },
   {
@@ -10015,7 +10492,16 @@
    "spells": [
     "piege_lourd",
     "rabattage"
-   ]
+   ],
+   "passive": {
+    "id": "rabattage_net",
+    "name": "Rabattage net",
+    "dmg_pct": 15,
+    "dmg_when": "controlled",
+    "cost_cut": 1,
+    "hp_pct": 8,
+    "label": "Rabattage net : 15 % de dégâts en plus sur ce qui est cloué sur place, et 8 % de PV en plus. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "mirage",
@@ -10033,7 +10519,16 @@
    "spells": [
     "triple",
     "miroir"
-   ]
+   ],
+   "passive": {
+    "id": "reflet",
+    "name": "Reflet",
+    "dmg_pct": 12,
+    "dmg_when": "with_summon",
+    "cost_cut": 1,
+    "taken_pct": 10,
+    "label": "Reflet : tant qu'un leurre tient debout, 12 % de dégâts en plus et 10 % de dégâts en moins encaissés. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "passe_muraille",
@@ -10051,7 +10546,16 @@
    "spells": [
     "grand_echange",
     "fils_solides"
-   ]
+   ],
+   "passive": {
+    "id": "pas_de_cote",
+    "name": "Pas de côté",
+    "dmg_pct": 12,
+    "dmg_when": "adjacent",
+    "cost_cut": 1,
+    "taken_pct": 8,
+    "label": "Pas de côté : arrivé au contact, 12 % de dégâts en plus et 8 % de dégâts en moins encaissés. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "bourrasque",
@@ -10069,7 +10573,16 @@
    "spells": [
     "tempete_vent",
     "souffle_court"
-   ]
+   ],
+   "passive": {
+    "id": "vent_debout",
+    "name": "Vent debout",
+    "dmg_pct": 15,
+    "dmg_when": "ranged",
+    "cost_cut": 1,
+    "hp_pct": 8,
+    "label": "Vent debout : 15 % de dégâts en plus à trois cases ou plus, et 8 % de PV en plus. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "cyclone",
@@ -10087,7 +10600,16 @@
    "spells": [
     "oeil_cyclone",
     "aspiration"
-   ]
+   ],
+   "passive": {
+    "id": "oeil_calme",
+    "name": "Œil calme",
+    "dmg_pct": 15,
+    "dmg_when": "ranged",
+    "cost_cut": 1,
+    "def_pct": 10,
+    "label": "Œil calme : au centre de la tempête — 15 % de dégâts en plus à trois cases ou plus et 10 % de défense. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "maitre_ours",
@@ -10105,7 +10627,16 @@
    "spells": [
     "ours",
     "grondement"
-   ]
+   ],
+   "passive": {
+    "id": "meute",
+    "name": "Meute",
+    "dmg_pct": 10,
+    "dmg_when": "with_summon",
+    "cost_cut": 1,
+    "summon_pct": 15,
+    "label": "Meute : sa bête a 15 % de PV et de dégâts en plus, et il frappe 10 % plus fort tant qu'elle tient. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "fauconnier",
@@ -10123,7 +10654,16 @@
    "spells": [
     "faucon",
     "rabattre"
-   ]
+   ],
+   "passive": {
+    "id": "serres",
+    "name": "Serres",
+    "dmg_pct": 12,
+    "dmg_when": "ranged",
+    "cost_cut": 1,
+    "summon_pct": 10,
+    "label": "Serres : 12 % de dégâts en plus à trois cases ou plus, et son faucon a 10 % de PV et de dégâts en plus. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "avatar",
@@ -10141,7 +10681,16 @@
    "spells": [
     "grande_fusion",
     "remanence"
-   ]
+   ],
+   "passive": {
+    "id": "corps_element",
+    "name": "Corps d'élément",
+    "dmg_pct": 15,
+    "dmg_when": "boss",
+    "cost_cut": 1,
+    "hp_pct": 12,
+    "label": "Corps d'élément : 15 % de dégâts en plus sur le monstre et 12 % de PV en plus. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   },
   {
    "id": "portier",
@@ -10159,7 +10708,16 @@
    "spells": [
     "portail",
     "bannissement"
-   ]
+   ],
+   "passive": {
+    "id": "seuil",
+    "name": "Seuil",
+    "dmg_pct": 12,
+    "dmg_when": "zone_own",
+    "cost_cut": 1,
+    "hp_pct": 8,
+    "label": "Seuil : sur une de ses portes, 12 % de dégâts en plus, et 8 % de PV en plus. Maîtrise : ses deux sorts signature coûtent un point d'action de moins."
+   }
   }
  ]
 }

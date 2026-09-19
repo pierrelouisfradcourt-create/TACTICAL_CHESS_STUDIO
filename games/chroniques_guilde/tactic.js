@@ -313,6 +313,7 @@
     if (hasState(t, 'chancelant')) dmg = pct(dmg, 130);
     if (t.kind === 'hero' && t.passive === 'provocation_innee') dmg = pct(dmg, 90);
     if (t.kind === 'hero' && t.passive === 'presence') dmg = pct(dmg, 90);
+    if (t.kind === 'hero' && (t.taken_pct || 0) > 0) dmg = pct(dmg, 100 - t.taken_pct);                                    // V5 T6 : passif de spécialisation
     const red = stateVal(t, 'reduction');
     if (red) dmg = Math.max(1, dmg - red);
     return dmg;
@@ -321,6 +322,15 @@
   function applyHit(R, env, src, t, dmg, log, srcLabel) {
     dmg = Math.max(0, dmg);
     if (dmg > 0 && t.kind === 'hero' && hasState(t, 'feinte')) { removeState(t, 'feinte'); log.push(t.name + ' feinte : le coup passe à côté.'); return 0; }
+    // V5 T6 (R2) : ESQUIVE. `dodge` (Adresse × 4 + savoir-faire Discrétion, borné) était calculé, affiché, et jamais
+    // lu sur la grille. Il l'est désormais contre les coups du camp du boss : le savoir-faire Discrétion cesse d'être
+    // mort en raid. Le montant du coup reste exact (télégraphe) ; seule sa RENCONTRE est tirée.
+    if (dmg > 0 && t.kind === 'hero' && src && src.side === 'boss' && (t.dodge || 0) > 0) {
+      const drng = rngOf(R);
+      const miss = drng.chance(t.dodge);
+      saveRng(R, drng);
+      if (miss) { mech(R, 'esquive'); if (log) log.push(t.name + ' esquive le coup de ' + src.name + '.'); return 0; }
+    }
     let left = dmg;
     if (t.shield > 0) { const a = Math.min(t.shield, left); t.shield -= a; left -= a; if (isBoss(t)) R.stats.shield_absorbed = (R.stats.shield_absorbed || 0) + a; if (t.shield === 0 && isBoss(t) && t.phase >= 3 && a > 0) onShieldBroken(R, env, t, log); }
     t.hp = Math.max(0, t.hp - left);
@@ -340,6 +350,100 @@
   function missingTenths(t) {
     if (!t || !(t.hp_max > 0)) return 0;
     return clamp(div(div(Math.max(0, t.hp_max - Math.max(0, t.hp)) * 100, t.hp_max), 10), 0, 10);
+  }
+  // ===================================================================================
+  // 4ter. V5 T6 (R5 / bug B9) : LES 26 PASSIFS DE SPÉCIALISATION
+  // -----------------------------------------------------------------------------------
+  // Avant T6, 24 fiches sur 26 avaient `passive: null` et 18 spés sur 26 infligeaient MOINS de dégâts que leur
+  // voie nue : choisir sa pointe était un déclassement chiffré. Chaque fiche porte maintenant un passif dans la
+  // bande mesurée utile par l'audit — 8 à 15 % sur une grandeur DÉRIVÉE — et rien d'autre : pas de nouveau verbe,
+  // pas de sort de plus. Le volet offensif est CONDITIONNEL, et sa condition est la posture propre à la spé
+  // (ancré, au contact, à distance, derrière ses corps, sur sa case gardée, sablier plein…) : la pointe frappe
+  // mieux quand elle fait son métier, jamais partout.
+  //   dmg_pct / dmg_when : % de dégâts en plus quand la condition tient
+  //   taken_pct : % de dégâts encaissés en moins · hp_pct / def_pct / heal_pct : % sur la grandeur dérivée
+  //   shield_pct : % sur tout bouclier reçu · summon_pct : % de PV ET de dégâts sur les corps qu'il pose
+  // ===================================================================================
+  // 4bis'. V5 T6 (D7) : LE SOUTIEN — ce que le CHARISME pilote sur la grille
+  // -----------------------------------------------------------------------------------
+  // Avant T6, aucun attribut n'alimentait les états bénéfiques, les auras, les zones de soutien, les corps
+  // COMMANDÉS ni les contrôles qui visent le comportement : la Volonté tenait lieu de soin ET de commandement,
+  // et le Paladin se confondait avec le Clerc. `u.support` (charisme × 4 + volonté/2, performance, savoir-faire
+  // Commandement, objets à SOUTIEN) pilote désormais quatre choses, et seulement celles-là :
+  //   1. la VALEUR et la DURÉE des états bénéfiques et des boucliers posés sur la guilde ;
+  //   2. la DURÉE des zones de soutien posées par un héros ;
+  //   3. la SOLIDITÉ et le NOMBRE des corps COMMANDÉS (recrue du Capitaine, bête du Dresseur) ;
+  //   4. les CHANCES d'un contrôle de COMPORTEMENT (provoqué, aveuglé, entravé, muselé, charmé).
+  // Il ne pilote PAS les invocations : celles-ci héritent du maître (D9, `makeSummon`).
+  const SUPPORT_BEHAVIOUR_STATES = ['provoque', 'aveugle', 'entrave', 'silence', 'charme'];
+  function supportOf(u) { return (u && u.kind === 'hero' && u.support) || 0; }
+  function supportPct(env, u) { const C = raidC(env); return div(supportOf(u), Math.max(1, C.support_div_pct || 5)); }
+  function supportTurns(env, u) {
+    const C = raidC(env);
+    return Math.min(C.support_turn_max === undefined ? 2 : C.support_turn_max, div(supportOf(u), Math.max(1, C.support_turn_step || 30)));
+  }
+  function supportZoneTurns(env, u) {
+    const C = raidC(env);
+    return Math.min(C.support_zone_max === undefined ? 2 : C.support_zone_max, div(supportOf(u), Math.max(1, C.support_zone_step || 40)));
+  }
+  function supportControl(env, u) { const C = raidC(env); return div(supportOf(u), Math.max(1, C.support_control_div || 3)); }
+  function commandBonus(env, u) { return supportPct(env, u); }
+  function commandExtra(env, u) { const C = raidC(env); return supportOf(u) >= (C.command_cap_threshold || 45) ? 1 : 0; }
+
+  function specPassive(env, u) {
+    if (!u || u.kind !== 'hero' || !u.spec_id) return null;
+    const S = specOf(env, u.spec_id);
+    return (S && S.passive) || null;
+  }
+  function specCellOf(u, t) { return isBoss(t) ? bossNearestCell(t, u.x, u.y) : t; }
+  const SPEC_CONTROL_STATES = ['immobilise', 'etourdi', 'entrave', 'chancelant', 'provoque', 'aveugle', 'silence'];
+  function specCond(R, env, u, t, when) {
+    switch (when) {
+      case 'always': return true;
+      case 'not_moved': return !!R.pass && R.pass.hero_id === u.id && R.pass.pm === u.pm_max;
+      case 'adjacent': { if (!t) return false; const c = specCellOf(u, t); return manhattan(u.x, u.y, c.x, c.y) <= 1; }
+      case 'ranged': { if (!t) return false; const c = specCellOf(u, t); return manhattan(u.x, u.y, c.x, c.y) >= 3; }
+      case 'with_summon': return guildUnits(R).some(v => v.kind === 'summon' && v.master_id === u.id && v.hp > 0);
+      case 'with_ally': return guildUnits(R).some(v => v.id !== u.id && v.hp > 0 && manhattan(v.x, v.y, u.x, u.y) <= 2);
+      case 'alone': return !guildUnits(R).some(v => v.id !== u.id && v.hp > 0 && manhattan(v.x, v.y, u.x, u.y) <= 2);
+      case 'marked': return !!t && hasState(t, 'marque');
+      case 'controlled': return !!t && SPEC_CONTROL_STATES.some(id => hasState(t, id));
+      case 'wounded': return !!t && t.hp * 2 < t.hp_max;
+      case 'boss': return !!t && t.side === 'boss';
+      case 'hit_taken': return !!u.hit_this_turn;
+      case 'res_full': return (u.res_max || 0) > 0 && (u.res || 0) >= u.res_max;
+      case 'zone_own': { const z = zoneAt(R, u.x, u.y); return !!z && z.owner_kind === 'hero' && z.source_id === u.id; }
+      default: return false;
+    }
+  }
+  // Maîtrise de la pointe : le sort SIGNATURE de la spé coûte `cost_cut` PA de moins à celui qui la porte (plancher 1).
+  // C'est le volet qui rembourse mécaniquement le TOUR que le verbe coûte — mesuré en T6 comme la cause principale
+  // du déclassement du troisième étage (la spé installait, la voie nue frappait).
+  function specCostPa(env, u, s) {
+    if (!s) return 0;
+    const P = specPassive(env, u);
+    const cut = (P && P.cost_cut) || 0;
+    if (!cut || !s.spec_id || s.spec_id !== u.spec_id) return s.cost_pa;
+    return Math.max(1, s.cost_pa - cut);
+  }
+  function specDmgPct(R, env, u, t) {
+    const P = specPassive(env, u);
+    if (!P || !P.dmg_pct) return 100;
+    return specCond(R, env, u, t, P.dmg_when || 'always') ? 100 + P.dmg_pct : 100;
+  }
+  // Volet statique, appliqué une fois à la création de l'unité (PV, DÉF, SOIN) et porté par l'unité (bouclier,
+  // dégâts encaissés, corps posés) pour être relu par `addShield`, `takenMods` et `makeSummon`.
+  function applySpecPassive(env, u) {
+    const P = specPassive(env, u);
+    u.taken_pct = 0; u.shield_pct = 0; u.summon_pct = 0;
+    if (!P) return u;
+    if (P.hp_pct) { u.hp_max = pct(u.hp_max, 100 + P.hp_pct); u.hp = u.hp_max; }
+    if (P.def_pct) u.def = pct(u.def, 100 + P.def_pct);
+    if (P.heal_pct) u.heal = pct(u.heal, 100 + P.heal_pct);
+    u.taken_pct = P.taken_pct || 0;
+    u.shield_pct = P.shield_pct || 0;
+    u.summon_pct = P.summon_pct || 0;
+    return u;
   }
   function assassinPassive(env) {
     const S = specOf(env, 'assassin');
@@ -372,9 +476,29 @@
     if (crit) dmg = pct(dmg, 150);
     if (src.kind === 'hero' && hasState(src, 'defi') && t.side === 'boss') dmg = pct(dmg, 130);
     if (src.kind === 'hero' && src.spec_id === 'assassin' && t.side === 'boss') dmg = pct(dmg, assassinCurePct(env, t));   // V5 T3b : Curée
+    if (src.kind === 'hero' && src.spec_id) dmg = pct(dmg, specDmgPct(R, env, src, t));                                    // V5 T6 : passif de spécialisation
+    // V5 T6 (R2) : TOUCHER. Le raid ne tire pas de jet de toucher — le savoir-faire Archerie y était donc mort.
+    // Il devient la sûreté du tireur : `hit_bonus` pour cent de dégâts en plus à partir de `hit_bonus_dmg_range`
+    // cases. C'est un multiplicateur de plus dans une chaîne qui en compte déjà dix ; la formule ne bouge pas.
+    if (src.kind === 'hero' && (src.hit_bonus || 0) > 0) {
+      const C6 = raidC(env), cc = isBoss(t) ? bossNearestCell(t, src.x, src.y) : t;
+      if (manhattan(src.x, src.y, cc.x, cc.y) >= (C6.hit_bonus_dmg_range || 3)) dmg = pct(dmg, 100 + src.hit_bonus);
+    }
     dmg = Math.max(1, takenMods(t, dmg));
     const done = applyHit(R, env, src, t, dmg, log, srcLabel);
     if (crit && log) log.push('Coup critique de ' + src.name + ' sur ' + t.name + ' : ' + done + ' dégâts.');
+    // V5 T6 (R2) : FEU d'objet. `fire` était calculé par `combatProfile`, jamais transmis au raid. Une arme de braise
+    // met le feu une fois par passage — la brûlure coupe la sève du Sylvain et cautérise les gueules de l'Hydre.
+    if (done > 0 && src.kind === 'hero' && src.fire && t.side === 'boss' && !hasState(t, 'brule')) {
+      const C6 = raidC(env);
+      if ((src.fire_used || 0) < (C6.fire_burn_per_pass || 1)) {
+        src.fire_used = (src.fire_used || 0) + 1;
+        addState(t, 'brule', C6.fire_burn_turns || 2, 0);
+        const bs = stateOf(t, 'brule'); if (bs) bs.level = src.level;
+        mech(R, 'braise');
+        if (log) log.push('La braise de ' + src.name + ' embrase ' + t.name + '.');
+      }
+    }
     if (done > 0 && src.kind === 'hero' && src.hybrid_id === 'chasseur_monstres' && t.side === 'boss' && hasState(t, 'marque')) addFissure(R, env, src, t, log);
     if (done > 0 && src.side === 'boss' && t.kind === 'hero') duelRiposte(R, env, t, src, log);
     return done;
@@ -482,8 +606,26 @@
       log.push(tplOf(env.data, 'raid_head_regrow', 'r' + R.riposte_count, {}));
     }
   }
-  function healUnit(t, n) { const before = t.hp; t.hp = Math.min(t.hp_max, t.hp + Math.max(0, n)); return t.hp - before; }
-  function addShield(t, points, turns) { t.shield = Math.min(t.hp_max, t.shield + points); if (turns > 0) t.shield_turns = Math.max(t.shield_turns || 0, turns); }
+  // V5 T6 (B4 / R2) : la statistique SOIN était mesurée STRICTEMENT NULLE en raid — un seul héros à la fois sur la
+  // grille, et il y entre à pleins PV : tout soin tombait dans le vide. Le débordement devient désormais du BOUCLIER
+  // (moitié par défaut, `raid.overheal_to_shield_pct`), pour les unités de la guilde seulement. Le soin a donc un
+  // effet mesurable même sur une cible intacte, sans changer la formule de dégâts ni la mitigation.
+  // Les régénérations du boss et les drains des rejetons (side 'boss') ne débordent pas : rien n'y change.
+  function healUnit(t, n, overflowPct) {
+    const before = t.hp;
+    const want = Math.max(0, n);
+    t.hp = Math.min(t.hp_max, t.hp + want);
+    const got = t.hp - before;
+    const left = want - got;
+    if (left > 0 && t.side === 'guild' && overflowPct > 0) { const sh = div(left * overflowPct, 100); if (sh > 0) addShield(t, sh, 2); }
+    return got;
+  }
+  function healGuild(R, env, t, n) { return healUnit(t, n, (raidC(env) || {}).overheal_to_shield_pct || 0); }
+  function addShield(t, points, turns) {
+    if (points > 0 && (t.shield_pct || 0) > 0) points = pct(points, 100 + t.shield_pct);                                   // V5 T6 : passif de spécialisation (Veilleur)
+    t.shield = Math.min(t.hp_max, t.shield + points);
+    if (turns > 0) t.shield_turns = Math.max(t.shield_turns || 0, turns);
+  }
   // Résistance du boss au contrôle §1.8 ; les adds ne résistent pas.
   function controlPermille(R, env) { const C = raidC(env); return Math.max(C.control_min_permille, C.control_base_permille - C.control_step_permille * (R.boss.controls_today || 0)); }
   function tryControl(R, env, t, id, turns, value, log, spellName) {
@@ -492,7 +634,11 @@
     if (!isBoss(t)) { addState(t, id, turns, value); return true; }
     if (id === 'etourdi' && t.last_stun) { log.push('Le Sylvain ne peut pas être étourdi deux fois de suite.'); return false; }
     const rng = rngOf(R);
-    const ok = rng.chance(controlPermille(R, env));
+    // V5 T6 (D7) : un contrôle qui vise le COMPORTEMENT (provoquer, aveugler, entraver, museler, charmer) passe
+    // d'autant mieux que le lanceur a de charisme. Les contrôles du CORPS (immobilisé, étourdi, gelé) n'y gagnent rien.
+    const src = R.pass && R.pass.hero_id ? heroUnit(R) : null;
+    const boost = (src && SUPPORT_BEHAVIOUR_STATES.indexOf(id) >= 0) ? supportControl(env, src) : 0;
+    const ok = rng.chance(controlPermille(R, env) + boost);
     saveRng(R, rng);
     if (ok) { addState(t, id, turns, value); t.controls_today = (t.controls_today || 0) + 1; if (id === 'etourdi') t.last_stun = 1; log.push('Le Sylvain subit « ' + spellName + ' » (ténacité ' + t.controls_today + ').'); return true; }
     log.push(tplOf(env.data, 'raid_control', spellName + R.rng_count, { spell: spellName, n: (t.controls_today || 0) + 1 }));
@@ -547,7 +693,8 @@
       log.push('La Bannière est tombée : le gué est perdu.');
       return;
     }
-    if (t.side === 'guild' && t.kind === 'summon') { R.fallen = (R.fallen || []).concat([{ sub: t.sub, name: t.name, master_id: t.master_id, pass: R.pass_count }]); }   // V5 T3 1B : l'Hospitalier peut les relever
+    // V5 T6 (R-A) : une invocation NE RESSUSCITE PAS, elle se réinvoque. Le suivi des corps tombés (`R.fallen`) est
+    // retiré : le seul recours du maître est de repayer le coût d'une nouvelle invocation.
     R.units = R.units.filter(u => u.id !== t.id);
     log.push(t.name + (t.side === 'boss' ? ' s\'effondre.' : ' se disloque.'));
   }
@@ -574,10 +721,22 @@
     for (const s of env.data.tactic_spells) if (s.class_id === classId) out.push(s.id);
     return out;
   }
-  // Sorts réellement disponibles : arme + 4 sorts de base (+ 2 sorts d'hybride après le second choix).
+  // V5 T6 (R-C) : la SECONDE BASE d'une voie. « Tu es guerrier plus prêtre, tu as accès à la barre d'action des
+  // deux classes. » On ne mélange rien d'autre : ni emprunt entre joueurs, ni prêt de compétence.
+  function hybridSecondBase(env, u) {
+    const H = hybOf(env, u.hybrid_id);
+    if (!H) return null;
+    const pairs = (H.pairs && H.pairs.length) ? H.pairs : [H.bases];
+    for (const pr of pairs) if (pr.indexOf(u.class_id) >= 0) return pr[0] === u.class_id ? pr[1] : pr[0];
+    return null;
+  }
+  // Sorts réellement disponibles : arme + les 4 sorts de sa classe (+ les 4 de la seconde base et les 2 de sa voie
+  // après le second choix, + les 2 de sa pointe après le troisième).
   function unitSpells(env, u) {
     const out = classSpells(env, u.class_id);
     if (!u.hybrid_id) return out;
+    const second = hybridSecondBase(env, u);
+    if (second) for (const id of classSpells(env, second)) if (out.indexOf(id) < 0) out.push(id);
     for (const sp of env.data.tactic_spells) if (sp.hybrid_id === u.hybrid_id) out.push(sp.id);
     if (u.spec_id) for (const sp of env.data.tactic_spells) if (sp.spec_id === u.spec_id) out.push(sp.id);   // V5 T3 : 8 sorts + arme à la spécialisation
     return out;
@@ -614,7 +773,7 @@
     if (!s) return 'sort inconnu';
     if (!u) return 'aucun héros sur la grille';
     if (unitSpells(env, u).indexOf(s.id) < 0) return s.hybrid_id ? 'sort d\'un autre hybride' : 'sort d\'une autre classe';
-    if (R.pass.pa < s.cost_pa) return 'PA insuffisants (' + R.pass.pa + '/' + s.cost_pa + ')';
+    { const cpa = specCostPa(env, u, s); if (R.pass.pa < cpa) return 'PA insuffisants (' + R.pass.pa + '/' + cpa + ')'; }
     if ((u.cooldowns[s.id] || 0) > 0) return 'relance dans ' + u.cooldowns[s.id] + ' tour(s)';
     const why = rangeWhy(R, s, u, x, y);
     if (why) return why;
@@ -656,7 +815,7 @@
     if (s.id === 'rapporte' && !subsOf(R, u.id, 'bete').length) return 'aucune bête sur la grille';
     if (s.id === 'fusion' && (u.res || 0) < 1) return 'pas assez d\'essence (1 requise)';
     if (s.id === 'fusion' && !subsOf(R, u.id, 'elementaire').length) return 'aucun élémentaire à absorber';
-    if (s.id === 'lever_recrue' && subsOf(R, u.id, 'soldat').length >= 3) return 'trois recrues déjà levées';
+    if (s.id === 'lever_recrue' && subsOf(R, u.id, 'soldat').length >= 3 + commandExtra(env, u)) return 'recrues déjà toutes levées';   // V5 T6 (D7) : le soutien en autorise une de plus
     if (s.id === 'double' && subsOf(R, u.id, 'double').length >= 2) return 'deux doubles déjà sur la grille';
     if (s.id === 'echange' && !(t && t.side === 'boss' && !isBoss(t)) && !(t && t.kind === 'summon' && t.sub === 'double')) return 'il faut viser un double ou un ennemi non-boss';
     return null;
@@ -667,7 +826,6 @@
     const t = targetAt(R, x, y), G = gridOf(R);
     const zones = id => sortedKeys(R.zones).filter(k => R.zones[k].zone_id === id);
     switch (s.id) {
-      case 'relever': return (R.fallen || []).length ? null : 'aucun corps tombé à relever ce passage';
       case 'ralliement': return subsOf(R, u.id, 'soldat').length ? null : 'aucune recrue à rallier';
       case 'mur_boucliers': return subsOf(R, u.id, 'soldat').some(v => manhattan(v.x, v.y, u.x, u.y) <= 2) ? null : 'aucune recrue assez proche';
       case 'sacrifice_ordonne': return t && t.kind === 'summon' && t.master_id === u.id ? null : 'il faut désigner une de vos recrues';
@@ -723,12 +881,13 @@
   function isBack(R, u) { return u.y < R.boss.y; }
   // Les caps de base (summon_cap, summon_cap_guild) ne portent que sur golem et nuée ; les corps d'hybrides ont leurs propres caps (§4).
   function baseSummons(R, heroId) { return summonsOf(R, heroId).filter(u => u.sub === 'golem' || u.sub === 'nuee'); }
+  // V5 T6 (R-B) : le PLAFOND PAR GUILDE a disparu. Les corps ne persistent plus d'un passage à l'autre (ils quittent
+  // la grille avec leur maître, cf. finishPass) : rien ne peut plus s'accumuler entre héros, et la seule limite qui
+  // reste est celle du maître lui-même — ses points d'action et la place autour de lui.
   function summonCap(R, env, u, log) {
     const C = raidC(env);
     let mine = baseSummons(R, u.id);
     while (mine.length >= C.summon_cap) { const old = mine.slice().sort((a, b) => a.born_pass - b.born_pass || (a.id < b.id ? -1 : 1))[0]; R.units = R.units.filter(x => x.id !== old.id); log.push(old.name + ' se dissipe (limite d\'invocations).'); mine = baseSummons(R, u.id); }
-    let all = guildUnits(R).filter(x => x.kind === 'summon' && (x.sub === 'golem' || x.sub === 'nuee'));
-    while (all.length >= (C.summon_cap_guild || 4)) { const old = all.slice().sort((a, b) => a.born_pass - b.born_pass || (a.id < b.id ? -1 : 1))[0]; R.units = R.units.filter(x => x.id !== old.id); log.push(old.name + ' se dissipe (limite de la guilde).'); all = guildUnits(R).filter(x => x.kind === 'summon' && (x.sub === 'golem' || x.sub === 'nuee')); }
   }
   const SUMMON_KINDS = {
     golem: { name: 'Golem d\'argile', gender: 'm', atk: 80, def: 10, def_lvl: 1, spd: 5, mass: 1, pm: 2, range: 1, los: true, guard: true },
@@ -738,23 +897,45 @@
     bete: { name: 'Bête', gender: 'f', atk: 80, def: 6, def_lvl: 1, spd: 10, mass: 1, pm: 4, range: 1, los: true, guard: false },
     elementaire: { name: 'Élémentaire', gender: 'm', atk: 60, def: 6, def_lvl: 1, spd: 7, mass: 1, pm: 2, range: 1, los: true, guard: false }
   };
-  function summonHp(kind, u) {
-    const lvl = u.level;
-    if (kind === 'golem') return 30 + 4 * lvl + 2 * (u.vigor || 0);
-    if (kind === 'nuee') return 12 + 2 * lvl;
-    if (kind === 'soldat') return 20 + 3 * lvl;
-    if (kind === 'double') return 1;
-    if (kind === 'bete') return 40 + 5 * lvl;
-    return 25 + 3 * lvl;                       // élémentaire
+  // ===================================================================================
+  // V5 T6 (D9) : LES CORPS POSÉS HÉRITENT DE LEUR MAÎTRE
+  // -----------------------------------------------------------------------------------
+  // Avant T6, une invocation ne lisait du maître que son niveau (et la vigueur pour le golem) : l'équipement de
+  // l'invocateur ne changeait RIEN à ce qu'il posait. Chaque corps dérive désormais une part de ses grandeurs des
+  // grandeurs du maître AU MOMENT DE L'INVOCATION, avec des coefficients propres au type (`data.raid.summons`) :
+  //   golem       — surtout les PV et la DÉFENSE du maître
+  //   nuée        — surtout l'attaque, et un pas de plus si le maître est adroit
+  //   bête        — l'attaque et les PV, un pas de plus si le maître est adroit
+  //   élémentaire — surtout la PUISSANCE MAGIQUE du maître (donc ses objets à MAG)
+  //   soldat      — corps COMMANDÉ : PV, défense et nombre suivent le SOUTIEN (charisme), pas l'équipement d'attaque
+  // Changer l'équipement du maître change donc visiblement ses corps : c'est le contrat prouvé au banc.
+  const SUMMON_INHERIT_DEFAULT = { hp_flat: 25, hp_lvl: 3, hp_vigor: 0, hp_pct: 10, atk_pct: 70, atk_from: 'atk', def_pct: 20, dex_pm: 99, command: 0 };
+  function summonInherit(env, kind) {
+    const T = (raidC(env) && raidC(env).summons) || {};
+    return T[kind] || SUMMON_INHERIT_DEFAULT;
+  }
+  function summonHp(env, kind, u) {
+    const K = summonInherit(env, kind);
+    if (kind === 'double') return Math.max(1, K.hp_flat || 1);
+    let hp = (K.hp_flat || 0) + (K.hp_lvl || 0) * u.level + (K.hp_vigor || 0) * (u.vigor || 0) + pct(u.hp_max || 0, K.hp_pct || 0);
+    if (K.command) hp = pct(hp, 100 + commandBonus(env, u));
+    return Math.max(1, hp);
   }
   function makeSummon(R, env, u, kind, x, y) {
     const K = SUMMON_KINDS[kind] || SUMMON_KINDS.golem, lvl = u.level;
     const id = 'inv_' + kind + '_' + String(R.next_unit).padStart(3, '0');
     R.next_unit += 1;
+    const IN = summonInherit(env, kind);
+    const src = IN.atk_from === 'magic' ? (u.magic_power || u.atk_eff) : u.atk_eff;                 // V5 T6 (D9) : l'élémentaire hérite de la magie
+    let atk = pct(src, IN.atk_pct === undefined ? K.atk : IN.atk_pct);
+    let def = K.def + K.def_lvl * lvl + pct(u.def || 0, IN.def_pct || 0);
+    let pm = K.pm + ((u.dexterity || 0) >= (IN.dex_pm || 99) ? 1 : 0);                              // V5 T6 (D9) : un maître adroit fait des corps vifs
+    if (IN.command) { atk = pct(atk, 100 + commandBonus(env, u)); def = pct(def, 100 + commandBonus(env, u)); }
     const s = { id: id, kind: 'summon', sub: kind, side: 'guild', owner: u.owner, master_id: u.id, name: K.name + ' de ' + u.name.split(' ')[0], gender: K.gender,
-      class_id: null, level: lvl, x: x, y: y, hp_max: summonHp(kind, u), hp: 0, shield: 0, shield_turns: 0,
-      atk_eff: pct(u.atk_eff, K.atk), def: K.def + K.def_lvl * lvl, crit: 0, spd: K.spd, mass: K.mass, pa_max: 4, pm_max: K.pm,
+      class_id: null, level: lvl, x: x, y: y, hp_max: summonHp(env, kind, u), hp: 0, shield: 0, shield_turns: 0,
+      atk_eff: atk, def: def, crit: 0, spd: K.spd, mass: K.mass, pa_max: 4, pm_max: pm,
       range_min: K.range ? 1 : 0, range_max: K.range, los: K.los, states: [], cooldowns: {}, born_pass: R.pass_count, passive: null, crit_immune: false, element: null };
+    if ((u.summon_pct || 0) > 0) { s.hp_max = pct(s.hp_max, 100 + u.summon_pct); s.atk_eff = pct(s.atk_eff, 100 + u.summon_pct); }   // V5 T6 : passif de spécialisation
     s.hp = s.hp_max;
     if (K.guard) { addState(s, 'garde', -1, 0); s.guard_of = u.id; }
     R.units.push(s);
@@ -764,7 +945,7 @@
   // Lancement (l'appelant a validé). Renvoie la liste des lignes de journal.
   function castSpell(R, env, u, s, x, y, log) {
     const P = R.pass;
-    P.pa -= s.cost_pa;
+    P.pa -= specCostPa(env, u, s);
     if (s.cooldown > 0) u.cooldowns[s.id] = s.cooldown;   // décrémenté en fin de tour : relance N = de nouveau lançable N tours plus tard
     const t = targetAt(R, x, y);
     const tags = { magic: !!s.magic };
@@ -1126,16 +1307,6 @@
         for (const c of cells) { if (!passable(R, c.x, c.y) || isBossCell(B, c.x, c.y)) continue; const k = String(cidx(G, c.x, c.y)); if (R.zones[k] && R.zones[k].owner_kind === 'hero') continue; R.zones[k] = { zone_id: 'sanctuaire', turns_left: 1, owner_kind: 'hero', source_id: u.id, owner_name: u.name }; }
         mech(R, 'onction');
         log.push(u.name + ' oint la zone : ' + n + ' PV rendus, poison et brûlure lavés, sanctuaire posé.');
-        return true;
-      }
-      case 'relever': {
-        const body = (R.fallen || [])[R.fallen.length - 1];
-        if (!body) return true;
-        R.fallen = R.fallen.slice(0, -1);
-        const v = makeSummon(R, env, u, body.sub, x, y);
-        v.hp = Math.max(1, div(v.hp_max, 2));
-        mech(R, 'relever');
-        log.push(u.name + ' relève ' + body.name + ' : ' + v.hp + ' PV.');
         return true;
       }
       // ---- 2A Bretteur : riposter ----
@@ -1596,7 +1767,10 @@
     switch (e.kind) {
       case 'state': {
         if (t.side === 'guild' && e.hostile !== false && ['provoque', 'aveugle', 'etourdi', 'immobilise', 'entrave', 'brule', 'poison', 'marque', 'vol_temps'].indexOf(e.id) >= 0) return false;
-        const turns = e.turns + (e.id === 'marque' && u.passive === 'pistage' ? 1 : 0);
+        let turns = e.turns + (e.id === 'marque' && u.passive === 'pistage' ? 1 : 0);
+        // V5 T6 (D7/D8) : sur un corps de la guilde, le SOUTIEN du lanceur allonge l'état bénéfique ; le passif
+        // `refrain` du Barde y ajoute un tour. C'est la marque du Barde : la zone et la DURÉE, pas le soin ponctuel.
+        if (t.side === 'guild') turns += supportTurns(env, u) + (u.passive === 'refrain' ? 1 : 0);
         if (e.control) return tryControl(R, env, t, e.id, turns, e.value || 0, log, s.name);
         addState(t, e.id, turns, e.id === 'provoque' ? 0 : (e.value || 0));
         if (e.id === 'provoque') stateOf(t, 'provoque').unit = u.id;
@@ -1604,8 +1778,11 @@
         if (e.id === 'poison' && isBoss(t)) stateOf(t, 'poison').level = u.level;
         return true;
       }
-      case 'heal': { if (t.side !== 'guild') return false; const n = pct(u.heal || 0, e.power || 100) + (e.flat || 0); const got = healUnit(t, n); log.push(u.name + ' soigne ' + t.name + ' de ' + got + ' PV.'); R.healing_total[u.id] = (R.healing_total[u.id] || 0) + got; return true; }
-      case 'shield': { if (t.side !== 'guild') return false; const n = e.value + (e.per_level || 0) * u.level; addShield(t, n, e.turns || 0); log.push(t.name + ' gagne un bouclier de ' + n + '.'); return true; }
+      case 'heal': { if (t.side !== 'guild') return false; const n = pct(u.heal || 0, e.power || 100) + (e.flat || 0); const got = healGuild(R, env, t, n); log.push(u.name + ' soigne ' + t.name + ' de ' + got + ' PV.'); R.healing_total[u.id] = (R.healing_total[u.id] || 0) + got; return true; }
+      case 'shield': { if (t.side !== 'guild') return false;
+        const n = pct(e.value + (e.per_level || 0) * u.level, 100 + supportPct(env, u));                     // V5 T6 (D7) : le soutien épaissit le bouclier
+        addShield(t, n, (e.turns || 0) + (t.side === 'guild' ? supportTurns(env, u) : 0));
+        log.push(t.name + ' gagne un bouclier de ' + n + '.'); return true; }
       case 'purify': { if (t.side !== 'guild') return false; for (const id of e.states) removeState(t, id); return true; }
       case 'push': {
         if (t.side !== 'boss') return false;
@@ -1618,10 +1795,12 @@
       default: return false;
     }
   }
+  const SUPPORT_ZONES = ['sanctuaire', 'esprit_garde', 'sentier', 'etendard'];   // zones de SOUTIEN (le piège n'en est pas une)
   function placeZone(R, env, u, e, cells, log) {
     const G = gridOf(R);
     let turns = e.turns;
     if (e.id === 'sanctuaire' && u.passive === 'onction') turns += 1;
+    if (SUPPORT_ZONES.indexOf(e.id) >= 0) turns += supportZoneTurns(env, u);                                 // V5 T6 (D7) : le soutien tient la zone plus longtemps
     if (e.id === 'piege' && u.passive === 'pistage') turns = 99;
     let n = 0;
     const capOf = { sentier: 6, esprit_garde: 3 }[e.id] || 0;
@@ -2393,7 +2572,11 @@
     if ((h.traits || []).indexOf('endurant') >= 0) pm += 1;
     pm = Math.min(C.pm_max, pm);
     const u = { id: h.id, kind: 'hero', side: 'guild', owner: h.owner, master_id: null, name: h.name, gender: h.gender || 'm', class_id: h.class_id, level: h.level, x: 0, y: 0,
-      hp_max: h.hp_max, hp: h.hp_max, shield: 0, shield_turns: 0, atk_eff: pct(pct(h.atk, moraleMod(h.morale)), fatigueAtkMod(h.fatigue)), def: h.def, heal: h.heal, crit: h.crit, spd: h.spd,
+      hp_max: h.hp_max, hp: h.hp_max, shield: 0, shield_turns: 0, atk_eff: pct(pct(h.atk, moraleMod(h.morale)), fatigueAtkMod(h.fatigue)), def: h.def, heal: h.heal, crit: h.crit,
+      // V5 T6 (R2) : `spd` a disparu de l'unité — aucun lecteur sur la grille (`unitsOrderS` exclut les héros).
+      // `dodge` (savoir-faire Discrétion), `hit_bonus` (Archerie) et `fire` (arme de braise) en prennent la place, avec un lecteur chacun.
+      dodge: Math.min(C.dodge_max_permille || 350, h.dodge || 0), hit_bonus: h.hit_bonus || 0, fire: h.fire ? 1 : 0, fire_used: 0,
+      support: h.support || 0, magic_power: h.magic_power || 0, dexterity: h.dexterity || 0,        // V5 T6 (D7/D9)
       mass: 0, pa_max: C.pa_per_turn, pm_max: pm, range_min: 1, range_max: 1, los: true, states: [], cooldowns: {}, born_pass: R.pass_count, passive: pass[h.class_id] || null, crit_immune: false, vigor: h.vigor || 0,
       hybrid_id: h.hybrid || null, spec_id: h.spec || null, resource: null, res: 0, res_max: 0, fissures: 0, ripostes_turn: 0, hit_this_turn: 0 };
     if (u.hybrid_id) {
@@ -2401,6 +2584,7 @@
       if (H) { u.resource = H.resource; u.res_max = H.resource_max; u.res = h.hybrid_bonus ? Math.min(H.resource_max, d.lineage ? d.lineage.affinity_resource_bonus : 1) : 0; }
       else u.hybrid_id = null;
     }
+    applySpecPassive(env, u);                                                  // V5 T6 : volet statique des 26 passifs
     return u;
   }
   function beginPass(R, env, heroId, log) {
@@ -2425,7 +2609,7 @@
     const legs = R.legs ? 1 : 0;                                            // V5 T3 8B : le Legs du Chronomancien offre un tour au copain suivant
     if (legs) { R.legs = 0; log.push(h.name + ' hérite du temps légué : un tour de passage de plus.'); mech(R, 'legs_recu'); }
     if (R.pending_steal) { addState(u, 'vol_temps', 1, R.pending_steal); R.pending_steal = 0; }   // V5 T3 §2.5 : le Capitaine a volé un tour
-    R.pass = { hero_id: heroId, manager_id: h.owner, hero_name: h.name, turn: 1, turn_max: legs + ((h.fatigue || 0) >= 60 ? C.pass_turns_tired : C.pass_turns), pa: 0, pm: 0, seq: R.pass_count, ko: false, done: false,
+    R.pass = { spec_installs: 0, hero_id: heroId, manager_id: h.owner, hero_name: h.name, turn: 1, turn_max: legs + ((h.fatigue || 0) >= 60 ? C.pass_turns_tired : C.pass_turns), pa: 0, pm: 0, seq: R.pass_count, ko: false, done: false,
       spawn: { x: spawn.x, y: spawn.y }, last_cell: null, damage_start: R.damage_total[heroId] || 0, actions: 0, hyb_turn: 0, spec_turn: 0 };
     log.push(tplOf(env.data, tplKind(R, 'raid_enter'), heroId + R.pass_count, { a: h.name, shield: wall, x: spawn.x, y: spawn.y }));
     const traces = tracesLabel(R);
@@ -2449,7 +2633,16 @@
     if (!P || P.done) return;
     if (R.pending_breath && R.status === 'active') resolveBreath(R, env, log);
     const u = heroUnit(R);
-    if (u) { P.last_cell = { x: u.x, y: u.y }; R.units = R.units.filter(v => v.id !== u.id); }
+    // V5 T6 (R-B) : « les invocations restent avec leur maître ». Quand le passage se termine, tout ce que le héros a
+    // posé de VIVANT (golem, nuée, recrue, double, bête, élémentaire) quitte la grille avec lui : plus de corps qui
+    // traîne d'un passage à l'autre ni d'un jour à l'autre, plus de tour joué en l'absence du maître. Les ZONES
+    // (pièges, murs, sanctuaires, étendard) ne sont pas des corps : elles restent, c'est leur rôle.
+    if (u) {
+      P.last_cell = { x: u.x, y: u.y };
+      const gone = R.units.filter(v => v.kind === 'summon' && v.master_id === u.id);
+      if (gone.length) log.push(gone.length === 1 ? gone[0].name + ' se dissipe avec ' + u.name + '.' : 'Les corps de ' + u.name + ' se dissipent avec lui.');
+      R.units = R.units.filter(v => v.id !== u.id && !(v.kind === 'summon' && v.master_id === u.id));
+    }
     const B = R.boss;
     if ((B.flying || 0) > 0 && R.pass_count > (B.flight_pass_id || 0) && R.status === 'active') {   // §2.2 : l'envol dure un passage, l'atterrissage ouvre la fenêtre
       const f = fiche(R, env);
@@ -2532,7 +2725,7 @@
     B.controls_today = 0; B.last_stun = 0;
     B.flying = 0; B.flight_pass_id = 0;
     R.pending_breath = null; R.skip_riposte = 0; R.heads_cut_pass = 0;
-    R.sealed = 0; R.riposte_redirect = null; R.riposte_no_zone = 0; R.legs = 0; R.pending_steal = 0; R.fallen = [];
+    R.sealed = 0; R.riposte_redirect = null; R.riposte_no_zone = 0; R.legs = 0; R.pending_steal = 0;
     B.regen_off = 0;
     if (R.terrain && R.terrain.length) { for (const t of R.terrain) R.layout[t.i] = t.prev; R.terrain = []; }
     if (R.kind === 'derby') {                                               // §2.5 : « ils se sont regroupés au gué » — les rivaux repoussés reviennent au complet
@@ -2575,7 +2768,7 @@
       riposte_next: null, last_riposte: null, pending_breath: null, skip_riposte: 0, heads_cut_pass: 0 };
     R.kind = f.kind || 'sylvain';
     R.name = DR ? DR.name : (f.name || raidId);
-    R.sealed = 0; R.riposte_redirect = null; R.riposte_no_zone = 0; R.legs = 0; R.pending_steal = 0; R.fallen = []; R.terrain = []; R.next_link = 0;
+    R.sealed = 0; R.riposte_redirect = null; R.riposte_no_zone = 0; R.legs = 0; R.pending_steal = 0; R.terrain = []; R.next_link = 0;
     R.boss.regen_off = 0;
     R.boss.gender = DR ? DR.gender : 'm';
     R.boss.in_water = 0;
@@ -2691,8 +2884,19 @@
         if (P.pa >= 4 && (a = cast('sentence', bc.x, bc.y))) return a;
         return null;
       case 'ermite': {
-        const dirty = guildUnits(R).filter(v => zoneOn(v)).sort((x, y) => (x.id < y.id ? -1 : 1))[0];
+        // V5 T6 (R-B) : les corps ne traînent plus sur la grille, et l'Ermite trouvait donc rarement quelqu'un « sali »
+        // par une zone du boss. Il purifie désormais aussi ce qui BRÛLE ou est EMPOISONNÉ — c'est son verbe.
+        const dirty = guildUnits(R).filter(v => zoneOn(v) || hasState(v, 'poison') || hasState(v, 'brule')).sort((x, y) => (x.id < y.id ? -1 : 1))[0];
         if (dirty && (a = cast('eau_vive', dirty.x, dirty.y))) return a;
+        // V5 T6 (R-B) : les corps ne traînent plus sur la grille et l'Ermite ne trouvait donc presque jamais quelqu'un
+        // « sali » à purifier — son second sort n'était plus lancé du tout. Son premier effet écrit est pourtant
+        // d'EFFACER LES ZONES DU BOSS : il le lance maintenant sur la zone ennemie la plus proche de lui.
+        {
+          const zk = sortedKeys(R.zones).filter(k => R.zones[k].owner_kind === 'boss')
+            .map(k => ({ x: Number(k) % G.w, y: div(Number(k), G.w) }))
+            .sort((p1, p2) => manhattan(p1.x, p1.y, u.x, u.y) - manhattan(p2.x, p2.y, u.x, u.y) || cidx(G, p1.x, p1.y) - cidx(G, p2.x, p2.y))[0];
+          if (zk && (a = cast('eau_vive', zk.x, zk.y))) return a;
+        }
         if ((u.res || 0) < 4 && (a = cast('tracer', bc.x, bc.y))) return a;
         return null;
       }
@@ -2769,8 +2973,10 @@
         return null;
       }
       case 'hospitalier':
-        if ((R.fallen || []).length) { for (const c of freeAround(R, u.x, u.y, 4, true)) if (manhattan(c.x, c.y, u.x, u.y) >= 1 && (a = cast('relever', c.x, c.y))) return a; }
+        // V5 T6 (R-A) : l'Hospitalier ne relève plus un corps tombé — il remet debout ce qui TIENT ENCORE.
+        if (hurt.length && (a = cast('second_souffle', hurt[0].x, hurt[0].y))) return a;
         if (hurt.length && (a = cast('onction_zone', hurt[0].x, hurt[0].y))) return a;
+        if (hasState(u, 'poison') && (a = cast('second_souffle', u.x, u.y))) return a;
         if (hasState(u, 'poison') && (a = cast('onction_zone', u.x, u.y))) return a;
         return null;
       case 'bretteur':
@@ -3020,8 +3226,21 @@
       if (a.type === 'move') return a;                                        // V5 T3b : l'Assassin va chercher le contact de sa proie
       const sp = spellFor(env, u, a.spell_id);
       const full = P.pa >= raidC(env).pa_per_turn;
-      if (sp && (sp.power > 0 || ((R.pass.spec_turn || 0) === 0 && (P.pa >= sp.cost_pa + 3 || full)))) {
-        if (!sp.power) R.pass.spec_turn = R.pass.turn;    // une installation de spé par passage (la voie garde la sienne), jamais au prix d'un coup
+      // V5 T6 (R-B) : poser un CORPS n'est pas une installation. Les corps ne survivent plus au passage de leur maître :
+      // les interdire plus d'une fois par passage revenait à interdire à la pointe de jouer son verbe. La voie avait
+      // déjà cette exemption (HYB_BODY) ; la pointe l'a maintenant aussi.
+      const specBody = sp && (sp.effects || []).some(e => e.kind === 'summon');
+      // V5 T6 (R-B) : DEUX installations de pointe par passage au lieu d'une. Les verbes en deux temps (poser un corps
+      // puis lui donner l'ordre : Maître-ours, Fauconnier, Sergent) ne franchissaient plus leur second temps depuis que
+      // les corps ne survivent plus au passage de leur maître — le second temps tombait au passage suivant, où le corps
+      // n'existait plus. Mesuré : Maître-ours et Fauconnier ne résolvaient plus leur scénario de branche du tout.
+      // La seconde installation n'est ouverte QUE lorsque le héros a déjà un corps à lui sur la grille : c'est
+      // exactement le cas du verbe en deux temps (poser, puis commander). Ailleurs, la règle d'une installation par
+      // passage tient toujours.
+      const hasOwnBody = guildUnits(R).some(v => v.kind === 'summon' && v.master_id === u.id && v.hp > 0);
+      const specMax = hasOwnBody ? (raidC(env).spec_installs_per_pass || 2) : 1;
+      if (sp && (sp.power > 0 || specBody || ((R.pass.spec_installs || 0) < specMax && (P.pa >= specCostPa(env, u, sp) + 3 || full)))) {
+        if (!sp.power && !specBody) R.pass.spec_installs = (R.pass.spec_installs || 0) + 1;
         return a;
       }
     }
@@ -3035,7 +3254,13 @@
     a = null;
     if ((fiche(R, env).kind || '') === 'derby' && (a = derbyPolicy(R, env, u))) return a;    // V5 T3 : garder la Bannière
     a = null;
-    switch (cls) {
+    // V5 T6 (R-C) : la routine de base joue la barre de la classe du héros ; si elle n'a plus rien à proposer et que
+    // le héros a une voie, elle rejoue la même routine sur la SECONDE BASE de cette voie. Les deux barres sont
+    // ouvertes au joueur ; la politique par défaut ne fait qu'y puiser dans cet ordre.
+    const secondBar = u.hybrid_id ? hybridSecondBase(env, u) : null;
+    for (const cls2 of (secondBar && secondBar !== cls ? [cls, secondBar] : [cls])) {
+    a = null;
+    switch (cls2) {
       case 'warrior': {
         if (P.turn === 1 && (a = cast('bulwark', u.x, u.y))) return a;
         if (dB > 1 && (a = chargeAny())) return a;
@@ -3045,12 +3270,15 @@
         if (adjAdd && (a = cast('slash', adjAdd.x, adjAdd.y))) return a;
         if ((a = cast('slash', bc.x, bc.y))) return a;
         if ((a = cast('arme', bc.x, bc.y))) return a;
-        return null;
+        break;
       }
       case 'cleric': {
         const hurt = guildUnits(R).filter(v => v.id !== u.id && v.hp * 2 < v.hp_max);
         if (hurt.length && (a = cast('healing_prayer', hurt[0].x, hurt[0].y))) return a;
         if (u.hp * 10 < u.hp_max * 6 && (a = cast('healing_prayer', u.x, u.y))) return a;
+        // V5 T6 (R2/B4) : le soin qui déborde devient bouclier — la prière garde donc une valeur sur un groupe intact,
+        // et la statistique SOIN cesse d'être décorative sur la grille. Un seul lancer par passage, au premier tour.
+        if (P.turn === 1 && u.shield === 0 && (u.heal || 0) > 0 && (a = cast('healing_prayer', u.x, u.y))) return a;
         if ((dB > 3 || spawnDist(u.x, u.y) < 3) && (a = moveTo(2, (x, y) => (losTo(x, y) === null ? null : offSpawn(x, y))))) return a;
         const sanct = zoneAt(R, u.x, u.y);
         if (P.turn === 1 && !(sanct && sanct.zone_id === 'sanctuaire') && (a = cast('sacred_circle', u.x, u.y))) return a;
@@ -3061,7 +3289,7 @@
         if ((a = cast('light', bc.x, bc.y))) return a;
         if (dB > 1 && (a = moveTo(1, null, true))) return a;
         if ((a = cast('arme', bc.x, bc.y))) return a;
-        return null;
+        break;
       }
       case 'rogue': {
         const back = (x, y) => (y < B.y && distToBoss(B, x, y) === 1 ? 0 : null);
@@ -3078,7 +3306,7 @@
         if (adjAdd && (a = cast('arme', adjAdd.x, adjAdd.y))) return a;
         if ((a = cast('arme', bc.x, bc.y))) return a;
         if (dB > 1 && (a = moveTo(1, null, true))) return a;
-        return null;
+        break;
       }
       case 'ranger': {
         if (!hasState(B, 'marque') && (a = cast('hunters_mark', bc.x, bc.y))) return a;
@@ -3094,7 +3322,7 @@
         if (P.turn === 3 && (a = cast('snare_arrow', bc.x, bc.y))) return a;
         if ((a = cast('arme', bc.x, bc.y))) return a;
         if (dB > 5 && (a = moveTo(4))) return a;
-        return null;
+        break;
       }
       case 'mage': {
         const good = (x, y) => { const d = distToBoss(B, x, y); return d >= 2 && d <= 5 && losTo(x, y) !== null ? offSpawn(x, y) : null; };
@@ -3111,7 +3339,7 @@
         if (P.turn === 3 && P.pa >= 3 && !adds.length && (u.cooldowns.fire_bolt || 0) > 0) { const wc = { x: bc.x, y: Math.min(G.h - 1, B.y + B.h + 1) }; if (freeCell(R, wc.x, wc.y) && !zoneAt(R, wc.x, wc.y) && (a = cast('ice_wall', wc.x, wc.y))) return a; }
         if ((a = cast('fire_bolt', bc.x, bc.y))) return a;
         if ((a = cast('arme', bc.x, bc.y))) return a;
-        return null;
+        break;
       }
       case 'summoner': {
         if ((dB > 3 || spawnDist(u.x, u.y) < 3) && (a = moveTo(2, offSpawn))) return a;
@@ -3122,15 +3350,34 @@
         // V5 T5 : une invocation mourante AU CONTACT explose avant qu'on songe à la rafistoler. Le lien vital passait
         // avant et la remettait debout à chaque fois : sur 30 raids forcés, « Sacrifice » n'était jamais lancé —
         // c'était le seul des 25 sorts de base que la politique par défaut n'employait pas.
-        const adj = mine.filter(v => distToBoss(B, v.x, v.y) === 1 && v.hp * 5 < v.hp_max * 2);   // une invocation mourante au contact explose ; les autres restent (Présence)
-        if (adj.length && (a = cast('sacrifice', adj[0].x, adj[0].y))) return a;
-        const weak = mine.filter(v => v.hp * 2 < v.hp_max);
+        // V5 T6 (R-B) : le corps s'en va avec son maître à la fin du passage. Une invocation mourante au contact explose
+        // comme avant ; et au DERNIER tour du passage, un corps au contact part en explosion plutôt qu'en fumée.
+        const dying = mine.filter(v => distToBoss(B, v.x, v.y) === 1 && v.hp * 5 < v.hp_max * 2);
+        if (dying.length && (a = cast('sacrifice', dying[0].x, dying[0].y))) return a;
+        const weak = mine.filter(v => v.hp * 4 < v.hp_max * 3);   // V5 T6 (R-B) : le corps ne vit qu'un passage — on le rafistole plus tôt
         if (weak.length && u.hp * 2 > u.hp_max && (a = cast('vital_link', weak[0].x, weak[0].y))) return a;
+        const leaving = mine.filter(v => distToBoss(B, v.x, v.y) === 1 && P.turn >= (P.turn_max || 3));
+        if (leaving.length && (a = cast('sacrifice', leaving[0].x, leaving[0].y))) return a;
         if (dB === 1 && (a = cast('arme', bc.x, bc.y))) return a;
         if (mine.length >= 2 && dB > 1 && P.pa >= 3 && (a = moveTo(1, null, true))) return a;
         if (dB === 1 && adjAdd && (a = cast('arme', adjAdd.x, adjAdd.y))) return a;
-        return null;
+        break;
       }
+      // V5 T6 (D8) : le Barde. Sa marque est la ZONE et la DURÉE : il galvanise d'abord ce qui l'entoure, dérobe le
+      // coup suivant quand le monstre est proche, entrave ce qui vient, et frappe à distance le reste du temps.
+      case 'bard': {
+        if ((dB > 4 || spawnDist(u.x, u.y) < 3) && (a = moveTo(2, (x, y) => (losTo(x, y) === null ? null : offSpawn(x, y))))) return a;
+        const allies = guildUnits(R).filter(v => v.id !== u.id && v.hp > 0 && manhattan(v.x, v.y, u.x, u.y) <= 1);
+        if (P.turn === 1 && (u.shield === 0 || allies.length) && (a = cast('chant_guerre', u.x, u.y))) return a;
+        if (dB <= 2 && !hasState(u, 'feinte') && (a = cast('pas_de_danse', u.x, u.y))) return a;
+        if (nearestAdd && !hasState(nearestAdd, 'entrave') && (a = cast('ballade_lente', nearestAdd.x, nearestAdd.y))) return a;
+        if (!hasState(B, 'entrave') && dB <= 4 && (a = cast('ballade_lente', bc.x, bc.y))) return a;
+        if (nearestAdd && !hasState(nearestAdd, 'aveugle') && (a = cast('fausse_note', nearestAdd.x, nearestAdd.y))) return a;
+        if ((a = cast('fausse_note', bc.x, bc.y))) return a;
+        if ((a = cast('arme', bc.x, bc.y))) return a;
+        break;
+      }
+    }
     }
     return null;
   }
@@ -3257,7 +3504,7 @@
     const s = spellFor(env, u, id);
     const why = fromPass ? castWhy(R, env, u, s, u.x, u.y) : null;
     const zone = s.shape && s.shape !== 'single' ? ({ circle: 'cercle ', cross: 'croix ', line: 'ligne ', cone: 'cône ', wall3: 'mur de ' }[s.shape] || s.shape) + (s.r || 3) : 'cible';
-    return { id: s.id, name: s.name, hybrid_id: s.hybrid_id || null, spec_id: s.spec_id || null, daily: !!s.daily, anchor: !!s.anchor, cost_pa: s.cost_pa, range_min: s.range_min, range_max: s.range_max, los: !!s.los, line_only: !!s.line_only, shape: s.shape || 'single', r: s.r || 0, power: powerOf(s, u), magic: !!s.magic, target: s.target,
+    return { id: s.id, name: s.name, hybrid_id: s.hybrid_id || null, spec_id: s.spec_id || null, daily: !!s.daily, anchor: !!s.anchor, cost_pa: specCostPa(env, u, s), range_min: s.range_min, range_max: s.range_max, los: !!s.los, line_only: !!s.line_only, shape: s.shape || 'single', r: s.r || 0, power: powerOf(s, u), magic: !!s.magic, target: s.target,
       range_label: s.range_min === s.range_max ? String(s.range_min) : s.range_min + '-' + s.range_max, zone_label: zone, verb: s.verb || '', cooldown: s.cooldown || 0, cooldown_left: (u.cooldowns && u.cooldowns[id]) || 0,
       castable: !why || !/PA insuffisants|relance/.test(why), reason: why && /PA insuffisants|relance/.test(why) ? why : '', description: s.description || '', crit_bonus: s.crit_bonus || 0, back_power: s.back_power ? powerOf({ power: s.back_power }, u) : 0, effect_labels: (s.effect_labels || []).slice() };
   }
@@ -3414,7 +3661,7 @@
       if (why) { out.reason = why; return out; }
     }
     if (s.cooldown_left > 0) { out.reason = 'relance dans ' + s.cooldown_left + ' tour(s)'; return out; }
-    if (view.me.pass.pa < s.cost_pa) { out.reason = 'PA insuffisants'; return out; }
+    if (view.me.pass.pa < s.cost_pa) { out.reason = 'PA insuffisants'; return out; }   // `s` vient de spellView : cost_pa déjà réduit par la maîtrise
     out.cells = shapeCells(G, s.shape, s.r, me.x, me.y, x, y);
     const seen = {};
     for (const c of out.cells) {

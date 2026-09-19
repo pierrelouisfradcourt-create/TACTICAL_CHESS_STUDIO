@@ -21,7 +21,10 @@ const MANAGERS = [
   { id: 'f_roxane', name: 'Roxane', kind: 'ai', profile: 'audacieux', class_id: 'ranger' },
   { id: 'f_bastien', name: 'Bastien', kind: 'ai', profile: 'audacieux', class_id: 'rogue' },
   { id: 'f_maelle', name: 'Maëlle', kind: 'ai', profile: 'prudent', class_id: 'mage' },
-  { id: 'f_ysolde', name: 'Ysolde', kind: 'ai', profile: 'prudent', class_id: 'summoner' }
+  { id: 'f_ysolde', name: 'Ysolde', kind: 'ai', profile: 'prudent', class_id: 'summoner' },
+  // V5 T6 (D8) : septième base. Sans un Barde à la table, ses quatre sorts ne pouvaient pas être lancés par
+  // raidDefaults et le contrôle (4a) — « tous les sorts de base sont lancés » — devenait invérifiable.
+  { id: 'f_gwen', name: 'Gwen', kind: 'ai', profile: 'audacieux', class_id: 'bard' }
 ];
 const NO_MAGE = MANAGERS.filter(m => m.class_id !== 'mage');
 const SEEDS = 30, DAYS = 30, RAID_DAY = 12;
@@ -138,7 +141,7 @@ const bad = [];
       if (s.raid.status === 'active') { const rn = T.raidNight(s, sim._internal.raidEnvOf(s, null)); s = rn.state; }
     }
   }
-  check('(2c) invariants sur ' + steps + ' actions rejouées via raidAction (6 raids × ≤ 3 jours) : PA/PM ≥ 0, unités dans la grille, jamais superposées ni sur mur/gouffre/boss, PV ∈ ]0, max], boss ∈ [0, max], zones à durée > 0', viol.filter(x => !/trace/.test(x)).length === 0 && steps > 200, viol.filter(x => !/trace/.test(x)).slice(0, 4).join(' | '));
+  check('(2c) invariants sur ' + steps + ' actions rejouées via raidAction (6 raids × ≤ 3 jours) : PA/PM ≥ 0, unités dans la grille, jamais superposées ni sur mur/gouffre/boss, PV ∈ ]0, max], boss ∈ [0, max], zones à durée > 0', viol.filter(x => !/trace/.test(x)).length === 0 && steps > 200, viol.filter(x => !/trace/.test(x)).slice(0, 6).join(' | '));
   check('(3c) la riposte laisse une trace visible au passage suivant : zone du boss (racines/spores) sur les cases de la dernière riposte au début de chaque passage du jour sauf le premier', traceChecks > 0 && traceOk === traceChecks, traceOk + '/' + traceChecks);
   // Pureté : raidAction / raidNight / raidView / raidDefaults ne mutent pas leur entrée.
   {
@@ -184,7 +187,7 @@ for (let seed = 1; seed <= SEEDS; seed++) {
   const castsFinal = {};
   for (let seed = 1; seed <= SEEDS; seed++) { /* déjà agrégés au fil des jours ci-dessus */ }
 }
-console.log('\n--- Distribution mesurée (30 raids forcés au J' + RAID_DAY + ', 6 managers × 1 héros : Guerrier, Clerc, Rôdeur, Voleur, Mage, Invocateur, raidDefaults) ---');
+console.log('\n--- Distribution mesurée (30 raids forcés au J' + RAID_DAY + ', 7 managers × 1 héros : Guerrier, Clerc, Rôdeur, Voleur, Mage, Invocateur, Barde, raidDefaults) ---');
 console.log('Raids : ' + dist.won + ' gagnés · ' + dist.lost + ' perdus · gagnés en ≤ 3 jours ' + dist.wonIn3 + '/30 · jours par raid ' + dist.days.join(' ') + ' · passages ' + dist.passes + ' · KO ' + dist.ko + ' (' + (100 * dist.ko / Math.max(1, dist.passes)).toFixed(0) + ' %) · morts ' + dist.deaths + ' · ripostes ' + dist.ripostes);
 console.log('Dégâts par classe et par passage : ' + Object.keys(dist.byClass).sort().map(k => k + ' ' + Math.round(dist.byClass[k].d / dist.byClass[k].n) + ' (' + (100 * dist.byClass[k].d / Math.max(1, dist.dmgTotal)).toFixed(0) + ' % du total, KO ' + dist.byClass[k].ko + '/' + dist.byClass[k].n + ')').join(' · '));
 check('(3a) raidDefaults : le Sylvain tombe sur ≥ 40 % des graines en ≤ 3 jours', dist.wonIn3 * 10 >= SEEDS * 4, dist.wonIn3 + '/' + SEEDS + ' (' + (100 * dist.wonIn3 / SEEDS).toFixed(0) + ' %)');
@@ -241,20 +244,29 @@ check('(4a) les 25 sorts (arme + 4 par classe) sont lancés au moins une fois pa
   const boss = s => s.raid.boss;
   const unit = (s, id) => s.raid.units.filter(v => v.id === id)[0];
   const st = (u, id) => u.states.filter(z => z.id === id)[0];
+// V5 T6 : le SOUTIEN (charisme) épaissit et allonge tout ce qu'un héros pose de bénéfique sur la guilde, et les
+// corps invoqués héritent d'une part des grandeurs de leur maître. Les attentes chiffrées ci-dessous suivent donc
+// désormais les règles T6 plutôt que les constantes nues — ce n'est pas un assouplissement : la formule est écrite
+// ici en entier et un écart d'un point la fait rougir.
+const RC = data.raid;
+const supPct = u => Math.trunc((u.support || 0) / Math.max(1, RC.support_div_pct || 5));
+const supTurns = u => Math.min(RC.support_turn_max === undefined ? 2 : RC.support_turn_max, Math.trunc((u.support || 0) / Math.max(1, RC.support_turn_step || 30)));
+const supZone = u => Math.min(RC.support_zone_max === undefined ? 2 : RC.support_zone_max, Math.trunc((u.support || 0) / Math.max(1, RC.support_zone_step || 40)));
+const shieldOf = (u, v) => Math.trunc(v * (100 + supPct(u)) / 100);
   const fx = [];
   const F = (name, ok, detail) => fx.push({ name, ok: !!ok, detail: detail || '' });
   // Guerrier
   { const { s, hid } = scene('warrior', 3, 4); const r = cast(s, 'slash', 4, 4); F('Taillade : dégâts au boss', r.ok && boss(r.state).hp < boss(s).hp, r.reason); }
   { const { s, hid } = scene('warrior', 3, 6); const r = cast(s, 'taunt', 4, 4); F('Provocation : boss provoqué (vise le guerrier) + réduction 5 sur soi', r.ok && st(boss(r.state), 'provoque') && st(boss(r.state), 'provoque').unit === hid && st(unit(r.state, hid), 'reduction') && st(unit(r.state, hid), 'reduction').value === 5, r.reason); }
   { const { s, hid } = scene('warrior', 5, 8); const r = cast(s, 'charge', 5, 4); const u = unit(r.state, hid); F('Charge (ligne, 2-4) : le guerrier arrive au contact sans PM et frappe 130 %', r.ok && u.y === 5 && u.x === 5 && r.state.raid.pass.pm === 3 && boss(r.state).hp < boss(s).hp, r.reason); }
-  { const { s, hid } = scene('warrior', 3, 4); const r = cast(s, 'bulwark', 3, 4); const u = unit(r.state, hid); F('Rempart : bouclier 30 + 3×niveau pendant 2 tours', r.ok && u.shield === unit(s, hid).shield + 30 + 3 * u.level && u.shield_turns === 2, r.reason); }
+  { const { s, hid } = scene('warrior', 3, 4); const r = cast(s, 'bulwark', 3, 4); const u = unit(r.state, hid), u0 = unit(s, hid); F('Rempart : bouclier (30 + 3×niveau) × soutien, 2 tours + soutien', r.ok && u.shield === u0.shield + shieldOf(u0, 30 + 3 * u.level) && u.shield_turns === 2 + supTurns(u0), r.reason); }
   // Clerc
   { const { s, hid } = scene('cleric', 3, 4, (R, u) => { u.hp = 10; }); const r = cast(s, 'healing_prayer', 3, 4); F('Prière de soin : PV rendus (200 % de soin + 10)', r.ok && unit(r.state, hid).hp > 10, r.reason); }
-  { const { s, hid } = scene('cleric', 3, 4); const r = cast(s, 'blessing', 3, 4); F('Bénédiction : bouclier 20 + 2×niveau, 2 tours', r.ok && unit(r.state, hid).shield === unit(s, hid).shield + 20 + 2 * unit(s, hid).level, r.reason); }
+  { const { s, hid } = scene('cleric', 3, 4); const u0 = unit(s, hid); const r = cast(s, 'blessing', 3, 4); F('Bénédiction : bouclier (20 + 2×niveau) × soutien, 2 tours + soutien', r.ok && unit(r.state, hid).shield === u0.shield + shieldOf(u0, 20 + 2 * u0.level), r.reason); }
   { const { s } = scene('cleric', 3, 4); const r = cast(s, 'light', 4, 4); F('Lumière : 90 % magique sur le boss', r.ok && boss(r.state).hp < boss(s).hp, r.reason); }
   { const { s } = scene('cleric', 3, 6, R => { mkAdd(R, 3, 5, 'inv_t01'); const v = R.units.filter(x => x.id === 'inv_t01')[0]; v.kind = 'summon'; v.side = 'guild'; v.owner = 'f_ysolde'; v.states.push({ id: 'poison', turns: 3, value: 1 }); }); const r = cast(s, 'light', 3, 5); F('Lumière sur un allié (invocation empoisonnée à portée 1) : retire le poison', r.ok && !st(unit(r.state, 'inv_t01'), 'poison'), r.reason); }
   { const { s } = scene('cleric', 3, 6, R => mkAdd(R, 3, 5)); const r = cast(s, 'light', 3, 5); F('Lumière sur un rejeton : aveugle 1 tour', r.ok && st(unit(r.state, 'add_t01'), 'aveugle'), r.reason); }
-  { const { s } = scene('cleric', 3, 6); const r = cast(s, 'sacred_circle', 3, 6); const z = Object.values(r.state.raid.zones).filter(x => x.zone_id === 'sanctuaire'); F('Cercle sacré : zone sanctuaire (cercle 1, 3 ripostes avec Onction)', r.ok && z.length === 5 && z[0].turns_left === 3 && z[0].owner_kind === 'hero', r.reason); }
+  { const { s } = scene('cleric', 3, 6); const r = cast(s, 'sacred_circle', 3, 6); const z = Object.values(r.state.raid.zones).filter(x => x.zone_id === 'sanctuaire'); const u0c = unit(s, Object.keys(s.heroes).filter(k => s.raid.pass && s.raid.pass.hero_id === k)[0] || s.raid.pass.hero_id); F('Cercle sacré : zone sanctuaire (cercle 1, 3 ripostes avec Onction, + soutien)', r.ok && z.length === 5 && z[0].turns_left === 3 + supZone(u0c) && z[0].owner_kind === 'hero', r.reason); }
   // Voleur
   { const a = scene('rogue', 3, 4), b = scene('rogue', 4, 2); const ra = cast(a.s, 'shadow_strike', 4, 4), rb = cast(b.s, 'shadow_strike', 4, 3); const da = boss(a.s).hp - boss(ra.state).hp, db = boss(b.s).hp - boss(rb.state).hp; F('Coup de l\'ombre : 150 % de face, 220 % depuis le dos (dégâts supérieurs, journal « dans le dos »)', ra.ok && rb.ok && da > 0 && db > 0 && rb.log.some(l => /dos/.test(l)) && !ra.log.some(l => /dos/.test(l)), ra.reason || rb.reason); }
   { const { s, hid } = scene('rogue', 3, 7); const r = cast(s, 'sidestep', 3, 5); const u = unit(r.state, hid); F('Pas de côté : téléportation sur une case libre à 2', r.ok && u.x === 3 && u.y === 5 && r.state.raid.pass.pm === 3, r.reason); }
@@ -273,7 +285,7 @@ check('(4a) les 25 sorts (arme + 4 par classe) sont lancés au moins une fois pa
   { const { s } = scene('mage', 3, 7, R => mkAdd(R, 3, 5)); const r = cast(s, 'storm', 3, 5); F('Tempête (cercle 2) : dégâts au boss ET au rejeton', r.ok && boss(r.state).hp < boss(s).hp && unit(r.state, 'add_t01').hp < 80, r.reason); }
   { const { s } = scene('mage', 3, 8); const r = cast(s, 'ice_wall', 3, 6); const z = Object.values(r.state.raid.zones).filter(x => x.zone_id === 'mur_glace'); const losAfter = TI.hasLos({ w: 9, h: 11 }, i => r.state.raid.layout[i] === 1 || (r.state.raid.zones[String(i)] && r.state.raid.zones[String(i)].zone_id === 'mur_glace'), 3, 8, 3, 4); F('Mur de glace : 3 cases de mur temporaire qui coupent la ligne de vue', r.ok && z.length === 3 && losAfter === false, r.reason); }
   // Invocateur
-  { const { s, hid } = scene('summoner', 3, 6); const r = cast(s, 'clay_golem', 3, 5); const g = r.state.raid.units.filter(v => v.kind === 'summon' && v.master_id === hid)[0]; F('Golem d\'argile : invocation créée (PV 30 + 4×niveau + 2×Vigueur, garde du maître)', r.ok && g && g.guard_of === hid && g.hp === 30 + 4 * g.level + 2 * unit(s, hid).vigor, r.reason); }
+  { const { s, hid } = scene('summoner', 3, 6); const r = cast(s, 'clay_golem', 3, 5); const g = r.state.raid.units.filter(v => v.kind === 'summon' && v.master_id === hid)[0]; const m0 = unit(s, hid); const K = data.raid.summons.golem; F('Golem d\'argile : invocation créée (PV = 30 + 4×niveau + 2×Vigueur + 25 % des PV du maître — héritage T6, garde du maître)', r.ok && g && g.guard_of === hid && g.hp === K.hp_flat + K.hp_lvl * g.level + K.hp_vigor * m0.vigor + Math.trunc(m0.hp_max * K.hp_pct / 100), r.reason); }
   { const { s, hid } = scene('summoner', 3, 6); let r = cast(s, 'swarm', 3, 5); const n = r.state.raid.units.filter(v => v.kind === 'summon' && v.master_id === hid)[0]; const hp0 = boss(r.state).hp; r = T.raidAction(r.state, { type: 'end_turn' }, env); F('Nuée : invocation créée et agissante (elle frappe le boss pendant la phase S)', n && r.ok && r.log.some(l => /Nuée .* frappe/.test(l)) && boss(r.state).hp < hp0 + 200, r.reason); }
   { const { s, hid } = scene('summoner', 3, 6); let r = cast(s, 'clay_golem', 3, 5); const g = r.state.raid.units.filter(v => v.kind === 'summon')[0]; g.hp = 5; r = cast(r.state, 'vital_link', 3, 5); F('Lien vital : 20 + niveau PV transférés du maître vers l\'invocation', r.ok && unit(r.state, g.id).hp === 5 + 20 + unit(s, hid).level && unit(r.state, hid).hp === unit(s, hid).hp - 20 - unit(s, hid).level, r.reason); }
   { const { s, hid } = scene('summoner', 3, 6); let r = cast(s, 'clay_golem', 3, 5); const g = r.state.raid.units.filter(v => v.kind === 'summon')[0]; g.x = 3; g.y = 4; r.state.raid.pass.pa = 6; const hp0 = boss(r.state).hp; r = cast(r.state, 'sacrifice', 3, 4); F('Sacrifice : l\'invocation explose (retirée), dégâts au boss adjacent (croix 1)', r.ok && !unit(r.state, g.id) && boss(r.state).hp < hp0, r.reason); }
@@ -301,8 +313,12 @@ check('(4a) les 25 sorts (arme + 4 par classe) sont lancés au moins une fois pa
 // ---------- (5) raid_pass humain : illégal refusé avec raison, légal rejoué à l'identique ----------
 {
   const s = forcedRaid(7, MANAGERS, RAID_DAY);
-  const first = sim.listManagers(s).slice().sort()[0];              // joue en premier : son passage voit l'état du matin
-  const plans = sim._internal.raidDefaults(s, first);
+  // V5 T6 : le premier manager DANS L'ORDRE qui a effectivement un passage à jouer. Prendre le premier par ordre
+  // alphabétique supposait que son héros soit toujours apte ; avec sept bases à la table ce n'est plus garanti,
+  // et le banc plantait sur `plans[0]` au lieu de mesurer quoi que ce soit.
+  const ordered = sim.listManagers(s).slice().sort();
+  let first = ordered[0], plans = sim._internal.raidDefaults(s, first);
+  for (const m of ordered) { const p = sim._internal.raidDefaults(s, m); if (p.length) { first = m; plans = p; break; } }
   const hero = plans[0].adventurer_id;
   const legal = { manager_id: first, day: s.day, type: 'raid_pass', payload: { adventurer_id: hero, actions: plans[0].actions } };
   const v = sim.validateAction(s, legal);

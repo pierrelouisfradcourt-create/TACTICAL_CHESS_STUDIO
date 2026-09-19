@@ -1547,7 +1547,7 @@ var BNEAR = { chapel: [610, 312], hall: [400, 272], forge: [238, 296], warehouse
 // « Chapelle à bâtir » s'y posait (limite écrite en T3b). Le donjon (hall), le terrain d'entraînement et la taverne
 // ne bougent pas. Les contrôles d'enceinte du banc (bâtiment entouré, bas masqué par le mur de face, silhouette)
 // sont rejoués après chaque déplacement.
-var BCOURT = { chapel: [517, 255], hall: [400, 246], forge: [181, 292], warehouse: [233, 207], training_ground: [196, 352], infirmary: [623, 279], tavern: [560, 356], market: [288, 299] };
+var BCOURT = { chapel: [517, 255], hall: [400, 246], forge: [181, 292], warehouse: [233, 207], training_ground: [196, 352], infirmary: [623, 279], tavern: [560, 356], market: [338, 346] };
 var ANCHORS = [BSLOT, BSLOT, BNEAR, BCOURT, BCOURT];
 var SPOTS = { idle: { x: 318, y: 314, dx: 44 }, gather: { x: 34, y: 284, dx: 46 }, train: { x: 650, y: 350, dx: 36 }, craft: { x: 180, y: 312, dx: 44 }, rest: { x: 124, y: 392, dx: 46 }, injured: { x: 122, y: 398, dx: 52 }, defend: { x: 568, y: 414, dx: 40 }, solo: { x: 296, y: 268, dx: 30 }, dead: { x: 318, y: 314, dx: 44 } };
 /* Le lieu de vie d'une activité suit l'âge du domaine : en plaine tant qu'il n'y a pas de murs, DANS LA COUR
@@ -3389,7 +3389,9 @@ function renderLineage(h) {
     count = esc(h.hybrid.name);
   }
   var rs = vm.respec;
-  if (rs && rs.adventurer_id === h.id && (rs.available || rs.used || rs.hint)) {
+  // Dès que mon héros est spécialisé, le bloc est TOUJOURS rendu : offert, ou refusé avec sa raison
+  // (or insuffisant, raid en cours, échéance passée). Cacher le bloc privait le joueur de l'information.
+  if (rs && rs.adventurer_id === h.id) {
     var pendR = pendingLineage('respec');
     var head = rs.hint ? '<span class="i">' + esc(rs.hint.label) + '</span>' : '';
     if (rs.available && rs.options.length) {

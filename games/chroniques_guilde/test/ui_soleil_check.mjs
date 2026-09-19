@@ -37,18 +37,27 @@ const TOTAL = MANAGERS.length;
 const sim = require(path.join(ROOT, 'sim.js'));
 const data = JSON.parse(fs.readFileSync(path.join(ROOT, 'data.json'), 'utf8'));
 const SEED = 4242;
-function daysUntilAge(target) {
-  let st = sim.newGame(SEED, data, { managers: MANAGERS }), days = [];
+function daysUntilAge(target, seed = SEED) {
+  let st = sim.newGame(seed, data, { managers: MANAGERS }), days = [];
   for (let d = 0; d < 30; d++) {
     const vm = sim.viewModel(st, 'p1');
     if (vm.is_season_over || vm.defeat) break;
-    if (vm.village.age_index >= target) return { days, day: vm.day, age: vm.village.age_index };
+    if (vm.village.age_index >= target) return { days, day: vm.day, age: vm.village.age_index, seed };
     let acts = []; for (const m of sim.listManagers(st)) acts = acts.concat(sim.planDefaults(st, m));
     days.push({ day: vm.day, actions: acts }); st = sim.resolveDay(st, acts).state;
   }
   return null;
 }
-const journalOf = days => JSON.stringify({ seed: SEED, managers: MANAGERS, days: days.map(d => ({ day: d.day, actions: d.actions })) });
+// V5 T7 : l'economie a change (usure du moral, entrainement reel), la graine 4242 n'atteint plus
+// forcement la ville fortifiee en 30 jours. Le banc CHERCHE une graine au lieu d'en supposer une.
+function findAge(target) {
+  for (const seed of [SEED, 10, 11, 23, 37, 41, 59, 71, 101, 137, 173, 211, 239, 277, 313]) {
+    const r = daysUntilAge(target, seed);
+    if (r) return r;
+  }
+  return null;
+}
+const journalOf = (days, seed = SEED) => JSON.stringify({ seed, managers: MANAGERS, days: days.map(d => ({ day: d.day, actions: d.actions })) });
 
 const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`); };
@@ -316,12 +325,12 @@ const browser = await pw.chromium.launch();
 
 /* ---- H. La lumière BOUGE sur le château : mêmes états, mais sur des murs et des tours ---- */
 {
-  const fort = daysUntilAge(3);
-  if (!fort) check('la graine 4242 atteint un village fortifié en 30 jours', false);
+  const fort = findAge(3);
+  if (!fort) check('une graine atteint un village fortifié en 30 jours (15 essayées)', false);
   else {
     const { ctx, page, errors } = await newPage(browser);
     await page.click('[data-testid="tab-journal"]');
-    await page.fill('#journal-json', journalOf(fort.days)); await page.click('#btn-import');
+    await page.fill('#journal-json', journalOf(fort.days, fort.seed)); await page.click('#btn-import');
     await page.keyboard.press('Escape');
     await page.click('[data-testid="tab-tableau"]');
     await page.clock.runFor(1600);                       // la caméra d'âge a fini son glissement
