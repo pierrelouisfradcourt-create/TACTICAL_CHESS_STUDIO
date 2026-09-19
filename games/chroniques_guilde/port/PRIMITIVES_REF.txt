@@ -1,0 +1,68 @@
+### div(a, b) — troncature VERS ZÉRO
+  div(7, 2) == 3
+  div(-7, 2) == -3        (floor() donnerait -4 — FAUX)
+  div(7, -2) == -3        (floor() donnerait -4 — FAUX)
+  div(-7, -2) == 3
+  div(1, 3) == 0
+  div(-1, 3) == 0        (floor() donnerait -1 — FAUX)
+  div(-2, 3) == 0        (floor() donnerait -1 — FAUX)
+  div(-4, 3) == -1        (floor() donnerait -2 — FAUX)
+  div(-5, 2) == -2        (floor() donnerait -3 — FAUX)
+  div(-15, 2) == -7        (floor() donnerait -8 — FAUX)
+  div(-31, 2) == -15        (floor() donnerait -16 — FAUX)
+  div(0, 5) == 0
+  div(2147483647, 3) == 715827882
+  div(-2147483648, 3) == -715827882        (floor() donnerait -715827883 — FAUX)
+
+### imul32(a, b) — les 32 bits bas du produit
+  imul32(0x811c9dc5, 0x01000193) == 0x050c5d1f
+  imul32(0xffffffff, 0xffffffff) == 0x00000001
+  imul32(0x6d2b79f5, 0x00000003) == 0x47826ddf
+  imul32(0x075bcd15, 0x3ade68b1) == 0xfbff5385
+  imul32(0x80000000, 0x00000002) == 0x00000000
+
+### fnv1a_u32(v) — hachage d’un entier 32 bits (4 octets, petit-boutiste)
+  fnv1a_u32(0) == 0x4b95f515
+  fnv1a_u32(1) == 0xfb69b604
+  fnv1a_u32(4242) == 0xea27a717
+  fnv1a_u32(4243) == 0x76d1d166
+  fnv1a_u32(4236) == 0x64929d89
+  fnv1a_u32(4294967295) == 0xe3160fb1
+
+### fnv1a_str(s) — hachage des OCTETS UTF-8 (accents compris)
+  fnv1a_str("") == 0x811c9dc5     (0 octets UTF-8)
+  fnv1a_str("p1") == 0xa04ed67a     (2 octets UTF-8)
+  fnv1a_str("ai_prudent") == 0x1463a334     (10 octets UTF-8)
+  fnv1a_str("hall") == 0xd0bebf32     (4 octets UTF-8)
+  fnv1a_str("Maëlle") == 0x4f8ceb34     (7 octets UTF-8)
+  fnv1a_str("Château") == 0xf0c3c2e6     (8 octets UTF-8)
+  fnv1a_str("é") == 0x1e9de8c1     (2 octets UTF-8)
+  fnv1a_str("Ysolde") == 0xcfa785a9     (6 octets UTF-8)
+  fnv1a_str("forêt") == 0x752141b7     (6 octets UTF-8)
+  fnv1a_str("Hydre des marais") == 0x3e130d4e     (16 octets UTF-8)
+  fnv1a_str("Les Loups d’Argent") == 0xf9d6efaa     (20 octets UTF-8)
+  fnv1a_str("jour|3") == 0x6945f60c     (6 octets UTF-8)
+  fnv1a_str("raid_forest") == 0xf1c12a03     (11 octets UTF-8)
+  fnv1a_str("aventurier_être_blessé") == 0x7e7f3ce1     (24 octets UTF-8)
+  fnv1a_str("🐉") == 0x0c8d3deb     (4 octets UTF-8)
+  octets UTF-8 de "Maëlle"  == [77,97,195,171,108,108,101]
+  octets UTF-8 de "Château" == [67,104,195,162,116,101,97,117]
+
+### mulberry32 — 8 premiers next() pour rng = makeRng(fnv1a_u32(4242 ^ 1))
+  graine du flux = fnv1a_u32(4242 ^ 1) = 0x76d1d166
+  next()   = 0xdecaa58c, 0xc95a9721, 0x367847f8, 0xff97cdb9, 0xe38b015b, 0x47983ce4, 0xc726ad8e, 0xedb32668
+  roll(1000) = 604, 345, 408, 681, 883, 396, 782, 968   (chance(p) == roll(1000) < p)
+  roll(6)+1  = 1, 2, 5, 2, 6, 5, 1, 1
+
+### canonique + hashState
+  objet      : {"z":1,"a":{"d":[3,2,1],"c":"é"},"b":null,"n":-7}
+  canonical  : {"a":{"c":"é","d":[3,2,1]},"b":null,"n":-7,"z":1}
+  hashState  : 294809ed
+  canonical de []       : []
+  canonical de {}       : {}
+  canonical de "Château": "Château"
+  canonical de 0        : 0     (jamais "0.0")
+  canonical de -7       : -7
+  hashState({})         : 5465b825
+  hashState([])         : 741638a5
+  tri des clés : ["b","A","10","2","é","a"].sort() == ["10","2","A","a","b","é"]   (par point de code, JAMAIS par locale)
