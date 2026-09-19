@@ -1530,11 +1530,19 @@ var ROADS = [ROAD, ROAD, ROAD_TOWN, ROAD_CITY, ROAD_FORT];
    à gauche contre la courtine, taverne à droite de la porte, halle le long du mur sud, entrepôt au
    nord, infirmerie près de la chapelle, chapelle contre la tour est). */
 var BSLOT = { chapel: [560, 232], hall: [400, 278], forge: [245, 285], warehouse: [578, 290], training_ground: [705, 335], infirmary: [118, 345], tavern: [300, 368], market: [470, 392] };
-var BNEAR = { chapel: [512, 248], hall: [400, 272], forge: [238, 296], warehouse: [300, 232], training_ground: [556, 294], infirmary: [206, 364], tavern: [360, 368], market: [542, 366] };
+// V5 T5 : la parcelle de la chapelle descend au bourg aussi. Collée au mur du fond (ancrage [512, 248]), elle
+// n'avait que le ciel au-dessus d'elle et sa plaque « Chapelle à bâtir » s'y posait — même défaut qu'en cour.
+var BNEAR = { chapel: [610, 312], hall: [400, 272], forge: [238, 296], warehouse: [300, 232], training_ground: [556, 294], infirmary: [206, 364], tavern: [360, 368], market: [542, 366] };
 /* Cour du château : donjon au fond centre · entrepot adosse au mur nord · chapelle contre la tour est ·
    forge contre la courtine ouest · infirmerie a l'est · terrain d'entrainement au centre · halle et
    taverne en premiere rangee, DERRIERE le mur de face qui leur mange le bas. */
-var BCOURT = { chapel: [576, 212], hall: [400, 246], forge: [196, 286], warehouse: [232, 212], training_ground: [196, 352], infirmary: [604, 288], tavern: [560, 356], market: [300, 300] };
+// V5 T5 : ancrages de cour repris pour que plus aucune paire de bâtiments ne se chevauche aux âges 3 et 4 (mesuré
+// avant : 4 paires à l'âge 3, 5 à l'âge 4, pire cas entrepôt × forge 9 % du plus petit) et pour descendre la
+// PARCELLE DE LA CHAPELLE : collée au mur du fond, elle n'avait que le ciel au-dessus d'elle et sa plaque
+// « Chapelle à bâtir » s'y posait (limite écrite en T3b). Le donjon (hall), le terrain d'entraînement et la taverne
+// ne bougent pas. Les contrôles d'enceinte du banc (bâtiment entouré, bas masqué par le mur de face, silhouette)
+// sont rejoués après chaque déplacement.
+var BCOURT = { chapel: [517, 255], hall: [400, 246], forge: [181, 292], warehouse: [233, 207], training_ground: [196, 352], infirmary: [623, 279], tavern: [560, 356], market: [288, 299] };
 var ANCHORS = [BSLOT, BSLOT, BNEAR, BCOURT, BCOURT];
 var SPOTS = { idle: { x: 318, y: 314, dx: 44 }, gather: { x: 34, y: 284, dx: 46 }, train: { x: 650, y: 350, dx: 36 }, craft: { x: 180, y: 312, dx: 44 }, rest: { x: 124, y: 392, dx: 46 }, injured: { x: 122, y: 398, dx: 52 }, defend: { x: 568, y: 414, dx: 40 }, solo: { x: 296, y: 268, dx: 30 }, dead: { x: 318, y: 314, dx: 44 } };
 /* Le lieu de vie d'une activité suit l'âge du domaine : en plaine tant qu'il n'y a pas de murs, DANS LA COUR
@@ -1640,7 +1648,6 @@ function encU(e, y) { return clamp01((y - e.y0) / Math.max(1, e.y1 - e.y0)); }
 function encLeft(e, y) { return lerp(e.bx0, e.x0, encU(e, y)); }
 function encRight(e, y) { return lerp(e.bx1, e.x1, encU(e, y)); }
 function encPoly(e) { return [[e.bx0, e.y0], [e.bx1, e.y0], [e.x1, e.y1], [e.x0, e.y1]]; }
-function encIn(e, x, y, pad) { var m = pad || 0; return y >= e.y0 - m && y <= e.y1 + m && x >= encLeft(e, y) - m && x <= encRight(e, y) + m; }
 function roadNow(cam) {
   var a = ROADS[Math.max(0, cam.from)], b = ROADS[Math.max(0, cam.age)];
   return a.map(function (pt, i) { return [lerp(pt[0], b[i][0], cam.p), lerp(pt[1], b[i][1], cam.p)]; });

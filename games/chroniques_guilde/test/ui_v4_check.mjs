@@ -83,6 +83,10 @@ for (let seed = 1; seed <= 60; seed++) {
 }
 let defeatOutside = null;
 if (!found.defeat) { note('défaite : non trouvée sur les graines 1..60 (politique page) ; recherche complémentaire 61..400'); for (let seed = 61; seed <= 400 && !defeatOutside; seed++) { const ev = season(seed); if (ev.defeat) defeatOutside = { seed, ...ev.defeat }; } }
+// V5 T5 : même recherche complémentaire pour la mort de MON héros. Le recalibrage des raids a fait tomber les morts
+// de 4,1 % à 2,7 % des héros : le cas existe toujours mais ne se présente plus dans les soixante premières graines
+// (première trouvée : graine 121, jour 23). Sans ce complément, tout le bloc « Deuil / héritier » était sauté.
+if (!found.p1death) { note('mort de mon héros : non trouvée sur les graines 1..60 ; recherche complémentaire 61..400'); for (let seed = 61; seed <= 400 && !found.p1death; seed++) { const ev = season(seed); if (ev.p1death) found.p1death = { seed, ...ev.p1death, heir: ev.heir }; } }
 console.log('moteur :', JSON.stringify({ attack: found.attack, vaincu: found.vaincu, death: found.death, deathSolo: found.deathSolo, p1death: found.p1death, craftUp: found.craftUp, defeat: found.defeat, defeatOutside }));
 // Atelier : première (graine, jour) où un craft_order de p1 entre en file de forge (les IA, avant p1 en ASCII, prennent souvent la seule place) et où le lendemain
 // le préréglage Atelier est disponible. Journal (graine, jours 1..d) construit avec la politique page + cet ordre, importé ensuite dans la page.

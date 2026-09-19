@@ -979,3 +979,278 @@ d'écart avec la même copie sans repassage — la pierre passe bien devant la f
   ressenti de l'Assassin manette en main ; la lisibilité de la plaque de chapelle dans le ciel sur téléphone ; le
   comportement du repassage d'occlusion pendant un glissement de caméra (il est désarmé par construction, non
   mesuré) ; la tenue du mur héroïque face à une fournaise de Drake enragé au-delà de trois passages.
+
+---
+
+## V5 T5 — calibrage de la saison entière, équilibre des voies, finitions de cour
+
+*Tranche du 2026-09-19. Toutes les mesures de cette section sont **remesurées** dans cette tranche par des sondes
+temporaires (`test/_m_season.mjs`, `_m_sweep.mjs`, `_m_dragons.mjs`, `_m_dmg.mjs`, `_m_band.mjs`, `_m_hyb.mjs`,
+`_m_mast.mjs`, `_m_ravage.mjs`, `_m_scan.mjs`, `_m_derby.mjs`, `_m_derbyh.mjs`, `_m_court.mjs`, `_m_fit.mjs`,
+`_m_bret.mjs`, `_m_respec.mjs`, `_sim_trace.cjs`), supprimées après mesure. L'« avant » est l'état du dossier au
+début de la tranche, rejoué avec les mêmes sondes. Aucun chiffre n'est repris d'un rapport.*
+
+**Protocole de mesure** — 60 graines (1000 + 7 i), saisons complètes de 30 jours, 5 ou 6 managers selon la parité de
+la graine, plans par défaut pour tout le monde, aucun geste humain. Les taux par dragon sont recoupés sur 240 graines
+et sur des raids forcés (24 à 30 graines × 3 dragons × 6 jours de réveil : J12, J14, J17, J20, J23, J26). Le banc
+`test/season_t5_check.mjs` rejoue le protocole des 60 graines et verrouille les bornes.
+
+### 1. Tableau de calibrage — avant / après
+
+| Grandeur (60 graines, 30 jours, plans par défaut) | Avant | Après | Cible |
+|---|---|---|---|
+| Morts de héros | 14 / 343 = **4,1 %** | 9 / 338 = **2,7 %** (240 graines : 3,4 %) | ≤ 8 % |
+| Chute de la guilde | 0 / 60 = **0 %** *(et 0 sur 2 500 graines : règle morte, §4)* | 2 / 60 = **3,3 %** (400 graines : 0,75 %) | ≤ 5 %, et la règle doit pouvoir se déclencher |
+| Sylvain — raids · victoires | 71 · 36 = **51 %** | 33 · 25 = **76 %** | [40 %, 85 %] |
+| Drake — raids · victoires | 2 · 2 = **100 %** (2 raids seulement) | 17 · 12 = **71 %** | idem |
+| Hydre — raids · victoires | 5 · 0 = **0 %** (raid impossible) | 26 · 16 = **62 %** | idem |
+| Réveils par biome | forêt **53** · marais **4** · montagne **2** | forêt **34** · marais **21** · montagne **15** | chacun ≥ 10 % |
+| KO par passage — Sylvain / Drake / Hydre | 7,8 % / 39,1 % / 2,2 % | **1 % / 13 % / 3 %** | ≤ 25 % |
+| Raids clos en 4 nuits (le plafond) | 48 / 78 = **62 %** | 30 / 76 = **39 %** | le 4e jour doit rester une exception |
+| Victoires en ≤ 2 nuits | — | 46 / 53 = **87 % des victoires** | la majorité |
+| Derby des Lames | 20 / 41 = **49 %** | 21 / 44 = **48 %** | bande 40-60 % |
+| Voie la plus prise / la moins prise | Chasseur 50 / Traqueur **6** (×8,3) | Duelliste 44 / Tisse-vent **14** (×3,1 ; Traqueur 21) | ≤ ×5 |
+| Spés jamais choisies sur 60 graines | **Cyclone 0**, Assassin 2 | **aucune** ; Assassin **12**, Cyclone 2 | aucune |
+| Château (âge 4) au J30 | 21 / 60 = **35 %** | 28 / 60 = **47 %** (240 graines : 38 %) | 20-70 % |
+| Or de guilde moyen au J30 | 143 | 185 | — |
+| Raids non clos au J30 | 12 / 60 | 11 / 60 | — |
+
+**Raids forcés** (24 à 30 graines par case, voies et spés naturelles, plans par défaut) — part des raids gagnés en
+≤ 2 nuits, la mesure du §8 T1 :
+
+| | J12 | J14 | J17 | J20 | J23 | J26 |
+|---|---|---|---|---|---|---|
+| Sylvain — avant | — | 54 % | — | 54 % | — | 33 % |
+| Sylvain — après | 70 % | 83 % | 87 % | 73 % | 70 % | 43 % |
+| Drake — avant | — | 75 % | — | 33 % | — | 8 % |
+| Drake — après | 60 % | 70 % | 77 % | 70 % | 47 % | 33 % |
+| Hydre — avant | — | 54 % | — | 29 % | — | 25 % |
+| Hydre — après | 53 % | 67 % | 77 % | 67 % | 80 % | 67 % |
+
+**Ce que ce tableau dit, et ce qu'il ne dit pas.** Au milieu de la saison (J14 à J20) les trois dragons tiennent
+dans la bande [55 %, 80 %] du §8 T1 et la courbe est franchement plus plate qu'avant. **Aux réveils tardifs elle
+retombe encore** : Sylvain 43 % et Drake 33 % au J26. C'est le reste de la dérive mesurée au §2 (les héros ne
+montent pas en puissance autant que la réserve du boss), pas un raid impossible : le dragon est toujours abattu en
+trois ou quatre nuits. En saison naturelle, où les réveils se répartissent du J11 au J29, les trois dragons
+ressortent à 76 %, 71 % et 62 %. Les bornes du banc portent sur la saison naturelle, qui est ce qu'on joue.
+
+### 2. Ce que la mesure a montré, et les chiffres qui ont bougé
+
+**La guilde ne monte pas en puissance, le dragon si.** Sonde `_m_dmg.mjs` : dégâts de la guilde pendant la PREMIÈRE
+journée de raid, contre la réserve du boss, à six jours de réveil.
+
+| | J12 | J17 | J20 | J23 | J26 |
+|---|---|---|---|---|---|
+| Sylvain — dégâts / réserve | 820 / 863 = 95 % | 847 / 987 = 86 % | 916 / 1 062 = 86 % | 775 / 1 137 = 68 % | 751 / 1 212 = **62 %** |
+| Drake — dégâts / réserve | 386 / 695 = 56 % | 369 / 776 = 48 % | 340 / 825 = 41 % | 306 / 874 = 35 % | 250 / 923 = **27 %** |
+| Hydre — dégâts / réserve | 619 / 880 = 70 % | 575 / 986 = 58 % | 656 / 1 050 = 62 % | 610 / 1 114 = 55 % | 578 / 1 178 = **49 %** |
+
+Les dégâts de la guilde sont **plats** (le niveau moyen passe de 3,4 à 5,3, mais la garde et l'attaque du boss
+montent de 1 et 3 par jour, et les KO effacent des passages), pendant que la réserve du boss gagne 40 %. D'où la
+chute du taux de victoire avec le jour du réveil — et l'Hydre jamais abattue en partie naturelle.
+
+| Donnée | Avant | Après | Motif mesuré |
+|---|---|---|---|
+| `raids.*.def_per_day` (nouveau, surcharge de raid) | (V4 : 1) | **0** | la garde du boss montait plus vite que les héros ; à 0, la réserve devient la seule chose qui grandit |
+| `raids.*.atk_per_day` (nouveau, surcharge de raid) | (V4 : 3) | **2** | KO du Drake à 40 % par passage au J26 ; à 2, 13 % — la menace grandit encore, moins vite |
+| `raids.raid_forest.hp_base / hp_per_day` | 450 / 20 | **580 / 14** | courbe aplatie : à pente 20 le J26 valait 62 % de dégâts contre 95 % au J12 |
+| `raids.raid_forest.regen_pct` | 1 | **2** | à 1, une guilde SANS brûleur gagnait 18 fois sur 30 (le besoin de brûler la sève disparaissait) ; à 2, 14/30 contre 28/30 avec |
+| `raids.raid_mountain.hp_base / hp_per_day` | 400 / 13 | **880 / 6** | le Drake était le plus fragile et le plus meurtrier ; il devient le plus endurant |
+| `raids.raid_mountain.breath_power` | 120 | **105** | avec `attack.power`, ramène les KO du Drake de 40 % à 13 % |
+| `raids.raid_mountain.attack.power` (morsure) | 110 | **90** | idem |
+| `raids.raid_marsh.hp_base / hp_per_day` | 500 / 17 | **600 / 13** | l'Hydre passe de 0 victoire sur 5 à 16 sur 26 |
+| `raids.raid_derby.banner_lost_max` | 3 (T3b) | **2** (valeur du §2.5) | la guilde s'étant renforcée, le derby remontait à 61 % ; à 2 ripostes perdues, 48 % (60 graines) et 54 % (banc T3, 30 graines) |
+| `lineage.hybrid_need_band` (nouveau) | (10) | **20** | tranche de remplissage sous laquelle deux colonnes sont à égalité ; à 10, une seule colonne décidait toujours |
+| `lineage.spec_need_band` (nouveau) | (10) | **50** | la colonne de la voie — que le héros vient lui-même de remplir de +2 — écrasait la sœur qui l'approfondit |
+| `specs.bretteur.passive` (nouveau) | — | `{cap 6, per_hit 2, power_pct 70, reach 3}` | la garde doublée était écrite en dur ; §3 |
+
+**Non retenus, et pourquoi.** `raid.night_regen_pct` reste à **10** : à 0 le Sylvain tombe 82 % du temps et le Drake
+94 % (trop mou), à 20 l'Hydre retombe à 54 % — 10 est le milieu mesuré. `raid.enrage_per_night_pct` reste à **15** :
+son effet est **dans le bruit** au niveau de la saison (à 0 : Sylvain 71 % au lieu de 74 %, 22 raids au plafond au
+lieu de 20 ; à 25 : identique à 15). Il est gardé pour ce qu'il raconte, pas pour ce qu'il pèse — c'est dit ici.
+`raid.raid_max_nights` reste à **4** : le 4e jour convertit 9 raids sur 29, ce n'est pas du temps mort.
+
+### 3. Les règles de choix corrigées (le défaut n'était pas dans les branches)
+
+**(a) Le départage d'égalité parfaite était alphabétique.** `rankHybrids` et `rankSpecs` ordonnent par besoin du
+groupe, puis complémentarité (`taken`), puis affinité, puis **identifiant ASCII**. Deux options peuvent arriver à
+égalité sur les trois premiers critères : l'ASCII tranchait alors TOUJOURS dans le même sens. Trace relevée sur un
+Rôdeur (`_sim_trace.cjs`) : `chasseur_monstres(nr10,t0,a0,degats)` et `traqueur(nr10,t0,a0,degats)` — même besoin,
+même complémentarité, même affinité, et « chasseur_monstres » < « traqueur ». Nouveau départage : `tieBreak` =
+`fnvStr(graine|héros|option) % 997`, déterministe et rejouable, stable pour un même héros, sans biais alphabétique ;
+l'ASCII reste le dernier recours. Mesure sur 60 graines : Traqueur **6 → 21**, Chasseur **50 → 31**, Assassin
+**2 → 12**, Cyclone **0 → 2**.
+
+**(b) L'Assassin n'était pas ignoré par sa branche, mais par sa voie.** L'Assassin et le Piégeur sont les deux
+pointes du **Traqueur** ; le Traqueur était pris 5 fois sur 343 héros à cause de (a). La refonte T3b de l'Assassin
+n'était pas en cause : il est désormais pris **12 fois sur 60 graines** (banc T3 : 13 fois sur 40 graines) sans que
+sa fiche ait bougé d'un point.
+
+**(c) La largeur des tranches de besoin.** `div(filled, 10)` : la colonne de la voie, que le héros vient de remplir
+de +2, ressortait systématiquement en tête de liste des colonnes les plus pleines, ce qui condamnait la sœur qui
+l'approfondit. Mesuré avant : Hospitalier 2 contre Templier 28, Veilleur 2 contre Médium 28, Portier 2 contre
+Avatar 15. À `hybrid_need_band` 20 et `spec_need_band` 50 : voies de 14 à 44 (au lieu de 5 à 50), spés de 2 à 25
+(au lieu de 0 à 39), les 26 toujours atteintes.
+
+**(d) `preferredBiome` enfermait la guilde dans un seul biome.** La règle « le biome dont la maîtrise est la plus
+haute, égalité : ASCII » se refermait sur elle-même : au premier jour toutes les maîtrises valent 0, la forêt gagne
+l'égalité ASCII, tous les votes de quête partent en forêt, et la maîtrise n'y monte que là. Mesuré : maîtrise
+moyenne au J30 forêt **7,6** contre marais 1,4 et montagne 1,5 ; **53 réveils sur 59 en forêt**. Deux correctifs :
+le biome dont le dragon n'est plus endormi sort de la préférence (son affaire est faite), et l'égalité tourne avec
+la graine. Après : maîtrise 4,6 / 3,5 / 3,1, réveils **34 / 21 / 15**, et une saison sur six voit deux dragons.
+
+### 4. Bugs trouvés en chemin, et corrigés
+
+1. **La chute de la guilde était une règle morte.** `ravageBuilding` n'ajoutait le hall aux cibles que si son niveau
+   atteignait 2, ou s'il avait « déjà brûlé une fois » (`hall_hits ≥ 1`). Or le vote de chantier prend toujours le
+   bâtiment finançable le moins cher : **le hall reste au niveau 1 dans 300 saisons sur 300**, et `hall_hits` ne
+   pouvait donc jamais passer à 1. Verrou circulaire : **0 chute sur 2 500 graines**, et l'écran de défaite était
+   inatteignable. Le hall est désormais une cible comme les autres ; c'est le **second** incendie qui le jette à
+   terre (le premier le marque sans lui coûter son niveau), exactement ce que dit le commentaire de la fonction.
+   Après : 26 incendies du hall et **3 chutes sur 400 saisons (0,75 %)**.
+2. **Le moteur jetait quand toute l'escouade était à terre.** `applyEvent` lisait `c[0]` ou le premier d'un tri vide
+   dans six branches ; « heroic_feat » posait `best.feat_crit` sur `undefined` — `TypeError` au milieu d'une
+   journée. Trouvé en balayant 2 500 graines. Sans escouade debout, l'événement n'a simplement pas lieu.
+3. **« Défi » ne tenait pas sa promesse contre l'Hydre.** Le sort dit « la cible ne vise plus que le Duelliste » ;
+   `hydreTurn` ne consultait `bossTargets` (qui lit l'état `provoque`) que pour la PREMIÈRE gueule, les deux autres
+   prenant la plus proche **en excluant les cibles déjà mordues**, c'est-à-dire tout le monde sauf le provocateur.
+   Un boss provoqué mord désormais le provocateur de chacune de ses gueules.
+4. **Le Bretteur ne défiait jamais.** Sa politique dépensait ses six PA en garde doublée (2) + botte secrète (4) ;
+   le Défi de sa voie ne passait jamais. Ordre corrigé : garde, Défi, botte.
+
+### 5. Le Bretteur : sa garde doublée sort des littéraux, et son test de branche redevient une mesure
+
+Le test de branche (1) de `tactic_t3_check` est sorti en échec après le recalibrage : **Bretteur 10 tours contre 11
+au Duelliste nu** (8 graines : 8,75 contre 11,5 — 24 %, juste sous la barre des 25 %). La cause n'était pas le
+Bretteur : avant T5, la garde gonflée de l'Hydre empêchait le Duelliste nu de finir le scénario (15* = non résolu),
+et la marge était vraie par vacuité. Trois constats mesurés, trois corrections :
+
+* la garde doublée (`cap`, `per_hit`, `power_pct`) était écrite en dur dans `duelRiposte` ; elle est lue dans
+  `data.specs.bretteur.passive` ;
+* **« au contact » est la clause de la MÉCANIQUE DE VOIE**, pas celle du Bretteur (« chaque coup reçu lui en rend
+  deux » ne dit rien de la distance). L'Hydre happe à 2 cases : sur 13 morsures encaissées, **6 ne recevaient aucune
+  réponse**. La garde doublée répond désormais jusqu'à 3 cases (`reach`) ;
+* **le seuil du scénario passe de six à dix coups rendus**, et les trois gueules sont épaissies pour que le corps
+  morde bien trois fois par tour, comme son étiquette le promet. Six coups tenaient **sous le plafond de la voie nue
+  elle-même** (le Duelliste riposte deux fois par tour ennemi) : le scénario ne testait pas le doublement. Mesuré
+  sur 8 graines : le Duelliste nu plafonne à **huit** ripostes en quinze tours, le Bretteur passe **dix** en onze.
+
+Résultat du banc : **Bretteur 11 · Matador 15\* · Duelliste nu 15\***, 26/26 spés passent leur propre test.
+
+### 6. Finitions de tableau
+
+**Chevauchement des bâtiments de cour (levé).** Mesure (graine 11, 1280 px, `deviceScaleFactor` 2, recouvrement en
+% de l'aire du plus petit des deux) :
+
+| Âge | Avant | Après |
+|---|---|---|
+| 2 (bourg) | aucune paire | aucune paire |
+| 3 (ville) | **4 paires** : entrepôt × forge 8 %, infirmerie × taverne 6 %, donjon × marché 2 %, forge × marché 1 % | **aucune** |
+| 4 (château) | **5 paires** : entrepôt × forge 9 %, infirmerie × taverne 6 %, donjon × marché 2 %, forge × marché 1 %, chapelle × infirmerie 0 % | **aucune** |
+
+`BCOURT` : `chapel [576,212] → [517,255]`, `forge [196,286] → [181,292]`, `warehouse [232,212] → [233,207]`,
+`infirmary [604,288] → [623,279]`, `market [300,300] → [288,299]`. Le **donjon**, le **terrain d'entraînement** et la
+**taverne** ne bougent pas. Les trois contrôles d'enceinte tiennent après déplacement : les 7 (âge 3) et 8 (âge 4)
+bâtiments restent **entourés** par les quatre murs, deux d'entre eux passent toujours **derrière le mur de face**
+(terrain d'entraînement, taverne), et la silhouette est inchangée (126,7 / 210 / 291 aux âges 2 / 3 / 4).
+
+**La plaque de la chapelle n'est plus dans le ciel.** La parcelle était collée au mur du fond : au-dessus, rien que
+le ciel — le placeur d'étiquettes, pour qui le ciel est un coût mou (0,7) et le bâtiment un interdit, y posait
+« Chapelle à bâtir ». Mesuré avant : âge 2 à (458,9 · 208,1) et âge 3 à (500 · 172,5) dans le repère logique, au-dessus
+de la crête du mur de fond (249,2 et 215,5). La parcelle descend : `BNEAR.chapel [512,248] → [610,312]`, et
+`BCOURT.chapel` comme ci-dessus. Après : **aucune étiquette entièrement dans le ciel** aux âges 2, 3 et 4. Le
+placeur n'a pas été touché — c'est bien l'ancrage qui était en cause, comme la limite T3b le disait.
+
+### 7. Le Derby avec des passages humains
+
+Sonde `_m_derbyh.mjs` : le manager p1 joue son passage **coup par coup** comme la page (`TACTIC.raidAction` :
+`begin_pass`, puis chaque geste sur la grille du matin, les gestes refusés ne sont jamais envoyés), et la liste
+obtenue est soumise en `raid_pass` — donc rejouée dans l'**ordre de réception** (§B1). 180 saisons, mêmes graines,
+comparées à la politique par défaut seule.
+
+| | Politique par défaut | Passages humains de p1 |
+|---|---|---|
+| Derby des Lames | 65 / 133 = **49 %** | 71 / 132 = **54 %** |
+| Sylvain | 58 / 87 = 67 % | 53 / 91 = 58 % |
+| Drake | 44 / 73 = 60 % | 45 / 74 = 61 % |
+| Hydre | 42 / 70 = 60 % | 39 / 67 = 58 % |
+| Morts | 41 / 1 028 = 4,0 % | 44 / 1 032 = 4,3 % |
+| Passages humains · interrompus | — | 748 · **0** |
+
+**L'équilibre tient.** L'écart du derby (5 points sur 132 parties, écart-type binomial 4,3) est dans le bruit ; les
+trois dragons restent dans la bande, les morts ne bougent pas, et **aucun passage humain n'a été interrompu** — la
+grille du matin est bien celle qu'on joue.
+
+### 8. Contrôles ajoutés aux bancs
+
+* **`test/season_t5_check.mjs` (nouveau, 12 contrôles)** : verrouille les cibles de cette section en **bornes**, pas
+  en valeurs — chute ≤ 5 % et morts ≤ 8 % (1), chute atteignable (1b), taux par dragon dans [40 %, 85 %] avec un
+  échantillon suffisant (2, 2b), aucun raid au-delà du plafond de nuits et majorité de victoires en ≤ 2 nuits (3),
+  KO ≤ 25 % (4), chaque biome ≥ 10 % des réveils (5), 13 voies avec un rapport max/min ≤ 5 (6), 26 spés choisies et
+  Assassin ≥ 3 (7), château entre 20 % et 70 % des saisons (8), derby 40-60 % (9), déterminisme (10).
+* `tactic_t3_check` **(1)** : scénario du Bretteur recentré sur son verbe (dix coups rendus, trois gueules qui
+  tiennent) — §5.
+* `tactic_t3_check` **(5)** : la journée de contrôle de la reconversion **impose le repos** au même héros, de sorte
+  que l'écart d'or vaut EXACTEMENT le prix affiché. L'ancienne comparaison mélangeait les 100 or et les emplettes
+  que la guilde fait ou ne fait pas selon l'emploi du héros (écart mesuré 145 avec un jeu de valeurs, 55 avec le
+  suivant, sans que le prix ait bougé d'une pièce).
+* `tactic_t1_check` **(3b)** : on ne mesure que le PREMIER raid de chaque graine (depuis §3d, un second dragon peut
+  se réveiller le soir de la victoire : 32 raids clos pour 30 graines).
+* `ui_chateau_check` : **aucune paire de bâtiments de cour ne se chevauche** (âges 3 et 4) et **aucune étiquette
+  n'est posée entièrement dans le ciel** (âges 2, 3, 4).
+* `ui_v4_check` : recherche complémentaire 61..400 pour la **mort de mon héros** (les morts ayant baissé, le cas ne
+  se présente plus dans les soixante premières graines ; première trouvée : graine 121, jour 23).
+* `ui_v3_check` : la graine « château » est cherchée **avant le dernier jour** (le bloc clique « Jour suivant » ;
+  une saison qui devient château le jour 30 n'a pas de lendemain).
+* `ui_v5_check` : le bloc A se joue sur un raid du **Sylvain**, dont le fouet se pointe vers la case du héros et se
+  recalcule à chaque pas ; le souffle du Drake retient ses cases par conception (T3b) et ne mesurait rien.
+
+### 9. Code mort retiré
+
+* `tactic.js` : `headsAlive` (définie, jamais appelée).
+* `index.html` : `encIn` (définie, jamais appelée ; `inEnc` du banc est une fonction du banc, pas de la page).
+
+### 10. Preuves d'exécution (2026-09-19, fin de tranche)
+
+| Banc | Résultat |
+|---|---|
+| `ENGINE_ONLY=1 node test/harness.mjs` | 10/10 |
+| `node test/harness.mjs` | 19/19 |
+| `node test/engine_extra.mjs` | 16/16 |
+| `node test/engine_v4_check.mjs` | 28/28 |
+| `node test/tactic_t1_check.mjs` | 26/26 |
+| `node test/tactic_t2_check.mjs` | 14/14 |
+| `node test/tactic_t3_check.mjs` | 14/14 |
+| `node test/season_t5_check.mjs` | **12/12** (nouveau) |
+| `node test/ui_v2_check.mjs` | 52/52 |
+| `node test/ui_v3_check.mjs` | **36/36** (35 avant) |
+| `node test/ui_v4_check.mjs` | **55/55** (52 avant) |
+| `node test/ui_v5_check.mjs` | 48/48 |
+| `node test/ui_chateau_check.mjs` | **90/90** (86 avant) |
+
+`data.js` a été régénéré depuis `data.json` et relu : les deux sont identiques champ pour champ.
+
+### 11. Décisions et limites T5
+
+* **A4 de l'audit (le modèle de vue du raid décrit un passage en cours) n'est PAS fait, et c'est délibéré.**
+  Le correctif demande de bâtir `me` depuis `R` quand un passage est en cours, d'ajouter `me.path_to` et
+  `units[].class_id` au contrat du VM, puis de retirer les neuf accès bruts et les ~39 lignes dupliquées de la page
+  (`raidMe`, `raidSpells`, `raidReach`, `raidRetelegraph`, `raidUnit`). C'est un changement de contrat du modèle de
+  vue au milieu de l'écran le plus délicat, couvert par 48 contrôles ; la tranche T5 portait sur le calibrage, et
+  l'avoir engagé en fin de tranche aurait mis les deux en risque. **A5 est déjà fait** (T2b §B4 : `sim.attach` et le
+  3e argument `data`, prouvés par `engine_extra`).
+* **Le Cyclone et le Portier restent rares** (2 sur 60 graines chacun). Leur colonne de besoin (`mobilite`, poids 4)
+  est celle de leur propre voie (Tisse-vent, Conjurateur) : le héros vient de la remplir en choisissant sa voie.
+  Élargir encore la tranche des spés aplatirait tout le reste ; le choix retenu est d'en rester là et de le dire.
+* **`enrage_per_night_pct` est un chiffre qui raconte plus qu'il ne pèse** : son effet mesuré à l'échelle de la
+  saison est dans le bruit (§2). Il est conservé pour la lecture du siège, pas pour l'équilibre.
+* **Le taux de chute est une mesure à petit échantillon.** 2 sur 60 graines, 3 sur 400 : l'intervalle est large. La
+  borne du banc (≤ 5 %) et le contrôle de mécanisme (1b) sont ce qui est réellement prouvé.
+* **11 raids sur 60 ne sont pas clos au jour 30.** Ce sont des réveils tardifs (jours 25 à 29) ; la saison s'arrête
+  avant le siège. Rien n'est cassé, mais la fin de saison ne raconte rien de ces sièges-là.
+* **Non vérifié** : le gate fun (Pierre seul) ; une saison jouée à la main du premier au dernier jour ; le ressenti
+  du Bretteur avec sa portée de riposte manette en main ; la lisibilité de la cour recomposée sur téléphone ; le
+  comportement des ancrages de cour sur d'autres graines que la graine 11 du banc (les boîtes de bâtiments ne
+  dépendent que de l'âge et de la caméra, pas de la graine — vérifié en lecture, pas mesuré sur plusieurs graines) ;
+  l'équilibre avec des passages humains de PLUSIEURS managers à la fois (seul p1 a été simulé) ; le rendement des
+  nouvelles bandes de besoin quand un joueur choisit ses voies à la main.

@@ -61,7 +61,10 @@ for (let seed = 1; seed <= 80 && !(ravage && chateau && repousse); seed++) {
   const d = season(seed);
   if (!ravage) { const f = d.filter(x => x.outcome === 'ravage')[0]; if (f) ravage = { seed, day: f.day, hit: f.hit }; }
   if (!repousse) { const f = d.filter(x => x.outcome === 'repoussé')[0]; if (f) repousse = { seed, day: f.day }; }
-  if (!chateau) { const f = d.filter(x => x.age_after === 4)[0]; if (f) chateau = { seed, day: f.day }; }
+  // V5 T5 : on cherche un château atteint AVANT le dernier jour. Le bloc qui suit clique « Jour suivant » pour
+  // vérifier le matin d'après ; une saison qui devient château le jour 30 n'a pas de lendemain et le bouton est
+  // masqué (première graine trouvée après le recalibrage T5 : graine 4, jour 30).
+  if (!chateau) { const f = d.filter(x => x.age_after === 4 && x.day < 30)[0]; if (f) chateau = { seed, day: f.day }; }
 }
 const chateau4242 = S.filter(x => x.age_after === 4)[0];
 console.log('moteur : ravage', JSON.stringify(ravage), '· repoussé', JSON.stringify(repousse), '· château', JSON.stringify(chateau), '· château sur 4242', JSON.stringify(chateau4242 || null));

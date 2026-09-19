@@ -333,6 +333,19 @@ for (const age of [3, 4]) {
   const masked = sc.buildings.filter(b => b.y + b.h > w.front.crest + 2);
   check(`âge ${age} : au moins un bâtiment de cour passe DERRIÈRE le mur de face (bas masqué)`, masked.length >= 1,
     masked.map(b => b.id).join(', '));
+  // AJOUT V5 T5 (2026-09-19) : AUCUN CHEVAUCHEMENT entre deux bâtiments de cour. Limite écrite en T3b et levée ici :
+  // `BCOURT` laissait 4 paires qui se mordaient à l'âge 3 et 5 à l'âge 4 (pire cas entrepôt × forge, 9 % de l'aire du
+  // plus petit). Les ancrages de la chapelle, de la forge, de l'entrepôt, de l'infirmerie et du marché ont été
+  // repris ; le donjon, le terrain d'entraînement et la taverne n'ont pas bougé.
+  {
+    const bs = sc.buildings, hits = [];
+    for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) {
+      const a = bs[i], b = bs[j];
+      const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+      if (ox > 0 && oy > 0) hits.push(a.id + '×' + b.id + ' ' + Math.round(100 * ox * oy / Math.min(a.w * a.h, b.w * b.h)) + '%');
+    }
+    check(`âge ${age} : aucune paire de bâtiments de cour ne se chevauche (${bs.length} bâtiments)`, hits.length === 0, hits.join(' · '));
+  }
 
   // 3. le sol de cour : couverture ≥ 60 % de l'intérieur, et ce n'est pas la couleur de la prairie
   const ratio = area(sc.courtyard.poly) / area(w.poly);
@@ -430,6 +443,13 @@ for (const age of [3, 4]) {
   const lworst = lcover.reduce((m, c) => c.r > m.r ? c : m, { id: '-', r: 0 });
   check(`âge ${age} : aucune étiquette ne recouvre une parcelle à bâtir (${lbx.length} parcelles, pire recouvrement ${Math.round(lworst.r * 100)} %)`,
     lworst.r <= 0.02, lworst.id + ' ' + r1(lworst.r));
+  // AJOUT V5 T5 (2026-09-19) : AUCUNE ÉTIQUETTE ENTIÈREMENT DANS LE CIEL. Limite écrite en T3b : la parcelle de la
+  // chapelle était collée au mur du fond, il n'y avait que le ciel au-dessus d'elle, et la plaque « Chapelle à bâtir »
+  // s'y posait (mesuré : âge 2 à 458,9/208,1 et âge 3 à 500/172,5 dans le repère logique, au-dessus de la crête du
+  // mur de fond). La parcelle a été descendue ; la règle vérifie la conséquence, pas l'ancrage.
+  const skyLab = L.filter(l => (l.y + l.h) / ky < w.back.crest);
+  check(`âge ${age} : aucune étiquette n'est posée entièrement dans le ciel (au-dessus de la crête du mur de fond, ${r1(w.back.crest)})`,
+    skyLab.length === 0, skyLab.map(l => l.text + '@' + r1(l.x / kx) + ',' + r1(l.y / ky)).join(' '));
 
   // AJOUT V5 T3b (2026-09-19) : OCCLUSION du mur de face. Les figurines sont dessinées APRÈS le monde ; une figurine
   // dont les pieds tombent dans la bande de pierre (de la crête au pied du mur), hors de l'ouverture de la porte, se

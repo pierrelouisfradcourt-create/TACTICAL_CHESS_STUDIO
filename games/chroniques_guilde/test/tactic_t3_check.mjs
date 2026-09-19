@@ -116,8 +116,20 @@ const SCEN = {
   hospitalier: { raid: 'raid_marsh', label: 'Hydre, venin et sangsues : relever un corps tombé et remettre le groupe debout',
     setup: (R, env, u) => { u.hp = Math.trunc(u.hp_max * 4 / 10); u.states.push({ id: 'poison', turns: 4, value: 1, level: 3 }); R.fallen = [{ sub: 'soldat', name: 'Recrue tombée', master_id: u.id, pass: 1 }]; },
     goal: R => { const g = guildUnitsOf(R); const u = g.filter(v => v.id === 'h_test')[0]; return g.filter(v => v.kind === 'summon' && v.hp > 0).length >= 1 && !!u && u.hp * 10 >= u.hp_max * 9 && !st(u, 'poison'); } },
-  bretteur: { raid: 'raid_marsh', label: 'Hydre, trois gueules : rendre six coups au corps qui mord trois fois par tour',
-    goal: R => mech(R, 'riposte') >= 6 },
+  // V5 T5 : le seuil passe de SIX à DIX coups rendus, et le décor est remis d'aplomb sur son propre énoncé.
+  // Six coups tenaient sous le plafond de la MÉCANIQUE DE VOIE elle-même (le Duelliste nu riposte deux fois par tour
+  // ennemi) : le scénario ne testait donc pas le doublement du Bretteur, et les deux rendaient six coups dans le même
+  // nombre de passages. Mesuré sur 8 graines : le Duelliste nu plafonne à huit ripostes en quinze tours, le Bretteur
+  // en passe dix en onze. Le seuil est placé au-dessus de ce que la voie nue sait produire — c'est ce qui sépare
+  // « rendre les coups » de « en rendre deux par coup ».
+  // V5 T5 : le décor est remis d'aplomb sur son propre énoncé. Les trois gueules ne tenaient pas : le sujet en
+  // tranchait une ou deux dès le premier passage et se retrouvait face à UNE morsure par tour — la situation que
+  // l'étiquette décrit (« le corps qui mord trois fois par tour ») ne durait jamais assez pour être mesurée, et
+  // Bretteur comme Duelliste nu rendaient six coups en trois passages, à un tour près. Les gueules sont épaissies
+  // (× 4) pour que le corps morde bien trois fois ; le sujet, sa sœur et l'hybride nu affrontent le même corps.
+  bretteur: { raid: 'raid_marsh', label: 'Hydre, trois gueules qui tiennent : rendre DIX coups au corps qui mord trois fois par tour (VERBE)',
+    setup: R => { for (const h of (R.boss.heads || [])) { h.hp_max = h.hp_max * 4; h.hp = h.hp_max; } },
+    goal: R => mech(R, 'riposte') >= 10 },
   matador: { raid: 'raid_forest', label: 'Sylvain enraciné (PM 0) : le décoller de ses racines',
     goal: (R, ctx) => Math.abs(R.boss.x - ctx.bx) + Math.abs(R.boss.y - ctx.by) >= 2 },
   harponneur: { raid: 'raid_mountain', label: 'Drake en vol : le ramener au sol',
@@ -374,9 +386,13 @@ function specsForHybridTest(hid) { return SPECS.filter(S => S.hybrid === hid); }
   const r1 = sim.resolveDay(s2, [act('respec', { adventurer_id: mineId, spec_id: sis.id })], data);
   const after = r1.state.heroes[mineId];
   const changed = after.spec === sis.id && after.hybrid === h.hybrid && after.respec_used === 1;
-  const rControl = sim.resolveDay(attach(JSON.parse(JSON.stringify(s2))), [], data);            // même journée, sans la reconversion
-  const goldDelta = rControl.state.guild.gold - r1.state.guild.gold;                            // l'or de guilde ET la journée perdue du héros
-  const paid = goldDelta >= L.respec_cost_gold && (r1.log || []).some(l => l.indexOf('reconversion') >= 0 && l.indexOf(String(L.respec_cost_gold) + ' or') >= 0);
+  // V5 T5 : la journée de contrôle IMPOSE le repos au même héros (c'est ce que la reconversion lui coûte, cf.
+  // applyRespec). Sans cela, la comparaison mélangeait les 100 or du prix et les emplettes que la guilde fait ou ne
+  // fait pas selon l'emploi du héros : l'écart mesuré valait 145 or avec un jeu de valeurs, 55 avec le suivant, sans
+  // que le prix ait bougé d'une pièce. À journée égale, l'écart doit valoir EXACTEMENT le prix affiché.
+  const rControl = sim.resolveDay(attach(JSON.parse(JSON.stringify(s2))), [actOn(s2, 'assign', { adventurer_id: mineId, activity: 'rest' })], data);
+  const goldDelta = rControl.state.guild.gold - r1.state.guild.gold;
+  const paid = goldDelta === L.respec_cost_gold && (r1.log || []).some(l => l.indexOf('reconversion') >= 0 && l.indexOf(String(L.respec_cost_gold) + ' or') >= 0);
   const restDayForced = (r1.log || []).some(l => /reconversion/.test(l));
   const s3 = attach(JSON.parse(JSON.stringify(r1.state)));
   s3.guild.gold += 500;

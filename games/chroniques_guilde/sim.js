@@ -251,13 +251,25 @@
     const missing = ordered.slice(0, L.need_missing);
     return { columns: cols, ordered: ordered.map(c => c.id), missing: missing.map(c => c.id), labels: missing.map(c => c.name) };
   }
-  // Classement des hybrides ouverts à un héros : besoin manquant le plus bas, puis affinité, puis identifiant ASCII (§6.3 « Auto »).
+  // V5 T5 : départage d'égalité parfaite. Deux options peuvent arriver à égalité de besoin, de complémentarité et
+  // d'affinité ; l'ordre ASCII tranchait alors TOUJOURS dans le même sens, et la même voie (ou la même spé) gagnait
+  // la pièce à chaque fois. Mesuré : Chasseur de monstres 50 contre Traqueur 5 — les deux portent la colonne
+  // « dégâts », arrivaient à égalité parfaite chez le Rôdeur, et « chasseur_monstres » < « traqueur ». Idem
+  // Bourrasque / Cyclone. Le départage devient un nombre déterministe tiré de (graine, héros, option) : rejouable
+  // au bit près, stable pour un même héros, mais sans biais alphabétique. L'ASCII reste le dernier recours.
+  function tieBreak(state, h, optId) { return fnvStr(state.seed + '|' + h.id + '|' + optId) % 997; }
+  // V5 T5 : largeur de la tranche de remplissage (en %) sous laquelle deux colonnes sont « à égalité ». À 10 %, la
+  // colonne de la voie — que le héros vient lui-même de remplir de +2 — écrasait toujours la sœur qui l'approfondit
+  // (mesuré : Hospitalier 2 contre Templier 28). Élargir la tranche des SPÉS rend la paire réellement disputée.
+  function hybridBand(D) { const L = lineageC(D); return (L && L.hybrid_need_band) || 10; }
+  function specBand(D) { const L = lineageC(D); return (L && L.spec_need_band) || 10; }
+  // Classement des hybrides ouverts à un héros : besoin manquant le plus bas, puis affinité, puis départage (§6.3 « Auto »).
   function rankHybrids(D, state, h) {
     const G = groupNeeds(D, state), rank = {}, taken = {};
-    for (const c of G.columns) rank[c.id] = div(c.filled, 10);                              // rang par tranche de 10 % de remplissage : la table comble d'abord sa colonne la moins remplie ; à égalité de tranche, le vécu et la complémentarité tranchent
+    for (const c of G.columns) rank[c.id] = div(c.filled, hybridBand(D));                    // rang par tranche de remplissage de remplissage : la table comble d'abord sa colonne la moins remplie ; à égalité de tranche, le vécu et la complémentarité tranchent
     for (const x of allHeroes(state)) if (x.hybrid) taken[x.hybrid] = (taken[x.hybrid] || 0) + 1;      // émulation d'équipe : à besoin égal, la table préfère une voie qu'elle n'a pas encore
-    return hybridsForClass(D, h.class_id).map(H => ({ id: H.id, hybrid: H, need_rank: rank[H.need] === undefined ? G.missing.length : rank[H.need], taken: taken[H.id] || 0, affinity: affinityOf(D, state, h, H) }))
-      .sort((a, b) => a.need_rank - b.need_rank || a.taken - b.taken || b.affinity - a.affinity || (a.id < b.id ? -1 : 1));
+    return hybridsForClass(D, h.class_id).map(H => ({ id: H.id, hybrid: H, need_rank: rank[H.need] === undefined ? G.missing.length : rank[H.need], taken: taken[H.id] || 0, affinity: affinityOf(D, state, h, H), tie: tieBreak(state, h, H.id) }))
+      .sort((a, b) => a.need_rank - b.need_rank || a.taken - b.taken || b.affinity - a.affinity || a.tie - b.tie || (a.id < b.id ? -1 : 1));
   }
   function pickHybrid(D, state, h) { const r = rankHybrids(D, state, h); return r.length ? r[0].hybrid : null; }
   function hybridWhy(D, state, h, hybridId) {
@@ -295,10 +307,10 @@
   // Classement des deux spés d'un hybride : besoin du groupe le moins rempli, puis spé absente de la table, puis identifiant.
   function rankSpecs(D, state, h) {
     const G = groupNeeds(D, state), rank = {}, taken = {};
-    for (const c of G.columns) rank[c.id] = div(c.filled, 10);
+    for (const c of G.columns) rank[c.id] = div(c.filled, specBand(D));
     for (const x of allHeroes(state)) if (x.spec) taken[x.spec] = (taken[x.spec] || 0) + 1;
-    return specsForHybrid(D, h.hybrid).map(S => ({ id: S.id, spec: S, need_rank: rank[S.need] === undefined ? 99 : rank[S.need], taken: taken[S.id] || 0 }))
-      .sort((a, b) => a.need_rank - b.need_rank || a.taken - b.taken || (a.id < b.id ? -1 : 1));
+    return specsForHybrid(D, h.hybrid).map(S => ({ id: S.id, spec: S, need_rank: rank[S.need] === undefined ? 99 : rank[S.need], taken: taken[S.id] || 0, tie: tieBreak(state, h, S.id) }))
+      .sort((a, b) => a.need_rank - b.need_rank || a.taken - b.taken || a.tie - b.tie || (a.id < b.id ? -1 : 1));
   }
   function pickSpec(D, state, h) { const r = rankSpecs(D, state, h); return r.length ? r[0].spec : null; }
   function specWhy(D, state, h, specId) {
@@ -946,10 +958,23 @@
     planEconomy(D, state, m, P, heroes, act);
     return out.filter(x => validateAction(state, x).ok);
   }
-  // Biome préféré des votes : celui dont la maîtrise est la plus haute (égalité : id ASCII le plus petit) — concentration naturelle.
+  // Biome préféré des votes : celui dont la maîtrise est la plus haute — concentration naturelle.
+  // V5 T5 : deux correctifs mesurés. (1) Le biome dont le dragon n'est plus endormi sort de la préférence : son
+  // affaire est faite, la guilde va chercher ailleurs. (2) À maîtrise égale, le départage tourne avec la graine au
+  // lieu de suivre l'ordre ASCII. Sans eux, la forêt gagnait l'égalité du premier jour (toutes maîtrises nulles) et
+  // la boucle de préférence l'y enfermait toute la saison : maîtrise 7,6 en forêt contre 1,4 et 1,5 ailleurs au J30,
+  // et 53 réveils sur 59 en forêt — le Drake et l'Hydre étaient du contenu que personne ne voyait.
   function preferredBiome(D, state) {
+    const keys = sortedKeys(state.biome_mastery || {});
+    if (!keys.length) return null;
+    const open = keys.filter(b => !state.dragons || !state.dragons[b] || state.dragons[b].state === 'dormant');
+    const pool = open.length ? open : keys;
+    const off = fnvU32(state.seed >>> 0) % pool.length;
     let best = null;
-    for (const b of sortedKeys(state.biome_mastery || {})) if (best === null || state.biome_mastery[b] > state.biome_mastery[best]) best = b;
+    for (let i = 0; i < pool.length; i++) {
+      const b = pool[(i + off) % pool.length];
+      if (best === null || state.biome_mastery[b] > state.biome_mastery[best]) best = b;
+    }
     return best;
   }
   function pickQuestVote(D, state, mode, avg) {
@@ -1770,6 +1795,12 @@
   }
   function applyEvent(ctx, exp, e, room, next, rng) {
     const c = conscious(exp), D = ctx.D;
+    // V5 T5 (bug trouvé en chemin) : un événement a besoin de quelqu'un pour le vivre. Quand toute l'escouade est
+    // à terre ou a déserté, `conscious` est vide et six branches lisaient `c[0]` ou le premier d'un tri vide :
+    // « heroic_feat » posait `best.feat_crit` sur `undefined` et le moteur JETAIT au milieu d'une journée
+    // (TypeError, expédition perdue, état corrompu). Trouvé en balayant 2 500 graines à la recherche d'une chute
+    // de guilde. Sans escouade debout, l'événement n'a simplement pas lieu.
+    if (!c.length) return;
     const lowest = c.slice().sort((a, b) => a.morale - b.morale || a.slot - b.slot)[0];
     const vars = { a: c[0] ? c[0].name : '', b: c[1] ? c[1].name : '', gold: pct(exp.d.gold_base, 30), boss: D.bosses[exp.biome.boss].name };
     switch (e.id) {
@@ -2320,12 +2351,19 @@
     const others = D.raw.buildings.map(b => b.id).filter(id => id !== 'hall' && bLevel(D, state, id) >= 1);
     const hallLv = bLevel(D, state, 'hall');
     const cands = others.slice();
-    if (hallLv >= 2 || (hallLv === 1 && (!others.length || (state.hall_hits || 0) >= 1))) cands.push('hall');
+    if (hallLv >= 1) cands.push('hall');
     cands.sort();
     if (!cands.length) return null;
     const id = cands[ctx.rng.roll(cands.length)];
-    state.buildings[id] -= 1;
     if (id === 'hall') state.hall_hits = (state.hall_hits || 0) + 1;
+    // V5 T5 (règle morte, corrigée) : le hall encaisse le PREMIER incendie sans perdre son niveau tant qu'un autre
+    // bâtiment tient debout ; c'est le SECOND qui le jette à terre — c'est ce que dit le commentaire ci-dessus.
+    // L'ancienne condition excluait le hall de la liste des cibles tant que `hall_hits` valait 0 ET qu'il était au
+    // niveau 1 : or les plans par défaut ne montent jamais le hall au niveau 2 (le vote de chantier prend toujours
+    // le bâtiment finançable le moins cher — mesuré : 300 saisons, hall au niveau 1 partout), donc `hall_hits` ne
+    // pouvait jamais passer à 1 et la chute de la guilde était hors d'atteinte (0 chute sur 2 500 graines).
+    if (id === 'hall' && hallLv === 1 && state.hall_hits < 2 && others.length) return 'hall';
+    state.buildings[id] -= 1;
     if (state.construction && state.construction.building_id === id) state.construction.to_level = state.buildings[id] + 1;
     return id;
   }

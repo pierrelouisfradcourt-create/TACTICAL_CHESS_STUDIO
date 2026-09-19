@@ -173,7 +173,10 @@ for (let seed = 1; seed <= SEEDS; seed++) {
     dist.dmgTotal += dayDmg;
     if (c.raid.passes.length && dayDmg === 0) { dist.zeroDays++; bad.push('graine ' + seed + ' j' + c.day + ' : journée de raid à 0 dégât (raid impossible)'); }
     for (const p of c.raid.passes) { const k = heroClass(s, p.hero_name); const b = dist.byClass[k] = dist.byClass[k] || { n: 0, d: 0, ko: 0 }; b.n++; b.d += p.damage; if (p.ko) b.ko++; }
-    if (c.raid.status !== 'active') { const dur = c.day - c.raid.day_start + 1; dist.days.push(dur); if (c.raid.status === 'won') { dist.won++; if (dur <= 3) dist.wonIn3++; } else dist.lost++; }
+    // V5 T5 : on ne mesure QUE le premier raid de chaque graine. Depuis le correctif de `preferredBiome` (T5), le
+    // biome dont le dragon est réglé sort de la préférence de la guilde : un SECOND dragon peut donc se réveiller
+    // le soir même de la victoire, et la boucle enchaînait sur un deuxième raid — 32 raids clos pour 30 graines.
+    if (c.raid.status !== 'active') { const dur = c.day - c.raid.day_start + 1; dist.days.push(dur); if (c.raid.status === 'won') { dist.won++; if (dur <= 3) dist.wonIn3++; } else dist.lost++; break; }
   }
 }
 // Compte des sorts sur l'ensemble (les archives gardent les compteurs des raids clos).

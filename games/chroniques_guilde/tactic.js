@@ -409,15 +409,29 @@
     mech(R, 'traque'); mech(R, 'fissure');
     log.push(src.name + ' ouvre une fissure dans l\'armure (' + t.fissures + '/' + cap + ', DÉF −' + (5 * t.fissures) + ').');
   }
+  // V5 T5 : la garde doublée du Bretteur est lue dans `data.specs.bretteur.passive` au lieu d'être écrite en dur.
+  // Mesuré en T5 : au plafond 4, le Bretteur rendait six coups en 8,75 tours de moyenne contre 11,5 au Duelliste nu
+  // (8 graines) — 24 %, juste SOUS la barre des 25 % du test de branche. Le plafond mangeait la seconde riposte dès
+  // que deux gueules mordaient dans le même tour, c'est-à-dire exactement dans la situation qui porte son verbe.
+  function duelGuard(env) {
+    const P = (specOf(env, 'bretteur') || {}).passive || null;
+    return { cap: (P && P.cap) || 4, power: (P && P.power_pct) || 70, per_hit: (P && P.per_hit) || 2, reach: (P && P.reach) || 1 };
+  }
   // Duelliste : contre-attaque automatique (60 %) après un coup encaissé au contact, deux fois par tour ennemi au plus.
   function duelRiposte(R, env, t, src, log) {
     if (t.hybrid_id !== 'duelliste' || t.hp <= 0 || R.status !== 'active') return;
-    const twice = hasState(t, 'riposte_double');                       // V5 T3 Bretteur : deux ripostes par coup encaissé, à 70 %, cap 4 par tour
-    const cap = twice ? 4 : 2, power = twice ? 70 : 60, n = twice ? 2 : 1;
+    const twice = hasState(t, 'riposte_double');                       // V5 T3 Bretteur : deux ripostes par coup encaissé, à 70 %
+    const G = duelGuard(env);
+    const cap = twice ? G.cap : 2, power = twice ? G.power : 60, n = twice ? G.per_hit : 1;
+    // V5 T5 : la portée de la réponse. « Au contact » est la clause de la MÉCANIQUE DE VOIE ; la garde doublée du
+    // Bretteur ne la porte pas (« chaque coup reçu lui en rend deux »). Mesuré : l'Hydre happe à 2 cases et le Drake
+    // balaie de sa queue — sur 13 morsures encaissées, 6 ne recevaient aucune réponse, et le Bretteur rendait six
+    // coups dans le même nombre de passages que le Duelliste nu. Avec `reach`, il répond au coup qui l'a touché.
+    const reach = twice ? G.reach : 1;
     for (let i = 0; i < n; i++) {
       if ((t.ripostes_turn || 0) >= cap || t.hp <= 0 || src.hp <= 0 || R.status !== 'active') return;
       const c = isBoss(src) ? bossNearestCell(src, t.x, t.y) : src;
-      if (manhattan(c.x, c.y, t.x, t.y) > 1) return;
+      if (manhattan(c.x, c.y, t.x, t.y) > reach) return;
       t.ripostes_turn = (t.ripostes_turn || 0) + 1;
       bumpRes(R, t, 1);
       mech(R, 'riposte');
@@ -434,7 +448,6 @@
     else if (u.hybrid_id === 'traqueur' && (u.res || 0) > 0) setRes(R, u, 0);
   }
   // Têtes de l'Hydre (§2.3) : la gueule engagée (PV les plus hauts) saigne avec le corps ; à 0 elle est coupée.
-  function headsAlive(B) { return (B.heads || []).filter(h => h.alive).length; }
   function damageHead(R, env, B, dmg, src, log) {
     const alive = (B.heads || []).map((h, i) => ({ h: h, i: i })).filter(x => x.h.alive);
     if (!alive.length) return;
@@ -2015,11 +2028,18 @@
     removeState(B, 'vol_temps');
     const taken = {};
     const heads = (B.heads || []).filter(h => h.alive).length;
+    // V5 T5 (bug) : « Défi » promet que la cible ne vise plus que le Duelliste. L'Hydre l'ignorait dès la deuxième
+    // gueule : `bossTargets` n'était consulté que pour la première, les suivantes reprenaient la plus proche en
+    // excluant les cibles déjà mordues — donc TOUT LE MONDE SAUF le provocateur. Un boss provoqué mord désormais le
+    // provocateur avec chacune de ses gueules, tant qu'il est vivant et à portée : c'est ce que le sort dit.
+    const prov = stateOf(B, 'provoque');
+    const provUnit = prov && prov.unit ? unitById(R, prov.unit) : null;
     for (let i = 0; i < heads && pa >= f.attack.cost; i++) {
       const pool = guildUnits(R).filter(v => v.hp > 0 && !taken[v.id]);
       let t = null;
-      if (i === 0) t = bossTargets(R, env, f.target_rule);
-      if (!t || taken[t.id]) t = pool.length ? nearest({ x: B.x, y: B.y, id: '' }, pool) : null;
+      if (provUnit && provUnit.hp > 0) t = bossTargets(R, env, f.target_rule);
+      else if (i === 0) t = bossTargets(R, env, f.target_rule);
+      if ((!t || (taken[t.id] && !(provUnit && t.id === provUnit.id))) ) t = pool.length ? nearest({ x: B.x, y: B.y, id: '' }, pool) : null;
       if (!t) break;
       taken[t.id] = 1;
       let c = bossNearestCell(B, t.x, t.y);
@@ -2540,11 +2560,16 @@
     const nM = env.managers.length;
     const day = env.day;
     const hpMax = div((f.hp_base + f.hp_per_day * day) * (nM + C.hp_pool_managers_add), C.hp_pool_managers_div);
+    // V5 T5 : la fiche de raid peut surcharger la pente d'attaque et de défense du boss (les valeurs V4 restent
+    // celles de l'auto-combat). Mesuré en T5 : à def_per_day 1 la garde du boss montait plus vite que les héros,
+    // et les dégâts de la guilde restaient plats de J12 à J26 pendant que la réserve du boss gagnait 40 %.
+    const bossAtkPerDay = f.atk_per_day === undefined ? (DR ? DR.atk_per_day : 1) : f.atk_per_day;
+    const bossDefPerDay = f.def_per_day === undefined ? (DR ? DR.def_per_day : 0) : f.def_per_day;
     const R = { id: raidId, dragon_id: f.dragon_id, name: DR ? DR.name : raidId, day_start: day, nights: 0, status: 'active', enrage_pct: 0,
       rng_s: fnvU32((env.seed ^ day ^ fnvStr(raidId)) >>> 0), rng_count: 0,
       grid_w: L.w, grid_h: L.h, layout: L.layout.slice(), spawn_cells: L.spawn_cells.map(c => ({ x: c.x, y: c.y })), zones: {},
       boss: { id: f.dragon_id || raidId, kind: 'boss', side: 'boss', name: DR ? DR.name : (f.name || raidId), x: L.boss_cell.x, y: L.boss_cell.y, w: f.boss_w || 2, h: f.boss_h || 2, facing: 'S', hp: hpMax, hp_max: hpMax, shield: 0, shield_turns: 0,
-        atk: DR ? DR.atk_base + DR.atk_per_day * day : 18 + day, def: DR ? DR.def_base + DR.def_per_day * day : 8 + div(day, 3), mass: f.boss_mass === undefined ? 3 : f.boss_mass, phase: 1, states: [], cooldowns: {}, controls_today: 0, last_stun: 0, alive: true, crit_immune: !!f.crit_immune, level: 1 + div(day, 2), fissures: 0 },
+        atk: DR ? DR.atk_base + bossAtkPerDay * day : 18 + day, def: DR ? DR.def_base + bossDefPerDay * day : 8 + div(day, 3), mass: f.boss_mass === undefined ? 3 : f.boss_mass, phase: 1, states: [], cooldowns: {}, controls_today: 0, last_stun: 0, alive: true, crit_immune: !!f.crit_immune, level: 1 + div(day, 2), fissures: 0 },
       units: [], pass: null, pass_count: 0, riposte_count: 0, next_unit: 1, passes_done: [], damage_total: {}, healing_total: {}, journal: [], events: [], won_by: null,
       stats: { casts: {}, regen_total: 0, burn_turns: 0, adds_spawned: 0, shield_absorbed: 0, add_heal: 0, night_regen: 0, mech: {}, res_values: {}, zones: {} },
       riposte_next: null, last_riposte: null, pending_breath: null, skip_riposte: 0, heads_cut_pass: 0 };
@@ -2749,7 +2774,11 @@
         if (hasState(u, 'poison') && (a = cast('onction_zone', u.x, u.y))) return a;
         return null;
       case 'bretteur':
+        // V5 T5 : la garde doublée, PUIS le Défi de sa voie, PUIS la botte. C'est le Défi qui fait venir les coups,
+        // donc les ripostes ; la botte coûte 4 PA et mangeait les six PA du tour avec la garde, si bien que le
+        // Bretteur ne défiait jamais — il n'était mordu qu'une fois par tour, au lieu d'une fois par gueule.
         if (!hasState(u, 'riposte_double') && dB <= 2 && (a = cast('riposte_double', u.x, u.y))) return a;
+        if (!hasState(u, 'defi') && dB <= 2 && (a = cast('defi', bc.x, bc.y))) return a;
         if (dB === 1 && (a = cast('botte_secrete', bc.x, bc.y))) return a;
         return null;
       case 'matador': {
@@ -3090,10 +3119,13 @@
         const near = cellsSorted(G, [{ x: u.x, y: u.y - 1 }, { x: u.x - 1, y: u.y }, { x: u.x + 1, y: u.y }, { x: u.x, y: u.y + 1 }, { x: u.x, y: u.y - 2 }, { x: u.x - 1, y: u.y - 1 }, { x: u.x + 1, y: u.y - 1 }]).filter(c => freeCell(R, c.x, c.y) && !zoneAt(R, c.x, c.y)).sort((p, q) => distToBoss(B, p.x, p.y) - distToBoss(B, q.x, q.y) || cidx(G, p.x, p.y) - cidx(G, q.x, q.y));
         if (!golems.length && near.length && (a = cast('clay_golem', near[0].x, near[0].y))) return a;
         if (!swarms.length && near.length && (a = cast('swarm', near[0].x, near[0].y))) return a;
-        const weak = mine.filter(v => v.hp * 2 < v.hp_max);
-        if (weak.length && u.hp * 2 > u.hp_max && (a = cast('vital_link', weak[0].x, weak[0].y))) return a;
+        // V5 T5 : une invocation mourante AU CONTACT explose avant qu'on songe à la rafistoler. Le lien vital passait
+        // avant et la remettait debout à chaque fois : sur 30 raids forcés, « Sacrifice » n'était jamais lancé —
+        // c'était le seul des 25 sorts de base que la politique par défaut n'employait pas.
         const adj = mine.filter(v => distToBoss(B, v.x, v.y) === 1 && v.hp * 5 < v.hp_max * 2);   // une invocation mourante au contact explose ; les autres restent (Présence)
         if (adj.length && (a = cast('sacrifice', adj[0].x, adj[0].y))) return a;
+        const weak = mine.filter(v => v.hp * 2 < v.hp_max);
+        if (weak.length && u.hp * 2 > u.hp_max && (a = cast('vital_link', weak[0].x, weak[0].y))) return a;
         if (dB === 1 && (a = cast('arme', bc.x, bc.y))) return a;
         if (mine.length >= 2 && dB > 1 && P.pa >= 3 && (a = moveTo(1, null, true))) return a;
         if (dB === 1 && adjAdd && (a = cast('arme', adjAdd.x, adjAdd.y))) return a;

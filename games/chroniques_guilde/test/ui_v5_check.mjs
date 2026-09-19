@@ -49,11 +49,19 @@ function firstRaid(seed) {
   }
   return null;
 }
-let target = null;
+// V5 T5 : le bloc A se joue sur un raid du SYLVAIN. Son fouet se pointe « vers ta case » et se recalcule à chaque
+// pas — c'est ce que vérifie le contrôle du télégraphe qui suit le héros. Le souffle du Drake, lui, est annoncé au
+// premier tour et RETIENT ses cases (T3b, `pending_breath`) : il ne bouge plus, par conception. Depuis le correctif
+// de `preferredBiome` (T5) le premier dragon d'une graine n'est plus toujours le Sylvain, et le bloc tombait sur un
+// Drake. Repli sur le premier raid venu si aucune graine ne donne un Sylvain jouable.
+let target = null, targetAny = null;
 for (let seed = 1; seed <= 60 && !(target && target.day <= 11); seed++) {
   const r = firstRaid(seed);
-  if (r && (!target || r.day < target.day)) target = r;
+  if (!r) continue;
+  if (!targetAny || r.day < targetAny.day) targetAny = r;
+  if (r.raid.id === 'raid_forest' && (!target || r.day < target.day)) target = r;
 }
+if (!target) target = targetAny;
 if (!target) { console.log('FAIL  aucune graine avec un raid jouable par p1 (1..60)'); process.exit(1); }
 const R0 = target.raid;
 console.log('moteur : graine ' + target.seed + ', raid le jour ' + target.day + ' — ' + R0.name +
@@ -169,7 +177,12 @@ const browser = await pw.chromium.launch();
   await shot(page, 'grille');
 
   // --- déplacement : aperçu du chemin et du coût, puis confirmation
-  const far = v0.me.reachable.slice().sort((a, b) => a.y - b.y || a.cost - b.cost)[0];
+  // V5 T5 : on vise une case atteignable qui CHANGE D'AXE. Depuis le correctif de `preferredBiome` (T5), le premier
+  // dragon de la graine n'est plus toujours le Sylvain : le télégraphe du Drake tient une ligne complète depuis son
+  // corps, et avancer dans cette ligne ne la déplace pas d'une case — le contrôle du télégraphe qui suit le héros
+  // n'aurait alors rien mesuré. Repli sur la case la plus haute si aucune case d'un autre axe n'est atteignable.
+  const reachSorted = v0.me.reachable.slice().sort((a, b) => a.y - b.y || a.cost - b.cost);
+  const far = reachSorted.filter(c => c.x !== v0.me.cell.x)[0] || reachSorted[0];
   await tapCell(page, far.x, far.y);
   let d = await draw(page);
   check('tap sur une case atteignable : chemin et coût en aperçu (aucun coup joué)',
@@ -187,11 +200,18 @@ const browser = await pw.chromium.launch();
     `PM ${pmBefore} → ${t.raid.pm} (coût ${far.cost})`);
   // Le télégraphe de la riposte est annoncé « autour de ta case finale » : il doit suivre mon déplacement.
   const vRip = await view(page), dRip = await draw(page);
-  check('riposte télégraphiée depuis ma case courante (et non ma case d’entrée)',
+  // V5 T5 : « et pas ma case d'entrée » était un raccourci. Depuis le correctif de `preferredBiome` (T5), le premier
+  // dragon de la graine n'est plus toujours le Sylvain, et un télégraphe en LIGNE peut couvrir la case d'entrée ET la
+  // case d'arrivée quand on avance dans l'axe du coup — sans rien dire de faux. Ce qui doit être vrai, et qui l'est
+  // dans les deux cas : le télégraphe couvre ma case courante, il a CHANGÉ depuis ma case d'entrée, et la grille
+  // peint exactement les cases du modèle.
+  const cellsOf = v => v.boss.next_riposte.cells.map(c => c.x + ',' + c.y).join(' ');
+  check('riposte télégraphiée depuis ma case courante (et non depuis ma case d’entrée)',
     vRip.boss.next_riposte.cells.some(c => c.x === far.x && c.y === far.y) &&
     !vRip.boss.next_riposte.cells.some(c => c.x === v0.me.cell.x && c.y === v0.me.cell.y) &&
+    cellsOf(vRip) !== cellsOf(v0) &&
     dRip.riposte.length === vRip.boss.next_riposte.cells.length,
-    `entrée (${v0.me.cell.x},${v0.me.cell.y}) → case (${far.x},${far.y}) : ` + vRip.boss.next_riposte.cells.map(c => c.x + ',' + c.y).join(' '));
+    `entrée (${v0.me.cell.x},${v0.me.cell.y}) [${cellsOf(v0)}] → case (${far.x},${far.y}) [${cellsOf(vRip)}]`);
   // Le passage a commencé : mon héros est maintenant une unité du moteur, la grille doit suivre le modèle exactement.
   const v0b = await view(page), d0b = await draw(page);
   check('grille en cours de passage : unités peintes = unités du modèle, à leur case',

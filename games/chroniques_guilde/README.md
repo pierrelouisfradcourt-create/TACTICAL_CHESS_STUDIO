@@ -39,8 +39,17 @@ polices système : les polices Google ne se chargent qu'en http(s).
   Limite connue, à arbitrer : le passage humain se compose sur la grille du matin alors que le moteur le rejoue
   après ceux des amis (managers triés par identifiant, le joueur passe dernier). La page prévient en clair quand
   un passage sera interrompu, et les traces laissées par les amis le jour même n'apparaissent que le lendemain.
-- V5 T2, T3, T5 (à construire) : hybrides et deux autres dragons en raid, spécialisations, calibrage —
-  voir `design/V5_SPEC.md`.
+- V5 T2 : treize voies hybrides choisies vers le jour 8, Drake et Hydre en raid.
+- V5 T2b : passages de raid rejoués dans l'ordre de réception (interruptions 71 % → 0 %), huit bugs de
+  l'audit corrigés, code mort retiré.
+- V5 T3 et T3b : vingt-six spécialisations avec leur verbe tactique, une reconversion par saison, Derby
+  des Lames. Test de branche mécanisé : chaque branche prouve qu'elle résout sa situation mieux que sa
+  sœur et que sa voie nue.
+- V5 T5 : calibrage de la saison sur 60 graines. Morts 2,7 %, chute de guilde 3,3 %, les trois dragons
+  entre 62 et 76 % de victoires, chaque biome réveillé, aucune spécialisation jamais choisie, château
+  atteint dans 47 % des saisons, derby à 48 %. Banc `test/season_t5_check.mjs` qui verrouille ces bornes.
+- Reste ouvert : point A4 de l'audit (le modèle de vue du raid ne décrit pas un passage en cours, d'où
+  des accès bruts à l'état dans la page) ; réveils de dragon très tardifs encore difficiles.
 
 ## État
 software_verdict: OK (19/19 · 13/13 · 24/24 · 20/20 · 52/52 · 48/48 · 55/55 · 39/39 au 2026-09-18) · evidence_verdict: MECHANICAL_VALIDATION_ONLY ·
