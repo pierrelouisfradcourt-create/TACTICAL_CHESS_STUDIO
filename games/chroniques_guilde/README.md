@@ -10,7 +10,10 @@ résolution déterministe, chronique du soir, tableau vivant qui se peint au fil
 - `sim.js` — moteur pur (UMD, node + navigateur), entiers seuls, mulberry32 sur graine du jour, API dans CONTRACT.md.
 - `data.json` / `data.js` — tables (classes, XP, quêtes, monstres, objets, recettes, bâtiments, gabarits…).
 - `CONTRACT.md` — contrat technique (API, actions, ordre de résolution, viewModel, plan graphique).
-- `design/` — documents de conception V1 (aventuriers, quêtes/donjons, objets/économie) et brief V2.
+- `design/` — conception. V1 (aventuriers, quêtes/donjons, objets/économie), brief V2, `V5_SPEC.md`,
+  audits `AUDIT_ARCHI.md` / `AUDIT_STATS.md`, `CHATEAU_SPEC.md`, et **trois specs non implémentées**
+  (à ratifier, elles touchent `data.json` donc les vecteurs) : `CRAFT_BIOME_SPEC.md`,
+  `ARMURE_ET_PREREQUIS_SPEC.md`, `QUETE_DE_CLASSE_SPEC.md`.
 - `test/harness.mjs` — banc principal (moteur 30 jours + page dans Chromium via Playwright global).
 - `test/engine_extra.mjs` — invariants moteur. `test/ui_v2_check.mjs` — banc de la page V2.
 
