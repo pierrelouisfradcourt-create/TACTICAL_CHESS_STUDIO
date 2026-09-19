@@ -1530,7 +1530,7 @@ var ROADS = [ROAD, ROAD, ROAD_TOWN, ROAD_CITY, ROAD_FORT];
    à gauche contre la courtine, taverne à droite de la porte, halle le long du mur sud, entrepôt au
    nord, infirmerie près de la chapelle, chapelle contre la tour est). */
 var BSLOT = { chapel: [560, 232], hall: [400, 278], forge: [245, 285], warehouse: [578, 290], training_ground: [705, 335], infirmary: [118, 345], tavern: [300, 368], market: [470, 392] };
-var BNEAR = { chapel: [512, 248], hall: [400, 272], forge: [238, 296], warehouse: [322, 242], training_ground: [556, 294], infirmary: [206, 364], tavern: [360, 368], market: [542, 366] };
+var BNEAR = { chapel: [512, 248], hall: [400, 272], forge: [238, 296], warehouse: [300, 232], training_ground: [556, 294], infirmary: [206, 364], tavern: [360, 368], market: [542, 366] };
 /* Cour du château : donjon au fond centre · entrepot adosse au mur nord · chapelle contre la tour est ·
    forge contre la courtine ouest · infirmerie a l'est · terrain d'entrainement au centre · halle et
    taverne en premiere rangee, DERRIERE le mur de face qui leur mange le bas. */
@@ -1688,8 +1688,8 @@ function drawShadow(ctx, cx, base, w, tone) {
 /* ---------- §9 : registre de scène, image fidèle de ce qui est dessiné (lecture seule) ---------- */
 function sceneNew(age, lod, cam, tone) {
   return { age: age, lod: lod, hour: r1(tone.hour), night: tone.night > 0.55, camera: { zoom: Math.round(cam.z * 100), ground: r1(cam.g) },
-    buildings: [], soldiers: [], wall: null, drawbridge: null, silhouette_h: 0, construction: null, banners: 0, guards: 0,
-    courtyard: null, moat: null, labels: [], figures: [], canvas: { w: 0, h: 0 },
+    buildings: [], lots: [], soldiers: [], wall: null, drawbridge: null, silhouette_h: 0, construction: null, banners: 0, guards: 0,
+    courtyard: null, moat: null, labels: [], figures: [], front_occlusion: null, canvas: { w: 0, h: 0 },
     /* les teintes réellement posées : le banc compare le sol de cour à la prairie sans deviner */
     palette: { grass: tone.grass, court_back: matOf('#8f7f5e', tone), court_front: matOf('#d0c09a', tone), water: matOf(MAT.water, tone) } };
 }
@@ -1699,6 +1699,14 @@ function sceneAdd(sc, cam, id, cx, base, w, topY, level) {
   var x0 = camX(cam, cx - w / 2), y0 = camY(cam, topY);
   sc.buildings.push({ id: id, x: r1(x0), y: r1(y0), w: r1(camX(cam, cx + w / 2) - x0), h: r1(camY(cam, base) - y0), level: level | 0 });
   sceneTop(sc, topY);
+}
+/* V5 T3b : une PARCELLE À BÂTIR est publiée à part (elle n'est pas un bâtiment : elle ne compte ni dans la
+   silhouette ni dans les contrôles de cour), mais le placeur d'étiquettes la traite comme un obstacle dur —
+   la plaque qui la nomme se pose au-dessus ou à côté, jamais sur son assise. */
+function sceneLot(sc, cam, id, cx, base, w, topY) {
+  if (!sc) return;
+  var x0 = camX(cam, cx - w / 2), y0 = camY(cam, topY);
+  sc.lots.push({ id: id, x: r1(x0), y: r1(y0), w: r1(camX(cam, cx + w / 2) - x0), h: r1(camY(cam, base) - y0) });
 }
 
 /* ---------- §3 : hauteurs — hauteur = base + niveau × pas, le donjon toujours le point le plus haut ---------- */
@@ -1743,7 +1751,7 @@ function drawScene(canvas, mini) {
   var sc = mini ? null : sceneNew(age, lod, cam, tone), fs = (mini ? 0.5 : Math.max(0.68, Math.min(1, s))) * (0.74 + 0.26 * cam.z);
   if (!mini) { app.sceneScale = s; app.sceneSy = sy; }
   if (sc) { sc.canvas = { w: r1(W), h: r1(H) }; }
-  LAB.length = 0;
+  LAB.length = 0; FIGW.length = 0;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
   ctx.save(); ctx.scale(s, sy);
   drawBackdrop(ctx, cam, tone, t, lod);
@@ -1752,7 +1760,22 @@ function drawScene(canvas, mini) {
   ctx.restore();
   drawForeground(ctx, tone, lod);        /* le premier plan appartient à la caméra, pas au monde */
   ctx.restore();
-  if (!app.vm.defeat) drawFigures(ctx, s, sy, fs, T, mini, night, cam, sc);
+  if (!app.vm.defeat) {
+    drawFigures(ctx, s, sy, fs, T, mini, night, cam, sc);
+    /* V5 T3b — OCCLUSION : les figurines vivent en pixels du canevas, elles sont donc dessinées APRÈS le monde.
+       Sans ce repassage, un héros qui se tient dans la bande du mur de face apparaîtrait PAR-DESSUS la pierre.
+       On repeint alors les deux pans au-dessus de lui ; la porte reste ouverte, le pont aussi. Le contrat publié
+       dans __scene.front_occlusion est : « une figurine derrière le mur ⇒ le repassage a eu lieu ». */
+    var fl = fortLevel(age, app.vm.village.hall_level || 1);
+    var encF = encNow(cam), behind = figuresBehindFront(encF, fl), repaint = false;
+    if (encF && behind > 0) {
+      ctx.save(); ctx.scale(s, sy); camApply(ctx, cam);
+      drawWallFrontMask(ctx, encF, tone, { fl: fl, lod: lod });
+      ctx.restore();
+      repaint = true;
+    }
+    if (sc) sc.front_occlusion = { behind: behind, repaint: repaint };
+  }
   if (!mini) { drawLabels(ctx, W, H, T, night, sc); drawClock(ctx, W, H, night, T); window.__scene = sc; }
 }
 function drawWorld(ctx, cam, tone, t, T, lod, sc, mini) {
@@ -2242,6 +2265,57 @@ function drawWallFront(ctx, e, tone, env, sc, cam, t) {
   if (env.age >= 4) drawDrawbridge(ctx, e, tone, env, sc, cam);
   ctx.restore();
 }
+/* V5 T3b : combien de figurines se tiennent DERRIÈRE un pan du mur de face — c'est-à-dire dans la bande de pierre
+   (de la crête au pied), hors de l'ouverture de la porte, où le mur doit leur passer devant. Zéro la plupart du
+   temps : les lieux d'activité de la cour sont tous au-dessus de la bande. Le repassage ne s'arme que si ce compte
+   est non nul, parce qu'un repassage n'est JAMAIS exactement neutre (bords lissés recomposés, palissade redoublée) :
+   mesuré à vide, il changeait de 1 200 à 2 500 pixels par image pour ne rien masquer du tout. */
+function figuresBehindFront(e, fl) {
+  if (!e || e.alpha < 1) return 0;
+  var top = e.y1 - wallHF(e.kind, fl) - crenelH(e.kind, 'front'), n = 0;
+  for (var i = 0; i < FIGW.length; i++) {
+    var f = FIGW[i];
+    /* La silhouette monte depuis ses pieds : pieds au-dessus de la crête, elle est entièrement au-dessus de la
+       bande ; pieds au-delà du pied du mur, elle est DEVANT lui et doit rester visible. Entre les deux, et
+       seulement là, la pierre doit lui passer devant. */
+    if (f.y <= top || f.y > e.y1) continue;
+    if ((f.x > e.x0 && f.x < e.gx - e.gw) || (f.x > e.gx + e.gw && f.x < e.x1)) n++;
+  }
+  return n;
+}
+/* V5 T3b : repassage d'occlusion — SEULS les deux pans du mur de face, sans porte, sans tours, sans pont-levis :
+   ceux-là sont déjà posés et ne doivent pas compter deux fois. Les deux pans, en revanche, sont repeints À L'IDENTIQUE
+   de drawWallFront — bandeau, LAVIS DORÉ et moucheture de pierre comprises.
+   CORRECTIF (2026-09-19) : la première version omettait le lavis et la moucheture, si bien qu'elle APLATISSAIT le mur
+   de face (1 500 à 4 400 pixels changés par image, mesurés sans aucune figurine derrière le mur). Repeindre à
+   l'identique rend le repassage invisible tant que personne ne se tient derrière — c'est la seule forme acceptable.
+   Pendant le glissement de caméra (e.alpha < 1) on ne repasse pas : recomposer un mur translucide sur lui-même
+   le rendrait opaque. L'occlusion est alors imparfaite le temps du glissement, et c'est assumé. */
+function drawWallFrontMask(ctx, e, tone, env) {
+  if (e.alpha < 1) return;
+  var h = wallHF(e.kind, env.fl), crenel = crenelH(e.kind, 'front');
+  ctx.save(); ctx.globalAlpha = e.alpha;
+  if (e.kind === 'palis') {
+    var pf = matOf('#a8845a', tone), pd = matOf('#8a6a44', tone);
+    palisade(ctx, e.x0, e.y1, e.gx - e.gw, e.y1, h, pf, pd);
+    palisade(ctx, e.gx + e.gw, e.y1, e.x1, e.y1, h, pf, pd);
+  } else {
+    var face = matOf(MAT.stone, tone), crest = matOf(MAT.crest, tone), side = matOf(MAT.stoneSide, tone), lit = mix(face, '#ffffff', 0.1);
+    wallBand(ctx, e.x0, e.y1, e.gx - e.gw, e.y1, h, h, lit, side, crest, crenel, crenel);
+    wallBand(ctx, e.gx + e.gw, e.y1, e.x1, e.y1, h, h, lit, side, crest, crenel, crenel);
+    goldWash(ctx, [e.x0, e.y1, e.x0, e.y1 - h, e.gx - e.gw, e.y1 - h, e.gx - e.gw, e.y1], tone);
+    goldWash(ctx, [e.gx + e.gw, e.y1, e.gx + e.gw, e.y1 - h, e.x1, e.y1 - h, e.x1, e.y1], tone);
+    if (env.lod === 0) {
+      ctx.fillStyle = rgba(MAT.stoneDark, 0.14 * (1 - tone.night * 0.4));
+      for (var i = 0; i < 34; i++) {
+        var f = fnv1a('front' + i), x = lerp(e.x0, e.x1, (f % 1000) / 1000);
+        if (x > e.gx - e.gw - 6 && x < e.gx + e.gw + 6) continue;
+        ctx.fillRect(x, e.y1 - 5 - ((f >>> 7) % Math.max(4, Math.round(h) - 6)), 6 + (f % 5), 2.4);
+      }
+    }
+  }
+  ctx.restore();
+}
 function drawGateSimple(ctx, e, tone, h) {
   var x = e.gx, w = e.gw;
   ctx.fillStyle = matOf('#3a2e27', tone); ctx.beginPath();
@@ -2594,9 +2668,11 @@ function drawEmptyLot(ctx, b, cx, base, dim, T, tone, env, t, sc) {
   drawWorks(ctx, b, x, y, w, base, T, tone, env, sc, t);
   if (tb.phase === 'evening' && tb.markers && tb.markers.burnt === b.id) drawFire(ctx, x + 10, base - 6, w - 20, t || 0);
   if (env.mini) return;
-  /* La plaque part au placeur d'étiquettes : elle ne peut plus recouvrir un toit ni une autre plaque. */
+  /* La plaque part au placeur d'étiquettes : elle ne peut plus recouvrir un toit, une autre plaque, ni sa propre assise. */
   var lines = ctx.canvas.clientWidth >= 520 ? wrapName(ctx, b.name, 92, uiFont(9, 600)) : [];
   var cm = env.cam;
+  /* la boîte publiée est ce qui est RÉELLEMENT dessiné au sol : la tente au campement, l'assise de pierre ensuite. */
+  if (camp) sceneLot(sc, cm, b.id, cx, base, 44, base - 28); else sceneLot(sc, cm, b.id, cx, base, w, base - 13);
   labelAdd({ id: 'lot:' + b.id, kind: 'plaque', lines: lines.concat(['à bâtir']), size: 9, lh: 11, padX: 5, padY: 4,
     x: camX(cm, cx) * (app.sceneScale || 1), y: camY(cm, base - h - 2) * (app.sceneSy || 1) });
 }
@@ -2786,6 +2862,9 @@ function figurePos(act, p, cam) {
   }
   return figPlace(a, p, cam);
 }
+/* V5 T3b : positions des figurines (leurs PIEDS) en repère LOGIQUE, remplies à chaque image par drawFigures
+   et lues par le repassage d'occlusion du mur de face. */
+var FIGW = [];
 function drawFigures(ctx, s, sy, fs, T, mini, evening, cam, sc) {
   var order = app.managers.slice().sort(function (a, b) { return (tb.pos[a.id] || { y: 0 }).y - (tb.pos[b.id] || { y: 0 }).y; });
   order.forEach(function (m) {
@@ -2793,6 +2872,7 @@ function drawFigures(ctx, s, sy, fs, T, mini, evening, cam, sc) {
     var h = heroOf(m.id), act = h ? tb.placed[m.id] : 'dead', mk = tb.markers || { injured: {}, levelUp: {}, limping: {} };
     var pact = h ? (tb.placed[m.id] || 'idle') : 'dead';
     var p = figurePos(pact, p0, cam), fx = camX(cam, p.x) * s, fy = camY(cam, p.y) * sy;
+    FIGW.push({ x: p.x, y: p.y });
     if (sc) sc.figures.push({ id: m.id, act: pact, out: !!OUT_ACTS[pact], x: r1(fx), y: r1(fy) });
     drawFigure(ctx, { x: fx, y: fy, fs: fs, color: CLASS_COLOR[h ? h.class_id : ''] || T.accent, initial: m.name.charAt(0).toUpperCase(), name: mini ? '' : m.name, row: p0.row || 0, id: m.id,
       ghost: !act || act === 'dead', dead: !h, seated: act === 'rest', lying: act === 'injured', limping: !!mk.limping[m.id], star: !!mk.levelUp[m.id], cross: act === 'injured', mine: m.id === ME, armed: act === 'defend' || act === 'raid', solo: act === 'solo', aura: act === 'raid' }, T, evening);
@@ -2850,17 +2930,39 @@ function drawStar(ctx, cx, cy, r, color) {
    sur l'autre, jamais un débordement du cadre, et de préférence jamais sur un toit. Publié dans
    __scene.labels, boîtes en pixels canvas, telles qu'elles sont dessinées. */
 var LAB = [];
+/* Gravité des obstacles du placeur. Un toit vaut 1 : le banc exige zéro recouvrement. Le MUR DU FOND est presque
+   aussi grave (une bulle posée dessus se perd dans la pierre, c'est le défaut signalé après T3). Le mur de FACE est
+   léger : les figurines se tiennent juste devant lui, l'en écarter trop enverrait leur nom à l'autre bout de la cour
+   — et la proximité prime tant qu'il n'y a pas de vrai recouvrement. Le ciel vide est entre les deux. */
+var LAB_WALL_BACK_K = 0.95, LAB_WALL_FRONT_K = 0.3, LAB_SKY_K = 0.7;
+/* Rayon de confort d'une étiquette (px) et raideur de la pénalité au-delà. */
+var LAB_NEAR = 34, LAB_FAR = 26;
+/* V5 T3b (2026-09-19, correctif) : DEUX familles d'obstacles, pas une.
+   — DURS (toits, parcelles à bâtir, pastille d'heure) : un INTERDIT. Le contrat dit « aucune étiquette ne
+     recouvre un bâtiment » ; une part au-delà de LAB_HARD_MAX élimine la candidate au lieu de lui coûter cher.
+     Le coût de l'éloignement étant devenu quadratique (jusqu'à ~3 700), une pénalité plate de 320 ne pesait
+     plus rien : la plaque « Chapelle à bâtir » préférait mordre l'infirmerie de 24 % plutôt que de s'écarter.
+   — MOUS (murs, ciel) : un COÛT, pondéré par LAB_*_K, qui cède devant la proximité. */
+var LAB_SOFT_W = 320, LAB_HARD_MAX = 0.02;
 function labelAdd(o) { LAB.push(o); }
 function boxHit(a, b, pad) { var m = pad || 0; return a.x < b.x + b.w + m && a.x + a.w + m > b.x && a.y < b.y + b.h + m && a.y + a.h + m > b.y; }
 /* Positions candidates, de la plus proche à la plus lointaine : dessous, quinconce, puis au-dessus.
    Le tri par coût garde l'étiquette PRÈS de ce qu'elle désigne au lieu de l'expédier à l'autre bout. */
 function labCands(l) {
   var out = [], name = l.kind === 'name', i, j;
-  var dxs = [0, -10, 10, -20, 20, -32, 32, -46, 46, -62, 62, -80, 80, -100, 100, -124, 124];
-  var dys = name ? [0, 7, 14, 21, 28, 36, 44, 53, -1, -10, -19, -28, -38, -50] : [0, -10, 10, -20, 20, -32, 32, -46, 46, -62, -80, -102, -126];
+  /* V5 T3b : grille de candidates RESSERRÉE (pas de 6 px près de l'ancre au lieu de 10, deux fois plus de
+     positions sous 40 px). Le placeur prend la première position propre : plus elles sont denses près de la
+     figurine, moins l'étiquette part au loin quand la cour est chargée. */
+  var dxs = [0, -6, 6, -12, 12, -18, 18, -26, 26, -34, 34, -44, 44, -56, 56, -70, 70, -86, 86, -104, 104, -124, 124];
+  var dys = name ? [0, 4, 8, 12, 17, 22, 28, 34, 41, 48, 56, -1, -6, -12, -19, -27, -36, -46, -58]
+                 : [0, -6, 6, -12, 12, -19, 19, -27, 27, -36, 36, -46, 46, -58, -72, -88, -106, -126];
   for (i = 0; i < dys.length; i++) for (j = 0; j < dxs.length; j++) {
     var up = name && dys[i] < 0, base = name ? (up ? l.top - l.h : l.y) : l.y - l.h;
     var cost = Math.abs(dxs[j]) * 1.15 + Math.abs(dys[i]) * (dys[i] < 0 ? 1.5 : 1) + (up ? 10 : 0);
+    /* V5 T3b : l'éloignement coûte de plus en plus cher au-delà du rayon de confort. Avant, le coût était
+       linéaire (124 px ne coûtaient que 143) : une étiquette préférait partir à l'autre bout de la cour plutôt
+       que de mordre un pan de muraille. Le terme carré rend cet exil plus cher qu'un léger recouvrement. */
+    if (cost > LAB_NEAR) cost += (cost - LAB_NEAR) * (cost - LAB_NEAR) / LAB_FAR;
     out.push({ x: l.x + dxs[j] - l.w / 2, y: base + dys[i], c: cost });
   }
   out.sort(function (a, b) { return (a.c - b.c) || (a.y - b.y) || (a.x - b.x); });
@@ -2868,19 +2970,36 @@ function labCands(l) {
 }
 function labFit(box, W, H) { return box.x >= 3 && box.y >= 3 && box.x + box.w <= W - 3 && box.y + box.h <= H - 3; }
 function labFree(box, placed, pad) { for (var i = 0; i < placed.length; i++) if (boxHit(box, placed[i], pad)) return false; return true; }
-/* Part de l'étiquette qui mord sur un bâtiment : sert de pénalité, pas d'interdit. */
+/* Part de l'étiquette qui mord sur un obstacle, pondérée par la gravité de l'obstacle : un toit est pire qu'un
+   pan de muraille, un pan de muraille pire que le ciel vide. Sert de pénalité, pas d'interdit. */
 function labCover(box, blocks) {
   var a = 0, area = Math.max(1, box.w * box.h);
   for (var i = 0; i < blocks.length; i++) {
     var b = blocks[i], ox = Math.min(box.x + box.w, b.x + b.w) - Math.max(box.x, b.x), oy = Math.min(box.y + box.h, b.y + b.h) - Math.max(box.y, b.y);
-    if (ox > 0 && oy > 0) a += ox * oy;
+    if (ox > 0 && oy > 0) a += ox * oy * (b.k === undefined ? 1 : b.k);
   }
   return Math.min(1, a / area);
 }
 function labelLayout(ctx, W, H, sc) {
-  var placed = [], blocks = [], kx = W / LW, ky = H / LH;      /* __scene est en repère logique, les étiquettes en pixels */
-  if (sc) sc.buildings.forEach(function (b) { blocks.push({ x: b.x * kx, y: b.y * ky, w: b.w * kx, h: b.h * ky }); });
-  blocks.push({ x: W - 72, y: 4, w: 68, h: 28 });                 /* la pastille d'heure */
+  var placed = [], hard = [], soft = [], kx = W / LW, ky = H / LH;   /* __scene est en repère logique, les étiquettes en pixels */
+  if (sc) sc.buildings.forEach(function (b) { hard.push({ x: b.x * kx, y: b.y * ky, w: b.w * kx, h: b.h * ky, k: 1 }); });
+  /* V5 T3b (correctif) : une PARCELLE À BÂTIR est un obstacle dur elle aussi — la plaque qui la nomme se pose
+     au-dessus ou à côté, jamais sur son assise (on ne lit pas « Chapelle à bâtir » posé sur la chapelle absente). */
+  if (sc) (sc.lots || []).forEach(function (b) { hard.push({ x: b.x * kx, y: b.y * ky, w: b.w * kx, h: b.h * ky, k: 1 }); });
+  hard.push({ x: W - 72, y: 4, w: 68, h: 28, k: 1 });              /* la pastille d'heure */
+  /* V5 T3b : l'ENCEINTE et le CIEL sont des obstacles eux aussi. Sans eux, une bulle « X se repose » se posait
+     sur le mur du fond (illisible sur la pierre) ou flottait dans le ciel, sans rien derrière elle. */
+  if (sc && sc.wall) {
+    var wb = sc.wall.back, wf = sc.wall.front;
+    if (wb && wb.y > wb.crest) soft.push({ x: wb.x0 * kx, y: wb.crest * ky, w: (wb.x1 - wb.x0) * kx, h: (wb.y - wb.crest) * ky, k: LAB_WALL_BACK_K });
+    if (wf && wf.y > wf.crest) (wf.segs || []).forEach(function (sg) {
+      soft.push({ x: sg[0] * kx, y: wf.crest * ky, w: (sg[1] - sg[0]) * kx, h: (wf.y - wf.crest) * ky, k: LAB_WALL_FRONT_K });
+    });
+  }
+  if (sc && sc.camera) {                                          /* le ciel : au-dessus de la ligne d'horizon de la caméra */
+    var skyY = (sc.camera.ground - (GROUND0 - HORIZON) * sc.camera.zoom / 100) * ky;
+    if (skyY > 2) soft.push({ x: 0, y: 0, w: W, h: skyY, k: LAB_SKY_K });
+  }
   LAB.forEach(function (l) {
     ctx.font = uiFont(l.size, l.kind === 'name' ? 600 : 600);
     var w = 0; l.lines.forEach(function (s) { w = Math.max(w, ctx.measureText(s).width); });
@@ -2894,7 +3013,8 @@ function labelLayout(ctx, W, H, sc) {
       for (k = 0; k < cands.length; k++) {
         var c = { x: Math.round(cands[k].x), y: Math.round(cands[k].y), w: l.w, h: l.h };
         if (!labFit(c, W, H) || !labFree(c, placed, 2)) continue;
-        var sc2 = cands[k].c + 320 * labCover(c, blocks);      /* proche d'abord, sans toit dessous si possible */
+        if (labCover(c, hard) > LAB_HARD_MAX) continue;        /* un toit ou une parcelle : interdit, pas un coût */
+        var sc2 = cands[k].c + LAB_SOFT_W * labCover(c, soft); /* proche d'abord, hors de la pierre si possible */
         if (sc2 < bestScore) { bestScore = sc2; box = c; }
         if (bestScore <= cands[k].c) break;                   /* aucune candidate suivante ne peut faire mieux */
       }
@@ -2903,7 +3023,8 @@ function labelLayout(ctx, W, H, sc) {
         for (var ty = 3; ty + l.h <= H - 3; ty += 6) for (var tx = 3; tx + l.w <= W - 3; tx += 10) {
           var c2 = { x: tx, y: ty, w: l.w, h: l.h };
           if (!labFree(c2, placed, 2)) continue;
-          var d = Math.abs(tx + l.w / 2 - l.x) + Math.abs(ty - l.y) * 1.4;
+          /* le balayage garde la même hiérarchie : d'abord ne rien recouvrir de dur, ensuite rester près de l'ancre */
+          var d = Math.abs(tx + l.w / 2 - l.x) + Math.abs(ty - l.y) * 1.4 + 4000 * labCover(c2, hard) + LAB_SOFT_W * labCover(c2, soft);
           if (d < bd) { bd = d; best = c2; }
         }
         box = best || { x: 3, y: 3, w: l.w, h: l.h };

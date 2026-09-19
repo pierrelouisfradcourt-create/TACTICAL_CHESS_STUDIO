@@ -9,6 +9,11 @@
 //     tous portent sur l'état de la grille (mur en place, Drake au sol, armure fissurée, rejetons immobilisés…),
 //     sauf quatre objectifs de verbe explicitement marqués VERBE dans la table (riposte scellée, riposte détournée,
 //     portail franchi, corps d'élément) où l'état visé EST le verbe de la spé.
+// (1b) CONTRE-SCÉNARIO de l'Assassin (V5 T3b) : sur une cible INTACTE il doit être strictement le moins bon des trois.
+//     Son verbe refondu (« achever ») lui donne des dégâts qui croissent avec les PV MANQUANTS de la cible ; le prix de
+//     cette spécialité est qu'il ouvre mal. Sans ce contrôle, la pente pourrait être relevée jusqu'à le rendre bon partout.
+// (1c) le mur héroïque du Templier (V5 T3b) : ses 120 PV sont désormais LUS — le souffle qu'il arrête les entame,
+//     un bouclier replanté garde ses ébréchures, et à zéro il vole en éclats. C'était la valeur morte signalée en T3.
 // (2) les 26 spés sont atteignables et chacune est choisie au moins une fois sur 40 graines ;
 // (3) 80 % des héros spécialisés au jour 22 (plans par défaut) et proposition au seuil §6.1 ;
 // (4) `choose_spec` légal accepté / illégal refusé avec sa raison (héros non hybride, spé d'une autre voie, inconnue,
@@ -18,6 +23,9 @@
 // (6) variance de l'effet de chaque spé (ADR-002 : une métrique qui classe ou calibre prouve d'abord sa variance) ;
 // (7) Derby des Lames : joué aux jours 26-28, la Bannière se tient et se perd, le derby est gagnable, les rivaux
 //     reviennent au complet la nuit, le Capitaine vole un tour ;
+// (7b) CALIBRAGE du Derby (V5 T3b) : le taux de victoire de la politique par défaut sur 30 saisons tient dans la
+//     bande 40-60 %. Une borne haute autant qu'une borne basse : un derby imperdable ne vaut pas mieux qu'un
+//     derby ingagnable. Mesure d'avant recalibrage : 3 gagnés sur 13 (23 %).;
 // (8) déterminisme : 30 graines × 30 jours rejouées à l'identique (spés et derby compris) ;
 // (9) viewModel : VM.roster[].spec, VM.choice (type spécialisation, deux options, une recommandation), VM.respec
 //     sans `undefined`.
@@ -142,17 +150,12 @@ const SCEN = {
     goal: (R, ctx) => R.boss.hp * 100 <= ctx.hp0 * 85 && st(R.boss, 'esprit_cendre') && st(R.boss, 'brule') },
   veilleur: { raid: 'raid_mountain', label: 'Drake, souffle : blinder une case pour trois passages',
     goal: R => { for (const k of Object.keys(R.zones)) { const z = R.zones[k]; if (z.zone_id === 'esprit_garde' && (z.power || 0) >= 60 && z.turns_left >= 2) return true; } return false; } },
-  assassin: { raid: 'raid_mountain', label: 'Drake chancelant : emporter le quart de la réserve en UN tour (fenêtre de 2 tours)',
-    setup: R => { R.boss.states.push({ id: 'chancelant', turns: 2, value: 0 }); },
-    goal: (R, ctx) => {
-      if (ctx.burst) return true;
-      if (!R.pass) return false;
-      const key = R.pass_count + '/' + R.pass.turn;
-      ctx.hpAt = ctx.hpAt || {};
-      if (ctx.hpAt[key] === undefined) ctx.hpAt[key] = R.boss.hp;
-      if ((ctx.hpAt[key] - R.boss.hp) * 100 >= ctx.hp0 * 22) ctx.burst = true;
-      return !!ctx.burst;
-    } },
+  // V5 T3b (2026-09-19) : l'Assassin n'est plus mesuré sur un burst (c'était le doublon reproché en T3), mais sur son
+  // VERBE refondu — ACHEVER. Cible déjà entamée, la tourbière la nourrit à chaque tour : celui qui traîne ne finit pas.
+  // Contre-scénario obligatoire en (1b) : sur une cible intacte il doit être le MOINS bon des trois.
+  assassin: { raid: 'raid_marsh', label: 'Hydre entamée (35 % de réserve) que la tourbière nourrit : la mettre à terre',
+    setup: R => { R.boss.hp = Math.trunc(R.boss.hp_max * 35 / 100); },
+    goal: R => R.boss.hp <= 0 || R.status === 'won' },
   piegeur: { raid: 'raid_forest', label: 'Sylvain P2, rejetons : les clouer sur place',
     setup: (R, env, u) => { R.boss.hp_max *= 4; R.boss.hp = R.boss.hp_max; foe(R, u.x - 1, u.y - 2, { name: 'Rejeton A', hp: 200 }); foe(R, u.x + 1, u.y - 2, { name: 'Rejeton B', hp: 200 }); foe(R, u.x, u.y - 3, { name: 'Rejeton C', hp: 200 }); },
     goal: (R, ctx) => { ctx.caught = ctx.caught || {}; for (const v of R.units.filter(x => x.side === 'boss' && x.kind === 'add')) if (v.hp <= 0 || st(v, 'immobilise')) ctx.caught[v.id] = 1; return Object.keys(ctx.caught).length >= 2; } },
@@ -239,6 +242,53 @@ const branch = [];
   console.log('(* = objectif non atteint dans le plafond)');
   check('(1) test de branche : chacune des 26 spés résout son scénario en ≥ 25 % de tours de moins que sa sœur ET que son hybride nu',
     failed.length === 0, failed.length ? 'À FUSIONNER OU RETRAVAILLER : ' + failed.map(f => f.name + ' (' + f.spec + (f.spec_solved ? '' : '*') + ' vs sœur ' + f.sis + ', hybride ' + f.hyb + ')').join(' · ') : branch.length + '/26 spés passent leur propre test');
+}
+
+// ---------- (1b) contre-scénario de l'Assassin : sur une cible INTACTE il doit être le moins bon ----------
+// V5 T3b : le prix de la spécialité. « Curée » divise ses dégâts sur une cible à pleine réserve ; s'il était aussi bon
+// qu'un Traqueur nu au premier coup, le verbe « achever » ne coûterait rien et l'Assassin redeviendrait un second burst.
+{
+  const intact = { raid: 'raid_marsh', label: 'Hydre INTACTE : lui prendre un cinquième de sa réserve',
+    setup: R => { R.boss.hp = R.boss.hp_max; },
+    goal: (R, ctx) => R.boss.hp * 100 <= ctx.hp0 * 80 };
+  const SCEN_SAVE = SCEN.assassin;
+  SCEN.assassin = intact;
+  const a = runScenario('assassin', 'spec', 101), b = runScenario('assassin', 'sister', 101), c = runScenario('assassin', 'hybrid', 101);
+  SCEN.assassin = SCEN_SAVE;
+  noteCasts(a.R); noteCasts(b.R); noteCasts(c.R);
+  console.log('--- (1b) contre-scénario : ' + intact.label + ' ---');
+  console.log('      Assassin spé ' + a.turns + (a.solved ? '' : '*') + ' · sœur (piegeur) ' + b.turns + (b.solved ? '' : '*') + ' · hybride nu (traqueur) ' + c.turns + (c.solved ? '' : '*'));
+  check('(1b) contre-scénario : sur une cible intacte l\'Assassin est strictement le MOINS bon des trois (prix de sa spécialité)',
+    a.turns > b.turns && a.turns > c.turns, 'spé ' + a.turns + ' · sœur ' + b.turns + ' · hybride nu ' + c.turns + ' tours');
+}
+
+// ---------- (1c) le mur héroïque du Templier est DESTRUCTIBLE (limite T3 levée en T3b) ----------
+// T3 laissait 120 PV écrits en données et jamais lus : le mur disparaissait à l'expiration, rien ne pouvait le briser.
+// Désormais ce qu'il arrête l'use (souffle, fournaise, spores) ; replanté sur la même case il garde ses ébréchures.
+{
+  const env = makeEnv(101, 'paladin', 'templier', 20);
+  const R = I.newRaid(env, 'raid_mountain');
+  const log = [];
+  const wall = () => { for (const k of Object.keys(R.zones)) if (R.zones[k].zone_id === 'mur_heros') return R.zones[k]; return null; };
+  const hps = [];
+  for (let pass = 0; pass < 3; pass++) {
+    env.day = 20 + pass;
+    if (I.beginPass(R, env, 'h_test', log)) break;
+    const u0 = I.heroUnit(R);
+    const tx = u0.x + Math.sign(R.boss.x - u0.x), ty = u0.y + Math.sign(R.boss.y - u0.y);
+    I.applyPassAction(R, env, { type: 'cast', spell_id: 'bouclier_plante', x: tx, y: ty }, log);
+    const w0 = wall();
+    hps.push(w0 ? w0.hp : 0);
+    let guard = 0;
+    while (R.pass && !R.pass.done && guard++ < 40) if (I.applyPassAction(R, env, { type: 'end_turn' }, log)) break;
+    if (R.pass && !R.pass.done) I.applyPassAction(R, env, { type: 'end_pass' }, log);
+    if (R.status !== 'active') break;
+  }
+  const used = R.stats.mech.mur_heros_use || 0, broken = R.stats.mech.mur_heros_brise || 0;
+  const chipped = hps.some(v => v > 0 && v < 120);
+  check('(1c) mur héroïque du Templier : le souffle qu\'il arrête lui prend des PV, il garde ses ébréchures quand on le replante, et il finit par voler en éclats',
+    used >= 2 && broken >= 1 && chipped,
+    'PV au moment de planter : ' + hps.join(' → ') + ' · ' + used + ' coup(s) encaissé(s) · ' + broken + ' bouclier(s) brisé(s)');
 }
 
 // ---------- (2) et (3) atteignabilité, seuils, distribution ----------
@@ -431,7 +481,8 @@ function specsForHybridTest(hid) { return SPECS.filter(S => S.hybrid === hid); }
 // ---------- (7) Derby des Lames ----------
 {
   let played = 0, won = 0, lost = 0, holds = 0, steals = 0, rivalDays = 0, bannerThreat = 0, dragonBusy = 0, startDays = {};
-  for (let seed = 1; seed <= 16; seed++) {
+  const SEEDS = 30;                                  // V5 T3b : l'échantillon passe de 16 à 30 saisons pour mesurer un TAUX, pas une anecdote
+  for (let seed = 1; seed <= SEEDS; seed++) {
     let s = sim.newGame(seed, data, { managers: managersFor(seed) });
     for (let d = 0; d < 30; d++) {
       s = sim.resolveDay(s, acts(s)).state;
@@ -447,8 +498,15 @@ function specsForHybridTest(hid) { return SPECS.filter(S => S.hybrid === hid); }
     } else dragonBusy++;
   }
   check('(7) Derby des Lames : joué en fin de saison (jours 26-28), gagnable et perdable, la Bannière se tient et se fait menacer, le Capitaine vole un tour, les trois rivaux sont sur la grille',
-    played >= 12 && won > 0 && lost > 0 && holds > 0 && bannerThreat > 0 && steals > 0 && rivalDays > 0,
-    played + '/16 derbys joués (' + dragonBusy + ' saisons où un dragon occupait la grille) · départs ' + JSON.stringify(startDays) + ' · ' + won + ' gagnés / ' + lost + ' perdus · tenues de Bannière ' + holds + ' · Bannière menacée ' + bannerThreat + ' · vols de tour ' + steals + ' · journées à 3 rivaux ' + rivalDays);
+    played >= 22 && won > 0 && lost > 0 && holds > 0 && bannerThreat > 0 && steals > 0 && rivalDays > 0,
+    played + '/' + SEEDS + ' derbys joués (' + dragonBusy + ' saisons où un dragon occupait la grille) · départs ' + JSON.stringify(startDays) + ' · ' + won + ' gagnés / ' + lost + ' perdus · tenues de Bannière ' + holds + ' · Bannière menacée ' + bannerThreat + ' · vols de tour ' + steals + ' · journées à 3 rivaux ' + rivalDays);
+  // (7b) V5 T3b — CALIBRAGE mesuré : avant recalibrage (banner_lost_max 2, Rustre 120 PV) la politique par défaut
+  // gagnait 3 derbys sur 13 (23 %) ; une guilde qui a joué sa saison sans être parfaite doit pouvoir l'emporter.
+  // Cible : environ une victoire sur deux, en gardant une vraie possibilité de perdre — donc une BANDE, pas un chiffre.
+  const rate = played ? Math.round(won * 100 / played) : 0;
+  check('(7b) calibrage du Derby : avec la politique par défaut le taux de victoire tient dans la bande 40-60 % (ni gagné d\'avance, ni imperdable)',
+    played > 0 && rate >= 40 && rate <= 60 && won > 0 && lost > 0,
+    won + ' gagnés / ' + played + ' joués = ' + rate + ' % (bande visée 40-60 %, échantillon ' + SEEDS + ' saisons)');
 }
 
 // ---------- (8) déterminisme ----------

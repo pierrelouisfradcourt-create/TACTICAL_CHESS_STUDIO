@@ -6147,12 +6147,12 @@
       "steal_pa": 2,
       "banner_hp": 200,
       "banner_hold_win": 3,
-      "banner_lost_max": 2,
+      "banner_lost_max": 3,
       "rivals": [
         {
           "role": "warrior",
           "name": "Rustre",
-          "hp": 120,
+          "hp": 100,
           "atk": 22,
           "def": 12,
           "spd": 7,
@@ -7580,9 +7580,10 @@
       "effects": [],
       "effect_labels": [
         "la case devient un mur héroïque (120 PV, 2 ripostes)",
-        "bloque la ligne de vue, le souffle et les zones"
+        "bloque la ligne de vue, le souffle et les zones",
+        "le souffle, la fournaise et les spores l'usent : à 0 PV il vole en éclats"
       ],
-      "description": "Le Templier plante son bouclier : la case devient un mur héroïque de 120 PV qui persiste 2 ripostes, coupe la ligne de vue et arrête le souffle."
+      "description": "Le Templier plante son bouclier : la case devient un mur héroïque de 120 PV qui persiste 2 ripostes, coupe la ligne de vue et arrête le souffle. Ce qu'il arrête l'use — souffle, fournaise et spores lui prennent des PV, et à zéro il vole en éclats."
     },
     {
       "id": "charge_foi",
@@ -8441,14 +8442,14 @@
       "spec_id": "assassin",
       "name": "Lame dans le dos",
       "verb": "exécuter",
-      "cost_pa": 5,
+      "cost_pa": 4,
       "range_min": 1,
       "range_max": 1,
       "los": false,
       "line_only": false,
       "shape": "single",
       "r": 0,
-      "power": 120,
+      "power": 50,
       "magic": false,
       "target": "enemy",
       "cooldown": 99,
@@ -8456,11 +8457,17 @@
       "anchor": false,
       "effects": [],
       "effect_labels": [
-        "200 % depuis le dos",
-        "300 % si la cible chancelle",
+        "50 % sur une cible intacte",
+        "+26 % par tranche de 10 % de réserve perdue",
+        "+40 % depuis le dos",
+        "sous 20 % de réserve : achève un rejeton, coup doublé sur un monstre",
         "journalier"
       ],
-      "description": "Depuis le dos : 200 %, et 300 % si la cible chancelle. Une fois par passage."
+      "description": "Il ne frappe pas le premier : il achève. 50 % sur une cible intacte, +26 % par tranche de dix pour cent de réserve perdue, +40 % depuis le dos ; sous 20 % de réserve il achève un rejeton et double son coup sur un monstre. Une fois par passage.",
+      "exec_step": 26,
+      "exec_back": 40,
+      "exec_hp_pct": 20,
+      "exec_boss_pct": 200
     },
     {
       "id": "ombre_longue",
@@ -9962,12 +9969,19 @@
         "raid_mountain",
         "raid_marsh"
       ],
-      "identity": "Il attend la fenêtre et la referme d'un seul coup dans le dos.",
-      "distinction": "Le Piégeur prépare le terrain, l'Assassin conclut.",
+      "identity": "Il ne commence jamais un combat : il le termine. Chaque blessure de sa cible rend sa lame plus lourde.",
+      "distinction": "Le Piégeur ouvre et immobilise, l'Assassin achève ; sur une cible intacte il frappe moins fort que n'importe quel Traqueur.",
       "spells": [
         "lame_dos",
         "ombre_longue"
-      ]
+      ],
+      "passive": {
+        "id": "curee",
+        "name": "Curée",
+        "full_pct": 60,
+        "step_pct": 13,
+        "label": "Curée : 60 % de ses dégâts sur une cible intacte, +13 points par tranche de dix pour cent de réserve perdue (190 % sur une cible à terre)."
+      }
     },
     {
       "id": "piegeur",
@@ -9981,7 +9995,7 @@
         "raid_derby"
       ],
       "identity": "Il ne court jamais après un rejeton : il le fait venir sur ses mâchoires.",
-      "distinction": "L'Assassin exécute, le Piégeur immobilise et enchaîne.",
+      "distinction": "L'Assassin achève ce qui tombe, le Piégeur immobilise et enchaîne.",
       "spells": [
         "piege_lourd",
         "rabattage"

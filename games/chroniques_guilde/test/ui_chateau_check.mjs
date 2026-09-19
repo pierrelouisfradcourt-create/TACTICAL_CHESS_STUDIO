@@ -419,7 +419,28 @@ for (const age of [3, 4]) {
   const worst = cover.reduce((m, c) => c.r > m.r ? c : m, { id: '-', r: 0 });
   check(`âge ${age} : aucune étiquette ne recouvre un bâtiment (pire recouvrement ${Math.round(worst.r * 100)} %)`,
     worst.r <= 0.02, worst.id + ' ' + r1(worst.r));
+  // AJOUT V5 T3b (2026-09-19) : une parcelle à bâtir n'est pas un bâtiment (elle ne compte ni dans la silhouette ni
+  // dans les contrôles de cour), mais on ne lit pas « Chapelle à bâtir » posé sur l'assise de la chapelle absente.
+  // __scene.lots publie l'assise réellement dessinée (tente au campement, assise de pierre ensuite).
+  const lbx = (sc.lots || []).map(b => ({ id: b.id, x: b.x * kx, y: b.y * ky, w: b.w * kx, h: b.h * ky }));
+  const lcover = L.map(l => {
+    let a = 0; lbx.forEach(b => { const ox = Math.min(l.x + l.w, b.x + b.w) - Math.max(l.x, b.x), oy = Math.min(l.y + l.h, b.y + b.h) - Math.max(l.y, b.y); if (ox > 0 && oy > 0) a += ox * oy; });
+    return { id: l.id, r: a / (l.w * l.h) };
+  });
+  const lworst = lcover.reduce((m, c) => c.r > m.r ? c : m, { id: '-', r: 0 });
+  check(`âge ${age} : aucune étiquette ne recouvre une parcelle à bâtir (${lbx.length} parcelles, pire recouvrement ${Math.round(lworst.r * 100)} %)`,
+    lworst.r <= 0.02, lworst.id + ' ' + r1(lworst.r));
 
+  // AJOUT V5 T3b (2026-09-19) : OCCLUSION du mur de face. Les figurines sont dessinées APRÈS le monde ; une figurine
+  // dont les pieds tombent dans la bande de pierre (de la crête au pied du mur), hors de l'ouverture de la porte, se
+  // tient DERRIÈRE le mur et doit être repassée par lui. La page publie le couple mesuré dans __scene.front_occlusion.
+  // Mesure du 2026-09-19 : avec les ancrages actuels (FCOURT/FNEAR tous au-dessus de la crête, sortie par la porte)
+  // AUCUNE figurine ne tombe dans la bande — behind vaut 0 et le repassage reste désarmé, donc strictement neutre
+  // (0 pixel changé, mesuré). Le contrôle garde l'implication : si un ancrage descend un jour dans la bande, le
+  // repassage DOIT s'armer. Preuve positive faite hors banc sur une copie aux ancrages forcés (behind 3, 1 297 pixels).
+  const fo = sc.front_occlusion || { behind: 0, repaint: false };
+  check(`âge ${age} : occlusion — toute figurine dans la bande du mur de face est repassée par la pierre (${fo.behind} derrière le mur, repassage ${fo.repaint ? 'armé' : 'désarmé'})`,
+    fo.behind === 0 || fo.repaint === true, JSON.stringify(fo));
   check(`âge ${age} : enceinte habitée — aucune erreur console/page`, errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }

@@ -752,3 +752,230 @@ produire une ligne de journal). Aucun sort de spécialisation n'est décoratif.
 - Le charme (`fils_solides`) retourne un rejeton contre les siens ; il ne compte pas dans les dégâts du héros.
 - Non vérifié : le gate fun, la lisibilité des deux cartes sur téléphone, une saison complète jouée à la main avec reconversion,
   l'équilibre du Derby des Lames avec des passages humains (mesuré avec `raidDefaults` seulement), les deux spés en échec de branche.
+
+## V5 T3b — l'Assassin devient un finisseur, le Derby se recalibre, le château se finit
+
+*Tranche du 2026-09-19. Source des chiffres : exécution des bancs et sondes temporaires (`test/_m_assassin.mjs`,
+`test/_m_derby.mjs`, `test/_m_ui.mjs`, `test/_m_occl.mjs`, `test/_m_forced.mjs`), supprimées après mesure. L'état
+« avant » est celui du dépôt (`games/chroniques_guilde/`, commit `2f21b5c`), relu en lecture seule et rejoué avec
+les mêmes sondes. Aucune affirmation de cette section n'est reprise d'un rapport : tout est remesuré.*
+
+### 1. L'Assassin — nouvelle règle de finisseur
+
+Le reproche de T3 : l'Assassin était un **second burst**, doublon du Bretteur, et son test de branche échouait
+(il n'était meilleur ni que sa sœur le Piégeur, ni que le Traqueur nu). Son verbe devient **achever** : sa force
+vient des **PV manquants de la cible**, pas de sa propre frappe.
+
+| Donnée | Avant | Après |
+|---|---|---|
+| `lame_dos.power` | 120 | **50** |
+| `lame_dos.cost_pa` | 5 | **4** |
+| `lame_dos` — depuis le dos | × 200 % (multiplicateur) | **+ 40 points de puissance** (`exec_back`) |
+| `lame_dos` — cible chancelante | × 300 % | *supprimé* (le chancelant n'est plus un cas particulier de la lame) |
+| `lame_dos` — pente | aucune | **+ 26 points par tranche de 10 % de réserve perdue** (`exec_step`) |
+| `lame_dos` — seuil d'exécution | aucun | **20 % de réserve** (`exec_hp_pct`) : rejeton achevé, monstre à **200 %** (`exec_boss_pct`) |
+| passive `specs.assassin.passive` | aucune | **« Curée »** : `full_pct` 60, `step_pct` 13 |
+
+**Curée** (`assassinCurePct`) multiplie **tous** les dégâts de l'Assassin contre le camp adverse :
+60 % sur une cible intacte, + 13 points par tranche de dix pour cent de réserve perdue — donc 190 % sur une cible
+à terre. C'est le prix de la spécialité : il ouvre plus mal que n'importe qui.
+La politique par défaut (`specPolicy`) a été refaite avec : choix de la proie **la plus entamée** (tri par PV
+manquants puis par identifiant), déplacement vers son dos quand elle est mûre (`missingTenths ≥ 3` ou sous le
+seuil), paiement de `ombre_longue` seulement s'il reste de quoi enchaîner la lame dans le même tour, et aucune
+course derrière un Drake en vol.
+
+**Mesure** — `test/_m_assassin.mjs` : 8 graines × 3 raids, héros niveau 12 (320 PV, atk 64), politique par défaut,
+plafond 15 tours. Chiffre = **tours moyens pour atteindre l'objectif**, plus bas = meilleur.
+
+| Scénario | Avant : Assassin / Piégeur / Traqueur nu | Après : Assassin / Piégeur / Traqueur nu |
+|---|---|---|
+| cible **intacte**, lui prendre 20 % de sa réserve | 3,00 / 2,46 / **2,00** | **5,92** / 2,46 / **2,00** |
+| cible **entamée** (30 %), l'achever | 3,63 / 4,04 / **2,75** | **1,83** / 4,04 / 2,75 |
+| cible **à terre** (15 %), l'achever | 2,17 / 2,25 / **1,83** | **1,08** / 2,25 / 1,83 |
+
+Avant, l'Assassin était moins bon que le Traqueur nu **partout** — il n'avait pas d'identité. Après, il est le pire
+des trois sur une cible intacte et le meilleur dès qu'elle est entamée. C'est l'inversion recherchée.
+Le banc `tactic_t3_check` la scelle des deux côtés : test de branche (1) sur l'Hydre entamée (spé 2 · sœur 5 ·
+hybride nu 4) et **contre-scénario (1b)** sur l'Hydre intacte (spé 10 · sœur 2 · hybride nu 2), ajouté pour qu'on
+ne puisse pas relever la pente jusqu'à le rendre bon partout.
+
+### 2. Recalibrage du Derby des Lames
+
+| Donnée (`raids.raid_derby`) | Avant | Après |
+|---|---|---|
+| `banner_lost_max` (ripostes perdues d'affilée = défaite) | 2 | **3** |
+| rival `warrior` « Rustre » — PV | 120 | **100** |
+| `banner_hp`, `banner_hold_win`, autres rivaux | 200 · 3 · inchangés | identiques |
+
+Le journal disait « les rivaux tiennent la Bannière **deux** ripostes de suite » en dur ; il annonce désormais le
+compte réel (`R.banner_lost`).
+
+**Mesure** — `test/_m_derby.mjs` : 60 graines, saison complète de 30 jours, **politique par défaut** pour les cinq
+managers (aucun geste humain). 47 saisons sur 60 jouent effectivement le derby (dans les 13 autres un dragon
+occupe la grille et garde la priorité, cf. limites T3).
+
+| | Avant | Après |
+|---|---|---|
+| derbys gagnés | **14 / 47 = 29,8 %** | **22 / 47 = 46,8 %** |
+| tenues de Bannière (moyenne par derby) | 1,60 | 2,19 |
+| Bannière menacée (moyenne par derby) | 1,57 | 2,17 |
+| durée en journées | {1 j : 46, 2 j : 1} | {1 j : 40, 2 j : 5, 3 j : 2} |
+
+L'objectif « environ une victoire sur deux » est tenu, et le derby reste franchement perdable. Le banc ajoute
+**(7b)** : sur 30 saisons, le taux doit tenir dans la **bande 40-60 %** — une borne haute autant qu'une borne
+basse, parce qu'un derby imperdable ne vaut pas mieux qu'un derby ingagnable. Mesure du banc : **12 gagnés /
+24 joués = 50 %**. L'échantillon du contrôle (7) passe de 16 à 30 saisons pour mesurer un taux et non une anecdote.
+
+### 3. Le mur héroïque du Templier devient destructible
+
+Limite écrite noir sur blanc en T3 : « `mur_heros` a 120 PV en données mais n'est pas attaquable ». **Levée.**
+
+- `WALL_HP = 120` est maintenant une constante nommée, **lue** par le moteur (c'était un littéral mort).
+- `wearHeroWalls` : le **souffle** du Drake, la **fournaise** et les **spores** usent le bouclier qu'ils frappent
+  (dégâts = attaque du boss portée par la puissance du souffle, majorée de l'enrage). À 0 PV il vole en éclats.
+  Une flaque de **venin** ne l'use pas : seules les trois attaques ci-dessus le paient.
+- `breathBlockers` : le souffle annoncé mémorise **ce qui l'arrête** (une case qui coupe la ligne de vue casse la
+  rangée) ; quand il part, ces cases encaissent.
+- **Replanter** : un Templier peut replanter son bouclier sur sa propre case ébréchée ; le mur **garde ses
+  ébréchures** (`Math.min(was.hp, WALL_HP)`) au lieu de repartir neuf. Le ciblage `cell` l'autorise explicitement
+  (`mend`), des deux côtés — moteur **et** aperçu.
+- Compteurs de mécanique : `mur_heros_use`, `mur_heros_brise`.
+
+**Mesure** — banc `tactic_t3_check` (1c), Drake des monts, trois passages : PV au moment de planter
+**120 → 120 → 26**, 2 coups encaissés, 1 bouclier brisé.
+
+### 4. L'aperçu ne ment plus sur les cases occupées
+
+`raidCastWhy` (l'aperçu lu par l'interface) acceptait une case portant un **mur posé** — mur de glace, mur de
+terre, bouclier planté — que le moteur refusait ensuite via `passable`. Les deux côtés appliquent désormais la
+même règle, replantage de son propre bouclier compris (lu dans `view.grid.cells[].zone.mine`).
+
+### 5. Placeur d'étiquettes : deux familles d'obstacles
+
+Le rééquilibrage de la tranche avait ajouté trois obstacles **mous** pondérés et une pénalité d'éloignement
+**quadratique** :
+
+| Constante | Valeur | Rôle |
+|---|---|---|
+| `LAB_WALL_BACK_K` | 0,95 | le mur du fond : une bulle posée dessus se perd dans la pierre |
+| `LAB_WALL_FRONT_K` | 0,3 | le mur de face : les figurines se tiennent juste devant, la proximité prime |
+| `LAB_SKY_K` | 0,7 | le ciel vide : rien derrière l'étiquette |
+| `LAB_NEAR` / `LAB_FAR` | 34 px / 26 | rayon de confort et raideur de la pénalité au-delà |
+
+**Régression trouvée et corrigée (2026-09-19).** Le coût d'éloignement est devenu quadratique (jusqu'à ~3 700 pour
+une plaque), alors que le recouvrement d'un bâtiment restait une pénalité **plate de 320**. Le placeur préférait
+donc mordre un toit plutôt que de s'écarter : la plaque « Chapelle à bâtir » recouvrait **l'infirmerie** de 24 %
+(âge 3) et 22 % (âge 4) — les deux échecs de `ui_chateau_check`. (Le défaut était bien la plaque de la chapelle,
+mais le bâtiment mordu était l'infirmerie, pas la parcelle qu'elle nomme.)
+
+Correctif : le placeur distingue **deux familles**.
+- **Durs** — toits (`__scene.buildings`), **parcelles à bâtir** (`__scene.lots`, publiées par `sceneLot`), pastille
+  d'heure : un **interdit**. Une candidate dont le recouvrement dépasse `LAB_HARD_MAX` (2 %, la valeur même du
+  contrat) est éliminée, pas pénalisée. Le balayage de dernier recours garde la même hiérarchie (poids 4 000).
+- **Mous** — murs, ciel : un **coût** (`LAB_SOFT_W` = 320 × pondération `LAB_*_K`) qui cède devant la proximité.
+
+`__scene.lots` publie l'assise **réellement dessinée** (la tente au campement, l'assise de pierre ensuite), pas la
+boîte théorique du bâtiment absent. Une parcelle n'est pas un bâtiment : elle ne compte ni dans la silhouette ni
+dans les contrôles de cour, mais on ne lit pas « Chapelle à bâtir » posé sur l'assise de la chapelle absente.
+
+**Mesure** — `test/_m_ui.mjs`, graine 10, cinq âges, largeur 1280 (rapport de un). Étiquettes qui recouvrent un
+**mur** de plus de 2 % :
+
+| Âge | Avant la tranche | Après |
+|---|---|---|
+| 0 · 1 | 0 · 0 | 0 · 0 |
+| 2 (bourg) | **4** (pire 42 %) | **1** (pire 10 %) |
+| 3 (ville) | **2** (pire 80 %) | **0** |
+| 4 (château) | **4** (pire 82 %) | **3** (pire 50 %) |
+
+Recouvrement d'un **bâtiment** par une étiquette, mesuré par le banc (largeur 1280, `deviceScaleFactor` 2) :
+pire cas **24 % / 22 %** (âges 3 / 4) → **1 % / 0 %**.
+
+### 6. Chevauchement de bâtiments au bourg
+
+`BNEAR.warehouse` passe de `[322, 242]` à `[300, 232]`. Mesure à l'âge 2 : **2 paires** qui se chevauchent
+(dont `warehouse × hall`, 14 % du plus petit) → **aucune**.
+
+### 7. Occlusion figurine / mur de face
+
+Les figurines vivent en pixels du canevas : elles sont dessinées **après** le monde. Un héros dont les pieds
+tombent dans la bande de pierre du mur de face (de la crête au pied), hors de l'ouverture de la porte, se tient
+derrière ce mur et doit être repassé par lui.
+
+La première version du repassage (`drawWallFrontMask`) avait **deux défauts, tous deux mesurés** :
+1. elle ne repeignait **pas à l'identique** — le lavis doré (`goldWash`) et la moucheture de pierre manquaient,
+   si bien qu'elle **aplatissait** le mur de face ;
+2. elle s'exécutait **à chaque image**, alors qu'avec les ancrages actuels aucune figurine ne tombe jamais dans la
+   bande (`FCOURT` / `FNEAR` sont tous au-dessus de la crête, la sortie passe par la porte ou sous le pied du mur).
+
+Coût mesuré, sans rien masquer du tout : **1 241 à 4 419 pixels changés par image** (cinq scènes comparées au même
+rendu sans repassage).
+
+Correctif : repassage **fidèle** (bandeau + lavis + moucheture, exactement comme `drawWallFront`), **armé
+uniquement** quand `figuresBehindFront` compte au moins une figurine dans la bande, et **désarmé pendant le
+glissement de caméra** (`e.alpha < 1` : recomposer un mur translucide sur lui-même le rendrait opaque —
+l'occlusion est alors imparfaite le temps du glissement, et c'est assumé). Le couple mesuré est publié dans
+**`__scene.front_occlusion = { behind, repaint }`** ; le contrat est l'implication *behind > 0 ⇒ repaint*.
+
+**Mesure** — `test/_m_occl.mjs` : sur les cinq scènes (âges 2, 3, 4, fin de journée, jour de raid) `behind = 0`,
+repassage désarmé, **0 pixel** d'écart. **Preuve positive** (`test/_m_forced.mjs`, copie du tableau dont l'ancrage
+« repos » de la cour est descendu à y 360, dans la bande 335→372) : `behind = 3`, repassage armé, **1 297 pixels**
+d'écart avec la même copie sans repassage — la pierre passe bien devant la figurine.
+
+### 8. Code mort
+
+- `WALL_HP` remplace le littéral 120 et est désormais lu (§3).
+- `FIG_H`, introduit puis rendu inutile par la bonne formule d'occlusion, a été retiré.
+- Vérifié, **pas** du code mort : l'état `chancelant` reste consommé par huit autres mécaniques (décapitation de
+  l'Hydre, masse du boss, poussée, lecture d'états) même après sa sortie de `lame_dos`.
+
+### Contrôles ajoutés aux bancs
+- `tactic_t3_check` **(1b)** : contre-scénario de l'Assassin sur cible intacte — il doit être strictement le moins bon.
+- `tactic_t3_check` **(1c)** : le mur héroïque encaisse, garde ses ébréchures, finit par céder.
+- `tactic_t3_check` **(7b)** : taux de victoire du Derby dans la bande 40-60 % sur 30 saisons.
+- `ui_chateau_check` : **aucune étiquette ne recouvre une parcelle à bâtir** (âges 3 et 4, `__scene.lots`).
+- `ui_chateau_check` : **occlusion du mur de face** (âges 3 et 4, `__scene.front_occlusion`).
+
+### Preuves d'exécution (2026-09-19, fin de tranche)
+| Banc | Résultat |
+|---|---|
+| `node test/harness.mjs` | 19/19 (dont 10/10 moteur pur sous node) |
+| `node test/engine_extra.mjs` | 16/16 |
+| `node test/engine_v4_check.mjs` | 28/28 |
+| `node test/tactic_t1_check.mjs` | 26/26 |
+| `node test/tactic_t2_check.mjs` | 14/14 |
+| `node test/tactic_t3_check.mjs` | **14/14** (10/11 avant la tranche) |
+| `node test/ui_v2_check.mjs` | 52/52 |
+| `node test/ui_v3_check.mjs` | 35/35 |
+| `node test/ui_v4_check.mjs` | 52/52 |
+| `node test/ui_v5_check.mjs` | 48/48 |
+| `node test/ui_chateau_check.mjs` | **86/86** (82/82 avant, dont 2 échecs au début de cette tranche) |
+
+`data.js` a été régénéré depuis `data.json` et relu : les deux sont identiques champ pour champ.
+
+### Décisions et limites T3b
+- **Ce que la règle dure coûte.** Interdire tout recouvrement de bâtiment éloigne certaines étiquettes : au bourg,
+  la distance moyenne étiquette → figurine passe de **41 à 56 px** (graine 10), parce que le nom « Anselme »
+  mordait le toit de la taverne de 6,7 % et doit maintenant s'écarter. Le contrat (« aucune étiquette ne recouvre
+  un bâtiment ») prime sur la proximité ; c'est un choix, pas un effet de bord.
+- **La plaque de la chapelle se pose dans le ciel** aux âges 2 à 4. Sa parcelle est contre la tour est, au fond de
+  la cour : au-dessus il n'y a que le ciel, à droite l'infirmerie, à gauche le donjon. Le ciel est un coût mou
+  (0,7), le bâtiment un interdit — la plaque choisit le ciel. C'est lisible, mais ce n'est pas joli ; un vrai
+  correctif demanderait de déplacer l'ancrage `BCOURT.chapel`, pas de retoucher le placeur.
+- **Le gain de proximité du rééquilibrage n'est pas démontré.** Mesure sur la graine 10 : distance moyenne
+  étiquette → figurine par âge, avant la tranche 26 / 31 / 42 / 25 / 39 px, après le rééquilibrage seul
+  26 / 28 / 41 / 26 / 38 px. L'écart est dans le bruit. Ce que le rééquilibrage a réellement apporté, et qui est
+  mesuré, c'est la sortie des étiquettes de la pierre et du ciel (§5), pas un rapprochement.
+- **Chevauchement des bâtiments de COUR non corrigé.** Aux âges 3 et 4, `BCOURT` laisse 4 paires qui se
+  chevauchent, la pire étant `infirmary × tavern` (25 % du plus petit à l'âge 3, 19 % à l'âge 4). Défaut
+  antérieur à cette tranche, inchangé : la tranche portait sur le bourg. Corriger `BCOURT` toucherait les
+  contrôles d'enceinte (bâtiment entouré, bas masqué par le mur de face, silhouette) et mérite sa propre tranche.
+- **Le repassage d'occlusion est aujourd'hui une garde, pas un correctif visible.** Aucun ancrage actuel ne place
+  une figurine derrière le mur de face ; le contrôle du banc est donc vrai par vacuité (`behind = 0`). Il protège
+  le jour où un ancrage descendra dans la bande. La preuve positive est faite hors banc, sur une copie forcée.
+- **L'Assassin reste quasi jamais choisi par les plans par défaut** : 1 fois sur 40 graines (banc (2)), 0 fois sur
+  la saison type du banc (7). La refonte change ce qu'il fait, pas la fréquence à laquelle l'IA le prend.
+- **Non vérifié** : l'équilibre du Derby avec des passages humains (tout est mesuré avec `raidDefaults`) ; le
+  ressenti de l'Assassin manette en main ; la lisibilité de la plaque de chapelle dans le ciel sur téléphone ; le
+  comportement du repassage d'occlusion pendant un glissement de caméra (il est désarmé par construction, non
+  mesuré) ; la tenue du mur héroïque face à une fournaise de Drake enragé au-delà de trois passages.

@@ -67,6 +67,7 @@
   // 1. GRILLE : cases, distance, ligne de vue, formes, chemins
   // ===================================================================================
   const FLOOR = 0, WALL = 1, WATER = 2, PIT = 3;
+  const WALL_HP = 120;                              // V5 T3b : PV du bouclier planté (mur_heros) — lus par wearHeroWalls, plus une valeur morte
   function cidx(G, x, y) { return y * G.w + x; }
   function inb(G, x, y) { return x >= 0 && y >= 0 && x < G.w && y < G.h; }
   function manhattan(ax, ay, bx, by) { return Math.abs(ax - bx) + Math.abs(ay - by); }
@@ -331,6 +332,27 @@
     return dmg;
   }
   function damageFlat(R, env, t, n, log, srcLabel) { return applyHit(R, env, null, t, takenMods(t, n), log, srcLabel); }
+  // ---- V5 T3b (2026-09-19) : l'Assassin est un FINISSEUR, pas un second burst ----
+  // Sa force vient des PV MANQUANTS de la cible. « Curée » (passive de la spé, data.specs.assassin.passive) multiplie
+  // TOUS ses dégâts contre l'ennemi : full_pct sur une cible intacte (< 100 %, c'est le prix de sa spécialité),
+  // + step_pct par tranche de dix pour cent de réserve perdue. « Lame dans le dos » suit la même pente, et sous le
+  // seuil exec_hp_pct elle achève un rejeton ou double son coup sur un monstre (un boss ne s'achève jamais d'un mot).
+  function missingTenths(t) {
+    if (!t || !(t.hp_max > 0)) return 0;
+    return clamp(div(div(Math.max(0, t.hp_max - Math.max(0, t.hp)) * 100, t.hp_max), 10), 0, 10);
+  }
+  function assassinPassive(env) {
+    const S = specOf(env, 'assassin');
+    const P = (S && S.passive) || null;
+    return { full: P ? P.full_pct : 100, step: P ? P.step_pct : 0 };
+  }
+  function assassinCurePct(env, t) { const P = assassinPassive(env); return P.full + P.step * missingTenths(t); }
+  function assassinBlade(env) {
+    const s = spellsIndex(env).lame_dos || {};
+    return { base: s.power || 0, step: s.exec_step || 0, back: s.exec_back || 0,
+      low_pct: s.exec_hp_pct || 0, boss_pct: s.exec_boss_pct || 100 };
+  }
+  function assassinLow(env, t) { const B = assassinBlade(env); return !!t && t.hp * 100 <= t.hp_max * B.low_pct; }
   // Coup d'un attaquant (héros, invocation, add, piège) : variance + critique (RNG du raid) ; boss = valeur fixe (télégraphe exact).
   function damageFromPower(R, env, src, t, power, tags, spell, log, srcLabel) {
     let raw, crit = false;
@@ -349,6 +371,7 @@
     let dmg = dmgOf(raw, defEff(t, tags));
     if (crit) dmg = pct(dmg, 150);
     if (src.kind === 'hero' && hasState(src, 'defi') && t.side === 'boss') dmg = pct(dmg, 130);
+    if (src.kind === 'hero' && src.spec_id === 'assassin' && t.side === 'boss') dmg = pct(dmg, assassinCurePct(env, t));   // V5 T3b : Curée
     dmg = Math.max(1, takenMods(t, dmg));
     const done = applyHit(R, env, src, t, dmg, log, srcLabel);
     if (crit && log) log.push('Coup critique de ' + src.name + ' sur ' + t.name + ' : ' + done + ' dégâts.');
@@ -588,7 +611,15 @@
       case 'ally': if (!t || t.side !== 'guild') return 'il faut viser un allié'; break;
       case 'self': if (t !== u) return 'sort personnel (visez votre case)'; break;
       case 'summon': if (!t || t.kind !== 'summon') return 'il faut viser une invocation'; break;
-      case 'cell': if (t) return 'la case doit être libre'; if (!passable(R, x, y)) return 'case infranchissable'; break;
+      case 'cell': {
+        if (t) return 'la case doit être libre';
+        // V5 T3b : un Templier a le droit de REPLANTER sur son propre bouclier ébréché — c'est comme ça qu'un mur de
+        // 120 PV finit par céder (il garde ses ébréchures) au lieu de repartir neuf à chaque passage.
+        const own = R.zones[String(cidx(gridOf(R), x, y))];
+        const mend = s.id === 'bouclier_plante' && own && own.zone_id === 'mur_heros' && own.source_id === u.id;
+        if (!mend && !passable(R, x, y)) return 'case infranchissable';
+        break;
+      }
       case 'unit': if (!t) return 'il faut viser une unité'; break;
       case 'any': break;
     }
@@ -1053,9 +1084,11 @@
     switch (s.id) {
       // ---- 1A Templier : ancrer ----
       case 'bouclier_plante': {
-        R.zones[String(cidx(G, x, y))] = { zone_id: 'mur_heros', turns_left: 2, owner_kind: 'hero', source_id: u.id, owner_name: u.name, hp: 120 };
+        const wk = String(cidx(G, x, y)), was = R.zones[wk];
+        const left = (was && was.zone_id === 'mur_heros' && was.source_id === u.id && was.hp > 0) ? Math.min(was.hp, WALL_HP) : WALL_HP;
+        R.zones[wk] = { zone_id: 'mur_heros', turns_left: 2, owner_kind: 'hero', source_id: u.id, owner_name: u.name, hp: left };
         mech(R, 'bouclier_plante');
-        log.push(u.name + ' plante son bouclier en (' + x + ',' + y + ') : la case fait mur (120 PV, 2 ripostes).');
+        log.push(u.name + (left < WALL_HP ? ' replante son bouclier ébréché en (' : ' plante son bouclier en (') + x + ',' + y + ') : la case fait mur (' + left + ' PV, 2 ripostes).');
         return true;
       }
       case 'charge_foi': {
@@ -1315,11 +1348,20 @@
       // ---- 10A Assassin : exécuter ----
       case 'lame_dos': {
         if (!t || t.side !== 'boss') return true;
+        const A = assassinBlade(env);
         const back = isBoss(t) ? isBack(R, u) : u.y < t.y;
-        const power = hasState(t, 'chancelant') ? 300 : (back ? 200 : 120);
+        const low = assassinLow(env, t);
+        if (low && !isBoss(t)) {                                              // V5 T3b : sous le seuil, un rejeton est achevé
+          const done = applyHit(R, env, u, t, Math.max(1, t.hp), log, s.name);
+          mech(R, 'lame_dos'); mech(R, 'execution');
+          log.push(u.name + ' achève ' + t.name + ' : ' + done + ' dégâts, il ne se relève pas.');
+          return true;
+        }
+        let power = A.base + A.step * missingTenths(t) + (back ? A.back : 0);
+        if (low) { power = pct(power, A.boss_pct); mech(R, 'execution'); }     // un monstre ne s'achève pas : le coup est majoré
         const dmg = damageFromPower(R, env, u, t, powerOf({ power: power }, u), { magic: false }, s, log, s.name);
         mech(R, 'lame_dos');
-        log.push(u.name + (power === 300 ? ' frappe la nuque de ' : power === 200 ? ' plante sa lame dans le dos de ' : ' frappe de face ') + t.name + ' : ' + dmg + ' dégâts.');
+        log.push(u.name + (low ? ' vise le défaut de l\'armure de ' : back ? ' plante sa lame dans le dos de ' : ' frappe de face ') + t.name + ' : ' + dmg + ' dégâts.');
         return true;
       }
       case 'ombre_longue': { setRes(R, u, u.res_max || 3); mech(R, 'ombre_longue'); log.push(u.name + ' se fond dans l\'ombre : elle est pleine.'); return true; }
@@ -2060,6 +2102,40 @@
     }
     return cellsSorted(G, out);
   }
+  // V5 T3b (2026-09-19) : les 120 PV du bouclier planté du Templier servaient à rien — ils étaient écrits en données et
+  // jamais lus. Le mur est désormais DESTRUCTIBLE : tout ce que le monstre envoie dessus l'use, et il tombe quand il cède.
+  // Le souffle du Drake s'arrête sur le mur (breathCells casse la rangée) : c'est exactement là qu'il faut le faire payer.
+  function breathBlockers(R, env, tx, ty) {
+    const B = R.boss, f = fiche(R, env), G = gridOf(R);
+    const c = bossNearestCell(B, tx, ty), d = dirOf(c.x, c.y, tx, ty), p = { x: -d.y, y: d.x };
+    const out = [], half = div((f.breath_width || 3) - 1, 2);
+    for (let b = -half; b <= half; b++) {
+      for (let i = 1; i <= (f.breath_len || 6); i++) {
+        const x = c.x + d.x * i + p.x * b, y = c.y + d.y * i + p.y * b;
+        if (!inb(G, x, y)) break;
+        if (blocksLos(R, cidx(G, x, y))) { out.push({ x: x, y: y }); break; }
+      }
+    }
+    return cellsSorted(G, out);
+  }
+  function wearHeroWalls(R, env, cells, power, log) {
+    if (!power || !cells || !cells.length) return 0;
+    const G = gridOf(R), B = R.boss;
+    const hit = Math.max(1, pct(pct(B.atk, power), 100 + (R.enrage_pct || 0)));
+    let broken = 0;
+    for (const c of cells) {
+      const k = String(cidx(G, c.x, c.y)), z = R.zones[k];
+      if (!z || z.owner_kind !== 'hero' || z.zone_id !== 'mur_heros' || !(z.hp > 0)) continue;
+      z.hp -= hit;
+      mech(R, 'mur_heros_use');
+      if (z.hp <= 0) {
+        delete R.zones[k]; broken++;
+        mech(R, 'mur_heros_brise');
+        log.push('Le bouclier planté de ' + z.owner_name + ' vole en éclats en (' + c.x + ',' + c.y + ').');
+      } else log.push('Le bouclier planté de ' + z.owner_name + ' encaisse le coup : ' + z.hp + ' PV restants.');
+    }
+    return broken;
+  }
   // Venin de l'Hydre : deux flaques (cercle 1) autour de la case du héros, choisies sans tirage (la vue reste pure).
   function venomCells(R, env, tx, ty) {
     const f = fiche(R, env), G = gridOf(R);
@@ -2146,6 +2222,7 @@
       } else {
         let dmg = 0;
         for (const v of unitsIn(R, plan.cells)) if (v.side === 'guild') dmg += damageFromPower(R, env, B, v, f.spores_power, { magic: true }, null, log, 'les spores');
+        wearHeroWalls(R, env, plan.cells, f.spores_power, log);
         putZone(R, env, plan.cells, 'spores', 1, ['sanctuaire', 'piege']);
         log.push(tplOf(env.data, 'raid_riposte_spores', 'r' + R.riposte_count, { a: P.hero_name, n: dmg }));
       }
@@ -2155,16 +2232,18 @@
         let dmg = 0;
         for (const v of unitsIn(R, plan.cells)) if (v.side === 'guild') dmg += damageFromPower(R, env, B, v, f.furnace_power, { magic: true }, null, log, 'la fournaise');
         mech(R, 'fournaise');
+        wearHeroWalls(R, env, plan.cells, f.furnace_power, log);
         const t = bossTargets(R, env, f.target_rule);
         if (t) bossMove(R, env, f.furnace_move || 3, (x, y) => bodyDist(x, y, B, t.x, t.y), log);
         log.push(tplOf(env.data, 'raid_furnace', 'f' + R.riposte_count, { n: dmg, t: t ? t.name : 'la place' }));
       } else {
-        R.pending_breath = { cells: plan.cells.map(c => ({ x: c.x, y: c.y })), power: f.breath_power };
+        R.pending_breath = { cells: plan.cells.map(c => ({ x: c.x, y: c.y })), power: f.breath_power,
+          blockers: breathBlockers(R, env, cell.x, cell.y) };                 // ce qui arrête le souffle le paiera quand il tombera
         mech(R, 'souffle_annonce');
         log.push(tplOf(env.data, 'raid_breath', 'b' + R.riposte_count, { a: P.hero_name, n: plan.cells.length }));
       }
     } else if (kind === 'hydre') {
-      const n = putZone(R, env, plan.cells, 'venin', f.venom_turns || 2, ['sanctuaire', 'piege']);
+      const n = putZone(R, env, plan.cells, 'venin', f.venom_turns || 2, ['sanctuaire', 'piege']);   // une flaque de venin n'use pas un bouclier : seuls le souffle, la fournaise et les spores le paient
       mech(R, 'venin');
       for (const c of plan.cells) { const u = unitAt(R, c.x, c.y); if (u && u.side === 'guild') enterZone(R, env, u, R.zones[String(cidx(G, c.x, c.y))] || { zone_id: 'venin' }, log); }
       log.push(tplOf(env.data, 'raid_venom', 'v' + R.riposte_count, { a: P.hero_name, n: n }));
@@ -2202,7 +2281,7 @@
       R.banner_lost = (R.banner_lost || 0) + 1;
       mech(R, 'banniere_menacee');
       log.push(tplOf(env.data, 'derby_lost_hold', 'b' + R.riposte_count, {}));
-      if (R.banner_lost >= (f.banner_lost_max || 2)) { R.status = 'lost'; R.events.push({ kind: 'lost' }); log.push('Les rivaux tiennent la Bannière deux ripostes de suite : le derby est perdu.'); }
+      if (R.banner_lost >= (f.banner_lost_max || 2)) { R.status = 'lost'; R.events.push({ kind: 'lost' }); log.push('Les rivaux tiennent la Bannière ' + R.banner_lost + ' ripostes de suite : le derby est perdu.'); }
       return;
     }
     R.banner_lost = 0;
@@ -2235,6 +2314,7 @@
       dmg += damageFromPower(R, env, B, v, pb.power, { magic: true }, null, log, 'le souffle du Drake');
       hit++;
     }
+    wearHeroWalls(R, env, pb.blockers || [], pb.power, log);                  // V5 T3b : le bouclier qui arrête le souffle l'encaisse
     putZone(R, env, pb.cells, 'cendres', f.ash_turns || 2, ['sanctuaire']);
     mech(R, 'souffle');
     if (hit) log.push(tplOf(env.data, 'raid_breath_hit', 'bh' + R.riposte_count, { n: dmg }));
@@ -2656,7 +2736,10 @@
     switch (u.spec_id) {
       case 'templier': {
         const c = toward();
-        if (freeCell(R, c.x, c.y) && !zoneAt(R, c.x, c.y) && (a = cast('bouclier_plante', c.x, c.y))) return a;
+        const zc = zoneAt(R, c.x, c.y);
+        const mend = zc && zc.zone_id === 'mur_heros' && zc.source_id === u.id && zc.hp < WALL_HP;   // V5 T3b : on rafistole son propre bouclier
+        if (mend && (a = cast('bouclier_plante', c.x, c.y))) return a;
+        if (freeCell(R, c.x, c.y) && !zc && (a = cast('bouclier_plante', c.x, c.y))) return a;
         if (dB >= 2 && dB <= 4 && (a = cast('charge_foi', bc.x, bc.y))) return a;
         return null;
       }
@@ -2742,10 +2825,28 @@
         if (!zones('esprit_garde').length) { for (const c of freeNear(3)) if ((a = cast('esprit_gardien_majeur', c.x, c.y))) return a; }
         if (zones('esprit_garde').length && (a = cast('veille', u.x, u.y))) return a;
         return null;
-      case 'assassin':
-        if (dB === 1 && (a = cast('lame_dos', bc.x, bc.y))) return a;
+      case 'assassin': {
+        // V5 T3b : le finisseur choisit la cible la PLUS ENTAMÉE, va chercher son dos, paie l'ombre quand il lui reste
+        // de quoi enchaîner la lame dans le même tour, puis frappe. Sous le seuil, un rejeton ne se relève pas.
+        const blade = spellsIndex(env).lame_dos || { cost_pa: 0 }, shade = spellsIndex(env).ombre_longue || { cost_pa: 0 };
+        const ready = ((u.cooldowns || {}).lame_dos || 0) <= 0;
+        const preys = adds.slice().sort((v1, v2) => missingTenths(v2) - missingTenths(v1) || (v1.id < v2.id ? -1 : 1));
+        let mark = B, mx = bc.x, my = bc.y, md = dB;
+        if (preys.length && missingTenths(preys[0]) > missingTenths(B)) { mark = preys[0]; mx = preys[0].x; my = preys[0].y; md = manhattan(u.x, u.y, mx, my); }
+        const prime = assassinLow(env, mark) || missingTenths(mark) >= 3;
+        if (prime && md === 1) {
+          if (ready && (u.res || 0) < (u.res_max || 3) && P.pa >= blade.cost_pa + shade.cost_pa && (a = cast('ombre_longue', u.x, u.y))) return a;
+          if ((a = cast('lame_dos', mx, my))) return a;
+        }
+        const airborne = mark === B && (B.flying || 0) > 0;                  // un Drake en vol ne se poignarde pas : on ne court pas après
+        if (prime && ready && !airborne && md > 1 && P.pm > 0 && P.pa >= blade.cost_pa) {
+          const cur = md;
+          const c = bestReachable(R, u, P.pm, (x, y) => (bossZoneAt(R, x, y) ? null : manhattan(x, y, mx, my) * 10 + (y < my ? 0 : 1)));
+          if (c && c.s < cur * 10) return { type: 'move', to: { x: c.x, y: c.y } };
+        }
         if ((u.res || 0) < (u.res_max || 3) && (a = cast('ombre_longue', u.x, u.y))) return a;
         return null;
+      }
       case 'piegeur': {
         if (adds.length && zones('piege').length) {
           for (const v of adds) { const tr = zones('piege').map(cellOf).sort((p1, p2) => manhattan(p1.x, p1.y, v.x, v.y) - manhattan(p2.x, p2.y, v.x, v.y))[0]; if (tr && manhattan(tr.x, tr.y, v.x, v.y) <= 2 && (a = cast('rabattage', v.x, v.y))) return a; }
@@ -2887,6 +2988,7 @@
     const nearestAdd = adds.length ? nearest(u, adds) : null;
     const adjAdd = adds.filter(v => manhattan(v.x, v.y, u.x, u.y) === 1).sort((p, q) => p.hp - q.hp || (p.id < q.id ? -1 : 1))[0] || null;   // le rejeton adjacent le plus faible
     if (u.spec_id && (a = specPolicy(R, env, u))) {                            // V5 T3 : la spécialisation parle avant la voie
+      if (a.type === 'move') return a;                                        // V5 T3b : l'Assassin va chercher le contact de sa proie
       const sp = spellFor(env, u, a.spell_id);
       const full = P.pa >= raidC(env).pa_per_turn;
       if (sp && (sp.power > 0 || ((R.pass.spec_turn || 0) === 0 && (P.pa >= sp.cost_pa + 3 || full)))) {
@@ -3229,7 +3331,16 @@
       case 'ally': if (!t || t === B || t.side !== 'guild') { out.reason = 'il faut viser un allié'; return out; } break;
       case 'self': if (!(x === me.x && y === me.y)) { out.reason = 'sort personnel (visez votre case)'; return out; } break;
       case 'summon': if (!t || t === B || t.kind !== 'summon') { out.reason = 'il faut viser une invocation'; return out; } break;
-      case 'cell': if (t) { out.reason = 'la case doit être libre'; return out; } if (view.grid.cells[cidx(G, x, y)].kind === 'wall' || view.grid.cells[cidx(G, x, y)].kind === 'pit') { out.reason = 'case infranchissable'; return out; } break;
+      case 'cell': {
+        // V5 T3b : l'aperçu mentait ici — il ignorait les murs POSÉS (mur de glace, mur de terre, bouclier planté),
+        // que le moteur refuse par `passable`. Même règle des deux côtés, y compris le droit de replanter son bouclier.
+        if (t) { out.reason = 'la case doit être libre'; return out; }
+        const vc = view.grid.cells[cidx(G, x, y)];
+        const zid = vc.zone ? vc.zone.id : null;
+        const mend = s.id === 'bouclier_plante' && zid === 'mur_heros' && vc.zone.mine;
+        if (!mend && (vc.kind === 'wall' || vc.kind === 'pit' || zid === 'mur_glace' || zid === 'mur_terre' || zid === 'mur_heros')) { out.reason = 'case infranchissable'; return out; }
+        break;
+      }
       case 'unit': if (!t) { out.reason = 'il faut viser une unité'; return out; } break;
     }
     if (s.hybrid_id) {                                                       // V5 T2 : mêmes refus que hybridWhy, lus dans la vue (l'aperçu ne ment jamais)
