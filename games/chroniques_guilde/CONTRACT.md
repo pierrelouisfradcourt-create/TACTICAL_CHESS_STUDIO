@@ -1903,3 +1903,158 @@ un passage, accepté le matin · (7a-c) fréquences dans leurs bornes · (8) div
 * **Non vérifié** : l'effet des cinq emplacements sur une partie jouée à la main (tout est mesuré sous plans par
   défaut) ; ce que le joueur choisirait réellement, donc si la bande de fréquences tient aussi pour des gestes
   humains ; l'équilibre ressenti d'un raid où deux joueurs se répartiraient les rôles à la composition.
+
+---
+
+## V5 T9 — SIX EMPLACEMENTS, UN PLANIFICATEUR QUI CHOISIT, ET CE QUE LA VARIANCE A DIT
+*(2026-09-19. GO Pierre « ok je te fais confiance règle ça ». Première tranche d'implémentation des trois
+specs de conception : `CRAFT_BIOME_SPEC.md` (emplacements), `ARMURE_ET_PREREQUIS_SPEC.md`,
+`QUETE_DE_CLASSE_SPEC.md` (fenêtre de spécialisation).)*
+
+### 1. Les six emplacements
+
+`slots` passe de quatre à six : **arme · armure · cape · babiole · anneau · fiole**. Aucun emplacement n'est
+plus écrit en dur nulle part — `emptyEquipment(D)` les lit dans les données, et la fiche du héros, le modèle
+de vue, `unequip` et le planificateur suivent tout seuls. Ajouter une septième ligne à `slots` suffirait.
+
+Identité des deux nouveaux, choisie pour ne pas doubler l'armure ni la babiole :
+
+* **Cape** — ce qui fait tenir la route : PV et VITESSE. La vitesse n'est pas lue par le raid (décision T6,
+  assumée) mais elle l'est par l'expédition : initiative, chance de toucher, esquive du souffle.
+* **Anneau** — l'amplificateur : CRIT, MAGIE, SOIN, SOUTIEN. **Aucun PV, aucune DÉF** : il ne protège pas.
+
+Douze objets neufs (six capes, six anneaux, des quatre raretés), deux poches de butin (`cape_pool` 130 ‰,
+`ring_pool` 120 ‰) prélevées sur les trois existantes — le total reste 1 000 ‰ — et une cape et un anneau
+communs au marché du premier jour.
+
+### 2. Le planificateur d'équipement choisissait le premier venu
+
+**Défaut mesuré avant la tranche**, 20 saisons, 119 héros au J30 :
+
+| mesure | valeur |
+|---|---|
+| héros ayant un emplacement améliorable depuis le coffre | **30 / 119 (25 %)** |
+| objets non portés dormant dans les coffres | **220** |
+| rareté de ce qui est porté | commun **46 %** · vide **42 %** · rare 9 % · épique 2 % · légendaire **1 %** |
+
+Cause : `planEquip` ne remplissait qu'un emplacement **vide**, et donnait l'objet au premier héros qui avait
+la place, sans regarder sa classe. Un Mage finissait la saison en Masse de pierre pendant que la Dent de
+l'Hydre dormait dans le coffre. Le butin de dragon — le contenu le plus cher du jeu — n'arrivait pas sur les
+héros.
+
+Le planificateur **choisit** désormais : pour chaque couple (héros, objet) il calcule le gain réel sur
+`combatProfile` — donc sur la vraie chaîne, affinité magique, plafonds, savoir-faire et fatigue comprises —
+et pose gloutonnement le meilleur couple, puis recommence. Le score est le composite déjà utilisé comme
+oracle ailleurs : **OFFENSE × TENUE**. `planDefaults` reste **pure** : la simulation se fait sur une copie
+de l'équipement, jamais sur le héros de l'état.
+
+### 3. La page ne laissait équiper que deux emplacements sur quatre
+
+`renderEquip` filtrait sur `weapon` et `armor` : la babiole et la fiole étaient déjà hors de portée du
+joueur, et la cape et l'anneau le seraient devenus. La fiche rend maintenant tous les emplacements que les
+données déclarent.
+
+### 4. Deux bancs qui se contredisaient, et ce que la cause était vraiment
+
+Le planificateur corrigé rend la guilde plus forte : l'Hydre passe à 88 % de victoires, hors de la bande
+[40 %, 85 %]. Mais toute hausse de réserve cassait le banc T1, qui mesure des **classes de base nues**.
+Même dragon, même jour, deux guildes à des stades différents : un seul nombre plat ne peut pas servir les deux.
+
+* **Essai 1, RETIRÉ** — indexer la réserve sur l'ATTAQUE MOYENNE. Mesuré : l'écart « avec brûleur / sans
+  brûleur » tombait de 25 à 10 points. L'équipe qui amène la bonne classe se voyait opposer un boss d'autant
+  plus gros : du caoutchouc, qui efface la composition. C'est exactement le combat mou qu'on veut éviter.
+* **Retenu (D10)** — indexer la réserve sur le **nombre de héros arrivés au bout de leur lignée**
+  (`hp_spec_pct = 7` par spécialisation, plafond 160 %). C'est un marqueur de **progression**, pas de
+  puissance : à avancement égal, deux guildes affrontent exactement le même dragon quelles que soient les
+  classes amenées. La composition garde toute sa valeur.
+
+Réserves recalibrées sur cette base : forêt 280 → **215** (régénération 2 → **4**), montagne 880 → **640**,
+marais 600 → **500**, et la bannière du Derby se tient un tour de plus (4 → **5**).
+
+### 5. La spécialisation est offerte plus tôt
+
+`lineage.spec_day_min` 20 → **17**. La quête de classe a besoin de sa fenêtre : la part des héros disposant
+d'au moins trois jours libres après leur spécialisation passe de **76 % à 89 %**, sans que le calibrage de
+saison bouge (chute 0 %, morts 2,4 %, château 32 %, 26/26 spés vues).
+
+### 6. Trois bugs trouvés en chemin
+
+* **B12 — l'aperçu de dégâts mentait.** `previewCast` appliquait `takenMods` (marque +20 %, chancelant +30 %)
+  AVANT le critique, là où le coup réel l'applique APRÈS, et ignorait `hit_bonus`, le volet dégâts des 26
+  passifs, le Défi et la Curée. Mesuré : coup réel 70 pour un maximum annoncé 69. La vue porte désormais le
+  plafond (`dmg_far_pct`, `dmg_bonus_pct`) et l'aperçu suit le même ordre que `damageFromPower`.
+* **B13 — la Feinte était un sort mort.** Lancée uniquement sous 60 % de PV : **un seul lancer** sur 117
+  raids. Elle esquive le PROCHAIN COUP : son moment est celui où l'on sait qu'un coup vient. Elle se lance
+  donc aussi dans la riposte annoncée ou au contact — **1 → 85 lancers**. Exception : celui dont le passif se
+  nourrit des coups reçus ne les esquive pas (le Bretteur rend deux ripostes par morsure).
+* **Le sort « d'une autre classe » du banc T1 était écrit en dur** (`arme`) et se trouvait légitimement dans
+  le vivier du héros tiré : le banc lisait un `{ok:true}` là où il attendait un refus. Il le choisit désormais
+  sur le héros.
+
+### 7. Ce que la variance a dit — et c'est le résultat le plus important de la tranche
+
+**ADR-002 : toute métrique qui calibre prouve d'abord sa variance.** Mesure : même configuration, **cinq jeux
+de 60 saisons** chacun.
+
+| dragon | min | moyenne | max | amplitude |
+|---|---|---|---|---|
+| Sylvain | 27 % | 43 % | 69 % | **42 points** |
+| Hydre | 16 % | 26 % | 35 % | **19 points** |
+| Drake | 22 % | 47 % | 59 % | **37 points** |
+
+La bande du contrôle (2) fait 45 points de large ; le bruit de la métrique en fait 19 à 42. **Le contrôle (2)
+du banc de saison mesure donc en partie du bruit**, et le jeu de graines canonique (1000 + 7i) est le seul
+qui compte. Les réserves ci-dessus ont été choisies sur la **moyenne des cinq jeux**, pas sur un seul.
+C'est un défaut de l'oracle, pas du jeu : il lui faut un échantillon plus grand, pas une bande plus large.
+
+Même leçon sur le contrôle (9), « le besoin de brûleur existe » :
+
+* à **60 graines par bras**, l'écart réel vaut **8 points, intervalle à 95 % [−9, +26]** — indiscernable de
+  zéro. Les 25 points qu'il affichait tenaient à 20 graines par bras (l'écart-type de la différence y vaut
+  ~15 points, les trois quarts du seuil exigé) ;
+* et sa **prémisse était fausse** : le bras « sans brûleur » brûle 166 à 243 tours. Le feu n'est plus l'affaire
+  du Mage, du Spirite et du Conjurateur — la fissure du Chasseur l'allume, les zones de feu l'allument, les
+  armes de braise l'allument.
+
+Le contrôle mesure maintenant ce qu'il peut établir (l'équipe à brûleurs brûle au moins **deux fois** plus et
+ne gagne jamais moins souvent) et **écrit noir sur blanc que l'écart de victoire n'est pas établi**. C'est une
+question de conception ouverte, pas un seuil à assouplir.
+
+### 8. La page : deux défauts et quatre décors de banc devenus faux
+
+* **`renderEquip` ne proposait que deux emplacements sur quatre.** Le filtre `weapon || armor` était écrit en
+  dur : la babiole et la fiole étaient déjà hors de portée du joueur (62 % et 38 % d'emplacements vides en fin
+  de saison), et la cape et l'anneau le seraient devenus. La fiche rend maintenant tout ce que `slots` déclare.
+* **La jauge du boss disparaissait le soir.** Elle était accrochée au seul raid VIVANT : le soir où la guilde
+  abat le dragon, le modèle de vue ne porte plus de raid et le tableau perdait sa jauge au moment précis où le
+  joueur vient voir où en est le boss. Elle se nourrit désormais de la chronique du jour, qui porte toujours la
+  sève restante, et annonce l'issue (« vaincu », « s'en retourne »).
+
+Quatre décors de banc reposaient sur des hypothèses que la tranche a rendues fausses. Aucun seuil n'a été
+assoupli ; c'est le décor qui a été remis sur son propre énoncé, comme la V5 T5 l'avait déjà fait :
+
+| banc | hypothèse devenue fausse | ce qui la remplace |
+|---|---|---|
+| `ui_v2` | « l'équipement = 2 lignes » | une ligne par emplacement déclaré, lue dans `slots` |
+| `ui_v3` | « un passage d'âge a lieu entre l'attaque et le J30 » | l'implication : quand l'âge change, le bandeau s'affiche — et on dit quand la fenêtre n'a pas contenu de passage |
+| `ui_v4` | la première mort de mon héros laisse la place au deuil | on ne retient qu'une mort au jour ≤ 27 (l'héritier joue trois journées) |
+| `tactic_t3` | les gueules de l'Hydre × 4 | des PV de gueule visés, insensibles à un recalibrage de l'Hydre |
+
+### 9. Bancs
+
+Les quatorze bancs sont verts : `engine_extra` 16 · `engine_v4_check` 28 · `stats_t6_check` 33 ·
+`loadout_t8_check` 12 · `tactic_t1_check` 26 · `tactic_t2_check` 14 · `tactic_t3_check` 14 ·
+`season_t5_check` 12 · `ui_v2_check` 52 · `ui_v3_check` 35 · `ui_v4_check` 55 · `ui_v5_check` 55 ·
+`ui_chateau_check` 91 · `ui_soleil_check` 58.
+
+### 10. Ce qui reste imparfait
+
+* **Les vecteurs de référence sont invalidés.** `data.json` a changé : les sept vecteurs et le `data_fnv`
+  dont le portage Godot se sert comme premier contrôle doivent être régénérés **une seule fois**, à la fin
+  des tranches, pas maintenant.
+* **L'écart de victoire dû au feu n'est pas établi** (§7). Si la composition doit compter, il faut un
+  mécanisme que SEUL le feu résout, pas un feu que tout le monde allume.
+* **Le contrôle (2) du banc de saison manque de puissance** : 19 à 42 points de bruit pour une bande de 45.
+* **Les classes d'armure, les prérequis et la quête de classe ne sont pas implémentés** : seule la fenêtre
+  de spécialisation (§5) et les emplacements (§1) le sont. Les deux specs restent à ratifier avant leur tranche.
+* **Aucun playtest humain.** Rien de ce qui précède ne dit si c'est agréable à jouer.

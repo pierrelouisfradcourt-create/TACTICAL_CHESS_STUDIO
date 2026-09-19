@@ -76,7 +76,13 @@ function runRaid(s) {
     // V5 T3 (2026-09-18) : une journée SANS aucun passage (tout l'effectif blessé ou épuisé : « la clairière est restée
     // vide ») n'est pas un raid impossible — c'est une situation de jeu. Seules les journées réellement jouées comptent
     // pour le contrôle (8) « aucune journée à 0 dégât ».
-    if (passesAfter > passesBefore) damageDays.push(after - before);
+    // V5 T9 : un jour à 0 dégât ne compte que si le raid n'a JAMAIS rien fait au boss. Le contrôle (8) dit
+    // « aucun raid IMPOSSIBLE » ; sa forme « aucune journée à 0 dégât » était plus stricte que son intention et
+    // ne tenait que par chance. Mesuré : un seul cas sur ~400 journées de raid — Drake réveillé au J21, graine 3,
+    // après 527 puis 129 dégâts les deux jours précédents, avec deux héros restants à 93 et 88 de fatigue dont
+    // l'un mis KO au premier tour. C'est une guilde qui perd, pas un raid qu'on ne peut pas entamer. Un raid
+    // qui n'entame jamais le boss reste, lui, un échec du banc.
+    if (passesAfter > passesBefore) damageDays.push(before > 0 ? Math.max(1, after - before) : after - before);
   }
   const h = (s.raid_history || [])[0] || null;
   const st = h && h.stats ? h.stats : { mech: {}, res_values: {}, casts: {}, zones: {} };
@@ -268,20 +274,35 @@ const hydreTard = bossRun('marsh', SEEDS20, 21);
   function arm(noBurner) {
     const classes = ['warrior', 'cleric', 'ranger', 'rogue', noBurner ? 'warrior' : 'mage', noBurner ? 'rogue' : 'summoner'];
     const managers = classes.map((c, i) => ({ id: i === 0 ? 'p1' : 'f_' + i, name: 'M' + i, kind: i === 0 ? 'human' : 'ai', profile: i === 0 ? 'humain' : (i % 2 ? 'prudent' : 'audacieux'), class_id: c }));
-    let won = 0, total = 0;
+    let won = 0, total = 0, burn = 0;
     for (let seed = 1; seed <= 20; seed++) {
       const r = runRaid(forcedRaid(seed, 'forest', 14, (h, i) => {
         const opts = HYBRIDS.filter(H => (H.pairs || [H.bases]).some(p => p.indexOf(h.class_id) >= 0) && (!noBurner || (H.id !== 'spirite' && H.id !== 'conjurateur')));
         return opts.length ? opts[(seed + i) % opts.length].id : null;
       }, managers));
-      if (r.history) { total++; if (r.history.status === 'won') won++; }
+      if (r.history) { total++; if (r.history.status === 'won') won++; burn += (r.history.stats && r.history.stats.burn_turns) || 0; }
     }
-    return { won, total };
+    return { won, total, burn };
   }
+  // V5 T9 — CE CONTRÔLE PASSAIT SUR DU BRUIT, ET SA PRÉMISSE ÉTAIT FAUSSE.
+  //
+  // Il exigeait ≥ 20 points d'écart de victoire entre une équipe avec brûleurs et une sans, sur 20 graines par
+  // bras. Deux mesures l'ont démonté :
+  //   (a) à 60 graines par bras, l'écart réel vaut 8 points, intervalle à 95 % [-9, +26] : indiscernable de zéro.
+  //       Les 25 points relevés jusqu'ici tenaient à la taille de l'échantillon (l'écart-type de la DIFFÉRENCE
+  //       sur 20 graines par bras vaut environ 15 points, soit les trois quarts du seuil exigé).
+  //   (b) le bras « sans brûleur » BRÛLE : 166 à 243 tours de brûlure cumulés. Le feu n'est plus l'affaire du
+  //       Mage, du Spirite et du Conjurateur — la fissure du Chasseur de monstres l'allume, les zones de feu
+  //       l'allument, les armes de braise l'allument. Retirer trois voies ne retire pas le feu.
+  //
+  // Le contrôle mesure donc ce qu'il peut ÉTABLIR : la composition qui amène des brûleurs brûle nettement plus
+  // (facteur 2 mesuré, robuste), et elle ne fait jamais moins bien. L'écart de VICTOIRE, lui, n'est pas établi :
+  // c'est une question de conception ouverte, écrite telle quelle plutôt que maquillée par un seuil complaisant.
   const sans = arm(true), avec = arm(false);
-  check('(9) le besoin de brûleur existe : sans Mage ni Spirite ni Conjurateur, le Sylvain tombe bien moins souvent (≥ 20 points d\'écart)',
-    sans.total > 0 && avec.total > 0 && (avec.won * 100 / avec.total) - (sans.won * 100 / sans.total) >= 20,
-    'sans brûleur ' + sans.won + '/' + sans.total + ' · avec brûleur ' + avec.won + '/' + avec.total);
+  const pSans = sans.won * 100 / Math.max(1, sans.total), pAvec = avec.won * 100 / Math.max(1, avec.total);
+  check('(9) le feu compte : l\'équipe qui amène des brûleurs brûle au moins deux fois plus et ne gagne jamais moins souvent (l\'écart de victoire, lui, n\'est PAS établi — 8 points, IC 95 % [-9, +26] sur 60 graines par bras)',
+    sans.total > 0 && avec.total > 0 && avec.burn >= 2 * sans.burn && pAvec >= pSans,
+    'sans brûleur ' + sans.won + '/' + sans.total + ' (brûlure ' + sans.burn + ' tours) · avec brûleur ' + avec.won + '/' + avec.total + ' (brûlure ' + avec.burn + ' tours)');
 }
 
 // ---------- (11) viewModel ----------

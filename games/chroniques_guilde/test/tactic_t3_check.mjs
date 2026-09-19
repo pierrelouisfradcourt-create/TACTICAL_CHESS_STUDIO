@@ -147,7 +147,11 @@ const SCEN = {
   // Bretteur comme Duelliste nu rendaient six coups en trois passages, à un tour près. Les gueules sont épaissies
   // (× 4) pour que le corps morde bien trois fois ; le sujet, sa sœur et l'hybride nu affrontent le même corps.
   bretteur: { raid: 'raid_marsh', label: 'Hydre, trois gueules qui tiennent : rendre SEPT coups au corps qui mord trois fois par tour (VERBE)',
-    setup: R => { for (const h of (R.boss.heads || [])) { h.hp_max = h.hp_max * 4; h.hp = h.hp_max; } },
+    // V5 T9 : le facteur suit la réserve de l'Hydre. Le décor avait été calé sur hp_base 600 ; la tranche T9 l'a
+    // ramenée à 500, les gueules ont maigri d'autant et la situation décrite par l'étiquette a cessé de durer —
+    // sujet, sœur et voie nue plafonnaient tous les trois à 15 tours sans atteindre sept ripostes. Le facteur est
+    // exprimé en PV de gueule visés, pas en multiple, pour qu'un futur recalibrage de l'Hydre ne le refasse pas.
+    setup: R => { const cible = 400; for (const h of (R.boss.heads || [])) { h.hp_max = Math.max(h.hp_max, cible); h.hp = h.hp_max; } },
     // V5 T6 (R-C) : la voie donne les DEUX barres d'action. Le Duelliste nu dispose maintenant de la barre du Voleur
     // (pas de côté, frappe de l'ombre), qu'il dépense à s'approcher — et le Bretteur aussi. Remesuré sur le même
     // décor : six coups rendus en neuf tours pour la pointe contre quatre pour la voie nue, là où T5 mesurait dix

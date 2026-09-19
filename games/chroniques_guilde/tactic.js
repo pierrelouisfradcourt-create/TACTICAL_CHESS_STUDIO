@@ -2292,6 +2292,17 @@
     if (wet) { mech(R, 'immersion'); if (log) log.push(tplOf(env.data, 'raid_immersion', 'i' + R.riposte_count, {})); }
     else if (log) log.push('L\'Hydre s\'arrache à la tourbière : sa peau redevient tendre.');
   }
+  // Le passif de la pointe se nourrit-il des coups REÇUS ? (Bretteur : deux ripostes par coup, dégâts au tour touché)
+  function feedsOnHits(env, u) {
+    const P = specPassive(env, u);
+    return !!P && (!!P.per_hit || P.dmg_when === 'hit_taken');
+  }
+  // La case est-elle dans la riposte ANNONCÉE du boss ? (télégraphe : le joueur la voit, la politique aussi)
+  function inRiposte(R, env, x, y) {
+    const cells = (R.riposte_next && R.riposte_next.cells) || [];
+    for (const c of cells) if (c.x === x && c.y === y) return true;
+    return false;
+  }
   function bossStartTurn(R, env, log) {
     const B = R.boss, f = fiche(R, env);
     dotTick(R, env, B, log);
@@ -2942,7 +2953,25 @@
     const DR = dragonOf(d, f.dragon_id);
     const nM = env.managers.length;
     const day = env.day;
-    const hpMax = div((f.hp_base + f.hp_per_day * day) * (nM + C.hp_pool_managers_add), C.hp_pool_managers_div);
+    // V5 T9 (D10) : LA RÉSERVE DU DRAGON LIT L'AVANCEMENT DE LA GUILDE, PAS SA PUISSANCE.
+    //
+    // Deux bancs se contredisaient sur le même dragon au même jour : la saison complète gagnait l'Hydre à 88 %
+    // pendant que le raid forcé du banc T2, à réserve deux fois plus grosse, ne la gagnait qu'à 25 %. Ce n'était
+    // pas un désaccord de seuils — les deux guildes ne sont pas au même stade. Un seul nombre plat ne peut pas
+    // servir les deux.
+    //
+    // Premier essai, RETIRÉ : indexer la réserve sur l'attaque moyenne. Mesuré, l'écart « avec brûleur / sans
+    // brûleur » du banc T2 tombait de 25 à 10 points — l'équipe qui amène la bonne classe se voyait opposer un
+    // boss d'autant plus gros. C'est du caoutchouc : ça efface la composition, qui est ce que ce raid récompense.
+    //
+    // Retenu : le nombre de héros ARRIVÉS AU BOUT DE LEUR LIGNÉE (spécialisation choisie). C'est un marqueur de
+    // progression, pas de puissance : à avancement égal, deux guildes affrontent exactement le même dragon, quelles
+    // que soient les classes qu'elles amènent. La composition garde donc toute sa valeur, et le dragon cesse d'être
+    // une piñata pour une guilde accomplie ou un mur pour une guilde jeune.
+    let nSpec = 0;
+    for (const id of sortedKeys(env.heroes)) { const h = env.heroes[id]; if (h && h.spec) nSpec++; }
+    const specMult = clamp(100 + nSpec * (C.hp_spec_pct || 0), 100, C.hp_spec_max || 200);
+    const hpMax = div(pct(f.hp_base + f.hp_per_day * day, specMult) * (nM + C.hp_pool_managers_add), C.hp_pool_managers_div);
     // V5 T5 : la fiche de raid peut surcharger la pente d'attaque et de défense du boss (les valeurs V4 restent
     // celles de l'auto-combat). Mesuré en T5 : à def_per_day 1 la garde du boss montait plus vite que les héros,
     // et les dégâts de la guilde restaient plats de J12 à J26 pendant que la réserve du boss gagnait 40 %.
@@ -3053,7 +3082,14 @@
         if (guildUnits(R).some(v => v.kind === 'summon' && v.hp > 0) && !hasState(u, 'garde') && (a = cast('serment', u.x, u.y))) return a;
         return null;
       case 'duelliste':
-        if (u.hp * 10 < u.hp_max * 6 && !hasState(u, 'feinte') && (a = cast('feinte', u.x, u.y))) return a;   // le coup de trop s'esquive
+        // V5 T9 (B13) : la Feinte se lançait UNIQUEMENT sous 60 % de PV. Mesuré sur 20 graines × 4 bras : un seul
+        // lancer au total — un sort que la politique choisit, garde dans ses cinq emplacements, et ne joue jamais.
+        // La Feinte esquive LE PROCHAIN COUP : son moment, c'est quand on sait qu'un coup vient. Le duelliste la
+        // lance donc aussi quand il se tient dans la riposte annoncée, ou collé au boss à portée de sa frappe.
+        // ... mais celui qui VIT des coups reçus ne les esquive pas : le Bretteur transforme chaque morsure en
+        // deux ripostes, et sa pointe se mesure là-dessus. La Feinte reste donc à la survie pure pour lui.
+        if (!hasState(u, 'feinte') && (u.hp * 10 < u.hp_max * 6 || (!feedsOnHits(env, u) && (inRiposte(R, env, u.x, u.y) || dB <= 1))) &&
+            (a = cast('feinte', u.x, u.y))) return a;
         if (!hasState(u, 'defi') && dB <= 2 && (a = cast('defi', bc.x, bc.y))) return a;
         return null;
       case 'chasseur_monstres':
@@ -3745,6 +3781,14 @@
         spec: u.spec_id ? { id: u.spec_id, name: (specOf(env, u.spec_id) || {}).name || u.spec_id, verb: (specOf(env, u.spec_id) || {}).verb || '' } : null,
         hybrid: u.hybrid_id ? { id: u.hybrid_id, name: (hybOf(env, u.hybrid_id) || {}).name || u.hybrid_id, resource: u.resource, resource_name: (hybOf(env, u.hybrid_id) || {}).resource_name || '', value: u.res, max: u.res_max } : null,
         reachable: reachableCells(Rp, u, P.pm), shield: u.shield,
+        // V5 T9 (B12) : LE PLAFOND DE DÉGÂTS DESCEND DANS LA VUE. `damageFromPower` empile des multiplicateurs que
+        // l'aperçu ne connaissait pas — `hit_bonus` (Archerie, à partir de `hit_bonus_dmg_range` cases), le volet
+        // dégâts des 26 passifs de spécialisation, le Défi, et la Curée de l'Assassin. L'aperçu annonçait donc une
+        // fourchette que le coup réel dépassait : mesuré à 70 dégâts pour un maximum annoncé de 69. La vue porte
+        // désormais le plafond, et l'aperçu s'en sert pour que la fourchette encadre VRAIMENT le coup.
+        dmg_far_pct: u.hit_bonus || 0, dmg_far_range: C.hit_bonus_dmg_range || 3,
+        dmg_bonus_pct: ((specPassive(env, u) || {}).dmg_pct || 0) + (hasState(u, 'defi') ? 30 : 0) +
+          (u.spec_id === 'assassin' ? Math.max(0, assassinCurePct(env, { hp: 1, hp_max: 100, side: 'boss' }) - 100) : 0),
         default_actions: (raidDefaultsFor(state, id, env) || []) };
       break;
     }
@@ -3881,18 +3925,28 @@
       seen[v.id] = 1;
       const enemy = v === B || v.side === 'boss';
       const eff = [];
-      let dmin = 0, dmax = 0, heal = 0;
+      let dmin = 0, dmax = 0, dcrit = 0, heal = 0;
       if (s.power > 0 && enemy && s.target !== 'ally' && s.target !== 'cell') {
         let power = s.power;
         if (s.id === 'shadow_strike' && v === B && me.y < B.y) power = s.back_power;
         const fake = { def: v.def, states: v.states.map(z => ({ id: z.id, turns: z.turns, value: z.value })), kind: v === B ? 'boss' : v.kind };
         const de = defEff(fake, { magic: s.magic });
-        dmin = takenMods(fake, dmgOf(rawOf(view.me.atk_eff, power, 90), de));
-        dmax = takenMods(fake, dmgOf(rawOf(view.me.atk_eff, power, 110), de));
+        // V5 T9 (B12) : MÊME ORDRE QUE `damageFromPower`, sinon la fourchette est fausse d'un ou deux points.
+        // L'aperçu appliquait `takenMods` (marque +20 %, chancelant +30 %) AVANT le critique ; le coup réel
+        // l'applique APRÈS. Deux troncatures entières dans l'autre sens : coup réel 70, maximum annoncé 69.
+        // Ordre réel : brut → DÉF → critique → multiplicateurs du porteur → `takenMods`.
+        const brutMin = dmgOf(rawOf(view.me.atk_eff, power, 90), de);
+        const brutMax = dmgOf(rawOf(view.me.atk_eff, power, 110), de);
+        // Plafond : tous les multiplicateurs que le coup réel PEUT appliquer, aucun sur le plancher.
+        const far = d >= (view.me.dmg_far_range || 3) ? (view.me.dmg_far_pct || 0) : 0;
+        const mult = 100 + far + (view.me.dmg_bonus_pct || 0);
+        dmin = Math.max(1, takenMods(fake, brutMin));
+        dmax = Math.max(1, takenMods(fake, pct(brutMax, mult)));
+        dcrit = Math.max(1, takenMods(fake, pct(pct(brutMax, 150), mult)));
       }
       if (s.id === 'healing_prayer' && !enemy) heal = pct(view.me.heal || 0, 200) + 10;
       for (const lab of s.effect_labels || []) eff.push(lab);
-      out.targets.push({ unit_id: v.id, name: v.name, dmg_min: Math.max(0, dmin), dmg_max: Math.max(0, dmax), dmg_crit_max: pct(Math.max(0, dmax), 150), heal: heal, effects: eff });
+      out.targets.push({ unit_id: v.id, name: v.name, dmg_min: Math.max(0, dmin), dmg_max: Math.max(0, dmax), dmg_crit_max: Math.max(0, dcrit), heal: heal, effects: eff });
     }
     out.valid = true;
     return out;

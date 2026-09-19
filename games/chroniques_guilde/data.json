@@ -3,7 +3,7 @@
   "title": "Chroniques de Guilde",
   "version": 5,
   "date": "2026-09-19",
-  "source": "design_aventuriers.md, design_quetes_donjons.md, design_objets_economie.md (§0-2) ; village, journée, objets, recettes, bâtiments et décorations conçus par le moteur ; V3 (2026-09-18) : âges du village et menace du dragon ; V4 (2026-09-18) : dragons de biome (maîtrise), points d'action et journées composées, savoir-faire, missions solo, mort et héritier, défaite — conçus par le moteur. ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T6 (2026-09-19) : couche statistiques — entraînement ×10, usure du soir du moral, sept statistiques mortes tranchées, 26 passifs de spécialisation, septième attribut (charisme), septième base (Barde), corps invoqués hérités du maître, règles R-A/R-B/R-C.",
+  "source": "design_aventuriers.md, design_quetes_donjons.md, design_objets_economie.md (§0-2) ; village, journée, objets, recettes, bâtiments et décorations conçus par le moteur ; V3 (2026-09-18) : âges du village et menace du dragon ; V4 (2026-09-18) : dragons de biome (maîtrise), points d'action et journées composées, savoir-faire, missions solo, mort et héritier, défaite — conçus par le moteur. ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T6 (2026-09-19) : couche statistiques — entraînement ×10, usure du soir du moral, sept statistiques mortes tranchées, 26 passifs de spécialisation, septième attribut (charisme), septième base (Barde), corps invoqués hérités du maître, règles R-A/R-B/R-C. ; V5 T9 (2026-09-19) : six emplacements (cape, anneau), planificateur d'équipement qui choisit, réserve du dragon indexée sur l'avancement de la guilde.",
   "tranche": "V5 T8 — cinq emplacements de sorts"
  },
  "constants": {
@@ -2474,8 +2474,16 @@
    "name": "Armure"
   },
   {
+   "id": "cape",
+   "name": "Cape"
+  },
+  {
    "id": "trinket",
    "name": "Babiole"
+  },
+  {
+   "id": "anneau",
+   "name": "Anneau"
   },
   {
    "id": "potion",
@@ -3094,20 +3102,189 @@
     "crit": 60
    },
    "flavor": "Écaille, bois de cœur et croc : les trois biomes tiennent dans un cercle de fer."
+  },
+  {
+   "id": "k_cape_laine",
+   "name": "Cape de laine",
+   "slot": "cape",
+   "pool": "cape_pool",
+   "rarity": "common",
+   "price": 35,
+   "stats": {
+    "hp": 5,
+    "spd": 1
+   },
+   "flavor": "Elle coupe le vent, c'est déjà beaucoup."
+  },
+  {
+   "id": "k_cape_voyageur",
+   "name": "Cape du voyageur",
+   "slot": "cape",
+   "pool": "cape_pool",
+   "rarity": "common",
+   "price": 45,
+   "stats": {
+    "hp": 4,
+    "spd": 2
+   },
+   "flavor": "Cousue pour marcher vite, pas pour faire joli."
+  },
+  {
+   "id": "k_mante_chasseur",
+   "name": "Mante du chasseur",
+   "slot": "cape",
+   "pool": "cape_pool",
+   "rarity": "rare",
+   "price": 165,
+   "stats": {
+    "hp": 10,
+    "spd": 3,
+    "def": 2
+   },
+   "flavor": "Le gibier l'entend une seconde trop tard."
+  },
+  {
+   "id": "k_cape_ombre",
+   "name": "Cape d'ombre",
+   "slot": "cape",
+   "pool": "cape_pool",
+   "rarity": "rare",
+   "price": 175,
+   "stats": {
+    "hp": 8,
+    "spd": 2,
+    "crit": 40
+   },
+   "flavor": "On ne la voit qu'une fois le coup parti."
+  },
+  {
+   "id": "k_manteau_braise",
+   "name": "Manteau de braise",
+   "slot": "cape",
+   "pool": "cape_pool",
+   "rarity": "epic",
+   "price": 470,
+   "stats": {
+    "hp": 20,
+    "spd": 3,
+    "def": 5
+   },
+   "flavor": "Les bords fument sans jamais brûler."
+  },
+  {
+   "id": "k_cape_ecailles",
+   "name": "Cape d'écailles",
+   "slot": "cape",
+   "pool": "cape_pool",
+   "rarity": "legendary",
+   "price": 1200,
+   "stats": {
+    "hp": 32,
+    "spd": 4,
+    "def": 7
+   },
+   "flavor": "Chaque écaille vient d'une bête que quelqu'un a abattue."
+  },
+  {
+   "id": "n_anneau_fer",
+   "name": "Anneau de fer",
+   "slot": "anneau",
+   "pool": "ring_pool",
+   "rarity": "common",
+   "price": 35,
+   "stats": {
+    "atk": 2
+   },
+   "flavor": "Lourd, laid, et il fait son travail."
+  },
+  {
+   "id": "n_jonc_cuivre",
+   "name": "Jonc de cuivre",
+   "slot": "anneau",
+   "pool": "ring_pool",
+   "rarity": "common",
+   "price": 40,
+   "stats": {
+    "magic": 2,
+    "support": 2
+   },
+   "flavor": "Un apprenti l'a tordu à la main, et ça suffit."
+  },
+  {
+   "id": "n_chevaliere_acier",
+   "name": "Chevalière d'acier",
+   "slot": "anneau",
+   "pool": "ring_pool",
+   "rarity": "rare",
+   "price": 160,
+   "stats": {
+    "atk": 5,
+    "crit": 40
+   },
+   "flavor": "Elle marque autant que la lame."
+  },
+  {
+   "id": "n_anneau_sources",
+   "name": "Anneau des sources",
+   "slot": "anneau",
+   "pool": "ring_pool",
+   "rarity": "rare",
+   "price": 170,
+   "stats": {
+    "heal": 6,
+    "support": 6
+   },
+   "flavor": "Froid au doigt, tiède dans la paume de celui qu'on relève."
+  },
+  {
+   "id": "n_sceau_cendre",
+   "name": "Sceau de cendre",
+   "slot": "anneau",
+   "pool": "ring_pool",
+   "rarity": "epic",
+   "price": 460,
+   "stats": {
+    "magic": 10,
+    "crit": 60
+   },
+   "flavor": "Le sceau d'un ordre dont plus personne ne se souvient."
+  },
+  {
+   "id": "n_anneau_dragons",
+   "name": "Anneau des dragons",
+   "slot": "anneau",
+   "pool": "ring_pool",
+   "rarity": "legendary",
+   "price": 1180,
+   "stats": {
+    "atk": 7,
+    "magic": 9,
+    "crit": 80,
+    "support": 8
+   },
+   "flavor": "Trois écailles serties, trois bêtes tombées."
   }
  ],
  "loot_pools": [
   [
    "weapon_pool",
-   400
+   300
   ],
   [
    "armor_pool",
-   400
+   300
   ],
   [
    "trinket_pool",
-   200
+   150
+  ],
+  [
+   "cape_pool",
+   130
+  ],
+  [
+   "ring_pool",
+   120
   ]
  ],
  "loot_rarity": {
@@ -4986,7 +5163,9 @@
   "c_elixir_force",
   "c_elixir_pierre",
   "c_baume",
-  "c_ration"
+  "c_ration",
+  "k_cape_laine",
+  "n_anneau_fer"
  ],
  "village_ages": [
   {
@@ -5586,7 +5765,9 @@
     "command": 0
    }
   },
-  "spec_installs_per_pass": 2
+  "spec_installs_per_pass": 2,
+  "hp_spec_pct": 7,
+  "hp_spec_max": 160
  },
  "layouts": {
   "clairiere": {
@@ -6205,7 +6386,7 @@
    "dragon_id": "dragon_mountain",
    "kind": "drake",
    "name": "Le ciel de cendres",
-   "hp_base": 880,
+   "hp_base": 640,
    "hp_per_day": 6,
    "pm": 3,
    "pa": 6,
@@ -6278,7 +6459,7 @@
    "dragon_id": "dragon_marsh",
    "kind": "hydre",
    "name": "Trois gueules, une seule vie",
-   "hp_base": 600,
+   "hp_base": 500,
    "hp_per_day": 13,
    "pm": 2,
    "pa": 6,
@@ -6371,7 +6552,7 @@
    "max_nights": 3,
    "steal_pa": 1,
    "banner_hp": 200,
-   "banner_hold_win": 4,
+   "banner_hold_win": 5,
    "banner_lost_max": 2,
    "rivals": [
     {
@@ -9374,7 +9555,7 @@
   "hybrid_day_min": 8,
   "hybrid_auto_days": 2,
   "spec_level_min": 12,
-  "spec_day_min": 20,
+  "spec_day_min": 17,
   "affinity_craft_level": 3,
   "affinity_expeditions": 4,
   "affinity_max": 3,

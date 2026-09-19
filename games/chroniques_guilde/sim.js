@@ -437,6 +437,9 @@
     ctx.log.push('reconversion ' + h.id + ' : ' + (old ? old.id : '?') + ' -> ' + S.id + ' (' + cost + ' or)');
   }
   function slotsCost(D, slots) { let n = 0; for (const s of slots) if (!isFullDay(s.activity)) n += apCost(D, s.activity); return n; }
+  // V5 T9 : les emplacements viennent des données, jamais d'une liste en dur. Ajouter une ligne à `slots`
+  // suffit désormais : la fiche du héros, le modèle de vue, `unequip` et le planificateur suivent tout seuls.
+  function emptyEquipment(D) { const e = {}; for (const s of D.raw.slots) e[s.id] = null; return e; }
   function itemStats(D, state, h) {
     const tot = {};
     const inv = state.inventories[h.owner];
@@ -601,7 +604,7 @@
       bonus_attrs: bonus, trained: emptyAttrs(D), train_points: {},
       form: 50, fatigue: 0, morale: 60, injury: { severity: 0, days_left: 0 }, scars: 0,
       age_seasons: age, traits: traits, wage: opts.wage !== undefined ? opts.wage : wageOf(D, level, rarity),
-      unpaid_days: 0, equipment: { weapon: null, armor: null, trinket: null, potion: null },
+      unpaid_days: 0, equipment: emptyEquipment(D),
       history: { expeditions: 0, victories: 0, injuries: 0, level_ups: 0 }, last_activity: 'rest', last_team: [],
       crafts: emptyCrafts(D),
       hybrid: null, hybrid_day: null, hybrid_offer_day: null, hybrid_bonus: 0, companions: {},   // V5 T2 : lignée (hybride, offre du soir, bonus d'affinité, compagnons d'expédition par classe)
@@ -1165,16 +1168,56 @@
   function dailyUpkeep(D, state) {
     return sum(allHeroes(state).map(h => h.wage)) + D.C.upkeep_per_building_level * sum(sortedKeys(state.buildings).map(b => state.buildings[b]));
   }
+  // V5 T9 — LE PLANIFICATEUR D'ÉQUIPEMENT CHOISIT, IL NE REMPLIT PLUS.
+  // Mesure d'avant (20 saisons, 119 héros) : un emplacement déjà occupé n'était JAMAIS amélioré, et un objet
+  // allait au premier héros qui avait l'emplacement libre, quelle que soit sa classe. Résultat : 25 % des héros
+  // finissaient la saison avec un objet meilleur dormant dans le coffre, 220 objets non portés, un Mage en
+  // Masse de pierre pendant que la Dent de l'Hydre attendait. 46 % de ce qui était porté était commun, 1 %
+  // légendaire. Le butin de dragon, qui est le contenu le plus cher du jeu, n'arrivait pas sur les héros.
+  //
+  // La valeur d'un profil est le composite déjà utilisé comme oracle ailleurs : OFFENSE × TENUE. Elle est
+  // calculée sur `combatProfile`, donc sur la vraie chaîne (affinité magique, plafonds, savoir-faire, fatigue),
+  // jamais sur une seconde table de poids qui dériverait de la première.
+  function profileScore(p) {
+    const off = p.atk + div(p.heal, 2) + div(p.support, 3) + div(p.magic_power, 3) + div(p.atk * p.crit, 2000);
+    const ten = p.hp_max + p.def * 3;
+    return off * ten;
+  }
+  // `planDefaults` ne touche jamais l'état : on sonde sur une COPIE du héros, jamais sur le héros lui-même.
+  function scoreOf(D, state, h, eq) {
+    return profileScore(combatProfile(D, state, Object.assign({}, h, { equipment: eq })));
+  }
   function planEquip(D, state, managerId, heroes, act) {
     const inv = state.inventories[managerId];
     const equipped = equippedUids(state, managerId);
-    const filled = {};
-    for (const h of heroes) for (const s of sortedKeys(h.equipment)) if (h.equipment[s]) filled[h.id + '|' + s] = 1;
-    for (const it of inv.items.slice().sort((a, b) => (a.uid < b.uid ? -1 : 1))) {
-      if (equipped[it.uid]) continue;
-      const slot = D.items[it.item_id].slot;
-      const h = heroes.filter(x => !filled[x.id + '|' + slot] && (slot !== 'potion' || x.injury.severity === 0))[0];
-      if (h) { filled[h.id + '|' + slot] = 1; act('equip', { adventurer_id: h.id, item_id: it.uid }); }
+    // Candidats : tout objet non porté, trié par identifiant pour que l'ordre ne dépende que de l'état.
+    let free = inv.items.filter(it => !equipped[it.uid]).sort((a, b) => (a.uid < b.uid ? -1 : 1));
+    const mine = heroes.slice().sort((a, b) => (a.id < b.id ? -1 : 1));
+    const worn = {}, base = {};                         // équipement simulé et score courant, jamais écrits dans l'état
+    for (const h of mine) { worn[h.id] = Object.assign({}, h.equipment); base[h.id] = scoreOf(D, state, h, worn[h.id]); }
+    const taken = {};                                   // un seul geste par héros et par emplacement dans la journée
+    // Attribution gloutonne : à chaque tour on pose le couple (héros, objet) qui rapporte le plus, puis on
+    // recommence. Le glouton suffit — au plus trois héros et une poignée d'objets — et il est déterministe.
+    for (;;) {
+      let best = null;
+      for (const h of mine) {
+        for (const it of free) {
+          const slot = D.items[it.item_id].slot;
+          if (taken[h.id + '|' + slot]) continue;
+          if (slot === 'potion' && h.injury.severity > 0) continue;   // un blessé garde sa fiole de soin
+          const gain = scoreOf(D, state, h, Object.assign({}, worn[h.id], { [slot]: it.uid })) - base[h.id];
+          if (gain <= 0) continue;
+          if (!best || gain > best.gain || (gain === best.gain && (it.uid < best.it.uid || (it.uid === best.it.uid && h.id < best.h.id)))) best = { h: h, it: it, slot: slot, gain: gain };
+        }
+      }
+      if (!best) break;
+      taken[best.h.id + '|' + best.slot] = 1;
+      free = free.filter(x => x.uid !== best.it.uid);
+      // Le héros porte l'objet DANS LA SIMULATION pour la suite du calcul : les gains suivants se mesurent
+      // sur le profil qu'il aura vraiment. L'état, lui, n'est touché que par la résolution de l'action `equip`.
+      worn[best.h.id] = Object.assign({}, worn[best.h.id], { [best.slot]: best.it.uid });
+      base[best.h.id] = scoreOf(D, state, best.h, worn[best.h.id]);
+      act('equip', { adventurer_id: best.h.id, item_id: best.it.uid });
     }
   }
   // ---- V4 : journées composées. Chaque héros reçoit un plan (créneaux) ou un assign de journée entière (defend, rest, expedition). ----
@@ -2460,7 +2503,7 @@
     return { id: 'guard_' + pad2(i), owner: 'village', first_name: 'Garde', epithet: names[(i * 7 + state.day) % names.length], gender: 'm',
       class_id: 'warrior', rarity: 'common', level: level, xp: 0, bonus_attrs: emptyAttrs(D), trained: emptyAttrs(D), train_points: {},
       form: 50, fatigue: 0, morale: 60, injury: { severity: 0, days_left: 0 }, scars: 0, age_seasons: 8, traits: [], wage: 0, unpaid_days: 0,
-      equipment: { weapon: null, armor: null, trinket: null, potion: null }, history: { expeditions: 0, victories: 0, injuries: 0, level_ups: 0 }, last_activity: 'rest', last_team: [], crafts: {},
+      equipment: emptyEquipment(D), history: { expeditions: 0, victories: 0, injuries: 0, level_ups: 0 }, last_activity: 'rest', last_team: [], crafts: {},
       hybrid: null, hybrid_day: null, hybrid_offer_day: null, hybrid_bonus: 0, companions: {},
       spec: null, spec_day: null, spec_offer_day: null, respec_used: 0, respec_day: null,
       loadout: null, loadout_kind: null, loadout_day: null, loadout_pool: 0, loadout_for: null };   // V5 T8

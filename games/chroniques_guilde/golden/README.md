@@ -1,5 +1,12 @@
 # Vecteurs de référence — Chroniques de Guilde
 
+> ⚠️ **PÉRIMÉS depuis la tranche V5 T9 (2026-09-19).** `data.json` a changé (six emplacements, douze objets,
+> recalibrage des raids, `spec_day_min` 17) et `sim.js` / `tactic.js` avec lui : les sept empreintes de ce
+> dossier, `data_fnv` compris, ne correspondent plus au moteur. **Ne pas s'en servir pour valider un portage
+> en l'état.** Ils seront régénérés **une seule fois**, quand les tranches restantes (classes d'armure,
+> prérequis, craft de biome, quête de classe) auront été passées — c'est l'ordre convenu avec Pierre, pour
+> n'avoir à refaire ce travail qu'une fois. `node port/gen_golden.mjs` les reconstruit.
+
 Date : 2026-09-19. Produit par `port/gen_golden.mjs` depuis `sim.js` + `tactic.js` + `data.json` de ce dossier.
 Fichier : `vectors.json` (499 Ko, 7 vecteurs, 161 journées, 2 596 actions enregistrées).
 

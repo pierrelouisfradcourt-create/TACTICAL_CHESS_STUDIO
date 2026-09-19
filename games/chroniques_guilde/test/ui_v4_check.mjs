@@ -69,7 +69,10 @@ function season(seed) {
     if (c.threat && c.threat.outcome === 'vaincu' && !ev.vaincu) ev.vaincu = { day: vm.day, legendary: c.threat.legendary, name: c.threat.dragon_name, biome: c.threat.biome_name };
     if (c.summary.deaths.length && !ev.death) ev.death = { day: vm.day, names: c.summary.deaths, mine: !!(me && c.summary.deaths.some(n => n.indexOf(me.name) === 0)) };
     if (ev.death && !ev.deathSolo && me2 && vm2.day - ev.death.day <= 4 && me2.activity_options.some(o => o.activity === 'solo')) ev.deathSolo = { ...ev.death, soloDay: vm2.day };
-    if (me && c.summary.deaths.some(n => n.indexOf(me.name) === 0) && !ev.p1death) ev.p1death = { day: vm.day, name: me.name };
+    // V5 T9 : la mort doit laisser la place au DEUIL. Le bloc « héritier » joue trois journées après la mort
+    // (offre, accueil, lendemain) : une mort au jour 29 ne laisse pas de « Jour suivant » à cliquer et le banc
+    // expirait sur un bouton absent. On ne retient donc qu'une mort qui laisse ces journées dans la saison.
+    if (me && c.summary.deaths.some(n => n.indexOf(me.name) === 0) && !ev.p1death && vm.day <= 27) ev.p1death = { day: vm.day, name: me.name };
     if (me && me2 && me2.id === me.id && !ev.craftUp && me2.crafts.some((c2, i) => c2.level > levels[i])) ev.craftUp = { day: vm.day, name: me.name };
     if (vm2.defeat && !ev.defeat) ev.defeat = { day: vm.day, reason: vm2.defeat.reason, defeatDay: vm2.defeat.day };
   }

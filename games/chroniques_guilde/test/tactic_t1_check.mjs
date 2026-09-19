@@ -320,12 +320,18 @@ const shieldOf = (u, v) => Math.trunc(v * (100 + supPct(u)) / 100);
   let first = ordered[0], plans = sim._internal.raidDefaults(s, first);
   for (const m of ordered) { const p = sim._internal.raidDefaults(s, m); if (p.length) { first = m; plans = p; break; } }
   const hero = plans[0].adventurer_id;
+  // V5 T9 : le sort « d'une autre classe » est choisi SUR LE HÉROS, plus en dur. `arme` était écrit en dur et se
+  // trouvait légitimement dans le vivier du héros tiré par cette graine une fois les sept bases à la table : le
+  // banc lisait alors un {ok:true} là où il attendait un refus, et se plaignait d'une raison vide.
+  const porte = {};
+  for (const sp of T.unitLoadout(sim._internal.raidEnvOf(s, null), s.heroes[hero])) porte[sp] = 1;
+  const etranger = (data.tactic_spells || []).map(x => x.id).filter(id => !porte[id]).sort()[0] || 'fire_bolt';
   const legal = { manager_id: first, day: s.day, type: 'raid_pass', payload: { adventurer_id: hero, actions: plans[0].actions } };
   const v = sim.validateAction(s, legal);
   const bogus = [
     { manager_id: first, day: s.day, type: 'raid_pass', payload: { adventurer_id: hero, actions: [{ type: 'cast', spell_id: 'fire_bolt', x: 4, y: 4 }] } },
     { manager_id: first, day: s.day, type: 'raid_pass', payload: { adventurer_id: hero, actions: [{ type: 'move', to: { x: 4, y: 3 } }] } },
-    { manager_id: first, day: s.day, type: 'raid_pass', payload: { adventurer_id: hero, actions: [{ type: 'cast', spell_id: 'arme', x: 4, y: 4 }] } },
+    { manager_id: first, day: s.day, type: 'raid_pass', payload: { adventurer_id: hero, actions: [{ type: 'cast', spell_id: etranger, x: 4, y: 4 }] } },
     { manager_id: first, day: s.day, type: 'raid_pass', payload: { adventurer_id: hero, actions: [{ type: 'end_pass' }, { type: 'end_pass' }] } },
     { manager_id: first, day: s.day, type: 'raid_pass', payload: { adventurer_id: hero } },
     { manager_id: 'p1', day: s.day, type: 'raid_pass', payload: { adventurer_id: hero, actions: [] } },

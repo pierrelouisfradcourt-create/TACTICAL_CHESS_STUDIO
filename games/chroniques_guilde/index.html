@@ -705,7 +705,7 @@ var FONTS_URL = 'https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,4
 var DAY_START = 8, DAY_END = 20, TICK_MS = 250, TICK_H = 0.25;
 /* V5 T2b (§B5) : les PA par tour du raid viennent des données (data.raid.pa_per_turn), plus d'un 6 figé dans la page. */
 var PA_PER_TURN = (DATA.raid && DATA.raid.pa_per_turn) || 6;
-var app = { seed: DEFAULT_SEED, managers: MANAGERS, state: null, vm: null, journal: [], chronicles: {}, plan: null, chosen: false,
+var app = { seed: DEFAULT_SEED, managers: MANAGERS, state: null, vm: null, journal: [], chronicles: {}, plan: null, chosen: false, lastBossName: null,
   tab: 'tableau', contentTab: 'tableau', viewDay: null, drawer: null, pageNotices: [], storageOk: true, raf: 0, lastDraw: 0, sceneScale: 1, slotOpen: -1 };
 /* V5 T4 : état de l'écran Raid. `draft` = l'état du moteur avec mon passage en cours (raidAction),
    `actions` = la liste envoyée telle quelle dans l'action raid_pass du jour, `lines` = les lignes du moteur. */
@@ -1290,11 +1290,24 @@ function raidEndPass() { if (raidLive() && raidBegin()) raidDo({ type: 'end_pass
 function renderRaid() {
   var v = raidNow();
   $('tab-raid').hidden = !raidOn();
+  // V5 T9 : LE SOIR, LA JAUGE RESTE. Elle était accrochée au seul raid VIVANT : le soir où la guilde abat le
+  // dragon, le modèle de vue ne porte plus de raid et le tableau perdait sa jauge au moment précis où le joueur
+  // vient voir où en est le boss. La chronique du jour, elle, porte toujours la sève restante — c'est elle qui
+  // alimente la jauge quand le raid n'est plus en cours. Le tableau vivant montre l'issue, pas le vide.
+  var chr = (app.chronicles && app.viewDay !== null) ? app.chronicles[app.viewDay] : null;
+  if (!v && chr && chr.raid) {
+    $('raid-gauge').hidden = false;
+    var nom = app.lastBossName || 'Le dragon';
+    renderRaidGauge({ name: nom + (chr.raid.status === 'won' ? ' — vaincu' : chr.raid.status === 'lost' ? ' — s\'en retourne' : ''), hp_pct: chr.raid.hp_pct });
+    $('raid-boss').innerHTML = ''; $('raid-spells').innerHTML = ''; $('raid-actions').innerHTML = ''; $('raid-journal').innerHTML = '';
+    return;
+  }
   $('raid-gauge').hidden = !(raidToday() && v);
   if (!v) { $('raid-boss').innerHTML = ''; $('raid-spells').innerHTML = ''; $('raid-actions').innerHTML = ''; $('raid-journal').innerHTML = ''; return; }
   renderRaidGauge(v); renderRaidBoss(v); renderRaidTurn(v); renderRaidSpells(v); renderRaidJournal(v); drawRaidGrid(v);
 }
 function renderRaidGauge(v) {
+  if (v && v.name) app.lastBossName = v.name;                 // V5 T9 : le soir, la jauge garde le nom du dragon
   $('raid-gauge').innerHTML = '<span class="n">' + esc(v.name) + '</span><span class="v" id="raid-gauge-pct">' + v.hp_pct + ' %</span>' +
     '<span class="bar"><i style="width:' + pct(v.hp_pct) + '%"></i></span>';
 }
@@ -3589,7 +3602,10 @@ function renderQuests() {
 function renderEquip() {
   var h = myHero(), rows = [];
   if (!h) { $('equip-rows').innerHTML = ''; return; }
-  h.equipment.filter(function (e) { return e.slot === 'weapon' || e.slot === 'armor'; }).forEach(function (e) {
+  // V5 T9 : LES SIX EMPLACEMENTS, pas deux. La fiche ne proposait que l'arme et l'armure — babiole et fiole
+  // étaient déjà hors de portée du joueur, et la cape et l'anneau le seraient devenus. Mesuré avant la tranche :
+  // 62 % des babioles et 38 % des fioles vides en fin de saison. La liste vient des données, donc de `slots`.
+  h.equipment.forEach(function (e) {
     var pending = null, idx = -1;
     app.plan.extras.forEach(function (a, i) { if (a.payload.adventurer_id === h.id && ((a.type === 'unequip' && a.payload.slot === e.slot) || (a.type === 'equip' && itemSlot(a.payload.item_id) === e.slot_name))) { pending = a; idx = i; } });
     var items = app.vm.inventory.filter(function (it) { return it.slot_name === e.slot_name && (!it.equipped_by || it.equipped_by === h.name); });

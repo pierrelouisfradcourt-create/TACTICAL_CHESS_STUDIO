@@ -51,8 +51,18 @@ polices système : les polices Google ne se chargent qu'en http(s).
 - Reste ouvert : point A4 de l'audit (le modèle de vue du raid ne décrit pas un passage en cours, d'où
   des accès bruts à l'état dans la page) ; réveils de dragon très tardifs encore difficiles.
 
+- V5 T9 (GO Pierre « règle ça ») : **six emplacements** (arme, armure, cape, babiole, anneau, fiole) et douze
+  objets neufs ; le **planificateur d'équipement choisit** au lieu de remplir (avant : 25 % des héros finissaient
+  la saison avec un objet meilleur dormant au coffre, 46 % de commun porté, 1 % de légendaire) ; la page rend les
+  six emplacements (elle n'en proposait que deux) ; la réserve du dragon suit l'**avancement** de la guilde, pas
+  sa puissance — le caoutchouc a été essayé, mesuré, retiré ; spécialisation offerte au jour 17 ; trois bugs
+  (aperçu de dégâts faux d'un point, Feinte lancée 1 fois sur 117 raids, fixture de banc écrite en dur).
+  **La variance a été mesurée** : le taux de victoire d'un dragon bouge de 19 à 42 points selon le jeu de graines.
+
 ## État
-software_verdict: OK — treize bancs verts au 2026-09-19 : 10, 19, 16, 28, 26, 14, 14, 12, 52, 36, 55, 48, 90.
+software_verdict: OK — quatorze bancs verts au 2026-09-19 : 16, 28, 33, 12, 26, 14, 14, 12, 52, 35, 55, 55, 91, 58.
+**Les sept vecteurs de référence de `golden/` sont invalidés par cette tranche** (data.json a changé) : à
+régénérer une seule fois, après les tranches restantes, avant que le portage Godot ne s'y appuie.
 evidence_verdict: MECHANICAL_VALIDATION_ONLY · claim_verdict: NO_CLAIM_ALLOWED.
 **Aucun playtest humain** : rien n'est prouvé sur le plaisir de jeu, seulement sur le comportement mécanique.
 Coupes, calibrages, décisions et non-vérifiés : voir CONTRACT.md (une section par tranche) et design/.

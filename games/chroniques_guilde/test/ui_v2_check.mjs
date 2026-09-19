@@ -11,6 +11,7 @@ const pw = require('/opt/node22/lib/node_modules/playwright');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(HERE, 'out'); fs.mkdirSync(OUT, { recursive: true });
 const URL_FILE = pathToFileURL(path.join(HERE, '..', 'index.html')).href;
+const DATA = JSON.parse(fs.readFileSync(path.join(HERE, '..', 'data.json'), 'utf8'));   // V5 T9 : les emplacements viennent des données
 const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`); };
 const shot = (page, name) => page.screenshot({ path: path.join(OUT, `v2_${name}.png`), fullPage: false });
@@ -82,7 +83,12 @@ const browser = await pw.chromium.launch();
   await page.click('[data-testid="tab-heros"]');
   check('Mon héros : carte + préréglages + 3 cases (V4 : remplace les 5 boutons)', await visible(page, '#hero-card') && (await page.$$('#presets .preset-btn')).length >= 3 && (await page.$$('#slots .day-slot')).length === 3);
   check('Mon héros : 3 cartes de quête au plus', (await page.$$('#quest-cards .quest-card')).length <= 3 && (await page.$$('#quest-cards .quest-card')).length > 0);
-  check('Mon héros : équipement = 2 lignes (arme, armure)', (await page.$$('#equip-rows .equip-row')).length === 2);
+  // V5 T9 : une ligne par emplacement DÉCLARÉ, plus un nombre en dur. La fiche n'en proposait que deux — la
+  // babiole et la fiole étaient hors de portée du joueur — et les données en déclarent six depuis la cape et
+  // l'anneau. Le contrôle lit `slots` pour ne plus avoir à être retouché au prochain emplacement.
+  check('Mon héros : une ligne d\'équipement par emplacement déclaré (' + DATA.slots.length + ')',
+    (await page.$$('#equip-rows .equip-row')).length === DATA.slots.length,
+    (await page.$$('#equip-rows .equip-row')).length + ' lignes pour ' + DATA.slots.map(x => x.id).join(', '));
   // V4 : la cible se choisit dans le chooser d'une case (activity_options du moteur), plus dans une rangée de puces sous un bouton.
   await page.click('[data-testid="slot-1"]');
   // Le jour 2 de la graine 4242 le héros revient blessé (forge ou repos seulement, règle moteur) : on prend la première activité à cibles que le moteur propose.
