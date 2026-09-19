@@ -6,6 +6,8 @@
 // raison du moteur, « Fin de passage » qui verrouille, « Fin de journée » → section Raid de la chronique + jauge du boss,
 // export → import → Rejouer IDENTIQUE avec des raid_pass humains, 400 px sans défilement horizontal, sombre, reduced-motion.
 // Horloge simulée via page.clock (aucune attente réelle). Captures : test/out/v5_*.png. Code de sortie 1 si un contrôle échoue.
+// V5 T3 (2026-09-18) : bloc E ajouté — le choix de spécialisation (deux cartes, verbe, sorts, « utile contre », pastille de
+// recommandation), la spécialisation acquise et le bloc de reconversion sur l'écran « Mon héros », en 400 px.
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -350,6 +352,55 @@ const browser = await pw.chromium.launch();
   if (!ok) { const far = v.me.reachable.slice().sort((a, b) => a.y - b.y)[0]; await tapCell(page, far.x, far.y); ok = !!(await draw(page)).move; }
   check('reduced-motion : écran Raid rendu, aperçu jouable, aucune erreur', ok && errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
+}
+
+/* ---- E. V5 T3 : le choix de spécialisation et la reconversion sur l'écran « Mon héros » ---- */
+{
+  // graine où le héros de p1 reçoit sa proposition de spécialisation (VM.choice de type 'spec')
+  let spec = null;
+  for (let seed = 1; seed <= 40 && !spec; seed++) {
+    let st = sim.newGame(seed, data, { managers: MANAGERS });
+    for (let d = 0; d < 26 && !spec; d++) {
+      st = sim.resolveDay(st, allDefaults(st)).state;
+      const vm = sim.viewModel(st, 'p1');
+      if (vm.choice && vm.choice.kind === 'spec') spec = { seed: seed, day: vm.day, choice: vm.choice };
+    }
+  }
+  if (!spec) check('(T3) une graine propose une spécialisation à p1 en moins de 26 jours', false, 'aucune graine 1..40');
+  else {
+    const { ctx, page, errors } = await newPage(browser, 420);
+    await newGameSeed(page, spec.seed);
+    await playToMorning(page, spec.day);
+    await page.click('[data-testid="tab-heros"]');
+    await page.clock.runFor(300);
+    const cards = await count(page, '#spec-cards .spec-card');
+    const reco = await count(page, '#spec-cards .spec-card.is-reco');
+    const lead = await text(page, '#spec-lead');
+    check('(T3) écran Mon héros : deux cartes de spécialisation côte à côte, une seule pastille « Recommandé », l\'échéance annoncée',
+      cards === 2 && reco === 1 && /jour \d+/.test(lead), cards + ' carte(s), ' + reco + ' pastille(s) — ' + lead.slice(0, 90));
+    const cardTxt = await text(page, '#spec-' + spec.choice.options[0].id);
+    const o = spec.choice.options[0];
+    check('(T3) une carte porte le verbe, les deux sorts chiffrés et « Utile contre »',
+      cardTxt.indexOf(o.verb) >= 0 && o.spells.every(sp => cardTxt.indexOf(sp.name) >= 0 && cardTxt.indexOf(sp.cost_pa + ' PA') >= 0) && cardTxt.indexOf('Utile contre') >= 0,
+      cardTxt.slice(0, 120));
+    await page.click('#spec-' + o.id);
+    await page.clock.runFor(300);
+    const pressed = await page.getAttribute('#spec-' + o.id, 'aria-pressed');
+    await shot(page, 't3_choix_spec');
+    await page.click('[data-testid="tab-tableau"]');
+    await playToMorning(page, spec.day + 1);
+    await page.click('[data-testid="tab-heros"]');
+    await page.clock.runFor(300);
+    const have = await text(page, '#spec-have');
+    check('(T3) le choix part avec les ordres du soir : le lendemain, la spécialisation acquise et ses sorts sont affichés',
+      pressed === 'true' && have.indexOf(o.name) >= 0 && o.spells.every(sp => have.indexOf(sp.name) >= 0), 'pressée=' + pressed + ' · ' + have.slice(0, 110));
+    const rb = await count(page, '#respec-box');
+    const rbTxt = rb ? await text(page, '#respec-box') : '';
+    check('(T3) la reconversion est offerte avec son coût et son échéance (ou refusée avec sa raison)',
+      rb === 1 && (/\d+ or de guilde/.test(rbTxt) || /indisponible/.test(rbTxt)), rbTxt.slice(0, 120));
+    check('(T3) 400 px : aucun défilement horizontal, aucune erreur de page', (await noHScroll(page)) && errors.length === 0, errors.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
 }
 
 await browser.close();

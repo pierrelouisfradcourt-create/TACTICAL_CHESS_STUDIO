@@ -55,6 +55,7 @@
   function rngOf(R) { const r = makeRng(R.rng_s); r.count = R.rng_count; return r; }
   function saveRng(R, r) { R.rng_s = r.s >>> 0; R.rng_count = r.count; }
   function fill(tpl, vars) { return tpl.replace(/\{(\w+)\}/g, (m, k) => (vars[k] === undefined ? m : String(vars[k]))); }
+  function tplKind(R, base) { return R && R.kind === 'derby' ? 'derby_' + base : base; }      // V5 T3 : le gué a ses propres formulations
   function tplOf(data, kind, salt, vars) {
     const list = data.templates && data.templates[kind];
     if (!list || !list.length) return '';
@@ -134,7 +135,7 @@
   function layoutAt(R, x, y) { return R.layout[cidx(gridOf(R), x, y)]; }
   function blocksLos(R, i) {
     const z = R.zones[String(i)];
-    if (R.layout[i] === WALL || (z && (z.zone_id === 'mur_glace' || z.zone_id === 'mur_terre'))) return true;
+    if (R.layout[i] === WALL || (z && (z.zone_id === 'mur_glace' || z.zone_id === 'mur_terre' || z.zone_id === 'mur_heros'))) return true;
     const G = gridOf(R), u = unitAt(R, i % G.w, div(i, G.w));         // une recrue en Formation fait mur (ligne de vue et souffles)
     return !!(u && hasState(u, 'formation'));
   }
@@ -143,7 +144,7 @@
     const k = layoutAt(R, x, y);
     if (k === WALL || k === PIT) return false;
     const z = zoneAt(R, x, y);
-    if (z && (z.zone_id === 'mur_glace' || z.zone_id === 'mur_terre')) return false;
+    if (z && (z.zone_id === 'mur_glace' || z.zone_id === 'mur_terre' || z.zone_id === 'mur_heros')) return false;
     return true;
   }
   function freeCell(R, x, y) { return passable(R, x, y) && !unitAt(R, x, y) && !isBossCell(R.boss, x, y); }
@@ -178,10 +179,13 @@
   // 3. CHEMINS (Dijkstra entier, 4-voisinage, départage coût puis y puis x) et déplacements
   // ===================================================================================
   function moveCost(R, u, x, y, avoid) {
+    if (u.fly) return 1;                                                   // V5 T3 Fauconnier : le faucon ignore eau et zones
     let c = layoutAt(R, x, y) === WATER ? 2 : 1;
     const z = zoneAt(R, x, y);
-    if (z && z.zone_id === 'roots') c += 1;
-    if (z && z.zone_id === 'cendres') c += 1;
+    const light = hasState(u, 'pas_leger');                                  // V5 T3 : Pèlerin — les zones du boss ne coûtent rien
+    if (z && z.zone_id === 'roots' && !light) c += 1;
+    if (z && z.zone_id === 'cendres' && !light) c += 1;
+    if (z && z.owner_kind === 'boss' && light) return Math.max(1, c);
     if (z && z.zone_id === 'sentier') c += (u.side === 'guild' ? -1 : 1);   // Ermite : −1 PM pour les alliés, +1 pour les ennemis
     if (z && z.owner_kind === 'boss' && u.side === 'guild' && (avoid || u.kind !== 'hero')) c += 99;   // politique : jamais d'entrée volontaire sur une zone de boss
     if (hasState(u, 'entrave')) c += 1;
@@ -224,6 +228,7 @@
   function walkPath(R, env, u, path, log) {
     const G = gridOf(R);
     let spent = 0, stopped = false;
+    u.__ported = 0;                                                        // V5 T3 : un seul passage de portail par déplacement
     for (const i of path) {
       const x = i % G.w, y = div(i, G.w);
       if (!freeCell(R, x, y)) break;
@@ -236,6 +241,23 @@
   }
   function enterZone(R, env, u, z, log) {
     const C = raidC(env);
+    if (hasState(u, 'avatar') && z.owner_kind === 'boss') return false;     // V5 T3 15A : l'Avatar ignore les zones du boss
+    // V5 T3 — Portier : deux cases liées ; un allié qui entre sur l'une ressort sur l'autre (une fois par pas).
+    if (z.zone_id === 'portail' && u.side === 'guild' && !u.__ported) {
+      const G = gridOf(R);
+      for (const k of sortedKeys(R.zones)) {
+        const o = R.zones[k];
+        if (o.zone_id !== 'portail' || o.link_id !== z.link_id || o === z) continue;
+        const ox = Number(k) % G.w, oy = div(Number(k), G.w);
+        if (!freeCell(R, ox, oy)) break;
+        u.x = ox; u.y = oy; u.__ported = 1;
+        mech(R, 'portail');
+        log.push(u.name + ' entre dans le portail et ressort en (' + ox + ',' + oy + ').');
+        return true;                                                      // le pas s'arrête à la sortie du portail
+      }
+    }
+    if (z.zone_id === 'roots' && u.side === 'guild' && hasState(u, 'pas_leger')) { log.push(u.name + ' marche au-dessus des racines.'); return false; }
+    if (z.zone_id === 'cendres' && u.side === 'guild' && hasState(u, 'pas_leger')) return false;
     if (z.zone_id === 'roots' && u.side === 'guild') {
       addState(u, 'immobilise', 1, 0);
       damageFlat(R, env, u, C.roots_damage || 8, log, 'les racines');
@@ -249,7 +271,7 @@
     if (z.zone_id === 'esprit_garde' && u.side === 'guild' && u.shield < (z.power || 25)) { addShield(u, (z.power || 25) - u.shield, 2); log.push('L\'esprit gardien couvre ' + u.name + ' (bouclier ' + (z.power || 25) + ').'); return false; }
     if (z.zone_id === 'piege' && u.side === 'boss') {
       const dmg = damageFromPower(R, env, { atk_eff: z.value, level: z.level || 1, crit: 0 }, u, z.power || 80, { magic: false }, null, log, 'le piège de ' + (z.owner_name || 'la guilde'));
-      addState(u, 'immobilise', 1, 0);
+      addState(u, 'immobilise', z.heavy ? 2 : 1, 0);      // V5 T3 10B : le piège lourd cloue deux tours
       delete R.zones[String(cidx(gridOf(R), u.x, u.y))];
       log.push(tplOf(env.data, 'raid_trap', u.id + R.rng_count, { t: u.name, a: z.owner_name || 'la guilde', n: dmg }));
       if (z.linked) {                                   // Fil de fer (Traqueur) : le second piège relié part aussi
@@ -278,6 +300,7 @@
     if (tags && tags.magic) d = div(d, 2);
     if (tags && tags.ignore_half) d = div(d, 2);
     if (hasState(t, 'chancelant')) d = div(d, 2);
+    d -= stateVal(t, 'hantise');                // V5 T3 §5.2 9A : la hantise du Médium retire 10 de DÉF
     d -= 5 * (t.fissures || 0);                 // §2.2 : chaque fissure retire 5 de DÉF (persistante)
     return Math.max(0, d);
   }
@@ -338,6 +361,7 @@
   // 4bis. HYBRIDES : ressources, mécaniques propres ; têtes de l'Hydre ; écailles du Drake
   // ===================================================================================
   function hybOf(env, id) { for (const h of (env.data.hybrids || [])) if (h.id === id) return h; return null; }
+  function specOf(env, id) { for (const s of (env.data.specs || [])) if (s.id === id) return s; return null; }   // V5 T3 : fiche de spécialisation
   function noteRes(R, u) {
     if (!u.hybrid_id) return;
     const seen = R.stats.res_values[u.hybrid_id] = R.stats.res_values[u.hybrid_id] || [];
@@ -365,14 +389,19 @@
   // Duelliste : contre-attaque automatique (60 %) après un coup encaissé au contact, deux fois par tour ennemi au plus.
   function duelRiposte(R, env, t, src, log) {
     if (t.hybrid_id !== 'duelliste' || t.hp <= 0 || R.status !== 'active') return;
-    if ((t.ripostes_turn || 0) >= 2) return;
-    const c = isBoss(src) ? bossNearestCell(src, t.x, t.y) : src;
-    if (manhattan(c.x, c.y, t.x, t.y) > 1) return;
-    t.ripostes_turn = (t.ripostes_turn || 0) + 1;
-    bumpRes(R, t, 1);
-    mech(R, 'riposte');
-    const dmg = damageFromPower(R, env, t, src, 60, { magic: false }, null, log, 'la riposte');
-    log.push(t.name + ' riposte aussitôt : ' + dmg + ' dégâts.');
+    const twice = hasState(t, 'riposte_double');                       // V5 T3 Bretteur : deux ripostes par coup encaissé, à 70 %, cap 4 par tour
+    const cap = twice ? 4 : 2, power = twice ? 70 : 60, n = twice ? 2 : 1;
+    for (let i = 0; i < n; i++) {
+      if ((t.ripostes_turn || 0) >= cap || t.hp <= 0 || src.hp <= 0 || R.status !== 'active') return;
+      const c = isBoss(src) ? bossNearestCell(src, t.x, t.y) : src;
+      if (manhattan(c.x, c.y, t.x, t.y) > 1) return;
+      t.ripostes_turn = (t.ripostes_turn || 0) + 1;
+      bumpRes(R, t, 1);
+      mech(R, 'riposte');
+      if (twice) mech(R, 'riposte_double');
+      const dmg = damageFromPower(R, env, t, src, power, { magic: false }, null, log, 'la riposte');
+      log.push(t.name + ' riposte aussitôt : ' + dmg + ' dégâts.');
+    }
   }
   // Coup encaissé par un héros : Ferveur (+1), Stigmate (30 % en réserve), Ombre (retombe à 0).
   function onHeroHit(R, env, u, dmg, log) {
@@ -422,6 +451,7 @@
   // Résistance du boss au contrôle §1.8 ; les adds ne résistent pas.
   function controlPermille(R, env) { const C = raidC(env); return Math.max(C.control_min_permille, C.control_base_permille - C.control_step_permille * (R.boss.controls_today || 0)); }
   function tryControl(R, env, t, id, turns, value, log, spellName) {
+    if (hasState(t, 'avatar')) { if (log) log.push(t.name + ', devenu élément, ne se laisse pas contrôler.'); return false; }   // V5 T3 15A
     if (hasState(t, 'fusion')) { log.push(t.name + ', fusionné' + (t.gender === 'f' ? 'e' : '') + ' à son élément, ignore le contrôle.'); return false; }
     if (!isBoss(t)) { addState(t, id, turns, value); return true; }
     if (id === 'etourdi' && t.last_stun) { log.push('Le Sylvain ne peut pas être étourdi deux fois de suite.'); return false; }
@@ -475,6 +505,13 @@
       R.units = R.units.filter(u => u.id !== t.id);
       return;
     }
+    if (t.kind === 'banner') {                                             // V5 T3 §2.5 : la Bannière tombée = derby perdu
+      R.units = R.units.filter(u => u.id !== t.id);
+      R.status = 'lost'; R.events.push({ kind: 'lost' });
+      log.push('La Bannière est tombée : le gué est perdu.');
+      return;
+    }
+    if (t.side === 'guild' && t.kind === 'summon') { R.fallen = (R.fallen || []).concat([{ sub: t.sub, name: t.name, master_id: t.master_id, pass: R.pass_count }]); }   // V5 T3 1B : l'Hospitalier peut les relever
     R.units = R.units.filter(u => u.id !== t.id);
     log.push(t.name + (t.side === 'boss' ? ' s\'effondre.' : ' se disloque.'));
   }
@@ -506,6 +543,7 @@
     const out = classSpells(env, u.class_id);
     if (!u.hybrid_id) return out;
     for (const sp of env.data.tactic_spells) if (sp.hybrid_id === u.hybrid_id) out.push(sp.id);
+    if (u.spec_id) for (const sp of env.data.tactic_spells) if (sp.spec_id === u.spec_id) out.push(sp.id);   // V5 T3 : 8 sorts + arme à la spécialisation
     return out;
   }
   function spellFor(env, u, id) {
@@ -514,8 +552,9 @@
     if (id === 'arme') {
       const ranged = (u.class_id === 'ranger' || u.class_id === 'mage') && !hasState(u, 'fusion');
       const fused = hasState(u, 'fusion');                       // Conjurateur fusionné : l'arme devient une croix 1 élémentaire
+      const avatar = hasState(u, 'avatar');                      // V5 T3 15A : l'Avatar frappe en cercle 1 à 120 %
       return Object.assign({}, s, { range_max: ranged ? 5 : 1, los: ranged, magic: u.class_id === 'mage' || fused,
-        shape: fused ? 'cross' : 'single', r: fused ? 1 : 0, target: fused ? 'any' : s.target });
+        shape: avatar ? 'circle' : fused ? 'cross' : 'single', r: fused || avatar ? 1 : 0, power: avatar ? 120 : s.power, target: fused ? 'any' : s.target });
     }
     return s;
   }
@@ -559,6 +598,8 @@
     if (s.id === 'sacred_circle' && Object.keys(R.zones).filter(k => R.zones[k].zone_id === 'sanctuaire' && R.zones[k].source_id === u.id).length >= raidC(env).zone_cap_per_hero) return 'trop de zones posées';
     const hyb = hybridWhy(R, env, u, s, x, y);
     if (hyb) return hyb;
+    const spe = specWhy(R, env, u, s, x, y);
+    if (spe) return spe;
     return null;
   }
   // Conditions propres aux hybrides et au vol du Drake (répliquées à l'identique dans previewCast).
@@ -574,6 +615,36 @@
     if (s.id === 'lever_recrue' && subsOf(R, u.id, 'soldat').length >= 3) return 'trois recrues déjà levées';
     if (s.id === 'double' && subsOf(R, u.id, 'double').length >= 2) return 'deux doubles déjà sur la grille';
     if (s.id === 'echange' && !(t && t.side === 'boss' && !isBoss(t)) && !(t && t.kind === 'summon' && t.sub === 'double')) return 'il faut viser un double ou un ennemi non-boss';
+    return null;
+  }
+  // V5 T3 — conditions propres aux 52 sorts signature de spécialisation (répliquées dans previewCast : l'aperçu ne ment pas).
+  function specWhy(R, env, u, s, x, y) {
+    if (!s.spec_id) return null;
+    const t = targetAt(R, x, y), G = gridOf(R);
+    const zones = id => sortedKeys(R.zones).filter(k => R.zones[k].zone_id === id);
+    switch (s.id) {
+      case 'relever': return (R.fallen || []).length ? null : 'aucun corps tombé à relever ce passage';
+      case 'ralliement': return subsOf(R, u.id, 'soldat').length ? null : 'aucune recrue à rallier';
+      case 'mur_boucliers': return subsOf(R, u.id, 'soldat').some(v => manhattan(v.x, v.y, u.x, u.y) <= 2) ? null : 'aucune recrue assez proche';
+      case 'sacrifice_ordonne': return t && t.kind === 'summon' && t.master_id === u.id ? null : 'il faut désigner une de vos recrues';
+      case 'source': return layoutAt(R, x, y) === WATER ? 'il y a déjà de l\'eau ici' : (isBossCell(R.boss, x, y) ? 'le monstre occupe la case' : null);
+      case 'assechement': return shapeCells(G, 'cross', 1, u.x, u.y, x, y).some(c => layoutAt(R, c.x, c.y) === WATER) ? null : 'aucune eau à assécher ici';
+      case 'ours': case 'grondement': case 'faucon': return subsOf(R, u.id, 'bete').length ? null : 'aucune bête sur la grille';
+      case 'rabattre': return subsOf(R, u.id, 'bete').length ? null : 'aucun faucon à lancer';
+      case 'remanence': return hasState(u, 'fusion') ? null : 'il faut être fusionné pour laisser une rémanence';
+      case 'bannissement': return zones('portail').length >= 2 ? null : 'aucun portail ouvert';
+      case 'grand_echange': return t && !isBoss(t) ? null : 'il faut viser une unité qui n\'est pas le monstre';
+      case 'fils_solides': return t && t.side === 'boss' && !isBoss(t) ? null : 'il faut viser un rejeton';
+      case 'piege_lourd': return zones('piege').filter(k => R.zones[k].heavy && R.zones[k].source_id === u.id).length >= 2 ? 'deux pièges lourds déjà posés' : null;
+      case 'bouclier_plante': return zones('mur_heros').filter(k => R.zones[k].source_id === u.id).length >= 2 ? 'deux boucliers déjà plantés' : null;
+      case 'triple': return subsOf(R, u.id, 'double').length >= 3 ? 'trois doubles déjà sur la grille' : null;
+      case 'miroir': return subsOf(R, u.id, 'double').length ? null : 'aucun double à faire viser';
+      case 'veille': return sortedKeys(R.zones).some(k => R.zones[k].owner_kind === 'hero') ? null : 'aucune aura de la guilde à prolonger';
+      case 'portail': return manhattan(u.x, u.y, x, y) >= 2 ? null : 'les deux portes doivent être écartées (2 cases au moins)';
+      case 'grande_fusion': return hasState(u, 'fusion') ? 'la fusion est déjà en cours' : null;
+      case 'pas_leger': return hasState(u, 'pas_leger') ? 'le pas est déjà léger' : null;
+      case 'riposte_double': return hasState(u, 'riposte_double') ? 'la garde est déjà doublée' : null;
+    }
     return null;
   }
   // Case libre adjacente à la cible (charge), la plus proche de la source le long de la ligne.
@@ -660,6 +731,7 @@
     if (s.hybrid_id && !s.power && !HYB_BODY[s.id] && R.pass) R.pass.hyb_turn = R.pass.turn;   // V5 T2 : un seul sort d'installation de la voie par passage (politique par défaut)
     const effects = s.effects || [];
     if (s.hybrid_id) { gainGust(R, u, s); if (castHybrid(R, env, u, s, x, y, t, log)) { syncCounts(R, u); return; } }
+    if (s.spec_id) { gainGust(R, u, s); if (castSpec(R, env, u, s, x, y, t, log)) { syncCounts(R, u); return; } }   // V5 T3 : les 52 sorts signature
     if (s.id === 'charge') {
       const c = adjacentCellToward(R, u, x, y);
       u.x = c.x; u.y = c.y;
@@ -937,6 +1009,492 @@
     }
     return false;
   }
+  // ===================================================================================
+  // 5bis. V5 T3 — LES 52 SORTS SIGNATURE DES 26 SPÉCIALISATIONS (§5.2)
+  // Chaque spé porte un effet mesurable sur la grille (mur, terrain, riposte, corps, contrôle),
+  // jamais un simple bonus de chiffres. Renvoie true si le sort est entièrement traité ici.
+  // ===================================================================================
+  function freeAround(R, x, y, n, skipBoss) {
+    const G = gridOf(R), out = [];
+    for (const c of cellsSorted(G, [{ x: x, y: y }, { x: x, y: y - 1 }, { x: x - 1, y: y }, { x: x + 1, y: y }, { x: x, y: y + 1 },
+      { x: x - 1, y: y - 1 }, { x: x + 1, y: y - 1 }, { x: x - 1, y: y + 1 }, { x: x + 1, y: y + 1 }])) {
+      if (!freeCell(R, c.x, c.y)) continue;
+      if (skipBoss && isBossCell(R.boss, c.x, c.y)) continue;
+      out.push(c);
+      if (out.length >= n) break;
+    }
+    return out;
+  }
+  function setTerrain(R, x, y, kind, turns) {                       // Sourcier : changement de sol rendu après N ripostes
+    const G = gridOf(R), i = cidx(G, x, y);
+    R.terrain = R.terrain || [];
+    if (!R.terrain.some(t => t.i === i)) R.terrain.push({ i: i, prev: R.layout[i], turns: turns });
+    else for (const t of R.terrain) if (t.i === i) t.turns = turns;
+    R.layout[i] = kind;
+  }
+  function tickTerrain(R, env, log) {
+    if (!R.terrain || !R.terrain.length) return;
+    const keep = [];
+    for (const t of R.terrain) {
+      t.turns -= 1;
+      if (t.turns > 0) { keep.push(t); continue; }
+      R.layout[t.i] = t.prev;
+    }
+    R.terrain = keep;
+    if (fiche(R, env).water_def_bonus) syncWater(R, env, log);
+  }
+  function portalCells(R) {
+    const G = gridOf(R), out = [];
+    for (const k of sortedKeys(R.zones)) { const z = R.zones[k]; if (z.zone_id === 'portail') out.push({ x: Number(k) % G.w, y: div(Number(k), G.w), link: z.link_id }); }
+    return out;
+  }
+  function castSpec(R, env, u, s, x, y, t, log) {
+    const G = gridOf(R), B = R.boss, P = R.pass, f = fiche(R, env);
+    switch (s.id) {
+      // ---- 1A Templier : ancrer ----
+      case 'bouclier_plante': {
+        R.zones[String(cidx(G, x, y))] = { zone_id: 'mur_heros', turns_left: 2, owner_kind: 'hero', source_id: u.id, owner_name: u.name, hp: 120 };
+        mech(R, 'bouclier_plante');
+        log.push(u.name + ' plante son bouclier en (' + x + ',' + y + ') : la case fait mur (120 PV, 2 ripostes).');
+        return true;
+      }
+      case 'charge_foi': {
+        const c = adjacentCellToward(R, u, x, y);
+        if (c) { u.x = c.x; u.y = c.y; const z = zoneAt(R, u.x, u.y); if (z) enterZone(R, env, u, z, log); }
+        addShield(u, 40, 2);
+        mech(R, 'charge_foi');
+        log.push(u.name + ' charge et arrive couvert (bouclier 40).');
+        return false;                                                 // les dégâts passent par le chemin générique
+      }
+      // ---- 1B Hospitalier : relever ----
+      case 'onction_zone': {
+        const cells = shapeCells(G, 'circle', 1, u.x, u.y, x, y);
+        let n = 0;
+        for (const v of unitsIn(R, cells)) {
+          if (v.side !== 'guild') continue;
+          removeState(v, 'poison'); removeState(v, 'brule');
+          const got = healUnit(v, 60);
+          n += got;
+          R.healing_total[u.id] = (R.healing_total[u.id] || 0) + got;
+        }
+        for (const c of cells) { if (!passable(R, c.x, c.y) || isBossCell(B, c.x, c.y)) continue; const k = String(cidx(G, c.x, c.y)); if (R.zones[k] && R.zones[k].owner_kind === 'hero') continue; R.zones[k] = { zone_id: 'sanctuaire', turns_left: 1, owner_kind: 'hero', source_id: u.id, owner_name: u.name }; }
+        mech(R, 'onction');
+        log.push(u.name + ' oint la zone : ' + n + ' PV rendus, poison et brûlure lavés, sanctuaire posé.');
+        return true;
+      }
+      case 'relever': {
+        const body = (R.fallen || [])[R.fallen.length - 1];
+        if (!body) return true;
+        R.fallen = R.fallen.slice(0, -1);
+        const v = makeSummon(R, env, u, body.sub, x, y);
+        v.hp = Math.max(1, div(v.hp_max, 2));
+        mech(R, 'relever');
+        log.push(u.name + ' relève ' + body.name + ' : ' + v.hp + ' PV.');
+        return true;
+      }
+      // ---- 2A Bretteur : riposter ----
+      case 'riposte_double': { addState(u, 'riposte_double', 3, 0); mech(R, 'riposte_double_on'); log.push(u.name + ' double sa garde : chaque coup encaissé lui en rendra deux.'); return true; }
+      case 'botte_secrete': {
+        if (!t || t.side !== 'boss') return true;
+        const power = (u.ripostes_turn || 0) >= 2 ? 224 : 160;
+        const dmg = damageFromPower(R, env, u, t, powerOf({ power: power }, u), { magic: false }, s, log, s.name);
+        mech(R, 'botte_secrete');
+        log.push(u.name + ' place sa botte secrète' + (power > 130 ? ' après deux ripostes' : '') + ' : ' + dmg + ' dégâts.');
+        return true;
+      }
+      // ---- 2B Matador : déplacer le boss ----
+      case 'cape': {
+        if ((B.mass || 0) > 3 || B.alive === false) { log.push('La cape claque dans le vide.'); return true; }
+        let k = 0, hitWall = false;
+        for (let i = 0; i < 2; i++) {
+          const d = dirOf(B.x, B.y, x, y);
+          if (!d.x && !d.y) break;
+          if (!bossCanStand(R, B.x + d.x, B.y + d.y, B)) { hitWall = true; break; }
+          B.x += d.x; B.y += d.y; k++;
+        }
+        if (k) syncWater(R, env, log);
+        if (hitWall) { damageFlat(R, env, B, 40, log, 'la collision'); log.push(B.name + ' percute un obstacle en chargeant la cape : 40 dégâts.'); }
+        mech(R, 'cape');
+        log.push(u.name + ' agite la cape : ' + B.name + ' charge de ' + k + ' case(s).');
+        return true;
+      }
+      case 'esquive': { addState(u, 'feinte', 2, 0); P.pm += 1; mech(R, 'esquive'); log.push(u.name + ' s\'efface : le prochain coup passera à côté (+1 PM).'); return true; }
+      // ---- 3A Harponneur : attirer / ancrer ----
+      case 'harpon': {
+        if (landDrake(R, env, log, u.name)) { mech(R, 'harpon'); return true; }
+        if (!t || t.side !== 'boss') return true;
+        mech(R, 'harpon');
+        if (isBoss(t)) { tryControl(R, env, t, 'immobilise', 1, 0, log, s.name); log.push(u.name + ' plante le harpon dans ' + t.name + '.'); }
+        else pullToward(R, env, u, t, 3, u.x, u.y, log);
+        return true;
+      }
+      case 'chaine_givre': {
+        if (!t || t.side !== 'boss') return true;
+        mech(R, 'chaine_givre');
+        if (!isBoss(t)) { addState(t, 'immobilise', 2, 0); log.push(u.name + ' enchaîne ' + t.name + ' : immobilisé 2 tours.'); return true; }
+        const c = bossNearestCell(B, u.x, u.y), z = zoneAt(R, c.x, c.y);
+        if ((z && z.zone_id === 'glace') || layoutAt(R, c.x, c.y) === WATER) { addState(B, 'immobilise', 1, 0); log.push(u.name + ' gèle l\'eau autour de ' + B.name + ' : il est cloué sur place.'); }
+        else { addState(B, 'entrave', 2, 0); log.push(u.name + ' entrave ' + B.name + ' avec sa chaîne de givre.'); }
+        return true;
+      }
+      // ---- 3B Écorcheur : fissurer ----
+      case 'entaille': {
+        if (!t || t.side !== 'boss') return true;
+        const had = (t.fissures || 0) > 0;
+        const dmg = damageFromPower(R, env, u, t, powerOf(s, u), { magic: false }, s, log, s.name);
+        if (t.hp > 0) {
+          addFissure(R, env, u, t, log); addFissure(R, env, u, t, log);
+          if (had) { addState(t, 'brule', 2, 0); const b = stateOf(t, 'brule'); if (b) b.level = u.level; log.push('La lame chauffe dans la fissure : ' + t.name + ' prend feu.'); }
+        }
+        mech(R, 'entaille');
+        log.push(u.name + ' entaille ' + t.name + ' : ' + dmg + ' dégâts, deux fissures.');
+        return true;
+      }
+      case 'depecage': {
+        if (!t || t.side !== 'boss') return true;
+        const n = Math.max(1, t.fissures || 0);
+        const dmg = damageFromPower(R, env, u, t, powerOf({ power: 60 * n }, u), { magic: false }, s, log, s.name);
+        t.fissures = 0;
+        mech(R, 'depecage');
+        log.push(u.name + ' dépèce ' + t.name + ' (' + n + ' fissure(s)) : ' + dmg + ' dégâts, l\'armure se referme.');
+        return true;
+      }
+      // ---- 5A Porte-étendard : rallier ----
+      case 'etendard': {
+        R.zones[String(cidx(G, x, y))] = { zone_id: 'etendard', turns_left: 3, owner_kind: 'hero', source_id: u.id, owner_name: u.name };
+        for (const v of subsOf(R, u.id, 'soldat')) if (manhattan(v.x, v.y, x, y) <= 1) v.atk_eff = pct(v.atk_eff, 120);
+        mech(R, 'etendard');
+        log.push(u.name + ' plante l\'étendard en (' + x + ',' + y + ') : +1 PA à qui commence son tour à côté, 3 ripostes.');
+        return true;
+      }
+      case 'ralliement': {
+        const st = sortedKeys(R.zones).filter(k => R.zones[k].zone_id === 'etendard');
+        const c = st.length ? { x: Number(st[0]) % G.w, y: div(Number(st[0]), G.w) } : { x: u.x, y: u.y };
+        let n = 0;
+        for (const v of subsOf(R, u.id, 'soldat')) { const free = freeAround(R, c.x, c.y, 4, true).filter(p => !(p.x === v.x && p.y === v.y)); if (!free.length) continue; const p2 = free[0]; v.x = p2.x; v.y = p2.y; n++; }
+        mech(R, 'ralliement');
+        log.push(u.name + ' rallie ' + n + ' recrue(s) autour de l\'étendard.');
+        return true;
+      }
+      // ---- 5B Sergent : former ----
+      case 'mur_boucliers': {
+        const rec = subsOf(R, u.id, 'soldat').filter(v => manhattan(v.x, v.y, u.x, u.y) <= 2);   // calibrage T3 : 2 cases, sinon les recrues partent avant l'ordre
+        for (const v of rec) { addState(v, 'formation', 2, 0); v.mass = 2; }
+        mech(R, 'mur_boucliers');
+        log.push(u.name + ' forme le mur de boucliers (' + rec.length + ' recrue(s), masse 2, mur contre le souffle).');
+        return true;
+      }
+      case 'sacrifice_ordonne': {
+        const free = freeAround(R, u.x, u.y, 1, true);
+        if (free.length && manhattan(t.x, t.y, u.x, u.y) > 1) { t.x = free[0].x; t.y = free[0].y; }
+        addState(t, 'garde', 2, 0); addState(t, 'abri', 2, 0); t.guard_of = u.id;
+        mech(R, 'sacrifice_ordonne');
+        log.push(t.name + ' se met en travers : elle prendra la prochaine attaque à la place de ' + u.name + '.');
+        return true;
+      }
+      // ---- 6A Confesseur : voler un état ----
+      case 'vol_bouclier': {
+        if (!t || t.side !== 'boss') return true;
+        const steal = Math.min(t.shield || 0, 200);
+        if (steal <= 0) { log.push(t.name + ' n\'a aucun bouclier à prendre.'); return true; }
+        t.shield -= steal;
+        addShield(u, steal, 3);
+        if (isBoss(t) && t.shield === 0 && t.phase >= 3) onShieldBroken(R, env, t, log);
+        mech(R, 'vol_bouclier');
+        log.push(u.name + ' prend ' + steal + ' points de bouclier à ' + t.name + ' et les porte.');
+        return true;
+      }
+      case 'vol_seve': {
+        if (!t || t.side !== 'boss') return true;
+        addState(u, 'seve_volee', 2, 0);
+        if (isBoss(t)) { t.regen_skip = 1; t.regen_off = Math.max(t.regen_off || 0, 1); }
+        mech(R, 'vol_seve');
+        log.push(u.name + ' détourne la sève de ' + t.name + ' : elle coule pour ' + (u.gender === 'f' ? 'elle' : 'lui') + ' 2 tours.');
+        return true;
+      }
+      // ---- 6B Censeur : sceller ----
+      case 'interdit': {
+        R.sealed = 1;
+        R.pending_steal = 0;
+        mech(R, 'interdit');
+        log.push(u.name + ' prononce l\'interdit : la prochaine riposte de ' + B.name + ' ne produira rien.');
+        return true;
+      }
+      case 'silence': {
+        if (!t || t.side !== 'boss' || isBoss(t)) { log.push('Le silence n\'a pas de prise ici.'); return true; }
+        addState(t, 'silence', 2, 0);
+        mech(R, 'silence');
+        log.push(u.name + ' musèle ' + t.name + ' : ni soin ni drain pendant 2 tours.');
+        return true;
+      }
+      // ---- 7A Pèlerin : purifier ----
+      case 'grande_purification': {
+        const cells = shapeCells(G, 'circle', 2, u.x, u.y, x, y);
+        let n = 0, healed = 0;
+        for (const c of cells) { const k = String(cidx(G, c.x, c.y)); if (R.zones[k] && R.zones[k].owner_kind === 'boss') { delete R.zones[k]; n++; } }
+        for (const v of unitsIn(R, cells)) { if (v.side !== 'guild') continue; const got = healUnit(v, 20); healed += got; R.healing_total[u.id] = (R.healing_total[u.id] || 0) + got; removeState(v, 'immobilise'); }
+        mech(R, 'grande_purification');
+        log.push(u.name + ' purifie le cercle : ' + n + ' case(s) lavée(s), ' + healed + ' PV rendus.');
+        return true;
+      }
+      case 'pas_leger': { addState(u, 'pas_leger', 9, 0); removeState(u, 'immobilise'); if (P) P.pm = u.pm_max; mech(R, 'pas_leger'); log.push(u.name + ' allège son pas : ni racines ni cendres ne le retiendront.'); return true; }
+      // ---- 7B Sourcier : façonner le terrain ----
+      case 'source': {
+        setTerrain(R, x, y, WATER, 2);
+        mech(R, 'source');
+        log.push(u.name + ' fait jaillir une source en (' + x + ',' + y + ').');
+        syncWater(R, env, log);
+        return true;
+      }
+      case 'assechement': {
+        const cells = shapeCells(G, 'cross', 1, u.x, u.y, x, y);
+        let n = 0;
+        for (const c of cells) if (layoutAt(R, c.x, c.y) === WATER) { setTerrain(R, c.x, c.y, FLOOR, 2); n++; }
+        mech(R, 'assechement');
+        syncWater(R, env, log);
+        log.push(u.name + ' assèche ' + n + ' case(s) de tourbière.');
+        return true;
+      }
+      // ---- 8A Devin : révéler ----
+      case 'vision': {
+        const cells = safeCells(R, env, u, 4);
+        R.riposte_after = ripostePlan(R, env, u.x, u.y);
+        if (cells.length) { const c = cells[0]; R.zones[String(cidx(G, c.x, c.y))] = { zone_id: 'case_sure', turns_left: 3, owner_kind: 'hero', source_id: u.id, owner_name: u.name }; log.push(u.name + ' voit deux ripostes d\'avance et marque la case sûre (' + c.x + ',' + c.y + ').'); }
+        else log.push(u.name + ' voit deux ripostes d\'avance, mais aucune case n\'est sûre.');
+        mech(R, 'vision');
+        return true;
+      }
+      case 'detourner': {
+        R.riposte_redirect = { x: x, y: y };
+        mech(R, 'detourner');
+        log.push(u.name + ' détourne la prochaine riposte vers (' + x + ',' + y + ').');
+        return true;
+      }
+      // ---- 8B Chronomancien : retarder ----
+      case 'sablier_renverse': {
+        if (tryControl(R, env, B, 'etourdi', 1, 0, log, s.name)) { removeState(B, 'etourdi'); B.last_stun = 0; R.skip_riposte = 1; mech(R, 'sablier_renverse'); log.push(u.name + ' renverse le sablier : la prochaine riposte n\'aura pas lieu.'); }
+        else log.push(u.name + ' renverse le sablier en vain : le temps lui échappe.');
+        return true;
+      }
+      case 'legs': { R.legs = 1; mech(R, 'legs'); log.push(u.name + ' lègue son temps : le prochain héros jouera un tour de plus.'); return true; }
+      // ---- 9A Médium : hanter ----
+      case 'esprit_cendre_majeur': {
+        if (!t || t.side !== 'boss') return true;
+        addState(t, 'esprit_cendre', 3, u.level);
+        const st = stateOf(t, 'esprit_cendre'); if (st) st.source_id = u.id;
+        addState(t, 'brule', 2, 0);
+        const b = stateOf(t, 'brule'); if (b) b.level = u.level;
+        if (isBoss(t)) t.regen_off = 3;
+        mech(R, 'esprit_cendre_majeur');
+        log.push(u.name + ' cloue un esprit de cendre majeur sur ' + t.name + ' : il brûlera 3 ripostes et sa sève ne remonte plus.');
+        return true;
+      }
+      case 'hantise': {
+        if (!t || t.side !== 'boss') return true;
+        addState(t, 'hantise', 2, 10);
+        mech(R, 'hantise');
+        log.push(u.name + ' hante ' + t.name + ' : DÉF −10 pendant 2 ripostes.');
+        return true;
+      }
+      // ---- 9B Veilleur : protéger ----
+      case 'esprit_gardien_majeur': {
+        R.zones[String(cidx(G, x, y))] = { zone_id: 'esprit_garde', turns_left: 3, owner_kind: 'hero', source_id: u.id, owner_name: u.name, power: 60 };
+        const v = unitAt(R, x, y);
+        if (v && v.side === 'guild' && v.shield < 60) addShield(v, 60 - v.shield, 3);
+        mech(R, 'esprit_gardien_majeur');
+        log.push(u.name + ' pose un esprit gardien majeur en (' + x + ',' + y + ') : bouclier 60, 3 ripostes.');
+        return true;
+      }
+      case 'veille': {
+        let n = 0;
+        for (const k of sortedKeys(R.zones)) { const z = R.zones[k]; if (z.owner_kind !== 'hero' || z.turns_left >= 99) continue; z.turns_left += 1; n++; }
+        mech(R, 'veille');
+        log.push(u.name + ' veille : ' + n + ' trace(s) de la guilde tiennent une riposte de plus.');
+        return true;
+      }
+      // ---- 10A Assassin : exécuter ----
+      case 'lame_dos': {
+        if (!t || t.side !== 'boss') return true;
+        const back = isBoss(t) ? isBack(R, u) : u.y < t.y;
+        const power = hasState(t, 'chancelant') ? 300 : (back ? 200 : 120);
+        const dmg = damageFromPower(R, env, u, t, powerOf({ power: power }, u), { magic: false }, s, log, s.name);
+        mech(R, 'lame_dos');
+        log.push(u.name + (power === 300 ? ' frappe la nuque de ' : power === 200 ? ' plante sa lame dans le dos de ' : ' frappe de face ') + t.name + ' : ' + dmg + ' dégâts.');
+        return true;
+      }
+      case 'ombre_longue': { setRes(R, u, u.res_max || 3); mech(R, 'ombre_longue'); log.push(u.name + ' se fond dans l\'ombre : elle est pleine.'); return true; }
+      // ---- 10B Piégeur : piéger en chaîne ----
+      case 'piege_lourd': {
+        R.zones[String(cidx(G, x, y))] = { zone_id: 'piege', turns_left: 99, owner_kind: 'hero', source_id: u.id, owner_name: u.name, value: u.atk_eff, power: 120, level: u.level, heavy: 1 };
+        R.stats.zones.piege = (R.stats.zones.piege || 0) + 1;
+        mech(R, 'piege_lourd');
+        log.push(u.name + ' arme un piège lourd en (' + x + ',' + y + ') : 120 % et 2 tours d\'immobilisation.');
+        return true;
+      }
+      case 'rabattage': {
+        const traps = sortedKeys(R.zones).filter(k => R.zones[k].zone_id === 'piege').map(k => ({ x: Number(k) % G.w, y: div(Number(k), G.w) }));
+        const cells = shapeCells(G, 'circle', 1, u.x, u.y, x, y);
+        let n = 0;
+        for (const v of unitsIn(R, cells)) {
+          if (v.side !== 'boss' || isBoss(v)) continue;
+          const tr = traps.length ? traps.slice().sort((a, b) => manhattan(a.x, a.y, v.x, v.y) - manhattan(b.x, b.y, v.x, v.y) || cidx(G, a.x, a.y) - cidx(G, b.x, b.y))[0] : { x: u.x, y: u.y };
+          if (traps.length && manhattan(tr.x, tr.y, v.x, v.y) === 1 && !unitAt(R, tr.x, tr.y) && passable(R, tr.x, tr.y)) {   // la mâchoire est juste là : le rejeton y met le pied
+            v.x = tr.x; v.y = tr.y; n++;
+            const z = zoneAt(R, v.x, v.y);
+            if (z) enterZone(R, env, v, z, log);
+            continue;
+          }
+          n += pullToward(R, env, u, v, 1, tr.x, tr.y, log) > 0 ? 1 : 0;
+        }
+        mech(R, 'rabattage');
+        log.push(u.name + ' rabat ' + n + ' rejeton(s) vers ses mâchoires.');
+        return true;
+      }
+      // ---- 11A Mirage : leurrer ----
+      case 'triple': {
+        const free = freeAround(R, x, y, 2, true);
+        let n = 0;
+        for (const c of free) { if (subsOf(R, u.id, 'double').length >= 3) break; makeSummon(R, env, u, 'double', c.x, c.y); n++; }
+        mech(R, 'triple');
+        log.push(u.name + ' se démultiplie : ' + n + ' double(s) de plus sur la grille.');
+        return true;
+      }
+      case 'miroir': {
+        const d = subsOf(R, u.id, 'double').slice().sort((a, b) => manhattan(a.x, a.y, u.x, u.y) - manhattan(b.x, b.y, u.x, u.y) || (a.id < b.id ? -1 : 1))[0];
+        if (!d) return true;
+        R.riposte_redirect = { x: d.x, y: d.y };
+        R.riposte_no_zone = 1;
+        mech(R, 'miroir');
+        log.push(u.name + ' tend le miroir : la prochaine riposte partira sur ' + d.name + ' et ne laissera rien.');
+        return true;
+      }
+      // ---- 11B Passe-muraille : échanger ----
+      case 'grand_echange': {
+        if (!t) return true;
+        const ux = u.x, uy = u.y;
+        u.x = t.x; u.y = t.y; t.x = ux; t.y = uy;
+        mech(R, 'grand_echange');
+        log.push(u.name + ' permute avec ' + t.name + ' à travers la grille.');
+        const z = zoneAt(R, u.x, u.y); if (z) enterZone(R, env, u, z, log);
+        return true;
+      }
+      case 'fils_solides': {
+        if (!t || isBoss(t) || t.side !== 'boss') return true;
+        if ((t.level || 1) > (u.level || 1)) { log.push(t.name + ' résiste aux fils : il est trop fort pour ' + u.name + '.'); return true; }
+        addState(t, 'charme', 3, 0);
+        mech(R, 'fils_solides');
+        log.push(u.name + ' tend ses fils : ' + t.name + ' se retourne contre les siens (3 tours).');
+        return true;
+      }
+      // ---- 13A Bourrasque : pousser en zone ----
+      case 'tempete_vent': {
+        const cells = shapeCells(G, 'cone', 3, u.x, u.y, x, y);
+        let n = 0, dmg = 0;
+        for (const v of unitsIn(R, cells)) {
+          if (v.side !== 'boss') continue;
+          dmg += damageFromPower(R, env, u, v, powerOf(s, u), { magic: false }, s, log, s.name);
+          if (v.hp > 0) n += pushUnit(R, env, u, v, 3, u.x, u.y, log) > 0 ? 1 : 0;
+        }
+        mech(R, 'tempete_vent');
+        log.push(u.name + ' déchaîne la tempête : ' + dmg + ' dégâts, ' + n + ' unité(s) balayée(s).');
+        return true;
+      }
+      case 'souffle_court': {
+        if (!t || t.side !== 'boss') return true;
+        pushUnit(R, env, u, t, 1, u.x, u.y, log);
+        mech(R, 'souffle_court');
+        return true;
+      }
+      // ---- 13B Cyclone : rassembler ----
+      case 'oeil_cyclone': {
+        const cells = shapeCells(G, 'circle', 2, u.x, u.y, x, y);
+        let n = 0;
+        for (const v of unitsIn(R, cells)) { if (v.id === u.id) continue; if (pullToward(R, env, u, v, 2, x, y, log) > 0) n++; }
+        mech(R, 'oeil_cyclone');
+        log.push(u.name + ' ouvre l\'œil du cyclone : ' + n + ' unité(s) ramenée(s) au centre.');
+        return true;
+      }
+      case 'aspiration': {
+        if (!t || t.side !== 'boss') return true;
+        pullToward(R, env, u, t, 2, u.x, u.y, log);
+        mech(R, 'aspiration');
+        return true;
+      }
+      // ---- 14A Maître-ours : garder ----
+      case 'ours': {
+        const b = subsOf(R, u.id, 'bete')[0];
+        if (!b) return true;
+        if (!b.__ours) { b.__ours = 1; b.hp_max = pct(b.hp_max, 150); b.hp = b.hp_max; b.mass = 2; b.name = 'Ours de ' + u.name.split(' ')[0]; }
+        addState(b, 'garde', -1, 0); b.guard_of = u.id;
+        mech(R, 'ours');
+        log.push(b.name + ' se dresse : masse 2, ' + b.hp_max + ' PV, il garde ' + u.name + '.');
+        return true;
+      }
+      case 'grondement': {
+        const b = subsOf(R, u.id, 'bete')[0];
+        if (!b || B.alive === false) return true;
+        addState(B, 'provoque', 2, 0);
+        const st = stateOf(B, 'provoque'); if (st) st.unit = b.id;
+        mech(R, 'grondement');
+        log.push(b.name + ' gronde : ' + B.name + ' ne regarde plus que lui (2 tours).');
+        return true;
+      }
+      // ---- 14B Fauconnier : survoler ----
+      case 'faucon': {
+        const b = subsOf(R, u.id, 'bete')[0];
+        if (!b) return true;
+        b.fly = 1; b.pm_max = 6; b.range_max = 4; b.range_min = 1; b.los = false;
+        b.name = 'Faucon de ' + u.name.split(' ')[0];
+        mech(R, 'faucon');
+        log.push(b.name + ' prend l\'air : 6 PM, frappe à 4 cases sans ligne de vue.');
+        return true;
+      }
+      case 'rabattre': {
+        if (landDrake(R, env, log, u.name)) { mech(R, 'rabattre'); return true; }
+        if (!t || t.side !== 'boss' || isBoss(t)) { log.push('Le faucon tourne sans rien trouver à rabattre.'); return true; }
+        const b = subsOf(R, u.id, 'bete')[0];
+        pullToward(R, env, b || u, t, 1, u.x, u.y, log);
+        mech(R, 'rabattre');
+        return true;
+      }
+      // ---- 15A Avatar : se transformer ----
+      case 'grande_fusion': {
+        const el = subsOf(R, u.id, 'elementaire')[0];
+        if (el) { R.units = R.units.filter(v => v.id !== el.id); log.push(u.name + ' absorbe ' + el.name + '.'); }
+        addState(u, 'fusion', 3, 0);
+        addState(u, 'avatar', 3, 0);
+        u.mass = 3;
+        removeState(u, 'immobilise'); removeState(u, 'entrave'); removeState(u, 'etourdi');
+        setRes(R, u, 0);
+        mech(R, 'grande_fusion');
+        log.push(u.name + ' devient l\'élément : masse 3, insensible au contrôle et aux zones, son arme frappe en cercle 1 (3 tours).');
+        return true;
+      }
+      case 'remanence': { u.__remanence = 1; mech(R, 'remanence'); log.push(u.name + ' garde une rémanence : l\'élémentaire renaîtra à la fin de la fusion.'); return true; }
+      // ---- 15B Portier : relier ----
+      case 'portail': {
+        R.next_link = (R.next_link || 0) + 1;
+        const link = R.next_link;
+        const near = freeAround(R, u.x, u.y, 1, true)[0] || { x: u.x, y: u.y };
+        R.zones[String(cidx(G, near.x, near.y))] = { zone_id: 'portail', turns_left: 2, owner_kind: 'hero', source_id: u.id, owner_name: u.name, link_id: link };
+        R.zones[String(cidx(G, x, y))] = { zone_id: 'portail', turns_left: 2, owner_kind: 'hero', source_id: u.id, owner_name: u.name, link_id: link };
+        mech(R, 'portail_pose');
+        log.push(u.name + ' ouvre un portail entre (' + near.x + ',' + near.y + ') et (' + x + ',' + y + ').');
+        return true;
+      }
+      case 'bannissement': {
+        if (!t || isBoss(t) || t.side !== 'boss') return true;
+        const ps = portalCells(R);
+        const far = ps.slice().sort((a, b) => manhattan(b.x, b.y, t.x, t.y) - manhattan(a.x, a.y, t.x, t.y) || cidx(G, a.x, a.y) - cidx(G, b.x, b.y))[0];
+        if (far && freeCell(R, far.x, far.y)) { t.x = far.x; t.y = far.y; }
+        addState(t, 'etourdi', 1, 0);
+        mech(R, 'bannissement');
+        log.push(u.name + ' bannit ' + t.name + ' par le portail : étourdi à l\'autre bout.');
+        return true;
+      }
+    }
+    return false;
+  }
   // Cases sûres à portée : hors zone de boss, hors cases de la prochaine riposte, libres (départage index).
   function safeCells(R, env, u, rad) {
     const G = gridOf(R), rip = {};
@@ -1032,9 +1590,11 @@
     log.push(u.name + ' érige un mur de glace (' + n + ' case(s)).');
   }
   function zoneLabel(id) { return { roots: 'Racines', spores: 'Spores', sanctuaire: 'Sanctuaire', piege: 'Piège', glace: 'Glace', mur_glace: 'Mur de glace',
-    cendres: 'Cendres', venin: 'Venin', sentier: 'Sentier', case_sure: 'Case sûre', esprit_garde: 'Esprit gardien', feu: 'Feu', mur_terre: 'Mur de terre' }[id] || id; }
+    cendres: 'Cendres', venin: 'Venin', sentier: 'Sentier', case_sure: 'Case sûre', esprit_garde: 'Esprit gardien', feu: 'Feu', mur_terre: 'Mur de terre',
+    mur_heros: 'Bouclier planté', etendard: 'Étendard', portail: 'Portail', piege_lourd: 'Piège lourd', banniere: 'Bannière' }[id] || id; }
   function stateLabel(id) { return { immobilise: 'Immobilisé', etourdi: 'Étourdi', marque: 'Marqué', aveugle: 'Aveuglé', entrave: 'Entravé', brule: 'Brûlé', poison: 'Empoisonné', chancelant: 'Chancelant', charme: 'Charmé', reduction: 'Réduction', provoque: 'Provoqué', vol_temps: 'Temps volé', garde: 'Garde',
-    defi: 'Défi', feinte: 'Feinte', formation: 'Formation', fusion: 'Fusion', esprit_cendre: 'Hanté par la cendre', seve_volee: 'Sève volée', vol: 'En vol' }[id] || id; }
+    defi: 'Défi', feinte: 'Feinte', formation: 'Formation', fusion: 'Fusion', esprit_cendre: 'Hanté par la cendre', seve_volee: 'Sève volée', vol: 'En vol',
+    riposte_double: 'Riposte double', pas_leger: 'Pas léger', hantise: 'Hanté', silence: 'Muselé', avatar: 'Avatar', abri: 'Sacrifice ordonné' }[id] || id; }
 
   // ===================================================================================
   // 6. TOURS : héros (début/fin), invocations, adds, boss, riposte
@@ -1057,6 +1617,12 @@
     const P = R.pass, C = raidC(env), f = fiche(R, env);
     P.pa = C.pa_per_turn - stateVal(u, 'vol_temps');
     removeState(u, 'vol_temps');
+    for (const k of sortedKeys(R.zones)) {                                  // V5 T3 5A : commencer son tour à côté de l'étendard donne +1 PA
+      const z = R.zones[k];
+      if (z.zone_id !== 'etendard') continue;
+      const G = gridOf(R), zx = Number(k) % G.w, zy = div(Number(k), G.w);
+      if (manhattan(zx, zy, u.x, u.y) <= 1) { P.pa += 1; mech(R, 'etendard_pa'); log.push(u.name + ' commence son tour sous l\'étendard : +1 PA.'); break; }
+    }
     P.pm = hasState(u, 'immobilise') ? 0 : u.pm_max;
     if (layoutAt(R, u.x, u.y) === WATER && f.water_pm_malus) P.pm = Math.max(0, P.pm - f.water_pm_malus);   // §2.3 : les héros dans l'eau perdent 1 PM
     heroTurnResources(R, env, u, log);
@@ -1076,7 +1642,14 @@
     noteRes(R, u);
   }
   function endHeroTurn(R, env, u) {
-    if (hasState(u, 'fusion') && stateOf(u, 'fusion').turns <= 1) u.mass = 0;
+    if (hasState(u, 'fusion') && stateOf(u, 'fusion').turns <= 1) {
+      u.mass = 0;
+      if (u.__remanence) {                                                  // V5 T3 15A : l'élémentaire renaît à 50 %
+        u.__remanence = 0;
+        const c = freeAround(R, u.x, u.y, 1, true)[0];
+        if (c) { const v = makeSummon(R, env, u, 'elementaire', c.x, c.y); v.hp = Math.max(1, div(v.hp_max, 2)); mech(R, 'remanence_pop'); }
+      }
+    }
     tickStates(u);
     for (const k of sortedKeys(u.cooldowns)) { if (u.cooldowns[k] > 0) u.cooldowns[k] -= 1; if (u.cooldowns[k] <= 0) delete u.cooldowns[k]; }
   }
@@ -1155,6 +1728,8 @@
     dotTick(R, env, u, log);
     if (u.hp <= 0) return;
     const f = fiche(R, env);
+    if (hasState(u, 'charme')) { charmedTurn(R, env, u, log); return; }     // V5 T3 11B : le rejeton charmé frappe les siens
+    if (u.role) { rivalTurn(R, env, u, log); return; }                      // V5 T3 §2.5 : clerc, rôdeur et rustre rivaux
     let pm = hasState(u, 'immobilise') ? 0 : u.pm_max;
     const B = R.boss;
     const rule = (f.adds && f.adds.target_rule) || 'master';
@@ -1169,9 +1744,70 @@
       const dmg = unitAttack(R, env, u, t, log);
       if (f.adds && f.adds.drain) { const got = healUnit(u, Math.min(f.adds.drain, dmg)); if (got) log.push(u.name + ' se gorge de sang : +' + got + ' PV.'); }
     }
-    if (B.alive !== false && distToBoss(B, u.x, u.y) === 1 && f.adds && f.adds.heal_boss) { const got = healUnit(B, f.adds.heal_boss); if (got) { R.stats.add_heal = (R.stats.add_heal || 0) + got; log.push(u.name + ' abreuve le tronc : +' + got + ' PV au Sylvain.'); } }
+    if (B.alive !== false && distToBoss(B, u.x, u.y) === 1 && f.adds && f.adds.heal_boss && !hasState(u, 'silence')) { const got = healUnit(B, f.adds.heal_boss); if (got) { R.stats.add_heal = (R.stats.add_heal || 0) + got; log.push(u.name + ' abreuve le tronc : +' + got + ' PV au Sylvain.'); } }
     if (u.hp > 0) tickStates(u);
   }
+  // Rejeton charmé (Fils solides) : il marche sur le boss et frappe les siens.
+  function charmedTurn(R, env, u, log) {
+    const B = R.boss;
+    const foes = addUnits(R).filter(v => isAlive(v) && v.id !== u.id && !hasState(v, 'charme')).concat(B.alive !== false ? [B] : []);
+    if (!foes.length) { tickStates(u); return; }
+    const t = nearest(u, foes);
+    const pm = hasState(u, 'immobilise') ? 0 : u.pm_max;
+    const c = isBoss(t) ? bossNearestCell(t, u.x, u.y) : t;
+    if (manhattan(c.x, c.y, u.x, u.y) > u.range_max && pm > 0) moveToward(R, env, u, (x, y) => (isBoss(t) ? distToBoss(t, x, y) : manhattan(x, y, t.x, t.y)), pm, log);
+    if (targetsInRange(R, u, [t]).length) { const d = unitAttack(R, env, u, t, log); mech(R, 'charme_retourne'); log.push(u.name + ', charmé, frappe ' + t.name + ' (' + d + ').'); }
+    if (u.hp > 0) tickStates(u);
+  }
+  // Rivaux du Derby : le clerc soigne le plus blessé, le rôdeur marque le héros et piège la Bannière, le rustre marche sur la Bannière.
+  function rivalTurn(R, env, u, log) {
+    const f = fiche(R, env), G = gridOf(R);
+    const banner = R.units.filter(v => v.kind === 'banner')[0] || null;
+    const pm = hasState(u, 'immobilise') ? 0 : u.pm_max;
+    const foes = guildUnits(R).filter(v => v.hp > 0 && v.kind !== 'banner');
+    const hero = heroUnit(R);
+    if (u.role === 'cleric') {
+      const mates = addUnits(R).filter(isAlive).concat(R.boss.alive !== false ? [R.boss] : []);
+      const hurt = mates.slice().sort((a, b) => div(a.hp * 1000, Math.max(1, a.hp_max)) - div(b.hp * 1000, Math.max(1, b.hp_max)) || (a.id < b.id ? -1 : 1))[0];
+      if (hurt && hurt.hp < hurt.hp_max && !hasState(u, 'silence')) {
+        const c = isBoss(hurt) ? bossNearestCell(hurt, u.x, u.y) : hurt;
+        if (manhattan(c.x, c.y, u.x, u.y) > u.range_max && pm > 0) moveToward(R, env, u, (x, y) => manhattan(x, y, c.x, c.y), pm, log);
+        if (targetsInRange(R, u, [hurt]).length) {
+          const got = healUnit(hurt, (f.rivals && f.rivals[1] && f.rivals[1].heal) || 60);
+          mech(R, 'clerc_rival');
+          if (got) log.push(u.name + ' soigne ' + hurt.name + ' de ' + got + ' PV.');
+        }
+      } else if (hasState(u, 'silence')) log.push(u.name + ', muselé, ne peut pas soigner.');
+      if (u.hp > 0) tickStates(u);
+      return;
+    }
+    if (u.role === 'ranger') {
+      if (hero && !hasState(hero, 'marque') && manhattan(hero.x, hero.y, u.x, u.y) <= u.range_max) {
+        addState(hero, 'marque', 2, 0);
+        mech(R, 'rodeur_rival');
+        log.push(u.name + ' marque ' + hero.name + ' : +20 % de dégâts subis.');
+      }
+      if (banner) {
+        const k = String(cidx(G, banner.x, banner.y));
+        if (!R.zones[k] && manhattan(banner.x, banner.y, u.x, u.y) <= u.range_max) {
+          R.zones[k] = { zone_id: 'venin', turns_left: 2, owner_kind: 'boss', source_id: u.id, owner_name: u.name };
+          mech(R, 'piege_rival');
+          log.push(u.name + ' pose un piège au pied de la Bannière.');
+        } else if (manhattan(banner.x, banner.y, u.x, u.y) > u.range_max && pm > 0) moveToward(R, env, u, (x, y) => manhattan(x, y, banner.x, banner.y), pm, log);
+      }
+      const t2 = foes.filter(v => manhattan(v.x, v.y, u.x, u.y) <= u.range_max).sort((a, b) => a.hp - b.hp || (a.id < b.id ? -1 : 1))[0];
+      if (t2) unitAttack(R, env, u, t2, log);
+      if (u.hp > 0) tickStates(u);
+      return;
+    }
+    const goal = banner && !foes.some(v => manhattan(v.x, v.y, u.x, u.y) <= 1) ? banner : (foes.length ? nearest(u, foes) : banner);
+    if (goal && manhattan(goal.x, goal.y, u.x, u.y) > 1 && pm > 0) moveToward(R, env, u, (x, y) => manhattan(x, y, goal.x, goal.y), pm, log);
+    const adj = guildUnits(R).filter(v => v.hp > 0 && v.kind !== 'banner' && manhattan(v.x, v.y, u.x, u.y) === 1);
+    if (adj.length) unitAttack(R, env, u, guardRedirect(R, nearest(u, adj)), log);
+    else if (banner && manhattan(banner.x, banner.y, u.x, u.y) === 1) unitAttack(R, env, u, banner, log);
+    if (u.hp > 0) tickStates(u);
+  }
+
   // Garde : une attaque monocible visant le gardé frappe le garde s'il est adjacent.
   function guardRedirect(R, t) {
     for (const g of guildUnits(R)) if (g.guard_of === t.id && hasState(g, 'garde') && manhattan(g.x, g.y, t.x, t.y) === 1 && g.hp > 0) return g;
@@ -1240,6 +1876,7 @@
     let regen = f.regen_pct || 0;
     if (B.in_water && f.water_regen_pct) regen += f.water_regen_pct;
     if (B.regen_skip) { B.regen_skip = 0; regen = 0; }
+    if (B.regen_off > 0) regen = 0;                                         // V5 T3 : esprit de cendre majeur / sève volée
     if (!hasState(B, 'brule') && regen > 0) { const got = healUnit(B, pct(B.hp_max, regen)); if (got) log.push('La sève remonte : +' + got + ' PV.'); R.stats.regen_total += got; }
     else if (hasState(B, 'brule')) R.stats.burn_turns = (R.stats.burn_turns || 0) + 1;
     return true;
@@ -1285,6 +1922,7 @@
     const kind = f.kind || 'sylvain';
     if (kind === 'drake') drakeTurn(R, env, log);
     else if (kind === 'hydre') hydreTurn(R, env, log);
+    else if (kind === 'derby') derbyTurn(R, env, log);
     else sylvainTurn(R, env, log);
     bossEndTurn(R, env, log);
   }
@@ -1352,7 +1990,34 @@
     }
     regrowHeads(R, env, log);
   }
-  function unitsOrderS(R) { return R.units.filter(u => u.kind !== 'hero' && u.hp > 0).sort((a, b) => b.spd - a.spd || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).map(u => u.id); }
+  // V5 T3 §2.5 — Capitaine rival : il marche sur la Bannière et frappe ce qui la défend (boss 1×1, masse 1).
+  function derbyTurn(R, env, log) {
+    const B = R.boss, f = fiche(R, env);
+    let pa = f.pa - stateVal(B, 'vol_temps'), pm = hasState(B, 'immobilise') ? 0 : f.pm;
+    removeState(B, 'vol_temps');
+    const banner = R.units.filter(u => u.kind === 'banner')[0] || null;
+    let guard = 0;
+    while (pa >= f.attack.cost && guard++ < 3) {
+      const foes = guildUnits(R).filter(v => v.hp > 0 && v.kind !== 'banner');
+      let t = foes.length ? bossTargets(R, env, f.target_rule) : null;
+      if (t && t.kind === 'banner') t = foes.length ? nearest({ x: B.x, y: B.y, id: '' }, foes) : null;
+      if (!t && banner && banner.hp > 0) t = banner;
+      if (!t) break;
+      let c = bossNearestCell(B, t.x, t.y);
+      if (manhattan(c.x, c.y, t.x, t.y) > f.attack.range && pm > 0) {
+        const goal = banner && !foes.length ? banner : t;
+        pm -= bossMove(R, env, pm, (x, y) => bodyDist(x, y, B, goal.x, goal.y), log);
+        c = bossNearestCell(B, t.x, t.y);
+      }
+      if (manhattan(c.x, c.y, t.x, t.y) > f.attack.range) break;
+      const d = damageFromPower(R, env, B, t, f.attack.power, { magic: false }, null, log, 'la lame du Capitaine');
+      log.push(B.name + ' frappe ' + t.name + ' : ' + d + ' dégâts.');
+      mech(R, 'capitaine_frappe');
+      pa -= f.attack.cost;
+    }
+    if (banner && banner.hp > 0 && pm > 0 && distToBoss(B, banner.x, banner.y) > 1) bossMove(R, env, pm, (x, y) => bodyDist(x, y, B, banner.x, banner.y), log);
+  }
+  function unitsOrderS(R) { return R.units.filter(u => u.kind !== 'hero' && u.kind !== 'banner' && u.hp > 0).sort((a, b) => b.spd - a.spd || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).map(u => u.id); }
   function runS(R, env, log) {
     for (const id of unitsOrderS(R)) {
       const u = unitById(R, id);
@@ -1363,6 +2028,11 @@
   // Riposte télégraphiée, par fiche : Sylvain (racines / spores), Drake (souffle / fournaise), Hydre (venin).
   function ripostePlan(R, env, tx, ty) {
     const B = R.boss, f = fiche(R, env), G = gridOf(R), kind = f.kind || 'sylvain';
+    if (kind === 'derby') {
+      const banner = R.units.filter(u => u.kind === 'banner')[0] || null;
+      return { kind: 'vol_de_tour', label: 'Le Capitaine vole un tour : −' + (f.steal_pa || 2) + ' PA au prochain passage ; la Bannière doit rester libre de rivaux',
+        cells: banner ? shapeCells(G, 'circle', 1, banner.x, banner.y, banner.x, banner.y) : [] };
+    }
     if (kind === 'drake') {
       if (B.phase >= 3 && (R.riposte_count % 2 === 1)) {
         const c = { x: B.x, y: B.y };
@@ -1421,9 +2091,17 @@
   function riposte(R, env, log) {
     const B = R.boss, f = fiche(R, env), G = gridOf(R), P = R.pass, kind = f.kind || 'sylvain';
     if (B.alive === false || R.status !== 'active') return;
-    const cell = P.last_cell || { x: P.spawn.x, y: P.spawn.y };
+    let cell = P.last_cell || { x: P.spawn.x, y: P.spawn.y };
+    if (R.riposte_redirect) {                                             // V5 T3 8A/11A : Détourner, Miroir
+      cell = { x: R.riposte_redirect.x, y: R.riposte_redirect.y };
+      R.riposte_redirect = null;
+      mech(R, 'riposte_detournee');
+      log.push('La riposte part ailleurs que sur ' + P.hero_name + '.');
+    }
     bossStartTurn(R, env, log);
     tickZones(R);
+    tickTerrain(R, env, log);
+    if (B.regen_off > 0) B.regen_off -= 1;
     if (R.skip_riposte) {                         // Sablier de l'Oracle : la riposte saute
       R.skip_riposte = 0;
       R.riposte_count += 1;
@@ -1433,6 +2111,18 @@
       R.last_riposte = { kind: 'aucune', cells: [], by: P.hero_name };
       return;
     }
+    if (R.sealed) {                                                       // V5 T3 6B : l'interdit du Censeur — la riposte n'a pas de mécanisme
+      R.sealed = 0;
+      R.riposte_count += 1;
+      mech(R, 'interdit_tenu');
+      log.push('L\'interdit tient : ' + B.name + ' riposte sans rien produire.');
+      bossEndTurn(R, env, log);
+      R.riposte_next = ripostePlan(R, env, R.spawn_cells[0].x, R.spawn_cells[0].y);
+      R.last_riposte = { kind: 'scellee', cells: [], by: P.hero_name };
+      return;
+    }
+    const zonesBefore = {};
+    for (const k of sortedKeys(R.zones)) zonesBefore[k] = 1;
     const plan = ripostePlan(R, env, cell.x, cell.y);
     if (hasState(B, 'esprit_cendre')) {           // aura du Spirite : le boss reprend feu à chaque riposte
       const a = stateOf(B, 'esprit_cendre');
@@ -1485,10 +2175,46 @@
       }
       regrowHeads(R, env, log);
     }
+    else if (kind === 'derby') derbyRiposte(R, env, plan, log);
+    if (R.riposte_no_zone) {                                              // V5 T3 11A : le Miroir ne laisse rien derrière la riposte
+      R.riposte_no_zone = 0;
+      for (const k of sortedKeys(R.zones)) if (!zonesBefore[k] && R.zones[k].owner_kind === 'boss') delete R.zones[k];
+      log.push('Le miroir absorbe la riposte : aucune trace sur la grille.');
+    }
     R.riposte_count += 1;
     bossEndTurn(R, env, log);
     R.riposte_next = ripostePlan(R, env, R.spawn_cells[0].x, R.spawn_cells[0].y);
     R.last_riposte = { kind: plan.kind, cells: plan.cells.slice(), by: P.hero_name };
+  }
+  // ---- V5 T3 §2.5 : riposte du Derby des Lames — vol de tour, tenue de la Bannière ----
+  function derbyRiposte(R, env, plan, log) {
+    const f = fiche(R, env), B = R.boss;
+    const banner = R.units.filter(u => u.kind === 'banner')[0] || null;
+    if (B.alive !== false) {
+      R.pending_steal = f.steal_pa || 2;
+      mech(R, 'vol_de_tour');
+      log.push(B.name + ' vole un tour : le prochain passage commencera avec ' + (raidC(env).pa_per_turn - R.pending_steal) + ' PA.');
+    }
+    if (!banner) return;
+    const held = addUnits(R).filter(isAlive).some(v => manhattan(v.x, v.y, banner.x, banner.y) <= 1);
+    if (held) {
+      R.banner_hold = 0;
+      R.banner_lost = (R.banner_lost || 0) + 1;
+      mech(R, 'banniere_menacee');
+      log.push(tplOf(env.data, 'derby_lost_hold', 'b' + R.riposte_count, {}));
+      if (R.banner_lost >= (f.banner_lost_max || 2)) { R.status = 'lost'; R.events.push({ kind: 'lost' }); log.push('Les rivaux tiennent la Bannière deux ripostes de suite : le derby est perdu.'); }
+      return;
+    }
+    R.banner_lost = 0;
+    R.banner_hold = (R.banner_hold || 0) + 1;
+    R.derby_score = (R.derby_score || 0) + (f.score ? f.score.hold : 10);
+    mech(R, 'banniere_tenue');
+    log.push(tplOf(env.data, 'derby_hold', 'h' + R.riposte_count, { n: R.banner_hold }));
+    if (R.banner_hold >= (f.banner_hold_win || 3) && R.status === 'active') {
+      R.status = 'won'; R.won_by = R.pass ? R.pass.hero_id : null;
+      R.events.push({ kind: 'won', hero_id: R.won_by });
+      log.push('La Bannière a tenu ' + R.banner_hold + ' ripostes : le Derby des Lames est gagné.');
+    }
   }
   function nearestWater(R) {
     const G = gridOf(R), B = R.boss;
@@ -1569,7 +2295,7 @@
     const u = { id: h.id, kind: 'hero', side: 'guild', owner: h.owner, master_id: null, name: h.name, gender: h.gender || 'm', class_id: h.class_id, level: h.level, x: 0, y: 0,
       hp_max: h.hp_max, hp: h.hp_max, shield: 0, shield_turns: 0, atk_eff: pct(pct(h.atk, moraleMod(h.morale)), fatigueAtkMod(h.fatigue)), def: h.def, heal: h.heal, crit: h.crit, spd: h.spd,
       mass: 0, pa_max: C.pa_per_turn, pm_max: pm, range_min: 1, range_max: 1, los: true, states: [], cooldowns: {}, born_pass: R.pass_count, passive: pass[h.class_id] || null, crit_immune: false, vigor: h.vigor || 0,
-      hybrid_id: h.hybrid || null, resource: null, res: 0, res_max: 0, fissures: 0, ripostes_turn: 0, hit_this_turn: 0 };
+      hybrid_id: h.hybrid || null, spec_id: h.spec || null, resource: null, res: 0, res_max: 0, fissures: 0, ripostes_turn: 0, hit_this_turn: 0 };
     if (u.hybrid_id) {
       const H = hybOf(env, u.hybrid_id);
       if (H) { u.resource = H.resource; u.res_max = H.resource_max; u.res = h.hybrid_bonus ? Math.min(H.resource_max, d.lineage ? d.lineage.affinity_resource_bonus : 1) : 0; }
@@ -1596,9 +2322,12 @@
     const C = raidC(env);
     R.pass_count += 1;
     R.heads_cut_pass = 0;
-    R.pass = { hero_id: heroId, manager_id: h.owner, hero_name: h.name, turn: 1, turn_max: (h.fatigue || 0) >= 60 ? C.pass_turns_tired : C.pass_turns, pa: 0, pm: 0, seq: R.pass_count, ko: false, done: false,
-      spawn: { x: spawn.x, y: spawn.y }, last_cell: null, damage_start: R.damage_total[heroId] || 0, actions: 0, hyb_turn: 0 };
-    log.push(tplOf(env.data, 'raid_enter', heroId + R.pass_count, { a: h.name, shield: wall, x: spawn.x, y: spawn.y }));
+    const legs = R.legs ? 1 : 0;                                            // V5 T3 8B : le Legs du Chronomancien offre un tour au copain suivant
+    if (legs) { R.legs = 0; log.push(h.name + ' hérite du temps légué : un tour de passage de plus.'); mech(R, 'legs_recu'); }
+    if (R.pending_steal) { addState(u, 'vol_temps', 1, R.pending_steal); R.pending_steal = 0; }   // V5 T3 §2.5 : le Capitaine a volé un tour
+    R.pass = { hero_id: heroId, manager_id: h.owner, hero_name: h.name, turn: 1, turn_max: legs + ((h.fatigue || 0) >= 60 ? C.pass_turns_tired : C.pass_turns), pa: 0, pm: 0, seq: R.pass_count, ko: false, done: false,
+      spawn: { x: spawn.x, y: spawn.y }, last_cell: null, damage_start: R.damage_total[heroId] || 0, actions: 0, hyb_turn: 0, spec_turn: 0 };
+    log.push(tplOf(env.data, tplKind(R, 'raid_enter'), heroId + R.pass_count, { a: h.name, shield: wall, x: spawn.x, y: spawn.y }));
     const traces = tracesLabel(R);
     if (traces) log.push(tplOf(env.data, 'raid_trace', 't' + R.pass_count, { list: traces }));
     const z = zoneAt(R, u.x, u.y);
@@ -1634,7 +2363,7 @@
     riposte(R, env, log);
     const dmg = (R.damage_total[P.hero_id] || 0) - P.damage_start;
     R.passes_done.push({ day: env.day, hero_id: P.hero_id, manager_id: P.manager_id, hero_name: P.hero_name, damage: dmg, ko: P.ko, turns: P.turn, actions: P.actions });
-    log.push(tplOf(env.data, 'raid_pass_summary', P.hero_id + R.pass_count, { a: P.hero_name, dmg: dmg, turns: Math.min(P.turn, P.turn_max), ko: P.ko ? ' — KO' : '', pct: bossPct(R) }));
+    log.push(tplOf(env.data, tplKind(R, 'raid_pass_summary'), P.hero_id + R.pass_count, { a: P.hero_name, dmg: dmg, turns: Math.min(P.turn, P.turn_max), ko: P.ko ? ' — KO' : '', pct: bossPct(R) }));
     P.done = true;
     R.pass = null;
   }
@@ -1703,17 +2432,27 @@
     B.controls_today = 0; B.last_stun = 0;
     B.flying = 0; B.flight_pass_id = 0;
     R.pending_breath = null; R.skip_riposte = 0; R.heads_cut_pass = 0;
+    R.sealed = 0; R.riposte_redirect = null; R.riposte_no_zone = 0; R.legs = 0; R.pending_steal = 0; R.fallen = [];
+    B.regen_off = 0;
+    if (R.terrain && R.terrain.length) { for (const t of R.terrain) R.layout[t.i] = t.prev; R.terrain = []; }
+    if (R.kind === 'derby') {                                               // §2.5 : « ils se sont regroupés au gué » — les rivaux repoussés reviennent au complet
+      R.banner_hold = 0; R.banner_lost = 0;
+      spawnRivals(R, env, log);
+      const bn = R.units.filter(v => v.kind === 'banner')[0];
+      if (bn) bn.hp = bn.hp_max;
+    }
     if (B.heads) for (const h of B.heads) { h.alive = true; h.hp = h.hp_max; h.regrow = 0; }     // les gueules repoussent toutes la nuit
     for (const u of R.units) { if (u.side === 'boss') u.hp = u.hp_max; }
     for (const k of sortedKeys(R.zones)) { const z = R.zones[k]; if (z.owner_kind === 'boss') delete R.zones[k]; else if (z.turns_left < 99) { z.turns_left -= 1; if (z.turns_left <= 0) delete R.zones[k]; } }
     R.nights += 1;
     R.enrage_pct = R.nights >= 2 ? Math.min(C.enrage_cap_pct, C.enrage_per_night_pct * (R.nights - 1)) : 0;
     const played = R.passes_done.filter(p => p.day === env.day);
-    log.push(tplOf(env.data, 'raid_night', 'n' + R.nights, { n: R.nights, max: C.raid_max_nights, regen: regen, pct: bossPct(R), passes: played.length, enrage: R.enrage_pct ? tplOf(env.data, 'raid_enrage', 'e' + R.nights, { n: R.enrage_pct }) : '' }));
+    log.push(tplOf(env.data, tplKind(R, 'raid_night'), 'n' + R.nights, { n: R.nights, max: f.max_nights || C.raid_max_nights, regen: regen, pct: bossPct(R), passes: played.length, enrage: R.enrage_pct ? tplOf(env.data, 'raid_enrage', 'e' + R.nights, { n: R.enrage_pct }) : '' }));
     if (!R.stats.burn_turns && played.length) log.push(tplOf(env.data, 'raid_no_burner', 'b' + R.nights, {}));
     R.riposte_next = ripostePlan(R, env, R.spawn_cells[0].x, R.spawn_cells[0].y);
     R.journal = [];
-    if (R.nights >= C.raid_max_nights) { R.status = 'lost'; R.events.push({ kind: 'lost' }); log.push(tplOf(env.data, 'raid_lost', 'l', { n: R.nights })); }
+    const maxN = f.max_nights || C.raid_max_nights;
+    if (R.nights >= maxN) { R.status = 'lost'; R.events.push({ kind: 'lost' }); log.push(tplOf(env.data, tplKind(R, 'raid_lost'), 'l', { n: R.nights })); }
   }
   function newRaid(env, raidId) {
     const d = env.data, f = d.raids[raidId], C = d.raid, L = d.layouts[f.layout_id];
@@ -1724,12 +2463,15 @@
     const R = { id: raidId, dragon_id: f.dragon_id, name: DR ? DR.name : raidId, day_start: day, nights: 0, status: 'active', enrage_pct: 0,
       rng_s: fnvU32((env.seed ^ day ^ fnvStr(raidId)) >>> 0), rng_count: 0,
       grid_w: L.w, grid_h: L.h, layout: L.layout.slice(), spawn_cells: L.spawn_cells.map(c => ({ x: c.x, y: c.y })), zones: {},
-      boss: { id: f.dragon_id, kind: 'boss', side: 'boss', name: DR ? DR.name : raidId, x: L.boss_cell.x, y: L.boss_cell.y, w: 2, h: 2, facing: 'S', hp: hpMax, hp_max: hpMax, shield: 0, shield_turns: 0,
-        atk: DR ? DR.atk_base + DR.atk_per_day * day : 20, def: DR ? DR.def_base + DR.def_per_day * day : 10, mass: 3, phase: 1, states: [], cooldowns: {}, controls_today: 0, last_stun: 0, alive: true, crit_immune: !!f.crit_immune, level: 1 + div(day, 2), fissures: 0 },
+      boss: { id: f.dragon_id || raidId, kind: 'boss', side: 'boss', name: DR ? DR.name : (f.name || raidId), x: L.boss_cell.x, y: L.boss_cell.y, w: f.boss_w || 2, h: f.boss_h || 2, facing: 'S', hp: hpMax, hp_max: hpMax, shield: 0, shield_turns: 0,
+        atk: DR ? DR.atk_base + DR.atk_per_day * day : 18 + day, def: DR ? DR.def_base + DR.def_per_day * day : 8 + div(day, 3), mass: f.boss_mass === undefined ? 3 : f.boss_mass, phase: 1, states: [], cooldowns: {}, controls_today: 0, last_stun: 0, alive: true, crit_immune: !!f.crit_immune, level: 1 + div(day, 2), fissures: 0 },
       units: [], pass: null, pass_count: 0, riposte_count: 0, next_unit: 1, passes_done: [], damage_total: {}, healing_total: {}, journal: [], events: [], won_by: null,
       stats: { casts: {}, regen_total: 0, burn_turns: 0, adds_spawned: 0, shield_absorbed: 0, add_heal: 0, night_regen: 0, mech: {}, res_values: {}, zones: {} },
       riposte_next: null, last_riposte: null, pending_breath: null, skip_riposte: 0, heads_cut_pass: 0 };
     R.kind = f.kind || 'sylvain';
+    R.name = DR ? DR.name : (f.name || raidId);
+    R.sealed = 0; R.riposte_redirect = null; R.riposte_no_zone = 0; R.legs = 0; R.pending_steal = 0; R.fallen = []; R.terrain = []; R.next_link = 0;
+    R.boss.regen_off = 0;
     R.boss.gender = DR ? DR.gender : 'm';
     R.boss.in_water = 0;
     R.boss.flying = 0;
@@ -1740,8 +2482,38 @@
       R.boss.heads = [];
       for (let i = 0; i < f.heads; i++) R.boss.heads.push({ hp: hp, hp_max: hp, alive: true, regrow: 0 });
     } else R.boss.heads = null;
+    if (R.kind === 'derby') {                                                       // §2.5 : la Bannière et les trois compagnons rivaux
+      R.boss.name = 'Capitaine ' + (f.rival_name || (d.rival_guilds ? d.rival_guilds[fnvU32(env.seed >>> 0) % d.rival_guilds.length] : 'rival'));
+      R.rival_name = f.rival_name || (d.rival_guilds ? d.rival_guilds[fnvU32(env.seed >>> 0) % d.rival_guilds.length] : 'la guilde rivale');
+      R.banner_hold = 0; R.banner_lost = 0; R.derby_score = 0;
+      const bc = L.banner_cell || { x: div(L.w, 2), y: L.h - 3 };
+      R.units.push({ id: 'banniere', kind: 'banner', sub: null, side: 'guild', owner: 'guild', master_id: null, name: 'La Bannière', gender: 'f',
+        class_id: null, level: 1, x: bc.x, y: bc.y, hp_max: f.banner_hp || 200, hp: f.banner_hp || 200, shield: 0, shield_turns: 0,
+        atk_eff: 0, def: 10, crit: 0, spd: 0, mass: 3, pa_max: 0, pm_max: 0, range_min: 0, range_max: 0, los: false, states: [], cooldowns: {}, born_pass: 0, passive: null, crit_immune: true });
+      spawnRivals(R, env, null);
+    }
     R.riposte_next = ripostePlan(R, env, R.spawn_cells[0].x, R.spawn_cells[0].y);
     return R;
+  }
+  // §2.5 : les trois compagnons rivaux (rustre, clerc, rôdeur), générés autour du Capitaine et rétablis chaque matin.
+  function spawnRivals(R, env, log) {
+    const f = fiche(R, env), B = R.boss, G = gridOf(R), day = R.day_start;
+    for (const r of (f.rivals || [])) {
+      const id = 'rival_' + r.role;
+      const old = unitById(R, id);
+      if (old) { old.hp = old.hp_max; old.states = []; old.x = old.home_x; old.y = old.home_y; continue; }
+      const cells = cellsSorted(G, [{ x: B.x - 1, y: B.y }, { x: B.x + 1, y: B.y }, { x: B.x, y: B.y + 1 }, { x: B.x - 2, y: B.y + 1 }, { x: B.x + 2, y: B.y + 1 }, { x: B.x, y: B.y + 2 }])
+        .filter(c => freeCell(R, c.x, c.y));
+      if (!cells.length) continue;
+      const c = cells[0];
+      const hp = r.hp + 4 * day;
+      R.units.push({ id: id, kind: 'add', sub: r.role, role: r.role, side: 'boss', owner: 'boss', master_id: null, name: r.name + ' rival', gender: 'm',
+        class_id: null, level: Math.max(1, div(day, 2)), x: c.x, y: c.y, home_x: c.x, home_y: c.y, hp_max: hp, hp: hp, shield: 0, shield_turns: 0,
+        atk_eff: r.atk + div(day, 2), def: r.def + div(day, 3), crit: 0, spd: r.spd, mass: 1, pa_max: 4, pm_max: r.pm, range_min: 1, range_max: r.range, los: false,
+        states: [], cooldowns: {}, born_pass: R.pass_count, passive: null, crit_immune: false });
+      if (log) log.push(r.name + ' rival revient au gué.');
+    }
+    R.units.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
   function dragonOf(d, id) { for (const b of sortedKeys(d.dragons || {})) if (d.dragons[b].id === id) return d.dragons[b]; return null; }
 
@@ -1867,6 +2639,217 @@
     }
     return null;
   }
+  // V5 T3 — politique par défaut des 26 spés : chaque spé joue son verbe quand la situation l'appelle.
+  function specPolicy(R, env, u) {
+    const P = R.pass, B = R.boss, G = gridOf(R), f = fiche(R, env);
+    const cast = (id, x, y) => (canCast(R, env, u, id, x, y) ? { type: 'cast', spell_id: id, x: x, y: y } : null);
+    const bc = bossNearestCell(B, u.x, u.y), dB = distToBoss(B, u.x, u.y);
+    const adds = addUnits(R).filter(isAlive);
+    const nearAdd = adds.length ? nearest(u, adds) : null;
+    const zones = id => sortedKeys(R.zones).filter(k => R.zones[k].zone_id === id);
+    const cellOf = k => ({ x: Number(k) % G.w, y: div(Number(k), G.w) });
+    const freeNear = n => freeAround(R, u.x, u.y, n === undefined ? 1 : n, true);
+    const hurt = guildUnits(R).filter(v => v.hp > 0 && v.kind !== 'banner' && v.hp * 2 < v.hp_max).sort((a, b) => (a.id < b.id ? -1 : 1));
+    const banner = R.units.filter(v => v.kind === 'banner')[0] || null;
+    const toward = () => { const d = dirOf(u.x, u.y, bc.x, bc.y); return { x: u.x + d.x, y: u.y + d.y }; };
+    let a = null;
+    switch (u.spec_id) {
+      case 'templier': {
+        const c = toward();
+        if (freeCell(R, c.x, c.y) && !zoneAt(R, c.x, c.y) && (a = cast('bouclier_plante', c.x, c.y))) return a;
+        if (dB >= 2 && dB <= 4 && (a = cast('charge_foi', bc.x, bc.y))) return a;
+        return null;
+      }
+      case 'hospitalier':
+        if ((R.fallen || []).length) { for (const c of freeAround(R, u.x, u.y, 4, true)) if (manhattan(c.x, c.y, u.x, u.y) >= 1 && (a = cast('relever', c.x, c.y))) return a; }
+        if (hurt.length && (a = cast('onction_zone', hurt[0].x, hurt[0].y))) return a;
+        if (hasState(u, 'poison') && (a = cast('onction_zone', u.x, u.y))) return a;
+        return null;
+      case 'bretteur':
+        if (!hasState(u, 'riposte_double') && dB <= 2 && (a = cast('riposte_double', u.x, u.y))) return a;
+        if (dB === 1 && (a = cast('botte_secrete', bc.x, bc.y))) return a;
+        return null;
+      case 'matador': {
+        if (u.hp * 10 < u.hp_max * 6 && (a = cast('esquive', u.x, u.y))) return a;
+        const walls = [];
+        for (let y = 0; y < G.h; y++) for (let x = 0; x < G.w; x++) if (layoutAt(R, x, y) === WALL) walls.push({ x: x, y: y });
+        const w = walls.slice().sort((p1, p2) => distToBoss(B, p1.x, p1.y) - distToBoss(B, p2.x, p2.y) || cidx(G, p1.x, p1.y) - cidx(G, p2.x, p2.y))[0];
+        if (w && (a = cast('cape', w.x, w.y))) return a;
+        for (const c of freeNear(4)) if ((a = cast('cape', c.x, c.y))) return a;
+        return null;
+      }
+      case 'harponneur':
+        if (B.flying && (a = cast('harpon', bc.x, bc.y))) return a;
+        if (nearAdd && manhattan(nearAdd.x, nearAdd.y, u.x, u.y) >= 2 && (a = cast('harpon', nearAdd.x, nearAdd.y))) return a;
+        if (nearAdd && manhattan(nearAdd.x, nearAdd.y, u.x, u.y) === 1 && !hasState(nearAdd, 'immobilise') && (a = cast('chaine_givre', nearAdd.x, nearAdd.y))) return a;
+        if (dB === 1 && !hasState(B, 'entrave') && (a = cast('chaine_givre', bc.x, bc.y))) return a;
+        return null;
+      case 'ecorcheur':
+        if (dB === 1 && (B.fissures || 0) >= 3 && (a = cast('depecage', bc.x, bc.y))) return a;
+        if (dB === 1 && (a = cast('entaille', bc.x, bc.y))) return a;
+        return null;
+      case 'porte_etendard': {
+        if (!zones('etendard').length && banner) { for (const c of freeAround(R, banner.x, banner.y, 4, true)) if ((a = cast('etendard', c.x, c.y))) return a; }
+        if (!zones('etendard').length) { for (const c of freeNear(3)) if ((a = cast('etendard', c.x, c.y))) return a; }
+        if (zones('etendard').length && subsOf(R, u.id, 'soldat').length && (a = cast('ralliement', u.x, u.y))) return a;
+        return null;
+      }
+      case 'sergent': {
+        const rec = subsOf(R, u.id, 'soldat');
+        if (rec.length >= 2 && rec.some(v => manhattan(v.x, v.y, u.x, u.y) <= 2) && !rec.every(v => hasState(v, 'formation')) && (a = cast('mur_boucliers', u.x, u.y))) return a;
+        if (rec.length < 2) { for (const c of freeNear(3)) if ((a = cast('lever_recrue', c.x, c.y))) return a; }
+        if (rec.some(v => hasState(v, 'formation'))) { for (const v of rec) if (!hasState(v, 'abri') && (a = cast('sacrifice_ordonne', v.x, v.y))) return a; }
+        return null;
+      }
+      case 'confesseur':
+        if (!hasState(u, 'seve_volee') && (a = cast('vol_seve', bc.x, bc.y))) return a;
+        if ((B.shield || 0) > 0 && (a = cast('vol_bouclier', bc.x, bc.y))) return a;
+        return null;
+      case 'censeur':
+        if (!R.sealed && (a = cast('interdit', bc.x, bc.y))) return a;
+        if (nearAdd && !hasState(nearAdd, 'silence') && (a = cast('silence', nearAdd.x, nearAdd.y))) return a;
+        return null;
+      case 'pelerin': {
+        const dirty = sortedKeys(R.zones).filter(k => R.zones[k].owner_kind === 'boss').map(cellOf).filter(c => manhattan(c.x, c.y, u.x, u.y) <= 4);
+        if (dirty.length && (a = cast('grande_purification', u.x, u.y))) return a;
+        if (dirty.length) { for (const c of dirty) if ((a = cast('grande_purification', c.x, c.y))) return a; }
+        if (!hasState(u, 'pas_leger') && (a = cast('pas_leger', u.x, u.y))) return a;
+        return null;
+      }
+      case 'sourcier': {
+        if (bossCells(B).some(c => layoutAt(R, c.x, c.y) === WATER)) { for (const c of bossCells(B)) if ((a = cast('assechement', c.x, c.y))) return a; }
+        if (B.in_water && (a = cast('assechement', bc.x, bc.y))) return a;
+        for (const c of freeNear(3)) if (layoutAt(R, c.x, c.y) !== WATER && (a = cast('source', c.x, c.y))) return a;
+        return null;
+      }
+      case 'devin': {
+        if (!zones('case_sure').length && (a = cast('vision', u.x, u.y))) return a;
+        const far = safeCells(R, env, u, 8).filter(c => manhattan(c.x, c.y, u.x, u.y) >= 2)[0];
+        if (far && (a = cast('detourner', far.x, far.y))) return a;
+        if ((a = cast('vision', u.x, u.y))) return a;
+        return null;
+      }
+      case 'chronomancien':
+        if ((a = cast('sablier_renverse', u.x, u.y))) return a;
+        if ((a = cast('legs', u.x, u.y))) return a;
+        return null;
+      case 'medium':
+        if (!hasState(B, 'esprit_cendre') && (a = cast('esprit_cendre_majeur', bc.x, bc.y))) return a;
+        if (!hasState(B, 'hantise') && (a = cast('hantise', bc.x, bc.y))) return a;
+        return null;
+      case 'veilleur':
+        if (!zones('esprit_garde').length && (a = cast('esprit_gardien_majeur', u.x, u.y))) return a;
+        if (!zones('esprit_garde').length) { for (const c of freeNear(3)) if ((a = cast('esprit_gardien_majeur', c.x, c.y))) return a; }
+        if (zones('esprit_garde').length && (a = cast('veille', u.x, u.y))) return a;
+        return null;
+      case 'assassin':
+        if (dB === 1 && (a = cast('lame_dos', bc.x, bc.y))) return a;
+        if ((u.res || 0) < (u.res_max || 3) && (a = cast('ombre_longue', u.x, u.y))) return a;
+        return null;
+      case 'piegeur': {
+        if (adds.length && zones('piege').length) {
+          for (const v of adds) { const tr = zones('piege').map(cellOf).sort((p1, p2) => manhattan(p1.x, p1.y, v.x, v.y) - manhattan(p2.x, p2.y, v.x, v.y))[0]; if (tr && manhattan(tr.x, tr.y, v.x, v.y) <= 2 && (a = cast('rabattage', v.x, v.y))) return a; }
+        }
+        for (const v of adds) {
+          const near2 = freeAround(R, v.x, v.y, 6, true).filter(c => manhattan(c.x, c.y, v.x, v.y) === 1 && !zoneAt(R, c.x, c.y));
+          for (const c of near2) if (manhattan(c.x, c.y, u.x, u.y) >= 1 && manhattan(c.x, c.y, u.x, u.y) <= 4 && (a = cast('piege_lourd', c.x, c.y))) return a;
+        }
+        for (const c of freeNear(4)) if ((a = cast('piege_lourd', c.x, c.y))) return a;
+        return null;
+      }
+      case 'mirage':
+        if (subsOf(R, u.id, 'double').length < 2) { for (const c of freeNear(3)) if ((a = cast('triple', c.x, c.y))) return a; }
+        if (subsOf(R, u.id, 'double').length && (a = cast('miroir', u.x, u.y))) return a;
+        return null;
+      case 'passe_muraille': {
+        const z = zoneAt(R, u.x, u.y);
+        if ((z && z.owner_kind === 'boss') || dB > 2) {
+          const cand = guildUnits(R).filter(v => v.id !== u.id && v.kind !== 'banner' && distToBoss(B, v.x, v.y) < dB).concat(adds.filter(v => distToBoss(B, v.x, v.y) < dB));
+          const best = cand.sort((p1, p2) => distToBoss(B, p1.x, p1.y) - distToBoss(B, p2.x, p2.y) || (p1.id < p2.id ? -1 : 1))[0];
+          if (best && (a = cast('grand_echange', best.x, best.y))) return a;
+        }
+        if (nearAdd && (nearAdd.level || 1) <= (u.level || 1) && !hasState(nearAdd, 'charme') && (a = cast('fils_solides', nearAdd.x, nearAdd.y))) return a;
+        return null;
+      }
+      case 'bourrasque':
+        if (adds.length >= 2 && (a = cast('tempete_vent', nearAdd.x, nearAdd.y))) return a;
+        if (dB >= 2 && (a = cast('tempete_vent', bc.x, bc.y))) return a;
+        if (nearAdd && (a = cast('souffle_court', nearAdd.x, nearAdd.y))) return a;
+        if (dB <= 3 && (a = cast('souffle_court', bc.x, bc.y))) return a;
+        return null;
+      case 'cyclone': {
+        if (adds.length >= 2) {
+          const cx = div(adds.reduce((n, v) => n + v.x, 0), adds.length), cy = div(adds.reduce((n, v) => n + v.y, 0), adds.length);
+          const cands = [{ x: cx, y: cy }, { x: cx, y: cy - 1 }, { x: cx, y: cy + 1 }, { x: cx - 1, y: cy }, { x: cx + 1, y: cy }].concat(adds.map(v => ({ x: v.x, y: v.y })))
+            .sort((p1, p2) => adds.filter(v => manhattan(v.x, v.y, p2.x, p2.y) <= 2).length - adds.filter(v => manhattan(v.x, v.y, p1.x, p1.y) <= 2).length || cidx(G, p1.x, p1.y) - cidx(G, p2.x, p2.y));
+          for (const c of cands) if ((a = cast('oeil_cyclone', c.x, c.y))) return a;
+        }
+        if (nearAdd && manhattan(nearAdd.x, nearAdd.y, u.x, u.y) >= 2 && (a = cast('aspiration', nearAdd.x, nearAdd.y))) return a;
+        if (dB >= 2 && (a = cast('oeil_cyclone', bc.x, bc.y))) return a;
+        return null;
+      }
+      case 'maitre_ours': {
+        const b = subsOf(R, u.id, 'bete')[0];
+        if (b && !b.__ours && (a = cast('ours', u.x, u.y))) return a;
+        if (b && !hasState(B, 'provoque') && (a = cast('grondement', u.x, u.y))) return a;
+        return null;
+      }
+      case 'fauconnier': {
+        const b = subsOf(R, u.id, 'bete')[0];
+        if (b && !b.fly && (a = cast('faucon', u.x, u.y))) return a;
+        if (B.flying && (a = cast('rabattre', bc.x, bc.y))) return a;
+        if (nearAdd && (a = cast('rabattre', nearAdd.x, nearAdd.y))) return a;
+        return null;
+      }
+      case 'avatar':
+        if (!hasState(u, 'fusion') && (a = cast('grande_fusion', u.x, u.y))) return a;
+        if (hasState(u, 'fusion') && !u.__remanence && (a = cast('remanence', u.x, u.y))) return a;
+        return null;
+      case 'portier': {
+        if (!zones('portail').length) {
+          const cands = safeCells(R, env, u, 6).filter(c => manhattan(c.x, c.y, u.x, u.y) >= 2);
+          for (const c of cands) if ((a = cast('portail', c.x, c.y))) return a;
+        }
+        if (nearAdd && zones('portail').length >= 2 && (a = cast('bannissement', nearAdd.x, nearAdd.y))) return a;
+        return null;
+      }
+    }
+    return null;
+  }
+  // V5 T3 §2.5 — sur le gué, la Bannière passe avant le Capitaine : on frappe ce qui s'en approche.
+  function bestDamageCast(R, env, u, t) {
+    let best = null;
+    for (const id of unitSpells(env, u)) {
+      const sp = spellFor(env, u, id);
+      if (!sp || !(sp.power > 0)) continue;
+      const c = isBoss(t) ? bossNearestCell(t, u.x, u.y) : t;
+      if (castWhy(R, env, u, sp, c.x, c.y)) continue;
+      const score = div(powerOf(sp, u) * 100, Math.max(1, sp.cost_pa));
+      if (!best || score > best.score) best = { score: score, action: { type: 'cast', spell_id: id, x: c.x, y: c.y } };
+    }
+    return best ? best.action : null;
+  }
+  function derbyPolicy(R, env, u) {
+    const P = R.pass, B = R.boss;
+    const banner = R.units.filter(v => v.kind === 'banner')[0];
+    if (!banner) return null;
+    const foes = addUnits(R).filter(isAlive);
+    const near = foes.filter(v => manhattan(v.x, v.y, banner.x, banner.y) <= 3)
+      .sort((a, b) => manhattan(a.x, a.y, banner.x, banner.y) - manhattan(b.x, b.y, banner.x, banner.y) || a.hp - b.hp || (a.id < b.id ? -1 : 1));
+    let t = near[0] || null;
+    if (!t && B.alive !== false && distToBoss(B, banner.x, banner.y) <= 3) t = B;
+    if (!t) t = foes.length ? nearest(u, foes) : null;
+    if (!t) return null;
+    const a = bestDamageCast(R, env, u, t);
+    if (a) return a;
+    if (P.pm > 0) {
+      const tc = isBoss(t) ? bossNearestCell(t, u.x, u.y) : t;
+      const c = bestReachable(R, u, P.pm, (x, y) => (bossZoneAt(R, x, y) ? null : manhattan(x, y, tc.x, tc.y) * 10 + manhattan(x, y, banner.x, banner.y)));
+      const cur = manhattan(u.x, u.y, tc.x, tc.y) * 10 + manhattan(u.x, u.y, banner.x, banner.y);
+      if (c && c.s < cur) return { type: 'move', to: { x: c.x, y: c.y } };
+    }
+    return null;
+  }
   function policyAction(R, env, u) {
     const P = R.pass, B = R.boss, G = gridOf(R);
     const dB = distToBoss(B, u.x, u.y);
@@ -1903,12 +2886,23 @@
     if (P.pa <= 0) return null;
     const nearestAdd = adds.length ? nearest(u, adds) : null;
     const adjAdd = adds.filter(v => manhattan(v.x, v.y, u.x, u.y) === 1).sort((p, q) => p.hp - q.hp || (p.id < q.id ? -1 : 1))[0] || null;   // le rejeton adjacent le plus faible
+    if (u.spec_id && (a = specPolicy(R, env, u))) {                            // V5 T3 : la spécialisation parle avant la voie
+      const sp = spellFor(env, u, a.spell_id);
+      const full = P.pa >= raidC(env).pa_per_turn;
+      if (sp && (sp.power > 0 || ((R.pass.spec_turn || 0) === 0 && (P.pa >= sp.cost_pa + 3 || full)))) {
+        if (!sp.power) R.pass.spec_turn = R.pass.turn;    // une installation de spé par passage (la voie garde la sienne), jamais au prix d'un coup
+        return a;
+      }
+    }
+    a = null;
     if (u.hybrid_id && (a = hybridPolicy(R, env, u))) {                        // V5 T2 : la voie parle avant la routine de base
       const sp = spellFor(env, u, a.spell_id);
       const body = sp && HYB_BODY[sp.id];                                       // recrue, double, bête, élémentaire : des corps, pas une installation
       const full = P.pa >= raidC(env).pa_per_turn;
       if (sp && (sp.power > 0 || body || ((R.pass.hyb_turn || 0) === 0 && (P.pa >= sp.cost_pa + 3 || full)))) return a;   // une installation par passage au plus, jamais au prix d'un coup
     }
+    a = null;
+    if ((fiche(R, env).kind || '') === 'derby' && (a = derbyPolicy(R, env, u))) return a;    // V5 T3 : garder la Bannière
     a = null;
     switch (cls) {
       case 'warrior': {
@@ -2129,7 +3123,7 @@
     const s = spellFor(env, u, id);
     const why = fromPass ? castWhy(R, env, u, s, u.x, u.y) : null;
     const zone = s.shape && s.shape !== 'single' ? ({ circle: 'cercle ', cross: 'croix ', line: 'ligne ', cone: 'cône ', wall3: 'mur de ' }[s.shape] || s.shape) + (s.r || 3) : 'cible';
-    return { id: s.id, name: s.name, hybrid_id: s.hybrid_id || null, anchor: !!s.anchor, cost_pa: s.cost_pa, range_min: s.range_min, range_max: s.range_max, los: !!s.los, line_only: !!s.line_only, shape: s.shape || 'single', r: s.r || 0, power: powerOf(s, u), magic: !!s.magic, target: s.target,
+    return { id: s.id, name: s.name, hybrid_id: s.hybrid_id || null, spec_id: s.spec_id || null, daily: !!s.daily, anchor: !!s.anchor, cost_pa: s.cost_pa, range_min: s.range_min, range_max: s.range_max, los: !!s.los, line_only: !!s.line_only, shape: s.shape || 'single', r: s.r || 0, power: powerOf(s, u), magic: !!s.magic, target: s.target,
       range_label: s.range_min === s.range_max ? String(s.range_min) : s.range_min + '-' + s.range_max, zone_label: zone, verb: s.verb || '', cooldown: s.cooldown || 0, cooldown_left: (u.cooldowns && u.cooldowns[id]) || 0,
       castable: !why || !/PA insuffisants|relance/.test(why), reason: why && /PA insuffisants|relance/.test(why) ? why : '', description: s.description || '', crit_bonus: s.crit_bonus || 0, back_power: s.back_power ? powerOf({ power: s.back_power }, u) : 0, effect_labels: (s.effect_labels || []).slice() };
   }
@@ -2156,6 +3150,7 @@
       me = { hero_id: id, can_play: true, reason: null, cell: { x: u.x, y: u.y }, atk_eff: u.atk_eff, heal: u.heal, pm_max: u.pm_max, crit: u.crit, level: u.level, class_id: u.class_id, hp: u.hp, hp_max: u.hp_max,
         pass: { turn: 1, turn_max: P.turn_max, pa: P.pa, pa_max: C.pa_per_turn, pm: P.pm, pm_max: u.pm_max, seq: P.seq },
         spells: unitSpells(env, u).map(sid => spellVm(Rp, env, u, sid, true)),
+        spec: u.spec_id ? { id: u.spec_id, name: (specOf(env, u.spec_id) || {}).name || u.spec_id, verb: (specOf(env, u.spec_id) || {}).verb || '' } : null,
         hybrid: u.hybrid_id ? { id: u.hybrid_id, name: (hybOf(env, u.hybrid_id) || {}).name || u.hybrid_id, resource: u.resource, resource_name: (hybOf(env, u.hybrid_id) || {}).resource_name || '', value: u.res, max: u.res_max } : null,
         reachable: reachableCells(Rp, u, P.pm), shield: u.shield,
         default_actions: (raidDefaultsFor(state, id, env) || []) };
@@ -2188,7 +3183,7 @@
       if (!classes.summoner && !hybrids.capitaine && !hybrids.illusionniste && !hybrids.dresseur) warnings.push('Aucun corps à offrir aux trois gueules : les héros prendront les trois morsures.');
     }
     const phaseLabels = { sylvain: ['l\'arbre veille', 'les rejetons', 'l\'écorce'], drake: ['les écailles de fer', 'le ciel de cendres', 'la fournaise'], hydre: ['trois gueules', 'la tourbière', 'aux abois'] };
-    return { active: R.status === 'active', id: R.id, name: R.name, kind: kind, day_start: R.day_start, nights: R.nights, max_nights: C.raid_max_nights, status: R.status, phase: B.phase, phase_label: 'Phase ' + B.phase + ' — ' + (phaseLabels[kind] || phaseLabels.sylvain)[B.phase - 1],
+    return { active: R.status === 'active', id: R.id, name: R.name, kind: kind, day_start: R.day_start, nights: R.nights, max_nights: f.max_nights || C.raid_max_nights, status: R.status, phase: B.phase, phase_label: 'Phase ' + B.phase + ' — ' + (phaseLabels[kind] || phaseLabels.sylvain)[B.phase - 1],
       hp_pct: bossPct(R), hp_label: B.hp + ' / ' + B.hp_max, enrage_pct: R.enrage_pct || 0, regen_pct: hasState(B, 'brule') ? 0 : f.regen_pct,
       boss: { id: B.id, name: B.name, x: B.x, y: B.y, w: B.w, h: B.h, facing: B.facing, hp: B.hp, hp_max: B.hp_max, shield: B.shield, def: B.def, atk: B.atk, mass: hasState(B, 'chancelant') ? 0 : B.mass, phase: B.phase, crit_immune: !!B.crit_immune,
         states: B.states.map(s => ({ id: s.id, label: stateLabel(s.id), turns: s.turns, value: s.value || 0 })), next_riposte: { kind: R.riposte_next.kind, label: R.riposte_next.label, cells: ripCells.map(c => ({ x: c.x, y: c.y })) },
@@ -2199,6 +3194,9 @@
       grid: { w: G.w, h: G.h, cells: cells },
       units: unitsSorted(R).map(u => { const v = unitVm(u, managerId); v.owner_name = u.owner === 'boss' ? B.name : mgrName(u.owner); return v; }),
       me: me,
+      derby: kind === 'derby' ? { rival_name: R.rival_name || '', banner: (function () { const b = R.units.filter(v => v.kind === 'banner')[0]; return b ? { x: b.x, y: b.y, hp: b.hp, hp_max: b.hp_max } : null; }()),
+        hold: R.banner_hold || 0, hold_win: f.banner_hold_win || 3, lost: R.banner_lost || 0, lost_max: f.banner_lost_max || 2, score: R.derby_score || 0,
+        steal_pa: R.pending_steal || 0, rivals: R.units.filter(v => v.role).map(v => ({ id: v.id, name: v.name, role: v.role, hp: v.hp, hp_max: v.hp_max })) } : null,
       passes_today: passesToday.map(p => ({ hero_name: p.hero_name, manager_name: mgrName(p.manager_id), damage: p.damage, ko: p.ko, turns: p.turns })),
       waiting_on: waiting, journal: R.journal.map(j => ({ hero_name: j.hero_name, lines: j.lines.slice(0, 8), ko: j.ko, damage: j.damage })),
       damage_total: sortedKeys(R.damage_total).map(id => ({ hero_id: id, name: env.heroes[id] ? env.heroes[id].name : id, damage: R.damage_total[id] })),
@@ -2252,6 +3250,26 @@
       }());
       if (why) { out.reason = why; return out; }
     }
+    if (s.spec_id) {                                                         // V5 T3 : mêmes refus que specWhy, lus dans la vue
+      const subs = sub => view.units.filter(v => v.master_id === view.me.hero_id && v.sub === sub && v.hp > 0).length;
+      const zone = id => view.grid.cells.filter(c => c.zone && c.zone.id === id).length;
+      const why = (function () {
+        if (s.id === 'ralliement' && !subs('soldat')) return 'aucune recrue à rallier';
+        if (s.id === 'mur_boucliers' && !view.units.some(v => v.master_id === view.me.hero_id && v.sub === 'soldat' && Math.abs(v.x - me.x) + Math.abs(v.y - me.y) === 1)) return 'aucune recrue au contact';
+        if (s.id === 'sacrifice_ordonne' && !(t && t.master_id === view.me.hero_id)) return 'il faut désigner une de vos recrues';
+        if ((s.id === 'ours' || s.id === 'grondement' || s.id === 'faucon') && !subs('bete')) return 'aucune bête sur la grille';
+        if (s.id === 'rabattre' && !subs('bete')) return 'aucun faucon à lancer';
+        if (s.id === 'bannissement' && zone('portail') < 2) return 'aucun portail ouvert';
+        if (s.id === 'grand_echange' && (!t || t === B)) return 'il faut viser une unité qui n\'est pas le monstre';
+        if (s.id === 'fils_solides' && !(t && t !== B && t.side === 'boss')) return 'il faut viser un rejeton';
+        if (s.id === 'triple' && subs('double') >= 3) return 'trois doubles déjà sur la grille';
+        if (s.id === 'miroir' && !subs('double')) return 'aucun double à faire viser';
+        if (s.id === 'portail' && Math.abs(x - me.x) + Math.abs(y - me.y) < 2) return 'les deux portes doivent être écartées (2 cases au moins)';
+        if (s.id === 'source' && view.grid.cells[cidx(G, x, y)].kind === 'water') return 'il y a déjà de l\'eau ici';
+        return null;
+      }());
+      if (why) { out.reason = why; return out; }
+    }
     if (s.cooldown_left > 0) { out.reason = 'relance dans ' + s.cooldown_left + ' tour(s)'; return out; }
     if (view.me.pass.pa < s.cost_pa) { out.reason = 'PA insuffisants'; return out; }
     out.cells = shapeCells(G, s.shape, s.r, me.x, me.y, x, y);
@@ -2281,5 +3299,5 @@
 
   return { startRaid: startRaid, raidView: raidView, raidAction: raidAction, raidEndPass: raidEndPass, raidNight: raidNight, raidDefaults: raidDefaults, raidDefaultsFor: raidDefaultsFor,
     validateRaidPass: validateRaidPass, raidPass: raidPass, previewCast: previewCast, checkEffects: checkEffects,
-    _internal: { shapeCells: shapeCells, hasLos: hasLos, bresClear: bresClear, dirOf: dirOf, manhattan: manhattan, dijkstra: dijkstra, pathTo: pathTo, makeRng: makeRng, fnvStr: fnvStr, fnvU32: fnvU32, rawOf: rawOf, dmgOf: dmgOf, controlPermille: controlPermille, ripostePlan: ripostePlan, classSpells: classSpells, spellFor: spellFor, powerOf: powerOf, bossNearestCell: bossNearestCell, effectKinds: { unit: EFFECT_KINDS_UNIT, cell: EFFECT_KINDS_CELL, by_spell: EFFECT_KINDS_BY_SPELL } } };
+    _internal: { newRaid: newRaid, beginPass: beginPass, applyPassAction: applyPassAction, planPass: planPass, heroUnitOf: heroUnitOf, policyAction: policyAction, specPolicy: specPolicy, riposte: riposte, unitSpells: unitSpells, castWhy: castWhy, heroUnit: heroUnit, finishPass: finishPass, shapeCells: shapeCells, hasLos: hasLos, bresClear: bresClear, dirOf: dirOf, manhattan: manhattan, dijkstra: dijkstra, pathTo: pathTo, makeRng: makeRng, fnvStr: fnvStr, fnvU32: fnvU32, rawOf: rawOf, dmgOf: dmgOf, controlPermille: controlPermille, ripostePlan: ripostePlan, classSpells: classSpells, spellFor: spellFor, powerOf: powerOf, bossNearestCell: bossNearestCell, effectKinds: { unit: EFFECT_KINDS_UNIT, cell: EFFECT_KINDS_CELL, by_spell: EFFECT_KINDS_BY_SPELL } } };
 }));

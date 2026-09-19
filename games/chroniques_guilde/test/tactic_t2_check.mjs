@@ -10,6 +10,10 @@
 // (8) Drake et Hydre tombent chacun sur ≥ 30 % des graines où ils se réveillent, et aucun raid n'est impossible ;
 // (9) besoin de brûleur : sans Mage ni Spirite ni Conjurateur, le Sylvain tombe rarement ;
 // (10) les 26 sorts hybrides sont lancés au moins une fois ; (11) VM.choice, VM.roster[].hybrid et VM.group_needs sans undefined.
+// ADAPTÉ V5 T3 (2026-09-18, devenu faux par conception) : les héros portent désormais une spécialisation dès le J20 et
+// une installation de spé peut remplacer celle de la voie (budget partagé, une par passage). Le contrôle (8) ne compte
+// plus comme « journée à 0 dégât » une journée où PERSONNE n'est monté sur la grille (effectif entièrement blessé) :
+// un raid sans défenseur apte n'est pas un raid impossible. Le reste du banc est inchangé.
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -63,11 +67,16 @@ function runRaid(s) {
   let guard = 0;
   while (s.raid && guard++ < 8) {
     const before = Object.keys(s.raid.damage_total).reduce((n, k) => n + s.raid.damage_total[k], 0);
+    const passesBefore = s.raid.passes_done.length;
     s = sim.resolveDay(s, acts(s)).state;
     const R = s.raid, H = (s.raid_history || [])[0];
     const after = R ? Object.keys(R.damage_total).reduce((n, k) => n + R.damage_total[k], 0)
       : (H ? Object.keys(H.damage_total).reduce((n, k) => n + H.damage_total[k], 0) : before);
-    damageDays.push(after - before);
+    const passesAfter = R ? R.passes_done.length : (H ? H.passes : passesBefore);
+    // V5 T3 (2026-09-18) : une journée SANS aucun passage (tout l'effectif blessé ou épuisé : « la clairière est restée
+    // vide ») n'est pas un raid impossible — c'est une situation de jeu. Seules les journées réellement jouées comptent
+    // pour le contrôle (8) « aucune journée à 0 dégât ».
+    if (passesAfter > passesBefore) damageDays.push(after - before);
   }
   const h = (s.raid_history || [])[0] || null;
   const st = h && h.stats ? h.stats : { mech: {}, res_values: {}, casts: {}, zones: {} };

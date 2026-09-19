@@ -50,7 +50,10 @@ for (let seed = 11; seed <= 22; seed++) {
     if (JSON.stringify(state).includes('undefined')) bad.push(`graine ${seed} : undefined sérialisé`);
   }
   if (!state.season_report || !state.season_report.lines.length) bad.push(`graine ${seed} : pas de bilan de saison au jour 30`);
-  if (!state.derby.last || state.derby.last.day !== 28) bad.push(`graine ${seed} : derby du jour 28 absent`);
+  // ADAPTÉ V5 T3 (2026-09-18, devenu faux par conception) : le Derby des Lames (§2.5) remplace le derby du jour 28 et se
+  // clôt le jour où la Bannière tombe ou tient (26, 27 ou 28). On exige toujours un derby en fin de saison.
+  const derbyDays = state.derby.raid_day ? [26, 27, 28] : [28];
+  if (!state.derby.last || derbyDays.indexOf(state.derby.last.day) < 0) bad.push(`graine ${seed} : derby de fin de saison absent (${state.derby.last && state.derby.last.day})`);
 }
 check('or, bourses, entrepôt et inventaires jamais négatifs ; fatigue/moral/forme dans [0,100]', bad.length === 0, bad.slice(0, 6).join(' | '));
 check('xp cohérent avec le niveau (12 graines × 30 jours)', !bad.some(x => x.includes('xp')), bad.filter(x => x.includes('xp')).slice(0, 3).join(' | '));

@@ -54,6 +54,7 @@ const outcomes = { vaincu: 0, 'repoussé': 0, ravage: 0 };
 const wakesPerSeed = [], firstAttackDays = [], attackDays = [], agesAtEnd = [];
 let hashMismatch = 0, presageOk = 0, presageExpected = 0, defendOk = 0, defendRefused = 0, defendTried = 0;
 let vmOk = 0, vmChecked = 0, chronicleTotals = [], menaceLines = [];
+let derbyRaidDays = 0, derbyRaidClosed = 0;
 let raidDays = 0, raidsStarted = 0, raidsWon = 0, raidsLost = 0, raidPasses = 0, raidKo = 0, raidDurations = [], raidLines = [], raidDayChecks = 0, raidDayOk = 0, raidsUnresolved = 0;
 let legendaryPerWin = 0, wins = 0, legendaryDupes = 0, matsBeforeWin = 0, matsBeforeChecks = 0, matsAfterWin = 0;
 let deaths = 0, heroesEver = 0, heirsExpected = 0, heirsOfferNextDay = 0, heirsRecruited = 0, collapses = 0;
@@ -135,7 +136,18 @@ for (let seed = 1; seed <= SEEDS; seed++) {
     const presT = state.threats.filter(t => t.presage_day === day)[0];
     if (presT && presT.day === day + 1 && presT.outcome === null) { presageExpected++; if (c.summary.presage === data.dragons[presT.biome].name && secs.presage && secs.presage.length) presageOk++; else bad.push(`graine ${seed} j${day} : présage manquant (${c.summary.presage})`); }
     else if (c.summary.presage !== null) bad.push(`graine ${seed} j${day} : présage inattendu`);
-    if (c.raid) {   // V5 : journée de raid (section Raid, issue différée au jour de clôture)
+    if (c.raid && c.raid.id === 'raid_derby') {
+      // ADAPTÉ V5 T3 (2026-09-18, devenu faux par conception) : le Derby des Lames (§2.5, jours 26-28) est un raid SANS
+      // dragon — pas de menace, pas de trophée, pas de légendaire. On vérifie qu'il porte sa section Raid, qu'il se clôt
+      // et qu'il est archivé ; les contrôles de dragon ci-dessous ne s'y appliquent pas.
+      derbyRaidDays++;
+      if (!secs.raid || !secs.raid.length) bad.push(`graine ${seed} j${day} : section Raid absente (derby)`);
+      if (c.raid.status !== 'active') {
+        derbyRaidClosed++;
+        if (!state.raid_history || !state.raid_history.some(r => r.day_end === day && r.id === 'raid_derby' && r.status === c.raid.status)) bad.push(`graine ${seed} j${day} : Derby des Lames non archivé`);
+        if (!state.derby.last || state.derby.last.day !== day) bad.push(`graine ${seed} j${day} : derby.last non renseigné`);
+      }
+    } else if (c.raid) {   // V5 : journée de raid (section Raid, issue différée au jour de clôture)
       raidDays++;
       if (threat && day === c.raid.day_start) { attackDays.push(day); raidsStarted++; if (day < WAKE_DAY_MIN + 1) bad.push(`graine ${seed} : attaque le jour ${day} (< J${WAKE_DAY_MIN + 1})`); }
       if (!secs.raid || !secs.raid.length) bad.push(`graine ${seed} j${day} : section Raid absente`); else raidLines.push(secs.raid.length);
@@ -348,6 +360,7 @@ check('présage le soir du réveil / la veille d\'un retour (summary.presage = n
 check('issues de raid observées (vaincu et ravage) ; retour planifié 3 jours plus tard après un ravage, 5 jours après un repoussé s\'il survient (threat planifiée + dragons[].next_day)', outcomes.vaincu > 0 && outcomes.ravage > 0 && !bad.some(x => /retour du dragon/.test(x)), JSON.stringify(outcomes));
 check('un légendaire par vaincu, jamais deux fois le même par saison, dragon marqué slain + trophée', wins > 0 && legendaryPerWin === wins && legendaryDupes === 0 && !bad.some(x => /slain|légendaire/.test(x)), legendaryPerWin + '/' + wins);
 check('matériaux de dragon uniquement via un dragon vaincu (0 partout avant, ≥ 1 après ; jamais récoltables)', matsBeforeWin === matsBeforeChecks && matsAfterWin === wins && !bad.some(x => /matériau/.test(x)));
+check('V5 T3 : le Derby des Lames (jours 26-28) est joué sur la grille et clos avec son archive', derbyRaidDays > 0 && derbyRaidClosed > 0 && !bad.some(x => /derby|Derby/.test(x)), derbyRaidDays + ' journées de derby, ' + derbyRaidClosed + ' clôture(s)');
 check('missions solo résolues (section Missions solo) avec blessures possibles', soloDone > 0 && soloLines > 0 && soloInjuries > 0, soloDone + ' missions, ' + soloInjuries + ' blessures');
 check('savoir-faire : deux héros même classe même niveau (graines différentes) divergent dans ≥ 80 % des cas au J30', pairs > 0 && diffXp * 10 >= pairs * 8, (100 * diffXp / Math.max(1, pairs)).toFixed(0) + ' % sur ' + pairs + ' paires');
 check('morts observées ≥ 1 sur 30 graines et ≤ 10 % des héros ; tombe, retrait de l\'effectif, section Deuil', deaths >= 1 && deaths * 10 <= heroesEver && !bad.some(x => /mort|Deuil|tombe/.test(x)), deaths + '/' + heroesEver);

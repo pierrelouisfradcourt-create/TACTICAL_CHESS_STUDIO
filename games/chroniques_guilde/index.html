@@ -365,6 +365,22 @@ canvas#scene { display: block; width: 100%; border-radius: var(--radius); border
 .heir-card { border: 1px solid var(--gold); border-radius: var(--radius); padding: 10px 12px; background: var(--gold-soft); margin-top: 8px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .heir-card .n { font-family: var(--font-title); font-weight: 700; font-size: 15px; }
 .mourning { font-family: var(--font-chron); font-style: italic; color: var(--muted); font-size: 15px; }
+/* ---- V5 T3 : voie et spécialisation (cartes de choix, reconversion) ---- */
+.lineage-lead { font-family: var(--font-chron); font-size: 15px; margin: 6px 0 2px; }
+.spec-cards { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 8px; }
+@media (min-width: 560px) { .spec-cards { grid-template-columns: 1fr 1fr; } }
+.spec-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; background: var(--raised); display: flex; flex-direction: column; gap: 5px; text-align: left; width: 100%; }
+.spec-card.is-reco { border-color: var(--gold); background: var(--gold-soft); }
+.spec-card .n { font-family: var(--font-title); font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.spec-card .v { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.spec-card .i { font-family: var(--font-chron); font-size: 14px; }
+.spec-card .sp { font-size: 13px; }
+.spec-card .sp b { font-weight: 700; }
+.spec-card .an { font-size: 12px; color: var(--muted); }
+.spec-card .di { font-size: 12px; color: var(--muted); font-style: italic; }
+.spec-have { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; background: var(--raised); display: flex; flex-direction: column; gap: 4px; }
+.respec-box { border: 1px dashed var(--line); border-radius: var(--radius); padding: 10px 12px; margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.respec-box.is-open { border-style: solid; border-color: var(--gold); background: var(--gold-soft); }
 .scene-banner.is-mourning { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .scene-banner.is-defeat { background: #2a2326; border-color: #2a2326; color: #f0e9e2; font-size: 14px; flex-wrap: wrap; }
 .scene-banner.is-defeat .btn { margin-left: auto; background: #f0e9e2; color: #2a2326; border-color: #f0e9e2; }
@@ -503,6 +519,10 @@ canvas#raid-grid { display: block; width: 100%; max-width: 441px; margin: 10px a
       <section class="block" aria-labelledby="h-hero">
         <h2 id="h-hero" class="sr-only">Mon héros</h2>
         <div id="hero-card"></div>
+      </section>
+      <section class="block" aria-labelledby="h-lineage" id="lineage-block" hidden>
+        <h2 id="h-lineage">Sa voie <span class="count" id="lineage-count"></span></h2>
+        <div id="lineage"></div>
       </section>
       <section class="block" aria-labelledby="h-today" id="today-block">
         <h2 id="h-today">Ma journée <span class="count ap-line" id="ap-line" data-testid="ap-line"></span></h2>
@@ -647,7 +667,7 @@ var ACT_GLYPH = { rest: '☾', gather: '❦', train: '⚑', craft: '⚒', expedi
 var ACT_VERB = { rest: 'se repose', gather: 'part récolter', train: 's’entraîne', craft: 'travaille à la forge', expedition: 'part en expédition', defend: 'défend le village', solo: 'part en mission solo', raid: 'monte sur la grille du raid', dead: 'n’est plus' };
 var FULL_DAY = { expedition: true, defend: true, rest: true, raid: true };   /* V5 : le raid occupe la journée entière (isFullDay du moteur) */
 /* Types d'action gérés par l'écran (viennent de l'écran seul) ; tout autre type de planDefaults(p1) est transmis tel quel, à sa position. */
-var MANAGED = { assign: 'day', plan: 'day', vote_quest: 'vote_quest', vote_build: 'vote_build', equip: 'extras', unequip: 'extras', recruit: 'recruit' };
+var MANAGED = { assign: 'day', plan: 'day', vote_quest: 'vote_quest', vote_build: 'vote_build', equip: 'extras', unequip: 'extras', recruit: 'recruit', choose_hybrid: 'extras', choose_spec: 'extras', respec: 'extras' };   /* V5 T3 : voie, spécialisation et reconversion partent avec les ordres du soir */
 var PRESET_GLYPH = { atelier: '⚒', aventure: '⚔', recuperation: '☾', cueillette: '❦', defense: '🛡', raid: '⚔' };
 var DRAGON_STATE = { dormant: 'dormant', awake: 'éveillé', repelled: 'repoussé', slain: 'vaincu' };
 var RARITY_LABEL = { common: 'commun', rare: 'rare', epic: 'épique', legendary: 'légendaire' };
@@ -1007,6 +1027,18 @@ function addOrder(type, payload) {
   return true;
 }
 function removeOrder(i) { app.plan.extras.splice(i, 1); renderEquip(); }
+/* V5 T3 : choix de voie, de spécialisation et reconversion — un seul ordre de chaque par journée, validé par le moteur. */
+function lineageOrder(type, payload, okMsg) {
+  var a = mkAction(type, payload), v;
+  try { v = SIM.validateAction(app.state, a); } catch (e) { v = { ok: false, reason: e.message }; }
+  if (!v || !v.ok) { toast((v && v.reason) || 'Action refusée par le moteur.', 'crit'); return false; }
+  var already = app.plan.extras.filter(function (x) { return x.type === type; })[0];
+  app.plan.extras = app.plan.extras.filter(function (x) { return x.type !== type; });
+  if (!already || (already.payload.spec_id || already.payload.hybrid_id) !== (payload.spec_id || payload.hybrid_id)) app.plan.extras.push(a);
+  renderHero();
+  toast(okMsg);
+  return true;
+}
 
 /* ---------- soir : marqueurs depuis la chronique (sans lire le texte) ---------- */
 function enterEvening(chron) {
@@ -2992,6 +3024,8 @@ function sceneBanners() {
   else if (oc === 'repoussé') out.push(bannerHtml('outcome', 'is-warn', '🐉', dragonName(t) + ' est repoussé' + biomeSuffix(t) + ' : il s’éloigne vers les cimes.'));
   else if (oc === 'ravage') out.push(bannerHtml('outcome', 'is-dark', '🔥', 'Jour noir : ' + (t && t.building_hit ? t.building_hit + ' a brûlé' : 'le village est ravagé') + ' (' + dragonName(t) + (t && t.biome_name ? ', ' + t.biome_name : '') + ')'));
   raidBanners(out);
+  /* V5 T3 (§6.4) : rappel du tableau — un dragon est réveillé et une branche manque ; qui peut encore se reconvertir. */
+  if (vm.respec && vm.respec.hint) out.push(bannerHtml('respec', 'is-warn', '⚒', vm.respec.hint.label));
   if (evening && sum.deaths && sum.deaths.length) out.push(bannerHtml('deuil', 'is-mourning', '🕯', 'Deuil : ' + deathsText(sum.deaths)));
   if (evening && sum.village_age_up) out.push(bannerHtml('age', 'is-gold', '🏰', 'Le village devient ' + (AGE_ARTICLE[ageIdByName(sum.village_age_up)] || 'un') + ' ' + sum.village_age_up));
   return out;
@@ -3090,7 +3124,69 @@ function traitsChips(a) { return '<div class="chips">' + (a.traits.map(function 
 
 function renderHero() {
   var h = myHero();
-  renderHeroCard(h); renderDay(h); renderMissions(h); renderQuests(); renderEquip(); renderHeroCrafts(h);
+  renderHeroCard(h); renderLineage(h); renderDay(h); renderMissions(h); renderQuests(); renderEquip(); renderHeroCrafts(h);
+}
+/* V5 T3 — voie et spécialisation : tout est lu dans le viewModel (verbe, sorts, « utile contre », pastille, coût,
+   échéance, raison du refus). La page ne calcule aucune règle : elle affiche et transmet le choix au moteur. */
+function spellLine(sp) {
+  return '<span class="sp">• <b>' + esc(sp.name) + '</b> · ' + esc(sp.cost_pa) + ' PA · portée ' + esc(sp.range_label) +
+    (sp.shape_label && sp.shape_label !== 'cible' ? ' · ' + esc(sp.shape_label) : '') + (sp.daily ? ' · journalier' : '') +
+    '<br><span class="an">' + esc(sp.description || (sp.effects || []).join(' ; ')) + '</span></span>';
+}
+function specCardHtml(o, act, pending) {
+  var chosen = pending === o.id;
+  return '<button type="button" class="spec-card' + (o.recommended ? ' is-reco' : '') + '" id="spec-' + esc(o.id) + '" data-testid="spec-' + esc(o.id) + '" data-act="' + act + '" data-id="' + esc(o.id) + '" aria-pressed="' + chosen + '">' +
+    '<span class="n">' + esc(o.name) + (o.recommended ? '<span class="pill pill-good">Recommandé pour le groupe</span>' : '') + (chosen ? '<span class="pill">Choisi ✓</span>' : '') + '</span>' +
+    '<span class="v">' + esc(o.verb || '') + '</span>' +
+    '<span class="i">' + esc(o.identity || '') + '</span>' +
+    (o.spells || []).map(spellLine).join('') +
+    '<span class="an">Utile contre : ' + esc((o.answers || []).join(', ') || 'toutes les menaces') + '</span>' +
+    (o.distinction ? '<span class="di">' + esc(o.distinction) + '</span>' : '') + '</button>';
+}
+function pendingLineage(type) {
+  var a = app.plan.extras.filter(function (x) { return x.type === type; })[0];
+  return a ? (a.payload.spec_id || a.payload.hybrid_id) : null;
+}
+function renderLineage(h) {
+  var vm = app.vm, box = $('lineage'), blk = $('lineage-block'), parts = [], count = '';
+  if (!h) { blk.hidden = true; box.innerHTML = ''; $('lineage-count').textContent = ''; return; }
+  var ch = vm.choice;
+  if (ch && ch.kind === 'spec' && ch.adventurer_id === h.id) {
+    var pend = pendingLineage('choose_spec');
+    parts.push('<p class="lineage-lead" id="spec-lead" data-testid="spec-lead">' + esc(ch.adventurer_name) + ' est au bout de sa voie (' + esc(ch.hybrid.name) + ') : deux pointes, un choix. Sans réponse, ' + (h.gender === 'f' ? 'elle' : 'il') + ' tranchera seul' + (h.gender === 'f' ? 'e' : '') + ' au jour ' + esc(ch.deadline_day) + '.</p>');
+    parts.push('<div class="spec-cards" id="spec-cards">' + ch.options.map(function (o) { return specCardHtml(o, 'choose-spec', pend); }).join('') + '</div>');
+    count = 'un choix à faire';
+  } else if (ch && ch.kind === 'hybrid' && ch.adventurer_id === h.id) {
+    var pendH = pendingLineage('choose_hybrid');
+    parts.push('<p class="lineage-lead" id="hybrid-lead">' + esc(ch.adventurer_name) + ' a mûri : quelle voie ? Sans réponse, le choix se fera seul au jour ' + esc(ch.deadline_day) + '.</p>');
+    parts.push('<div class="spec-cards" id="hybrid-cards">' + ch.options.map(function (o) { return specCardHtml(o, 'choose-hybrid', pendH); }).join('') + '</div>');
+    count = 'une voie à choisir';
+  }
+  if (h.spec) {
+    parts.push('<div class="spec-have" id="spec-have" data-testid="spec-have"><span class="n">' + esc(h.spec.name) + '</span><span class="v">' + esc(h.spec.verb) + '</span>' +
+      '<span class="i">' + esc(h.spec.identity) + '</span>' + (h.spec.spells || []).map(spellLine).join('') +
+      '<span class="an">Utile contre : ' + esc((h.spec.answers || []).join(', ')) + '</span></div>');
+    if (!count) count = esc(h.spec.name);
+  } else if (h.hybrid && !count) {
+    parts.push('<p class="muted small">' + esc(h.hybrid.name) + ' · ' + esc(h.hybrid.resource_label) + '</p>');
+    count = esc(h.hybrid.name);
+  }
+  var rs = vm.respec;
+  if (rs && rs.adventurer_id === h.id && (rs.available || rs.used || rs.hint)) {
+    var pendR = pendingLineage('respec');
+    var head = rs.hint ? '<span class="i">' + esc(rs.hint.label) + '</span>' : '';
+    if (rs.available && rs.options.length) {
+      parts.push('<div class="respec-box is-open" id="respec-box" data-testid="respec-box">' + head +
+        '<span class="sp">Reconversion possible : ' + esc(rs.cost) + ' or de guilde et la journée entière de ' + esc(rs.adventurer_name) + ', jusqu\'au jour ' + esc(rs.deadline_day) + ' — une seule fois dans la saison.</span>' +
+        rs.options.map(function (o) { return specCardHtml(o, 'respec', pendR); }).join('') + '</div>');
+    } else {
+      parts.push('<div class="respec-box" id="respec-box" data-testid="respec-box">' + head +
+        '<span class="an">Reconversion indisponible : ' + esc(rs.reason || (rs.used ? 'déjà utilisée cette saison' : '')) + '</span></div>');
+    }
+  }
+  blk.hidden = parts.length === 0;
+  box.innerHTML = parts.join('');
+  $('lineage-count').textContent = count;
 }
 function renderHeroCard(h) {
   if (!h) { $('hero-card').innerHTML = heirHtml(); return; }
@@ -3382,6 +3478,9 @@ function onAction(btn) {
     case 'raid-end-turn': raidEndTurn(); break;
     case 'raid-end-pass': raidEndPass(); break;
     case 'heir': toggleHeir(id); break;
+    case 'choose-spec': lineageOrder('choose_spec', { adventurer_id: myHero().id, spec_id: id }, 'Spécialisation transmise ce soir'); break;
+    case 'choose-hybrid': lineageOrder('choose_hybrid', { adventurer_id: myHero().id, hybrid_id: id }, 'Voie transmise ce soir'); break;
+    case 'respec': lineageOrder('respec', { adventurer_id: app.vm.respec.adventurer_id, spec_id: id }, 'Reconversion demandée : elle prendra la journée'); break;
     case 'new-game-prompt': openDrawer('journal'); $('seed-input').focus(); break;
     case 'replay': replayJournal(); break;
     case 'export': exportJournal(); break;

@@ -209,7 +209,9 @@ check('(3d) calibrage : KO par passage ≤ 25 %, part de dégâts maximale par c
 // les 26 sorts hybrides (T2) en plus des 25 sorts de base. Les scénarios T1 ne jouent que des héros de base
 // (aucun hybride avant le J8), donc seuls les sorts de base peuvent être lancés ici ; les sorts hybrides sont
 // couverts par test/tactic_t2_check.mjs. Le contrôle porte donc sur les sorts sans hybrid_id.
-const allSpells = data.tactic_spells.filter(s => !s.hybrid_id).map(s => s.id);
+// ADAPTÉ V5 T3 (2026-09-18, devenu faux par conception) : data.tactic_spells porte aussi les 52 sorts signature des
+// 26 spécialisations, couverts par test/tactic_t3_check.mjs. Le contrôle reste sur les 25 sorts de base.
+const allSpells = data.tactic_spells.filter(s => !s.hybrid_id && !s.spec_id).map(s => s.id);
 const notCast = allSpells.filter(id => !(dist.castsAll[id] > 0));
 check('(4a) les 25 sorts (arme + 4 par classe) sont lancés au moins une fois par raidDefaults sur les 30 raids', notCast.length === 0, notCast.length ? 'jamais lancés : ' + notCast.join(', ') : Object.keys(dist.castsAll).sort().map(k => k + ':' + dist.castsAll[k]).join(' '));
 // Scénarios unitaires : un héros de chaque classe placé au contact (ou à distance), un sort lancé via raidAction, l'effet lu dans l'état.

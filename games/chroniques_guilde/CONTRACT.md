@@ -606,3 +606,149 @@ il est prouvé par le contrôle (8c) sur des passages fabriqués, pas par une pa
 `vital_link` et `sacrifice` restent portés par l'identifiant du sort : ils sont **gardés**, pas généralisés — écrire un
 nouveau sort avec l'un d'eux est refusé au chargement plutôt qu'implémenté. La mort de p1 et la défaite de la guilde
 restent non observées avec la politique de la page. Rien n'a été mesuré sur téléphone réel.
+
+---
+
+## V5 T3 — les 26 spécialisations, la reconversion, le Derby des Lames
+
+Date : 2026-09-18. Source : mission « V5 tranche T3 » (GO Pierre 2026-09-18) d'après V5_SPEC.md §2.5, §5, §5.4, §6.1, §6.4, §7, §8 ;
+HumanGates ratifiés le 2026-09-18 : (1) les quatre branches qui échouaient au test de branche sur le papier (Lame de feu, Lame de
+givre, Charmeur, Montreur) restent fusionnées : **26 spécialisations**, deux par voie pour les treize voies de T2 ; (2) **une seule
+reconversion par saison** (§6.4 option B). Preuves : `test/tactic_t3_check.mjs` (nouveau), les dix bancs existants restent verts
+(trois en-têtes documentés, voir plus bas). API publique de sim.js inchangée, additions seulement ; `data.js` régénéré depuis `data.json`.
+
+### Données (`data.json`)
+- `specs` : 26 fiches `{id, hybrid, sister, name, verb, need, answers:[raid_id…], identity, distinction, spells:[2]}`.
+- `tactic_spells` : **103 entrées** (25 de base + 26 de voie + **52 de spécialisation**, `spec_id` renseigné, `class_id`/`hybrid_id` nuls).
+  Champs ajoutés : `daily` (vrai = `cooldown 99`, une fois par passage) et `spec_id`.
+- `lineage` : `spec_level_min 12`, `spec_day_min 20`, `spec_auto_days 2`, `spec_need_bonus 2`, `respec_cost_gold 100`,
+  `respec_deadline_day 27`, `respec_max 1`, `spec_answers[spec_id] = [raid_id…]` (§7.1).
+- `raids.raid_derby` (Derby des Lames, `kind:'derby'`) : Capitaine 1×1 masse 1 (`hp_base 300`, `hp_per_day 10`, `boss_w/h/mass`),
+  `max_nights 3`, `steal_pa 2`, `banner_hp 200`, `banner_hold_win 3`, `banner_lost_max 2`, trois `rivals` (rustre, clerc, rôdeur),
+  `score {hold 10, rival 25, captain 100}`, `reward_gold 220`, `reward_prestige 12`. `layouts.arene` (9×11, six barricades,
+  `banner_cell` au centre bas, six cases d'entrée).
+- `constants.derby_raid_day 26`, `constants.derby_raid_skip_day 28`. Gabarits : `voie_spec_offer/choice/auto/needs`,
+  `voie_respec_offer`, `voie_respec`, `derby_start/hold/lost_hold/win/lost`, `derby_pass_summary/raid_enter/raid_night/raid_lost` (≥ 6 chacun).
+- Héros : `spec`, `spec_day`, `spec_offer_day`, `respec_used`, `respec_day`.
+
+### Moteur (`tactic.js`)
+- `castSpec` : les 52 sorts signature, tous avec un effet mesurable sur la grille — mur héroïque (`mur_heros`, bloque LdV, souffle et
+  passage), zone d'étendard (+1 PA au héros qui commence son tour à côté), portails liés (`enterZone` téléporte, une fois par
+  déplacement), terrain changé et rendu (`setTerrain`/`tickTerrain` : Source, Assèchement), riposte scellée (`R.sealed`, Censeur),
+  riposte détournée (`R.riposte_redirect`, Devin et Mirage), riposte sautée (`R.skip_riposte`, Chronomancien), tour légué
+  (`R.legs` → `turn_max` +1 au passage suivant), corps tombés mémorisés (`R.fallen` → Relever), fissures, charme d'un rejeton
+  (`charmedTurn`), silence d'un rejeton, hantise (−10 DÉF via `defEff`), auras de bouclier, ours (masse 2, garde), faucon
+  (`u.fly` : PM 6, portée 4 sans LdV, ignore eau et zones), Avatar (masse 3, immunité au contrôle et aux zones, arme en cercle 1 à 120 %).
+- `specWhy` : refus français propres à chaque sort (aucune bête, aucun portail, pas de recrue, deux pièges lourds déjà posés…),
+  répliqués à l'identique dans `previewCast` — l'aperçu ne ment pas.
+- `specPolicy` : politique par défaut des 26 spés, jouée **avant** la voie ; **une installation de spé par passage** (la voie garde
+  la sienne), jamais au prix d'un coup (mêmes garde-fous qu'en T2).
+- Derby des Lames : `derbyTurn` (le Capitaine marche sur la Bannière), `rivalTurn` (le clerc soigne le plus blessé sauf s'il est
+  muselé, le rôdeur marque le héros et piège la hampe, le rustre charge la Bannière), `derbyRiposte` (vol de tour −2 PA au passage
+  suivant, comptage des tenues et des pertes), `spawnRivals` (les rivaux reviennent au complet chaque matin), `derbyPolicy`
+  (la politique par défaut défend la hampe avant de courir sur le Capitaine), issue `won` à 3 tenues ou Capitaine abattu,
+  `lost` à 2 ripostes de Bannière tenue par l'adversaire, à la chute de la Bannière ou au bout de 3 nuits.
+- `_internal` expose de quoi scripter un scénario (`newRaid`, `beginPass`, `applyPassAction`, `policyAction`, `heroUnit`…) : c'est
+  le banc de branche qui s'en sert, le moteur n'en dépend pas.
+
+### sim.js
+- Actions **`choose_spec {adventurer_id, spec_id}`** et **`respec {adventurer_id, spec_id}`** (validées, appliquées en phase 1 comme
+  `choose_hybrid`). Refus français : pas de voie, seuil non atteint, déjà spécialisé, spé d'une autre voie, spé inconnue, héros d'un
+  autre manager ; pour la reconversion : déjà utilisée, pendant un raid, après le jour 27, or de guilde insuffisant, changement de voie.
+- Phase 11a' (`phaseSpec`, à la suite de `phaseLineage`) : proposition le soir du seuil (niveau ≥ 12 **ou** jour ≥ 20), section de
+  chronique « Voie » enrichie, amis simulés le lendemain, choix automatique deux jours après. Règle de choix : colonne de besoin la
+  moins remplie, puis spé absente de la table, puis identifiant ASCII.
+- `respecHint` (§6.4) : quand un dragon est réveillé et qu'aucun héros ne porte une des branches qui lui répondent, le tableau le dit
+  et nomme les héros qui peuvent encore se reconvertir.
+- `applyRespec` : 100 or de guilde **et** la journée entière du héros (`ctx.plans[h.id] = rest`), chronique « X a changé de voie ».
+- Derby des Lames : l'arène est dressée le soir du **jour 25** (`phaseDerby`), les passages se jouent les jours 26-28, le derby
+  ordinaire du jour 28 est remplacé ; victoire → or + prestige + XP, défaite → prestige perdu ; un dragon déjà sur la grille le jour 25
+  garde la priorité (le derby n'a alors pas lieu : mesuré 3 saisons sur 16).
+- viewModel : `VM.roster[].spec` `{id,name,verb,identity,distinction,spells[2],answers}` · `VM.choice` étendu au type `'spec'`
+  (deux options, verbe, identité, deux sorts chiffrés, « utile contre », une seule pastille `recommended`, `deadline_day`) ·
+  `VM.respec` `{available, reason, cost, deadline_day, used, adventurer_id, adventurer_name, options[], hint}`.
+
+### index.html
+Nouvelle section « Sa voie » de l'écran Mon héros (`#lineage-block`) : cartes de choix côte à côte (nom, verbe, phrase d'identité,
+les deux sorts avec coût/portée/forme/journalier, « Utile contre », ce qui la distingue de sa sœur, pastille « Recommandé pour le
+groupe »), spécialisation acquise et ses sorts, bloc de reconversion avec son coût, son échéance et le rappel de dragon. Le choix part
+avec les ordres du soir (`choose_spec`, `choose_hybrid`, `respec` → `MANAGED.extras`), validé par le moteur avant d'être retenu ;
+aucune règle n'est calculée dans la page.
+
+### Calibrage retenu (T3) et écarts au spec
+| Paramètre | Spec | Retenu | Motif |
+|---|---|---|---|
+| Capitaine du derby `hp_base / hp_per_day` | 600 / 40 | 300 / 10 | même échelle que les trois dragons (T2) : à 600/40 le derby n'était jamais gagnable en 3 jours |
+| Nuits du derby | 3 jours (26-28) | `max_nights 3` | inchangé |
+| Botte secrète (Bretteur) | 130 % (+40 %) | 160 % (+40 % → 224 %) | à 130 % la pointe frappait moins fort que la voie nue |
+| Mur de boucliers (Sergent) | recrues **adjacentes** | recrues à **2 cases** | les recrues bougent avant l'ordre ; à 1 case le sort ne prenait qu'un corps |
+| Piège lourd | `immobilise 2 tours` | inchangé (corrigé : `enterZone` posait 1 tour) | le piège ordinaire garde 1 tour |
+| Colonnes de besoin | §3.8 | Sergent `tenir`, Porte-étendard `degats`, Sourcier `controler` | deux sœurs sur la même colonne : le départage ASCII rendait l'une inatteignable (mesuré : jamais choisie sur 40 graines) |
+| Sorts de zone (`onction_zone`, `grande_purification`, `esprit_gardien_majeur`, `detourner`, `rabattage`, `oeil_cyclone`, `assechement`) | `target: cell` | `target: any` | une zone se pose aussi sur une case occupée ; sinon le sort était refusé sur sa propre cible |
+| Budget d'installation | — | 1 pour la spé + 1 pour la voie par passage | budget commun : les mécaniques de voie (Défi, Formation…) ne se déclenchaient plus |
+
+### Mesuré (`tactic_t3_check`, 2026-09-18)
+26 spés atteignables et **toutes choisies au moins une fois sur 40 graines** ; **240/240 héros spécialisés au jour 22** ; choix
+automatique exactement 2 jours après la proposition ; `choose_spec` légal appliqué et six refus distincts ; reconversion acceptée une
+fois puis refusée cinq fois (seconde fois, raid, jour 28, or, autre voie), écart d'or mesuré 145 = 100 d'or de guilde + la journée
+perdue du héros ; variance de l'effet des 26 spés (4 valeurs distinctes sur 4 situations chacune) ; Derby des Lames joué 13 fois sur
+16 saisons (3 fois un dragon occupait la grille), 3 gagnés / 10 perdus, 16 tenues de Bannière, 21 menaces, 37 vols de tour ;
+déterminisme 30 graines × 30 jours ; `VM.roster[].spec`, `VM.choice`, `VM.respec` sans `undefined` (2 016 vues).
+Distribution sur 30 graines × 30 jours (plans par défaut) : Bretteur 21 · Sergent 15 · Écorcheur 15 · Harponneur 15 · Passe-muraille 11 ·
+Pèlerin 11 · Porte-étendard 10 · Chronomancien 9 · Confesseur 8 · Sourcier 8 · Templier 7 · Hospitalier 7 · Bourrasque 6 · Avatar 5 ·
+Matador 5 · Portier 5 · Censeur 4 · Devin 3 · Fauconnier 3 · Médium 2 · Mirage 2 · Cyclone 1 · Maître-ours 1 · Piégeur 1 · Veilleur 1 ·
+Assassin 0 (choisi sur d'autres graines, cf. contrôle (2)).
+
+### Test de branche (§5.3) — résultat mécanique
+**25 spés sur 26** résolvent leur scénario en au moins 25 % de tours de moins que leur sœur **et** que leur hybride nu.
+**Échoue à son propre test : l'Assassin** — 2 tours pour emporter le quart de la réserve du Drake chancelant, comme le Traqueur nu
+et comme le Piégeur. Le verbe « exécuter » est déjà tenu par la voie (Embuscade + Ombre 3 = critique assuré) : la pointe n'ajoute
+pas de réponse, seulement des chiffres. C'est exactement le motif des quatre fusions du §5.4. Recommandation portée au rapport de
+tranche (retravailler le verbe — exécution sur cible entamée, seuil de PV — ou fusionner l'Assassin dans le Traqueur et laisser le
+Piégeur seul). Aucun scénario n'a été maquillé pour faire passer le banc : le banc sort en échec tant que Pierre n'a pas tranché.
+Deux scénarios ont en revanche été **recentrés sur le verbe** après une première mesure trompeuse : le Bretteur se mesure au nombre
+de coups rendus sous trois gueules (« riposter »), pas aux dégâts bruts ; l'Assassin au quart de réserve emporté **en un tour**
+(« exécuter »), pas à un total de dégâts. Les chiffres de la Botte secrète (160 %) ont été relevés dans le même mouvement.
+
+### Contrôles adaptés (devenus faux par conception, en-têtes documentés dans les bancs)
+- `tactic_t1_check` (4a) : la liste « tous les sorts lancés » exclut désormais aussi les sorts de spécialisation (`spec_id`),
+  couverts par `tactic_t3_check`.
+- `tactic_t2_check` (8) : une journée où **personne** n'est monté sur la grille (effectif entièrement blessé) ne compte plus comme
+  « journée à 0 dégât » — un raid sans défenseur apte n'est pas un raid impossible.
+- `engine_v4_check` : le Derby des Lames est un raid **sans dragon** (ni menace, ni trophée, ni légendaire) ; ses journées sont
+  vérifiées à part (section Raid, clôture, archive, `derby.last`), un contrôle de plus le prouve.
+- `engine_extra` : le derby de fin de saison peut se clore les jours 26, 27 ou 28 (le Derby des Lames remplace celui du jour 28).
+- `ui_chateau_check` : la saison ayant changé de trajectoire (spés au J20, derby aux J26-28), le jour où le village atteint un âge
+  n'a plus forcément un héros parti ; la propriété (« un héros parti n'est jamais dans la cour ») est alors rejouée sur le jour de
+  raid de la graine.
+- `ui_v5_check` : **bloc E ajouté** (ce n'est pas une adaptation, c'est une preuve de plus) — cartes de spécialisation, choix envoyé
+  au moteur, spécialisation acquise le lendemain, bloc de reconversion, 400 px sans défilement horizontal.
+
+### Preuves d'exécution (2026-09-18, après la tranche)
+| Banc | Résultat |
+|---|---|
+| `ENGINE_ONLY=1 node test/harness.mjs` | 10/10 |
+| `node test/engine_extra.mjs` | 16/16 |
+| `node test/engine_v4_check.mjs` | 28/28 |
+| `node test/tactic_t1_check.mjs` | 26/26 |
+| `node test/tactic_t2_check.mjs` | 14/14 |
+| `node test/tactic_t3_check.mjs` | **10/11** — seul le test de branche (1) sort en échec, sur l'Assassin |
+| `node test/harness.mjs` | 19/19 |
+| `node test/ui_v2_check.mjs` | 52/52 |
+| `node test/ui_v3_check.mjs` | 35/35 |
+| `node test/ui_v4_check.mjs` | 52/52 |
+| `node test/ui_v5_check.mjs` | 48/48 (bloc T3 compris) |
+| `node test/ui_chateau_check.mjs` | 82/82 |
+
+Le banc T3 porte aussi (6b) : **les 52 sorts signature sont exécutés au moins une fois et écrivent quelque chose** — 43 par la
+politique par défaut dans les scénarios, les 9 autres par tir direct sur la première case légale (le moteur doit les accepter et
+produire une ligne de journal). Aucun sort de spécialisation n'est décoratif.
+
+### Décisions et limites T3 (non couvertes par les bancs)
+- Le Derby des Lames ne démarre pas si un dragon occupe déjà la grille le soir du jour 25 ; le dragon garde la priorité et le derby
+  ordinaire du jour 28 reprend ses droits. Un dragon qui se réveille **pendant** le derby est affronté à l'ancienne (auto-combat V4).
+- La reconversion n'est jamais proposée par `planDefaults` : c'est un geste de joueur (0 reconversion spontanée mesurée sur 30 graines).
+- Le mur héroïque du Templier (`mur_heros`) a 120 PV en données mais n'est pas attaquable : il disparaît à l'expiration (2 ripostes).
+- Le charme (`fils_solides`) retourne un rejeton contre les siens ; il ne compte pas dans les dégâts du héros.
+- Non vérifié : le gate fun, la lisibilité des deux cartes sur téléphone, une saison complète jouée à la main avec reconversion,
+  l'équilibre du Derby des Lames avec des passages humains (mesuré avec `raidDefaults` seulement), les deux spés en échec de branche.

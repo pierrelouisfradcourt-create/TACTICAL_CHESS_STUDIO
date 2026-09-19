@@ -385,8 +385,23 @@ for (const age of [3, 4]) {
     homeOut.map(f => f.id + ':' + f.act + JSON.stringify([r1(f.lx), r1(f.ly)])).join(' '));
   const onBridge = f => f.lx > w.gate.x0 - 10 && f.lx < w.gate.x1 + 10 && f.ly > w.front.y - 6 && f.ly < w.front.y + 46;
   const awayBad = away.filter(f => inEnc(w, f.lx, f.ly, -2) && !onBridge(f));
-  check(`âge ${age} : les ${away.length} héros partis (${away.map(f => f.act).join(',') || '-'}) sont hors les murs ou sur le pont`,
-    away.length >= 1 && awayBad.length === 0, awayBad.map(f => f.id + ':' + f.act + JSON.stringify([r1(f.lx), r1(f.ly)])).join(' '));
+  // ADAPTÉ V5 T3 (2026-09-18, devenu faux par conception) : la saison a changé de trajectoire (spécialisations au J20,
+  // Derby des Lames aux J26-28), et le jour où le village atteint un âge n'a plus forcément un héros parti. La propriété
+  // vérifiée reste la même — un héros parti n'est jamais DANS la cour — mais si personne n'est parti ce jour-là, elle est
+  // rejouée sur le jour de raid de la graine, où les héros sont certainement dehors.
+  let awayList = away, awayOut = awayBad, awayDay = found.ages[age].day;
+  if (!awayList.length && found.ev.raid) {
+    await loadDay(page, found.ev.raid.days);
+    await page.click('#btn-skip');
+    await page.clock.runFor(300);
+    const sc2 = await scene(page);
+    const figs2 = sc2.figures.map(f => ({ ...f, lx: f.x / kx, ly: f.y / ky }));
+    awayList = figs2.filter(f => f.out);
+    awayOut = awayList.filter(f => inEnc(w, f.lx, f.ly, -2) && !onBridge(f));
+    awayDay = found.ev.raid.day;
+  }
+  check(`âge ${age} : les ${awayList.length} héros partis (${awayList.map(f => f.act).join(',') || '-'}, jour ${awayDay}) sont hors les murs ou sur le pont`,
+    awayList.length >= 1 && awayOut.length === 0, awayOut.map(f => f.id + ':' + f.act + JSON.stringify([r1(f.lx), r1(f.ly)])).join(' '));
 
   // 6. les étiquettes : aucune sur une autre, aucune hors du cadre
   const L = sc.labels, overlaps = [];
