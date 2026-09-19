@@ -426,6 +426,26 @@ canvas#raid-grid { display: block; width: 100%; max-width: 441px; margin: 10px a
 .spell-btn:hover { border-color: var(--muted); background: var(--raised); }
 .spell-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
 .spell-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+/* V5 T8 — cinq emplacements de sorts (classes propres : `spell-btn` reste la barre du raid) */
+.ld-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 7px 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; min-width: 0; text-align: left; }
+.ld-btn:hover { border-color: var(--muted); background: var(--raised); }
+.ld-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.ld-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.ld-btn .n { font-family: var(--font-title); font-weight: 600; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.ld-btn .c { font-size: 10px; font-weight: 700; color: var(--accent); }
+.ld-btn .z { font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.ld-slots { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-bottom: 10px; }
+.ld-slot { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 52px; padding: 6px 7px; border-radius: 10px; border: 1px dashed var(--line); background: var(--surface); color: var(--ink); cursor: pointer; text-align: left; min-width: 0; }
+.ld-slot.is-full { border-style: solid; border-color: var(--accent); background: var(--accent-soft); }
+.ld-slot .n { font-family: var(--font-title); font-weight: 600; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.ld-slot .c { font-size: 10px; font-weight: 700; color: var(--accent); }
+.ld-slot .e { font-size: 10px; color: var(--muted); }
+.ld-group { margin-top: 10px; }
+.ld-group > .t { display: block; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+.ld-pool { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.ld-lead { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+.ld-why { margin: 8px 0 0; font-size: 12px; color: var(--crit, #B5452F); }
+@media (max-width: 520px) { .ld-slots { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; } .ld-slot { min-height: 46px; padding: 5px; } .ld-pool { grid-template-columns: 1fr; } }
 .spell-btn .n { font-family: var(--font-title); font-weight: 600; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .spell-btn .c { font-size: 10px; font-weight: 700; color: var(--accent); }
 .spell-btn .z { font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
@@ -543,6 +563,10 @@ canvas#raid-grid { display: block; width: 100%; max-width: 441px; margin: 10px a
       <details class="block fold" id="fold-equip">
         <summary id="h-equip">Équipement</summary>
         <div class="fold-body"><div class="equip-rows" id="equip-rows"></div></div>
+      </details>
+      <details class="block fold" id="fold-loadout" data-testid="fold-loadout">
+        <summary id="h-loadout">Mes cinq sorts <span class="count" id="loadout-count" data-testid="loadout-count"></span></summary>
+        <div class="fold-body" id="loadout" data-testid="loadout"></div>
       </details>
       <details class="block fold" id="fold-crafts">
         <summary id="h-crafts">Savoir-faire <span class="count" id="crafts-count"></span></summary>
@@ -671,7 +695,7 @@ var ACT_GLYPH = { rest: '☾', gather: '❦', train: '⚑', craft: '⚒', expedi
 var ACT_VERB = { rest: 'se repose', gather: 'part récolter', train: 's’entraîne', craft: 'travaille à la forge', expedition: 'part en expédition', defend: 'défend le village', solo: 'part en mission solo', raid: 'monte sur la grille du raid', dead: 'n’est plus' };
 var FULL_DAY = { expedition: true, defend: true, rest: true, raid: true };   /* V5 : le raid occupe la journée entière (isFullDay du moteur) */
 /* Types d'action gérés par l'écran (viennent de l'écran seul) ; tout autre type de planDefaults(p1) est transmis tel quel, à sa position. */
-var MANAGED = { assign: 'day', plan: 'day', vote_quest: 'vote_quest', vote_build: 'vote_build', equip: 'extras', unequip: 'extras', recruit: 'recruit', choose_hybrid: 'extras', choose_spec: 'extras', respec: 'extras' };   /* V5 T3 : voie, spécialisation et reconversion partent avec les ordres du soir */
+var MANAGED = { assign: 'day', plan: 'day', vote_quest: 'vote_quest', vote_build: 'vote_build', equip: 'extras', unequip: 'extras', recruit: 'recruit', choose_hybrid: 'extras', choose_spec: 'extras', respec: 'extras', set_loadout: 'extras' };   /* V5 T3 : voie, spécialisation et reconversion partent avec les ordres du soir · V5 T8 : les cinq emplacements de sorts */
 var PRESET_GLYPH = { atelier: '⚒', aventure: '⚔', recuperation: '☾', cueillette: '❦', defense: '🛡', raid: '⚔' };
 var DRAGON_STATE = { dormant: 'dormant', awake: 'éveillé', repelled: 'repoussé', slain: 'vaincu' };
 var RARITY_LABEL = { common: 'commun', rare: 'rare', epic: 'épique', legendary: 'légendaire' };
@@ -912,7 +936,8 @@ function newGameFromInput() {
 function prepareMorning() {
   stopClock();
   tb.phase = 'morning'; tb.hour = DAY_START; tb.hours = {}; tb.placed = {}; tb.revealed = {}; tb.bubbles = []; tb.chron = null; tb.markers = null; tb.autoPlayed = false; tb.craftUp = {};
-  app.plan = planFromDefaults(); app.chosen = false; app.slotOpen = -1; sunReset();   /* le soleil repart de l'aube, sans glisser à rebours */
+  app.plan = planFromDefaults(); app.chosen = false; app.slotOpen = -1; app.ldSel = null; app.ldHero = null; app.ldWhy = '';   /* V5 T8 : la sélection de sorts repart du chargement du matin */
+  sunReset();   /* le soleil repart de l'aube, sans glisser à rebours */
   friends().forEach(function (m) { tb.hours[m.id] = playHour(app.seed, app.state.day, m.id); });
   raidReset();
   if (raidToday()) { app.tab = 'raid'; app.contentTab = 'raid'; }
@@ -1183,11 +1208,13 @@ function raidMe(u, P) {
     spells: rd.spells = raidSpells(u), reachable: raidReach(u, P.pm) };
 }
 function raidZoneLabel(s) { return s.shape && s.shape !== 'single' ? (ZONE_SHAPE[s.shape] || s.shape) + (s.r || 3) : 'cible'; }
-/* Sorts du héros : définitions du moteur (classSpells / spellFor / powerOf) ; la raison d'un sort injouable
-   est demandée au moteur lui-même (raidAction sur ma propre case, état non modifié car raidAction est pure). */
+/* Sorts du héros : définitions du moteur (les CINQ EMPORTÉS via unitLoadout, spellFor, powerOf) ; la raison d'un
+   sort injouable est demandée au moteur lui-même (raidAction sur ma propre case, état non modifié car raidAction
+   est pure). V5 T8 : c'était `classSpells(u.class_id)` — la barre de la classe de base, ni le vivier ni ce que le
+   héros emporte. Depuis les cinq emplacements, l'écran Raid ne montre QUE les cinq sorts emportés. */
 function raidSpells(u) {
   var T = TACTIC._internal, out = [];
-  T.classSpells(rd.env, u.class_id).forEach(function (id) {
+  TACTIC.unitLoadout(rd.env, u).forEach(function (id) {
     var s = T.spellFor(rd.env, u, id); if (!s) return;
     var why = raidCastWhy(id, u.x, u.y), hard = /PA insuffisants|relance/.test(why || '');
     out.push({ id: s.id, name: s.name, cost_pa: s.cost_pa, range_min: s.range_min, range_max: s.range_max, los: !!s.los, line_only: !!s.line_only,
@@ -1497,6 +1524,8 @@ window.__rdpad = function () { return rd.pad; };
 window.__rdreach = function () { return rd.view && rd.view.me ? rd.view.me.reachable : []; };
 /* V5 T4 : la vue du moteur telle que l'écran la dessine (lecture seule, pour les bancs). */
 window.__raidView = function () { return raidNow(); };
+/* V5 T8 : sonde de lecture seule des cinq emplacements (comme __rdcell / __raidView : la page n'en fait rien). */
+window.__loadout = function () { var h = myHero(); return h && h.loadout ? { kind: h.loadout.kind, slots: h.loadout.slots, pool_size: h.loadout.pool_size, ids: h.loadout.carried.map(function (s) { return s.id; }) } : null; };
 window.__raidDraw = null;
 function raidCellFromEvent(ev) {
   var canvas = $('raid-grid'), b = canvas.getBoundingClientRect(), v = raidNow();
@@ -3341,7 +3370,72 @@ function traitsChips(a) { return '<div class="chips">' + (a.traits.map(function 
 
 function renderHero() {
   var h = myHero();
-  renderHeroCard(h); renderLineage(h); renderDay(h); renderMissions(h); renderQuests(); renderEquip(); renderHeroCrafts(h);
+  renderHeroCard(h); renderLineage(h); renderDay(h); renderMissions(h); renderQuests(); renderEquip(); renderLoadout(h); renderHeroCrafts(h);
+}
+/* V5 T8 — cinq emplacements de sorts. Tout vient du moteur : le nombre d'emplacements, le vivier groupé par origine,
+   le coût en PA, la portée, la forme, le verbe, et la RAISON d'un refus. La page ne calcule aucune règle : elle tient
+   une liste de sélection, la soumet au moteur à chaque tap, et affiche ce que le moteur répond. */
+function loadoutSelection(h) {
+  if (!h || !h.loadout) return [];
+  if (app.ldSel && app.ldHero === h.id) return app.ldSel.slice();
+  return h.loadout.carried.map(function (s) { return s.id; });
+}
+function ldCardHtml(sp, on, disabled) {
+  return '<button type="button" class="ld-btn" id="pool-' + esc(sp.id) + '" data-testid="pool-' + esc(sp.id) + '"' +
+    ' data-act="loadout-toggle" data-id="' + esc(sp.id) + '" aria-pressed="' + (on ? 'true' : 'false') + '"' + (disabled ? ' disabled' : '') + '>' +
+    '<span class="n">' + esc(sp.name) + (on ? ' ✓' : '') + '</span>' +
+    '<span class="c">' + esc(sp.cost_pa) + ' PA · portée ' + esc(sp.range_label) + (sp.shape_label && sp.shape_label !== 'cible' ? ' · ' + esc(sp.shape_label) : '') + '</span>' +
+    '<span class="z">' + esc(sp.verb || '') + '</span></button>';
+}
+function renderLoadout(h) {
+  var box = $('loadout'), fold = $('fold-loadout'), cnt = $('loadout-count');
+  if (!h || !h.loadout) { fold.hidden = true; box.innerHTML = ''; cnt.textContent = ''; return; }
+  fold.hidden = false;
+  var L = h.loadout, sel = loadoutSelection(h), byId = {}, parts = [];
+  L.groups.forEach(function (g) { g.spells.forEach(function (sp) { byId[sp.id] = sp; }); });
+  parts.push('<p class="ld-lead" id="loadout-lead" data-testid="loadout-lead">Cinq emplacements, toujours cinq : ' + esc(L.slots) +
+    ' sorts emportés sur ' + esc(L.pool_size) + ' au vivier. Les passifs restent actifs sans prendre d\'emplacement. ' +
+    esc(L.label) + '.</p>');
+  var slots = '';
+  for (var i = 0; i < L.slots; i++) {
+    var sp = byId[sel[i]] || null;
+    slots += '<button type="button" class="ld-slot' + (sp ? ' is-full' : '') + '" id="ld-slot-' + i + '" data-testid="ld-slot-' + i + '"' +
+      ' data-act="loadout-slot" data-i="' + i + '"' + (L.editable ? '' : ' disabled') + '>' +
+      (sp ? '<span class="n">' + esc(sp.name) + '</span><span class="c">' + esc(sp.cost_pa) + ' PA</span><span class="e">portée ' + esc(sp.range_label) + '</span>'
+          : '<span class="n">—</span><span class="e">vide</span>') + '</button>';
+  }
+  parts.push('<div class="ld-slots" id="loadout-slots" data-testid="loadout-slots">' + slots + '</div>');
+  L.groups.forEach(function (g) {
+    parts.push('<div class="ld-group" data-testid="ld-group-' + esc(g.origin) + '"><span class="t">' + esc(g.label) + '</span><div class="ld-pool">' +
+      g.spells.map(function (sp) { return ldCardHtml(sp, sel.indexOf(sp.id) >= 0, !L.editable); }).join('') + '</div></div>');
+  });
+  if (!L.editable && L.reason) parts.push('<p class="ld-why" id="loadout-why" data-testid="loadout-why">' + esc(L.reason) + '</p>');
+  else if (app.ldWhy) parts.push('<p class="ld-why" id="loadout-why" data-testid="loadout-why">' + esc(app.ldWhy) + '</p>');
+  box.innerHTML = parts.join('');
+  cnt.textContent = sel.length + '/' + L.slots;
+}
+/* Un tap : on change la liste, on la soumet au moteur, on affiche sa réponse. */
+function loadoutSubmit(h, sel) {
+  app.ldHero = h.id; app.ldSel = sel.slice(); app.ldWhy = '';
+  var a = mkAction('set_loadout', { adventurer_id: h.id, spells: sel.slice() }), v;
+  try { v = SIM.validateAction(app.state, a); } catch (e) { v = { ok: false, reason: e.message }; }
+  app.plan.extras = app.plan.extras.filter(function (x) { return !(x.type === 'set_loadout' && x.payload.adventurer_id === h.id); });
+  if (v && v.ok) { app.plan.extras.push(a); toast('Chargement retenu : ' + sel.length + ' sorts.'); }
+  else { app.ldWhy = (v && v.reason) || 'Chargement refusé par le moteur.'; toast(app.ldWhy, 'crit'); }
+  renderLoadout(h);
+}
+function loadoutToggle(id) {
+  var h = myHero(); if (!h || !h.loadout || !h.loadout.editable) return;
+  var sel = loadoutSelection(h), i = sel.indexOf(id);
+  if (i >= 0) sel.splice(i, 1); else sel.push(id);
+  loadoutSubmit(h, sel);
+}
+function loadoutClearSlot(i) {
+  var h = myHero(); if (!h || !h.loadout || !h.loadout.editable) return;
+  var sel = loadoutSelection(h);
+  if (i >= sel.length) return;
+  sel.splice(i, 1);
+  loadoutSubmit(h, sel);
 }
 /* V5 T3 — voie et spécialisation : tout est lu dans le viewModel (verbe, sorts, « utile contre », pastille, coût,
    échéance, raison du refus). La page ne calcule aucune règle : elle affiche et transmet le choix au moteur. */
@@ -3697,6 +3791,8 @@ function onAction(btn) {
     case 'raid-end-turn': raidEndTurn(); break;
     case 'raid-end-pass': raidEndPass(); break;
     case 'heir': toggleHeir(id); break;
+    case 'loadout-toggle': loadoutToggle(id); break;
+    case 'loadout-slot': loadoutClearSlot(parseInt(btn.dataset.i, 10)); break;
     case 'choose-spec': lineageOrder('choose_spec', { adventurer_id: myHero().id, spec_id: id }, 'Spécialisation transmise ce soir'); break;
     case 'choose-hybrid': lineageOrder('choose_hybrid', { adventurer_id: myHero().id, hybrid_id: id }, 'Voie transmise ce soir'); break;
     case 'respec': lineageOrder('respec', { adventurer_id: app.vm.respec.adventurer_id, spec_id: id }, 'Reconversion demandée : elle prendra la journée'); break;

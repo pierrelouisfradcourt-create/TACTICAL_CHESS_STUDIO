@@ -224,9 +224,64 @@
       env.heroes[h.id] = { id: h.id, name: p.name, owner: h.owner, class_id: h.class_id, hybrid: h.hybrid || null, spec: h.spec || null, hybrid_bonus: h.hybrid_bonus || 0, level: h.level, gender: h.gender, hp_max: p.hp_max, atk: p.atk, def: p.def, heal: p.heal, crit: p.crit,
         dodge: p.dodge, hit_bonus: p.hit_bonus, fire: p.fire,
         support: p.support, magic_power: p.magic_power, charisma: attrEff(D, h, 'charisma'),
-        magic: p.magic, morale: h.morale, fatigue: h.fatigue, dexterity: attrEff(D, h, 'dexterity'), vigor: attrEff(D, h, 'vigor'), traits: h.traits.slice(), injury_severity: h.injury.severity };
+        magic: p.magic, morale: h.morale, fatigue: h.fatigue, dexterity: attrEff(D, h, 'dexterity'), vigor: attrEff(D, h, 'vigor'), traits: h.traits.slice(), injury_severity: h.injury.severity,
+        loadout: Array.isArray(h.loadout) && h.loadout.length ? h.loadout.slice() : null, loadout_for: h.loadout_for || null };   // V5 T8 : les cinq emplacements emportés
     }
     return env;
+  }
+  // ---- V5 T8 : cinq emplacements de sorts (règle de Pierre) ------------------------------------------------------
+  // « Tu as toujours cinq emplacements de compétences. Tu choisis entre les deux premières classes et la nouvelle voie
+  // pour en avoir cinq, que tu gardes. » Le moteur porte le vivier et la règle (tactic.js) ; sim.js porte la
+  // PERSISTANCE (le choix se garde d'un jour à l'autre), l'ordre `set_loadout` et le refus en français.
+  function loadoutProf(h) { return { id: h.id, class_id: h.class_id, hybrid_id: h.hybrid || null, spec_id: h.spec || null, level: h.level, loadout: Array.isArray(h.loadout) && h.loadout.length ? h.loadout.slice() : null, loadout_for: h.loadout_for || null }; }
+  function currentRaidId(state) { return raidActive(state) && state.raid.id ? state.raid.id : null; }
+  function loadoutReady(D) { return !!(TACTIC && TACTIC.loadoutWhy && (D.raw.tactic_spells || []).length); }
+  // 'pass' = un passage est EN COURS · 'done' = le héros a déjà joué le sien aujourd'hui · null = la grille l'attend encore.
+  function passStateOf(state, heroId) {
+    if (!raidActive(state)) return null;
+    if (state.raid.pass && state.raid.pass.hero_id === heroId) return 'pass';
+    return (state.raid.passes_done || []).some(p => p.day === state.day && p.hero_id === heroId) ? 'done' : null;
+  }
+  function playedPassToday(state, heroId) { return passStateOf(state, heroId) !== null; }
+  // Refus d'un `set_loadout` : d'abord le MOMENT (hors passage, comme un équipement), ensuite la règle des cinq.
+  function loadoutWhySim(D, state, h, list) {
+    if (!loadoutReady(D)) return 'les emplacements de sorts ne sont pas ouverts';
+    const ps = passStateOf(state, h.id);
+    if (ps === 'pass') return heroName(h) + ' est en plein passage : le chargement ne se change jamais pendant un passage';
+    if (ps === 'done') return heroName(h) + ' a déjà joué son passage aujourd\'hui : le chargement se revoit le matin, avant la grille';
+    return TACTIC.loadoutWhy(raidEnvOf(D, state, null), loadoutProf(h), list);
+  }
+  // Chargement initial (newGame et toute reprise) : tout héros a ses cinq sorts sans attendre un premier soir.
+  function seedLoadouts(D, state) {
+    if (!loadoutReady(D)) return;
+    const env = raidEnvOf(D, state, null), raidId = currentRaidId(state);
+    for (const h of allHeroes(state)) {
+      if (Array.isArray(h.loadout) && h.loadout.length) continue;
+      const prof = loadoutProf(h);
+      const next = TACTIC.defaultLoadout(env, prof, raidId);
+      if (!next.length) continue;
+      h.loadout = next.slice(); h.loadout_kind = 'auto'; h.loadout_day = state.day;
+      h.loadout_pool = TACTIC.spellPool(env, prof).length; h.loadout_for = raidId;
+    }
+  }
+  // Phase 12b : tout héros a un chargement. Le choix explicite se GARDE ; le chargement automatique suit le vivier
+  // (il grandit à la voie puis à la pointe) et la situation de boss du jour.
+  function phaseLoadout(ctx) {
+    const state = ctx.state, D = ctx.D;
+    if (!loadoutReady(D)) return;
+    const env = raidEnvOf(D, state, null), raidId = currentRaidId(state);
+    for (const h of allHeroes(state)) {
+      const prof = loadoutProf(h);
+      const pool = TACTIC.spellPool(env, prof).length;
+      const kept = Array.isArray(h.loadout) && h.loadout.length && !TACTIC.loadoutWhy(env, prof, h.loadout);
+      if (kept && h.loadout_kind === 'choice') { h.loadout_pool = pool; continue; }             // le choix du joueur vaut jusqu'à ce qu'il en décide autrement
+      if (kept && h.loadout_pool === pool && (h.loadout_for || null) === raidId) continue;      // rien n'a bougé : le chargement se garde d'un jour à l'autre
+      const next = TACTIC.defaultLoadout(env, Object.assign({}, prof, { loadout: null, loadout_for: raidId }), raidId);
+      if (!next.length) continue;
+      const before = (h.loadout || []).join(',');
+      h.loadout = next.slice(); h.loadout_kind = 'auto'; h.loadout_day = state.day; h.loadout_pool = pool; h.loadout_for = raidId;
+      if (before !== next.join(',')) ctx.log.push('chargement ' + h.id + ' (auto, vivier ' + pool + ', ' + (raidId || 'hors raid') + ') : ' + next.join(' '));
+    }
   }
   // ---- V5 T2 : lignée (hybrides) — tables data.hybrids / data.lineage, affinité §6.3 option B, besoins du groupe §6.2 ----
   function tacticSpell(D, id) { for (const sp of (D.raw.tactic_spells || [])) if (sp.id === id) return sp; return null; }
@@ -550,7 +605,8 @@
       history: { expeditions: 0, victories: 0, injuries: 0, level_ups: 0 }, last_activity: 'rest', last_team: [],
       crafts: emptyCrafts(D),
       hybrid: null, hybrid_day: null, hybrid_offer_day: null, hybrid_bonus: 0, companions: {},   // V5 T2 : lignée (hybride, offre du soir, bonus d'affinité, compagnons d'expédition par classe)
-      spec: null, spec_day: null, spec_offer_day: null, respec_used: 0, respec_day: null   // V5 T3 : spécialisation et reconversion (§6.1, §6.4)
+      spec: null, spec_day: null, spec_offer_day: null, respec_used: 0, respec_day: null,   // V5 T3 : spécialisation et reconversion (§6.1, §6.4)
+      loadout: null, loadout_kind: null, loadout_day: null, loadout_pool: 0, loadout_for: null   // V5 T8 : cinq emplacements de sorts
     };
     return h;
   }
@@ -709,7 +765,9 @@
     for (let i = 0; i < nOffers; i++) state.tavern.push(genOffer(D, state, rng, i));
     // V4 : plus de calendrier de menaces ; les dragons se réveillent par la maîtrise des biomes (phase 11c).
     for (const mid of sortedKeys(state.inventories)) state.solo_board[mid] = rollSoloBoard(D, state, rng, mid);
-    return attachData(state, data);
+    attachData(state, data);
+    seedLoadouts(D, state);                                       // V5 T8 : cinq emplacements dès le premier matin
+    return state;
   }
   // Tableau des missions solo d'un manager : 2 missions tirées parmi les éligibles (ids triés), renouvelées le soir.
   function soloEligible(D, state, managerId) {
@@ -879,6 +937,14 @@
         const h = mine(p.adventurer_id);
         if (!h) return bad('aventurier inconnu ou pas à vous');
         const why = respecWhy(D, state, h, p.spec_id);
+        return why ? bad(why) : { ok: true };
+      }
+      case 'set_loadout': {
+        // V5 T8 : les cinq emplacements de sorts. Se change hors combat, comme un équipement, et jamais pendant un
+        // passage ; le moteur refuse en français (mauvais compte, sort hors vivier, doublon, aucun moyen de blesser).
+        const h = mine(p.adventurer_id);
+        if (!h) return bad('aventurier inconnu ou pas à vous');
+        const why = loadoutWhySim(D, state, h, p.spells);
         return why ? bad(why) : { ok: true };
       }
       case 'raid_pass': {
@@ -1322,6 +1388,15 @@
         break;
       }
       case 'unequip': state.heroes[p.adventurer_id].equipment[p.slot] = null; break;
+      case 'set_loadout': {                                                    // V5 T8 : le choix se garde jusqu'à ce que le joueur en décide autrement
+        const h = state.heroes[p.adventurer_id];
+        h.loadout = p.spells.slice(); h.loadout_kind = 'choice'; h.loadout_day = state.day;
+        h.loadout_pool = TACTIC ? TACTIC.spellPool(raidEnvOf(D, state, null), loadoutProf(h)).length : 0;
+        h.loadout_for = currentRaidId(state);
+        ctx.log.push('chargement ' + h.id + ' (choix) : ' + h.loadout.join(' '));
+        say(ctx, 'matin', heroName(h) + ' revoit ses cinq sorts avant de partir.');
+        break;
+      }
       case 'deposit': state.inventories[a.manager_id].resources[p.resource_id] -= p.qty; state.warehouse[p.resource_id] += p.qty; break;
       case 'withdraw': state.warehouse[p.resource_id] -= p.qty; state.inventories[a.manager_id].resources[p.resource_id] += p.qty; break;
       case 'decorate': {
@@ -2387,7 +2462,8 @@
       form: 50, fatigue: 0, morale: 60, injury: { severity: 0, days_left: 0 }, scars: 0, age_seasons: 8, traits: [], wage: 0, unpaid_days: 0,
       equipment: { weapon: null, armor: null, trinket: null, potion: null }, history: { expeditions: 0, victories: 0, injuries: 0, level_ups: 0 }, last_activity: 'rest', last_team: [], crafts: {},
       hybrid: null, hybrid_day: null, hybrid_offer_day: null, hybrid_bonus: 0, companions: {},
-      spec: null, spec_day: null, spec_offer_day: null, respec_used: 0, respec_day: null };
+      spec: null, spec_day: null, spec_offer_day: null, respec_used: 0, respec_day: null,
+      loadout: null, loadout_kind: null, loadout_day: null, loadout_pool: 0, loadout_for: null };   // V5 T8
   }
   function makeDragon(D, T, DR, day) {
     return { id: DR.id, biome: DR.biome, name: dragonVars(DR).threat_le, verb: DR.verb, level: 1 + div(day, 2), slot: 0, boss: false, dragon: true, mechanic: DR.mechanic, elite: false, siege: false,
@@ -2650,6 +2726,7 @@
   function archiveRaid(state, R, dayEnd) {
     if (!state.raid_history) state.raid_history = [];
     state.raid_history.push({ id: R.id, dragon_id: R.dragon_id, day_start: R.day_start, day_end: dayEnd, status: R.status, nights: R.nights, passes: R.passes_done.length, ko: R.passes_done.filter(p => p.ko).length, damage_total: R.damage_total, won_by: R.won_by || null,
+      passes_done: R.passes_done.slice(),   // V5 T8 : l'ORDRE des passages survit à la clôture (un raid gagné le jour même ne rendait plus son ordre de réception mesurable)
       stats: { mech: R.stats.mech, res_values: R.stats.res_values, casts: R.stats.casts, zones: R.stats.zones, adds_spawned: R.stats.adds_spawned, burn_turns: R.stats.burn_turns, regen_total: R.stats.regen_total, night_regen: R.stats.night_regen, shield_absorbed: R.stats.shield_absorbed } });   // V5 T2 : les compteurs du raid survivent à l'archivage (bancs et tableau)
     state.raid = null;
   }
@@ -3320,6 +3397,7 @@
     phaseVillageAge(ctx);                                               // 11b âge du village
     phaseDragons(ctx);                                                  // 11c réveil des dragons + présage
     phaseDerby(ctx);                                                    // 12
+    phaseLoadout(ctx);                                                  // 12b cinq emplacements de sorts (V5 T8) : le chargement de DEMAIN se fixe ce soir, avec la grille de demain
     phaseSeason(ctx);                                                   // 13
     ctx.summary.gold_delta = state.guild.gold + sum(sortedKeys(state.purses).map(m => state.purses[m])) - goldBefore;
     const chronicle = buildChronicle(ctx);
@@ -3518,6 +3596,21 @@
       defense_estimate: Math.min(100, age.defense + 5 * age.guards), defenders_planned: planned,
       biome_id: t.biome || null, biome_name: t.biome && D.biomes[t.biome] ? D.biomes[t.biome].name : null, dragon_id: DR ? DR.id : null };
   }
+  // V5 T8 : tout ce que l'écran « Mon héros » affiche des cinq emplacements. La page ne calcule AUCUNE règle :
+  // elle lit les cinq emportés, le vivier groupé par origine, le nombre d'emplacements, et la raison d'un refus.
+  function loadoutVm(D, state, h, managerId) {
+    if (!loadoutReady(D)) return null;
+    const env = raidEnvOf(D, state, null), prof = loadoutProf(h);
+    const v = TACTIC.loadoutView(env, prof);
+    const engaged = playedPassToday(state, h.id);
+    return { slots: v.slots, pool_size: v.pool_size, carried: v.carried, groups: v.groups,
+      kind: h.loadout_kind || 'auto', chosen_day: h.loadout_day === null || h.loadout_day === undefined ? 0 : h.loadout_day,
+      is_mine: h.owner === managerId,
+      editable: h.owner === managerId && !engaged,
+      reason: h.owner !== managerId ? 'ce héros n\'est pas à vous'
+        : engaged ? heroName(h) + ' est sur la grille : le chargement se revoit le matin, jamais pendant un passage' : '',
+      label: h.loadout_kind === 'choice' ? 'Choisi au jour ' + (h.loadout_day || 0) : 'Chargement par défaut' };
+  }
   function rosterVm(D, state, managerId, planned, plannedSlots) {
     return allHeroes(state).map(h => {
       const inv = state.inventories[h.owner];
@@ -3538,7 +3631,8 @@
         slots_planned: slots.map(s => ({ activity: s.activity, target: s.target === undefined ? null : s.target, label: slotLabel(D, state, s) })),
         presets: presetsFor(D, state, h).map(p => ({ id: p.id, label: p.label, slots: p.slots.map(s => ({ activity: s.activity, target: s.target === undefined ? null : s.target })), available: p.available, reason: p.reason })),
         crafts: craftsVm(D, h), is_dead: false,
-        hybrid: hybridVm(D, h), spec: specVm(D, h)
+        hybrid: hybridVm(D, h), spec: specVm(D, h),
+        loadout: loadoutVm(D, state, h, managerId)                              // V5 T8 : cinq emplacements + vivier groupé par origine
       };
     });
   }

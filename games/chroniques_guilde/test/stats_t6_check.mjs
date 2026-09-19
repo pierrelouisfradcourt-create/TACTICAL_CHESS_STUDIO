@@ -12,13 +12,15 @@
 //  (3) AUCUNE STATISTIQUE DÉCLARÉE SANS EFFET — soin, esquive, toucher, feu, soutien, magie d'objet hors Mage :
 //      chacune change l'issue quand on la fait varier seule (avant T6 : six d'entre elles strictement nulles en raid).
 //  (4) LES 26 PASSIFS DE SPÉCIALISATION EXISTENT ET MORDENT — 26 fiches remplies, chacune dans la bande 8-15 %,
-//      et la pointe pèse : au moins dix spés font strictement plus que leur voie nue, aucune n'en fait moins de 45 %.
+//      et chaque pointe apporte deux sorts actifs déclarés. (V5 T8 : « la pointe fait plus que sa voie nue » est
+//      RETIRÉ — caduc à cinq emplacements ; la santé d'une pointe se mesure par sa fréquence de sélection, dans
+//      test/loadout_t8_check.mjs.)
 //  (5) LE CHARISME EST UN VRAI ATTRIBUT — valeurs distinctes selon les classes, effet mesurable sur le soutien.
 //  (6) LE BARDE EST JOUABLE — il apparaît, il monte, il lance ses quatre sorts, il n'a aucune fiche vide.
 //  (7) LES CORPS HÉRITENT DU MAÎTRE — deux équipements opposés donnent des corps nettement différents, et chaque type
 //      est le meilleur dans ce pour quoi il hérite (golem = PV/DÉF, élémentaire = magie, nuée = pas de plus).
 //  (8) R-A / R-B — aucune résurrection d'invocation, et les corps quittent la grille avec leur maître.
-//  (9) R-C — un héros de voie dispose des DEUX barres de base.
+//  (9) R-C — le VIVIER d'un héros de voie contient les DEUX barres de base ; il en emporte cinq (écart T8, voir le bloc).
 // (10) BUGS DE L'AUDIT — B5 (plafonds après objets), B7 (la rareté est préférée quand la bourse suit), B10 (la DÉF
 //      est fatiguée comme l'attaque), B11 (les plafonds déclarés sont ceux qu'on atteint vraiment).
 import { createRequire } from 'node:module';
@@ -209,52 +211,41 @@ function suite(over, hybrid, spec, raids) {
   check('(4a) les 26 fiches de spécialisation portent un passif chiffré (avant T6 : 24 sur 26 à `passive: null`)', empty.length === 0, empty.map(S => S.id).join(' '));
   check('(4b) chaque valeur de passif tient dans la bande mesurée utile par l\'audit : 8 à 15 % sur une grandeur dérivée',
     band.length === 0, band.map(S => S.id).join(' '));
-  // puissance sur son propre terrain : toute la table porte la voie, puis la pointe ; raid forcé au J20
-  const st = [];
-  for (const seed of [2000, 2013, 2026, 2039]) {
-    let s = sim.newGame(seed, data, { managers: managersFor(seed, 6) });
-    for (let d = 0; d < 20 && !s.collapsed; d++) s = sim.resolveDay(s, acts(s)).state;
-    st.push(s);
-  }
-  const oneDay = (state, hybrid, spec, raidId) => {
-    const s2 = JSON.parse(JSON.stringify(state));
-    Object.defineProperty(s2, '__data', { value: data, enumerable: false, configurable: true });
-    const ids = Object.keys(s2.heroes).sort().filter(id => s2.heroes[id].injury.severity === 0 && s2.heroes[id].fatigue < 100);
-    for (const id of ids) { const h = s2.heroes[id]; h.hybrid = hybrid; h.spec = spec; h.hybrid_bonus = 0; }
-    const env = sim._internal.raidEnvOf(s2, ids, 20);
-    const R = I.newRaid(env, raidId), hp0 = R.boss.hp_max, log = [];
-    for (const id of ids) {
-      if (I.beginPass(R, env, id, log)) continue;
-      let g = 0;
-      while (R.pass && !R.pass.done && g++ < 400) { const u = I.heroUnit(R); if (!u) break;
-        const a = I.policyAction(R, env, u) || { type: 'end_turn' };
-        if (I.applyPassAction(R, env, a, log)) I.applyPassAction(R, env, { type: 'end_turn' }, log); }
-      if (R.pass && !R.pass.done) I.applyPassAction(R, env, { type: 'end_pass' }, log);
-      if (R.status !== 'active') break;
-    }
-    return Math.round(1000 * (hp0 - R.boss.hp) / hp0);
-  };
-  const avg = (hy, sp, rs) => { let t = 0, n = 0; for (const s of st) for (const r of rs) { t += oneDay(s, hy, sp, r); n++; } return Math.round(t / n); };
-  const RAIDS = ['raid_forest', 'raid_marsh', 'raid_mountain'];
-  const nuCache = {};
-  let above = 0, worstRatio = 1000, worstId = '';
-  const lines = [];
+  // ÉCART V5 T8 — la contrainte « aucune spécialisation ne fait moins que sa voie nue » est RETIRÉE, et remplacée.
+  // Elle n'a plus de sens depuis les cinq emplacements de sorts : une pointe ne peut plus être un déclassement,
+  // puisqu'un sort moins bon n'est tout simplement pas emporté. Comparer « la pointe » à « la voie nue » revenait à
+  // comparer deux barres d'action qui n'existent plus telles quelles. (Ses deux contrôles (4c)/(4d) mesuraient,
+  // avant T8 : 13 spés sur 26 au-dessus de leur voie nue, la pire à 51 %.)
+  // La bonne mesure de santé d'une pointe est devenue la FRÉQUENCE DE SÉLECTION : un sort jamais choisi est mort, un
+  // sort toujours choisi écrase les autres. Elle est mesurée par test/loadout_t8_check.mjs (7a/7b/7c) sur 100
+  // saisons. Ce qui reste ici est le contrôle qui tient toujours : chaque pointe apporte deux sorts ACTIFS de plus
+  // au vivier, et sa fiche les déclare.
+  const missing = [];
   for (const S of specs) {
-    const rs = (S.answers || []).filter(r => RAIDS.indexOf(r) >= 0);
-    const use = rs.length ? rs : RAIDS;
-    const key = S.hybrid + '|' + use.join(',');
-    if (nuCache[key] === undefined) nuCache[key] = avg(S.hybrid, null, use);
-    const nu = Math.max(1, nuCache[key]), sp = avg(S.hybrid, S.id, use);
-    if (sp > nu) above++;
-    const ratio = Math.round(100 * sp / nu);
-    if (ratio < worstRatio) { worstRatio = ratio; worstId = S.id; }
-    lines.push(S.id + ' ' + sp + '/' + nu + ' (' + ratio + ' %)');
+    const spells = (data.tactic_spells || []).filter(sp => sp.spec_id === S.id).map(sp => sp.id).sort();
+    const declared = (S.spells || []).slice().sort();
+    if (spells.length !== 2 || declared.join(',') !== spells.join(',')) missing.push(S.id + ' : ' + spells.join('+') + ' vs fiche ' + declared.join('+'));
   }
-  console.log('   puissance des pointes (‰ de réserve entamée, spé/voie nue) : ' + lines.join(' · '));
-  check('(4c) la pointe pèse : au moins 10 spés sur 26 font STRICTEMENT plus que leur voie nue sur leur propre terrain (avant T6 : 2 sur 26)',
-    above >= 10, above + '/26 au-dessus de leur voie nue');
-  check('(4d) aucune pointe n\'est un effondrement : la moins bonne fait au moins 45 % de sa voie nue sur son terrain (l\'Assassin reste volontairement bas sur une cible intacte, cf. tactic_t3 (1b))',
-    worstRatio >= 45, 'pire : ' + worstId + ' à ' + worstRatio + ' % de sa voie nue');
+  check('(4c) chaque pointe apporte exactement deux sorts ACTIFS au vivier, et sa fiche les déclare (remplace « la pointe fait plus que sa voie nue », caduc depuis les cinq emplacements T8 — la santé d\'une pointe se mesure maintenant par sa fréquence de sélection, cf. loadout_t8_check (7a-7c))',
+    missing.length === 0, missing.length ? missing.slice(0, 4).join(' | ') : specs.length + ' pointes, 2 sorts chacune');
+  // (4d) le vivier est bien CLOISONNÉ : les deux verbes d'une pointe n'entrent dans le vivier que du héros qui l'a prise.
+  const envP = { data: data, seed: 3, day: 20, managers: [], heroes: {} };
+  const leak = [];
+  for (const S of specs) {
+    const H = data.hybrids.filter(x => x.id === S.hybrid)[0];
+    const cl = ((H && (H.pairs && H.pairs.length ? H.pairs : [H.bases])) || [[]])[0][0];
+    if (!cl) { leak.push(S.id + ' : aucune classe de base'); continue; }
+    const withSpec = I.spellPool(envP, { id: 'h', class_id: cl, hybrid_id: S.hybrid, spec_id: S.id });
+    const without = I.spellPool(envP, { id: 'h', class_id: cl, hybrid_id: S.hybrid, spec_id: null });
+    const sister = S.sister ? I.spellPool(envP, { id: 'h', class_id: cl, hybrid_id: S.hybrid, spec_id: S.sister }) : [];
+    for (const id of (S.spells || [])) {
+      if (withSpec.indexOf(id) < 0) leak.push(S.id + ' : ' + id + ' absent de son propre vivier');
+      if (without.indexOf(id) >= 0) leak.push(S.id + ' : ' + id + ' fuit dans la voie nue');
+      if (sister.length && sister.indexOf(id) >= 0) leak.push(S.id + ' : ' + id + ' fuit chez sa sœur ' + S.sister);
+    }
+  }
+  check('(4d) le vivier est cloisonné : les deux verbes d\'une pointe n\'entrent que dans le vivier du héros qui l\'a prise — jamais dans sa voie nue, jamais chez sa sœur (c\'est ce qui rend le choix de pointe irréversible sans reconversion)',
+    leak.length === 0, leak.length ? leak.slice(0, 4).join(' | ') : specs.length + ' pointes cloisonnées');
 }
 
 // ---------------- (5) le charisme ----------------
@@ -371,12 +362,18 @@ function suite(over, hybrid, spec, raids) {
   const log = [];
   I.beginPass(R, env, 'h_test', log);
   const u = I.heroUnit(R);
-  const ids = I.unitSpells(env, u);
+  // ÉCART V5 T8 : R-C porte désormais sur le VIVIER, pas sur la barre emportée. « Tu es guerrier plus prêtre, tu as
+  // ACCÈS à la barre d'action des deux classes » reste vrai mot pour mot ; ce qui change, c'est qu'on n'emporte que
+  // cinq de ces sorts à la fois (T8). Le vivier doit donc contenir les deux barres, et la barre emportée en tenir
+  // exactement cinq, tous pris dans ce vivier.
+  const ids = I.spellPool(env, u);
+  const carried = I.unitSpells(env, u);
   const warrior = data.tactic_spells.filter(s => s.class_id === 'warrior').map(s => s.id);
   const cleric = data.tactic_spells.filter(s => s.class_id === 'cleric').map(s => s.id);
-  check('(9) R-C : un héros de voie dispose des DEUX barres de base (Paladin = Guerrier + Clerc), plus les sorts de sa voie',
-    warrior.every(id => ids.indexOf(id) >= 0) && cleric.every(id => ids.indexOf(id) >= 0),
-    ids.length + ' sorts : ' + ids.join(' '));
+  check('(9) R-C : le VIVIER d\'un héros de voie contient les DEUX barres de base (Paladin = Guerrier + Clerc), plus les sorts de sa voie ; il en emporte cinq (T8)',
+    warrior.every(id => ids.indexOf(id) >= 0) && cleric.every(id => ids.indexOf(id) >= 0)
+      && carried.length === 5 && carried.every(id => ids.indexOf(id) >= 0),
+    'vivier ' + ids.length + ' sorts · emportés ' + carried.length + ' : ' + carried.join(' '));
 }
 
 // ---------------- (10) bugs de l'audit ----------------

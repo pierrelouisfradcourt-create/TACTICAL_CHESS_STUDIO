@@ -90,8 +90,13 @@ if (!found.p1death) { note('mort de mon héros : non trouvée sur les graines 1.
 console.log('moteur :', JSON.stringify({ attack: found.attack, vaincu: found.vaincu, death: found.death, deathSolo: found.deathSolo, p1death: found.p1death, craftUp: found.craftUp, defeat: found.defeat, defeatOutside }));
 // Atelier : première (graine, jour) où un craft_order de p1 entre en file de forge (les IA, avant p1 en ASCII, prennent souvent la seule place) et où le lendemain
 // le préréglage Atelier est disponible. Journal (graine, jours 1..d) construit avec la politique page + cet ordre, importé ensuite dans la page.
+// ÉCART V5 T8 : la recherche du témoin passe de 60 à 250 graines. Elle cherche une journée où p1 peut passer une
+// commande de forge ET disposer le lendemain d'un préréglage « Atelier » d'au moins trois cases — donc de trois PA.
+// Le recalibrage T8 des raids a déplacé la fatigue d'un cheveu et ce témoin est sorti des 60 premières graines
+// (mesuré : 12 occasions de forge, préréglage Atelier au plus à 2 cases). Sur 250 graines : 52 occasions, 21
+// préréglages disponibles, jusqu'à 3 cases. Le contrôle est le même, l'échantillon est simplement assez grand.
 function atelierJournal() {
-  for (let seed = 1; seed <= 60; seed++) {
+  for (let seed = 1; seed <= 250; seed++) {
     let s = sim.newGame(seed, data, { managers: MANAGERS }); const days = [];
     for (let d = 0; d < 28; d++) {
       const vm = sim.viewModel(s, 'p1'), rec = vm.forge.recipes.filter(r => r.available)[0], base = allDefaults(s);

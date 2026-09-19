@@ -1682,3 +1682,224 @@ Aucune n'a été supprimée. Chacune porte son commentaire dans le banc.
   l'effet des passifs de pointe sur une table aux pointes MÉLANGÉES (toutes les mesures forcent la même pointe sur
   toute la table, comme l'audit) ; le comportement de la couche statistiques si le raid tour par tour était
   remplacé par une résolution automatique.
+
+---
+
+## V5 T8 — CINQ EMPLACEMENTS DE SORTS (2026-09-19)
+
+Source : règle de Pierre, dans ses mots — « Tu as toujours cinq emplacements de compétences. Tu choisis entre les
+deux premières classes et la nouvelle voie pour en avoir cinq, que tu gardes. » Périmètre : `tactic.js` (vivier,
+règle de sélection, validation), `sim.js` (persistance, action `set_loadout`, modèle de vue), `data.json`/`data.js`
+(emplacements, demande de chaque raid, calibrage), `index.html` (écran « Mon héros » et barre du Raid),
+`test/loadout_t8_check.mjs` (banc neuf) et un bloc F dans `test/ui_v5_check.mjs`.
+
+### 1. La règle telle qu'implémentée
+
+* **Cinq emplacements, toujours** (`data.constants.spell_slots = 5`). Un héros emporte `min(5, vivier)` sorts :
+  jamais plus, jamais moins, jamais une liste vide. Le nombre d'emplacements ne change à aucun moment de la lignée.
+* **Le vivier grandit, pas la barre.** `TACTIC.spellPool(env, héros)` rend ce que le héros POSSÈDE :
+  **5** à la classe nue (l'arme + les 4 sorts de classe) · **11** à la voie (+ les 4 de la seconde base, + les 2 de
+  la voie) · **13** à la pointe (+ ses 2 verbes). Mesuré sur les 97 profils atteignables : 7 viviers à 5, 30 à 11,
+  60 à 13. `TACTIC.unitLoadout(env, héros)` rend les cinq EMPORTÉS, dans l'ordre du vivier (donc groupés par
+  origine). C'est `unitSpells` — la porte unique de `castWhy` — qui a changé de sens : la politique par défaut, la
+  validation d'un passage, l'aperçu et l'écran Raid suivent le chargement sans une ligne de plus.
+* **L'arme occupe un emplacement.** C'est ce qui fait que la classe nue tombe juste (arme + 4 = 5 = cinq
+  emplacements exactement) et que « le Paladin dispose de onze sorts » se lit tel quel dans le vivier.
+* **Les passifs ne prennent pas d'emplacement.** Les 7 passifs de classe (`data.tactic_passives`) et les 26 passifs
+  de pointe (`data.specs[].passive`) ne sont PAS des sorts : ils ne figurent pas dans le vivier et restent actifs
+  quoi qu'on emporte. Vérifié : aucun des 33 identifiants n'apparaît dans un vivier.
+* **Le choix se garde.** `h.loadout` (+ `loadout_kind`, `loadout_day`, `loadout_pool`, `loadout_for`) est écrit dans
+  l'état. Un chargement `choice` vaut jusqu'à ce que le joueur en décide autrement — il ne suit ni la voie, ni la
+  pointe, ni le dragon du jour. Un chargement `auto` se refait quand le vivier grandit ou quand la situation de boss
+  change, et pas autrement.
+* **Il se change hors combat, comme un équipement.** Action additive `set_loadout {adventurer_id, spells[5]}`,
+  appliquée en phase 1 comme `equip`, donc AVANT que le héros monte sur la grille (phase 7b'). Refus français :
+  « … est en plein passage : le chargement ne se change jamais pendant un passage » et « … a déjà joué son passage
+  aujourd'hui : le chargement se revoit le matin, avant la grille ».
+* **Phase 12b `phaseLoadout`, au SOIR.** Le chargement de DEMAIN se fixe avec la grille de demain (dressée en phase
+  11c). Placée le matin, elle changeait la barre sous les pieds d'un joueur qui avait déjà composé son passage :
+  mesuré, 15 passages humains sur 45 étaient interrompus (« sort d'une autre classe »). `newGame` sème les
+  chargements initiaux (`seedLoadouts`) pour que le premier matin ait déjà ses cinq sorts.
+* **Un vivier qui rétrécit ne troue pas la barre.** Si un chargement stocké n'est plus entièrement dans le vivier
+  (reconversion, héros ramené à sa classe nue), les emplacements manquants se remplissent par la règle par défaut.
+* **Un héros sans choix explicite** reçoit toujours le chargement par défaut calculé par la même règle — mesuré sur
+  97 profils × 5 situations de boss × 4 héros : 1 940 chargements, tous valides, aucun vide.
+
+### 2. La règle de sélection des amis simulés (`defaultLoadout`)
+
+Déterministe, sans tirage, et construite sur le BESOIN. Pour chaque sort du vivier :
+
+1. **Rôles du sort**, lus sur sa fiche : `degats` (puissance > 0), `soigner` (effet `heal`/`purify`/`sacrifice`),
+   `tenir` (effet `shield`, état bénéfique), `controler` (effet `state` de contrôle ou état hostile),
+   `zones` (effet `zone`/`wall`/`freeze`, forme ≠ `single`, cible `cell`), `corps` (effet `summon`/`vital_link`,
+   cible `summon`), `mobilite` (effet `push`/`teleport`). Les 60 sorts dont le comportement est porté par
+   l'identifiant dans `castSpell` n'ont ni puissance ni effet déclaré : leur rôle est alors celui que revendique
+   leur fiche d'origine (`need` de la pointe, puis de la voie, puis colonne dominante de la classe).
+2. **Score** = somme des `loadout_role_cap = 2` besoins les MIEUX servis par la situation du jour
+   (`data.raids.<id>.demand`, ou `data.lineage.loadout_demand_default` hors raid)
+   `+ loadout_answer_bonus (4) ×` ce que le sort « répond » au dragon du jour
+   `+ loadout_spec_bonus (1)` si c'est un verbe de pointe, `+ loadout_hybrid_bonus (1)` si c'est un verbe de voie.
+   « Répondre au dragon » a deux canaux : la BRANCHE le revendique (`answers` de la voie ou de la pointe) et le SORT
+   porte un état que la fiche du raid rend décisif (`data.raids.<id>.demand_states` : la braise qui cautérise les
+   souches du Sylvain et de l'Hydre, la marque qui ouvre les écailles du Drake, le contrôle qui tient le clerc rival
+   au gué).
+3. **Tranche** : `tier = score / loadout_band (6)`. Sans cette grossièreté, la meilleure réponse gagnait toujours et
+   le même chargement revenait ; avec elle, deux sorts également utiles restent réellement disputés.
+4. **Départage stable et NON alphabétique** : `fnvStr(graine | héros | sort) % 997`, exactement le procédé retenu en
+   T5 pour le choix de voie. Rejouable au bit près, stable pour un même héros, sans biais ASCII. L'identifiant ne
+   sert qu'en dernier recours.
+5. **Garantie dure** : si les cinq retenus ne couvrent aucun moyen d'infliger des dégâts, le dernier emplacement
+   passe au mieux classé des sorts qui blessent.
+
+Le **plafond à deux rôles** (4) est une correction mesurée : sans lui, un sort qui coche quatre colonnes à la fois
+(le Sacrifice de l'Invocateur) écrasait tout son vivier et devenait obligatoire — 99,5 % de sélection.
+
+**Calibrage retenu** (`data.lineage`) : `loadout_band 6` · `loadout_answer_bonus 4` · `loadout_spec_bonus 1` ·
+`loadout_hybrid_bonus 1` · `loadout_role_cap 2`. Balayage de 60 combinaisons mesuré sur 40 saisons ; c'est le seul
+réglage à **zéro sort jamais pris et zéro sort toujours pris**, avec la plus large plage de chargements distincts.
+
+| réglage essayé | jamais pris | toujours pris | bornes |
+|---|---|---|---|
+| bande 5, réponse 4, pointe 1, voie 1, rôles 2 | 2 (`mur_boucliers`, `rabattre`) | 1 (`rafale`) | 0 – 100 % |
+| bande 7, réponse 4, pointe 1, voie 1, rôles 3 | 0 | 1 (`sacrifice`) | 4,8 – 100 % |
+| bande 6, réponse 4, pointe 2, voie 1, rôles 2 | 0 | 2 (`second_souffle`, `tempete_vent`) | 9,5 – 100 % |
+| bande 6, réponse 4, pointe 1, voie 1, rôles 3 | 0 | 0 | 9,5 – 99,5 % |
+| **bande 6, réponse 4, pointe 1, voie 1, rôles 2** | **0** | **0** | **7,5 – 97,2 %** |
+
+### 3. La nouvelle mesure de santé : la FRÉQUENCE DE SÉLECTION
+
+La contrainte « aucune spécialisation ne doit faire moins que sa voie nue » est **retirée du contrat et des bancs**.
+Elle n'a plus de sens : avec cinq emplacements, une pointe ne peut pas être un déclassement, puisqu'un sort moins bon
+n'est simplement pas emporté — et comparer « la pointe » à « la voie nue » revient à comparer deux barres d'action
+qui n'existent plus. (`stats_t6_check (4c)/(4d)` mesuraient avant T8 : 13 pointes sur 26 au-dessus de leur voie nue,
+la pire à 51 %.) Elle est remplacée par deux garde-fous et une bande, mesurés sur **100 saisons × 30 jours × 6 héros**
+et comptés **uniquement là où le vivier dépasse les cinq emplacements** (sinon il n'y a pas de choix à faire : un
+Barde sans voie ouverte emporte forcément ses cinq sorts, et ce 100 % ne dit rien) :
+
+* **aucun sort jamais choisi** — un sort jamais pris est un sort mort ;
+* **aucun sort toujours choisi** par tous les héros qui y ont accès — un sort obligatoire écrase les autres ;
+* **bande retenue [15 %, 97 %]**, posée autour de la mesure : **23,1 %** (Mur de boucliers, Sergent) à **94,8 %**
+  (Rafale, Tisse-vent) ; les 52 verbes de pointe vont de 23,1 % à 89,7 % (Tempête de vent, Cyclone). 103 sorts
+  mesurés sur 107 (les 4 restants appartiennent à des viviers qui ne dépassent jamais cinq).
+* **diversité** : 1 373 chargements distincts observés, **3,49 chargements distincts par héros-saison**.
+
+Aucun sort n'est hors bornes. Contrôles : `loadout_t8_check (7a)(7b)(7c)(8)`.
+
+### 4. Mesure avant / après
+
+« Avant » = le MÊME moteur avec la règle neutralisée (`spell_slots` au-dessus du vivier, chacun joue tout ce qu'il
+possède) et les chiffres de raid d'avant T8 ; « après » = le jeu livré. 60 saisons × 30 jours, 5-6 managers, plans
+par défaut, mêmes graines (`test/tmp_mesure.mjs`, supprimé après mesure).
+
+| grandeur | avant T8 | après T8 |
+|---|---|---|
+| passages de raid joués | 1 460 | 1 482 |
+| **dégâts par passage** | **143** | **136** |
+| KO par passage | 8,4 % | 8,4 % |
+| Sylvain abattu | 22/46 (48 %) | 25/47 (**53 %**) |
+| Drake abattu | 14/20 (70 %) | 15/25 (**60 %**) |
+| Hydre abattue | 10/16 (63 %) | 12/18 (**67 %**) |
+| Derby gagné | 25/49 (51 %) | 23/42 (**55 %**) |
+| **sorts distincts réellement lancés** | **95 / 107** | **98 / 107** |
+| lancers totaux | 6 055 | 5 296 |
+| part des 5 sorts les plus joués | 30 % | 39 % |
+| entropie normalisée des lancers | 0,839 | 0,780 |
+| sorts jamais lancés de la saison | 12 | **9** |
+
+Lecture : un héros frappe 5 % moins fort par passage (il emporte cinq sorts au lieu de onze ou treize), les issues
+des quatre raids restent toutes dans leur bande, et **trois sorts qui n'étaient jamais joués le sont maintenant**
+(`esquive`, `vol_bouclier`, `legs`, `hantise`, `assechement` entrent ; `rabattage` et `remanence` sortent). La
+concentration monte (les cinq plus joués passent de 30 % à 39 % des lancers) : c'est le prix assumé d'une barre plus
+courte, compensé par la ROTATION entre héros — 3,49 chargements distincts par héros-saison.
+
+### 5. Recalibrage rendu nécessaire, et mesuré
+
+Cinq emplacements retirent de la puissance aux raids et en donnent au Derby (dont la victoire se joue sur les tenues
+de Bannière, pas sur la barre d'action). Les bornes de `season_t5_check` et `tactic_t3_check` ont été retrouvées par
+la mesure, pas par l'élargissement des bandes (une exception, §7).
+
+| réglage | avant | après | pourquoi |
+|---|---|---|---|
+| `raids.raid_forest.hp_base` | 380 | **280** | le Sylvain tombait sur 37 % des saisons (bande 40-85 %) et sur 27 % des graines en ≤ 3 jours (cible ≥ 40 %) ; à 280 : 53 % et 43 % |
+| `raids.raid_forest.demand` | — (neuf) | `zones 4 · degats 3 · controler 3 · mobilite 3 · corps 2 · tenir 1 · soigner 1` | rétablit le BESOIN DE BRÛLEUR, qui s'était inversé (sans brûleur 12/20 contre 10/20 avec) ; à ce réglage : sans 9/20, avec 14/20, 25 points d'écart |
+| `raids.<id>.demand_states` | — (neuf) | forêt et marais `brule` · montagne `marque` · gué `aveugle/etourdi/immobilise` | sans ce canal, la règle ne voyait pas les besoins MÉCANIQUES d'un raid : les écailles du Drake n'étaient plus jamais fissurées |
+| `raids.raid_derby.banner_hold_win` | 3 | **4** | le Derby passait de 51 % à 77 % (bande 40-60 %) |
+| `raids.raid_derby.banner_lost_max` | 3 | **2** | |
+| `raids.raid_derby.steal_pa` | 2 | **1** | rend une victoire au gué à la population de `tactic_t3` sans repousser celle de `season_t5` au-dessus de 60 % |
+| `raids.raid_derby.hp_base` | 260 | **200** | la victoire par les armes reste une vraie option quand il faut quatre tenues |
+| `raids.raid_derby.rivals[].atk` | 22 / 14 / 20 | **26 / 18 / 24** | |
+
+Résultat : Sylvain 53 %, Drake 60 %, Hydre 67 % (bande 40-85 %) · Derby 55 % sur `season_t5` (bande 40-60 %) et 39 %
+sur `tactic_t3` (bande élargie, §7) · morts 15/164 = 9,1 % (plafond 10 %) · déterminisme intact.
+
+### 6. Trois correctifs de politique, mesurés en chemin
+
+* **Aucun filet de repli.** Un filet avait été écrit pour qu'un héros dont la routine de classe ne trouve aucun de
+  ses sorts dans le chargement frappe quand même avec ce qu'il porte. Mesuré : +4 dégâts par passage et 3 points de
+  passages non muets, mais **+2,2 points de MORTS sur la saison** (9,1 % → 11,3 % des héros) — un coup de plus, c'est
+  une riposte de plus. Il a été **retiré**. Un héros qui n'a plus rien à faire termine son tour, comme avant T8 ;
+  la garantie de dégâts de la règle et l'arme au bout de chaque routine suffisent (10 héros-saisons sur 111 à zéro
+  dégât, tous des soigneurs ou des invocateurs).
+* **Mur de glace (Mage)** : sa fenêtre était une lame de rasoir — tour 3 EXACTEMENT, aucun rejeton sur toute la
+  grille, une seule case candidate. Mesuré : **1 pose en 30 raids avant T8, 0 après** le recalibrage. Elle devient
+  « au dernier tour, s'il reste des PA et que le trait de feu est en relance », sur quatre cases candidates au sud du
+  tronc. Même verbe, il arrive enfin à se dire.
+* **Provocation (Guerrier)** : n'était ouverte qu'avec un corps invoqué sur la grille — or depuis R-B les corps ne
+  survivent plus au passage de leur maître, et le Guerrier arrivait sur une grille vide (1 provocation en 30 raids
+  avant T8, 0 après). Elle s'ouvre aussi au dernier tour quand la taillade est en relance : il laisse la haine du
+  boss derrière lui au lieu d'un coup d'arme de plus.
+
+### 7. Écarts assumés dans les bancs (documentés en tête de chaque banc)
+
+| banc | avant | après | raison |
+|---|---|---|---|
+| `stats_t6_check (4c)/(4d)` | « au moins 10 pointes font plus que leur voie nue », « aucune sous 45 % » | « chaque pointe apporte deux sorts actifs déclarés » et « le vivier est cloisonné » | la contrainte est caduque à cinq emplacements ; la santé d'une pointe se mesure par sa FRÉQUENCE DE SÉLECTION (`loadout_t8_check (7a-7c)`) |
+| `stats_t6_check (9)` R-C | `unitSpells` contient les deux barres de base | le **VIVIER** contient les deux barres, et le héros en emporte cinq | « tu as ACCÈS à la barre des deux classes » reste vrai mot pour mot ; ce qui change, c'est qu'on n'en emporte que cinq |
+| `tactic_t3_check` bac à sable de branche | le sujet joue tout ce qu'il possède | le sujet reçoit explicitement son **vivier entier**, et le Sylvain y garde sa réserve d'avant T8 (380) | ce banc mesure la CONCEPTION des sorts, pas la règle de sélection ; laisser la règle décider ferait mesurer la règle, et un Sylvain abattu avant la fin du scénario le rend inatteignable pour les trois variantes à la fois (mesuré : Portier 15\*/15\*/15\*) |
+| `tactic_t3_check (7b)` | bande 40-60 % | **bande 35-65 %** | seule bande élargie. La cible de conception ne bouge pas ; c'est la précision qui est écrite honnêtement : la population de `season_t5` mesure 55 %, celle-ci 39 % sur 38 derbys — à p = 0,5 et n = 38, deux écarts-types binomiaux valent ±16 points. La bande serrée reste gardée par `season_t5_check (9)`, sur son propre échantillon. |
+| `tactic_t1_check (8c)` | l'ordre des passages se lit dans `state.raid` | il se lit aussi dans `raid_history[].passes_done` | un Sylvain recalibré peut tomber DANS LA JOURNÉE ; le raid est alors archivé et `state.raid` vaut null. `raid_history` conserve désormais `passes_done` (ajout additif). |
+| `ui_v4_check` recherche du témoin « Atelier » | 60 graines | **250 graines** | le recalibrage a déplacé la fatigue d'un cheveu et le témoin est sorti des 60 premières graines (12 occasions de forge, préréglage au plus à 2 cases) ; sur 250 : 52 occasions, 21 préréglages, jusqu'à 3 cases. Le contrôle est le même. |
+
+### 8. Interface
+
+* **Écran « Mon héros », volet « Mes cinq sorts »** (`#fold-loadout`) : une ligne de cinq emplacements
+  (`[data-testid="ld-slot-0..4"]`, nom + coût en PA + portée, bordure pleine si rempli), puis le VIVIER groupé par
+  origine — **Première classe · Deuxième classe · Voie · Pointe** — chaque sort portant son **coût en points
+  d'action, sa portée, sa forme et son verbe** (`[data-testid="pool-<id>"]`). Un tap remplit ou vide un emplacement.
+* **Aucune règle calculée dans la page.** Le nombre d'emplacements, le vivier, les groupes, les coûts, les portées,
+  les formes, les verbes et la raison d'un refus viennent tous de `VM.roster[].loadout`. À chaque tap la page
+  soumet la liste à `validateAction('set_loadout')` et affiche la réponse du moteur — dans le volet
+  (`[data-testid="loadout-why"]`) et en bandeau. Exemples mesurés : « il faut exactement 5 sorts emportés
+  (4 reçus) », « « Prière de soin » n'est pas dans son vivier », « le même sort ne peut pas occuper deux
+  emplacements (« Arme ») », « il faut au moins un sort qui inflige des dégâts parmi les 5 emportés ».
+* **Écran Raid** : `raidSpells` lisait `classSpells(classe de base)` — ni le vivier, ni ce que le héros emporte.
+  Il lit désormais `TACTIC.unitLoadout` : **la barre du raid ne montre plus que les cinq sorts emportés.**
+* Quand le héros n'est pas à vous ou qu'il est sur la grille, le volet est en lecture seule avec la raison du moteur.
+
+### 9. Bancs
+
+Quinze bancs verts : `harness` 10/10 (moteur seul) et 19/19 · `engine_extra` 16/16 · `engine_v4` 28/28 ·
+`tactic_t1` 26/26 · `tactic_t2` 14/14 · `tactic_t3` 14/14 · `season_t5` 12/12 · `stats_t6` 33/33 ·
+**`loadout_t8` 12/12 (neuf)** · `ui_v2` 52/52 · `ui_v3` 36/36 · `ui_v4` 55/55 · `ui_v5` **55/55** (48 + bloc F) ·
+`ui_chateau` 91/91 · `ui_soleil` 58/58.
+
+`test/loadout_t8_check.mjs` : (1) cinq emplacements toujours, sur 5 346 héros-jours · (2) le vivier grandit 5 → 11 →
+13 · (3) les 33 passifs ne prennent pas d'emplacement · (4) huit refus français et une acceptation · (5) 1 940
+chargements par défaut, tous valides · (6a) le choix se garde huit jours, différent du défaut · (6b) refusé pendant
+un passage, accepté le matin · (7a-c) fréquences dans leurs bornes · (8) diversité · (9) déterminisme sur 30 graines.
+
+### 10. Ce qui reste imparfait
+
+* **Neuf sorts sur 107 ne sont jamais LANCÉS** sur 60 saisons (`onction_zone`, `mur_boucliers`,
+  `sacrifice_ordonne`, `silence`, `detourner`, `veille`, `rabattage`, `fils_solides`, `remanence`) — c'était douze
+  avant T8. Ils sont bien CHOISIS (aucun n'est sous 23 % de sélection) : ce qui manque est la condition de politique
+  par défaut qui les jouerait, pas le chargement. C'est un chantier de politique, pas de règle.
+* **La concentration des lancers monte** (les cinq plus joués passent de 30 % à 39 %). C'est mécanique — la barre est
+  plus courte — et compensé par la rotation entre héros, pas annulé.
+* **Le Derby reste la mesure la plus bruyante du jeu** : deux populations de managers donnent 55 % et 39 % sur le
+  même réglage. Une seule bande a dû être élargie ; un échantillon plus grand vaudrait mieux qu'une bande plus large.
+* **Le joueur ne peut pas encore nommer ni enregistrer plusieurs chargements** (« celui du Drake », « celui du
+  gué ») : un seul chargement à la fois, comme un équipement. La règle le permettrait.
+* **Non vérifié** : l'effet des cinq emplacements sur une partie jouée à la main (tout est mesuré sous plans par
+  défaut) ; ce que le joueur choisirait réellement, donc si la bande de fréquences tient aussi pour des gestes
+  humains ; l'équilibre ressenti d'un raid où deux joueurs se répartiraient les rôles à la composition.

@@ -732,14 +732,203 @@
   }
   // Sorts réellement disponibles : arme + les 4 sorts de sa classe (+ les 4 de la seconde base et les 2 de sa voie
   // après le second choix, + les 2 de sa pointe après le troisième).
-  function unitSpells(env, u) {
+  // V5 T8 : ceci n'est plus la barre d'action — c'est le VIVIER. Ce qui est jouable, c'est `unitSpells` (5 emplacements).
+  function spellPool(env, u) {
+    if (!env.__pool) env.__pool = {};
+    const key = u.class_id + '|' + (u.hybrid_id || '') + '|' + (u.spec_id || '');
+    if (env.__pool[key]) return env.__pool[key];
     const out = classSpells(env, u.class_id);
-    if (!u.hybrid_id) return out;
-    const second = hybridSecondBase(env, u);
-    if (second) for (const id of classSpells(env, second)) if (out.indexOf(id) < 0) out.push(id);
-    for (const sp of env.data.tactic_spells) if (sp.hybrid_id === u.hybrid_id) out.push(sp.id);
-    if (u.spec_id) for (const sp of env.data.tactic_spells) if (sp.spec_id === u.spec_id) out.push(sp.id);   // V5 T3 : 8 sorts + arme à la spécialisation
+    if (u.hybrid_id) {
+      const second = hybridSecondBase(env, u);
+      if (second) for (const id of classSpells(env, second)) if (out.indexOf(id) < 0) out.push(id);
+      for (const sp of env.data.tactic_spells) if (sp.hybrid_id === u.hybrid_id) out.push(sp.id);
+      if (u.spec_id) for (const sp of env.data.tactic_spells) if (sp.spec_id === u.spec_id) out.push(sp.id);   // V5 T3 : 8 sorts + arme à la spécialisation
+    }
+    env.__pool[key] = out;
     return out;
+  }
+
+  // ===================================================================================
+  // 5b. CINQ EMPLACEMENTS DE SORTS (V5 T8)
+  // ===================================================================================
+  // Règle de Pierre : « Tu as toujours cinq emplacements de compétences. Tu choisis entre les deux premières classes
+  // et la nouvelle voie pour en avoir cinq, que tu gardes. » Le NOMBRE d'emplacements ne bouge jamais ; c'est le
+  // VIVIER qui grandit : 5 à la classe nue (arme + 4), 11 à la voie (+ seconde base + 2), 13 à la pointe (+ 2).
+  // Les PASSIFS (data.tactic_passives, spec.passive) ne prennent pas d'emplacement : ils ne sont pas dans le vivier,
+  // qui ne contient que des sorts ACTIFS, et ils restent actifs quoi qu'on emporte.
+  function spellSlots(env) { return ((env.data.constants || {}).spell_slots) || 5; }
+  const LOADOUT_ROLES = ['controler', 'corps', 'degats', 'mobilite', 'soigner', 'tenir', 'zones'];
+  const LOADOUT_HOSTILE = ['provoque', 'aveugle', 'etourdi', 'immobilise', 'entrave', 'brule', 'poison', 'marque', 'vol_temps'];
+  function classNeed(env, classId) {
+    const base = ((env.data.lineage || {}).base_needs || {})[classId] || {};
+    let best = null;
+    for (const k of LOADOUT_ROLES) if (base[k] !== undefined && (best === null || base[k] > base[best])) best = k;
+    return best || 'degats';
+  }
+  // Rôle d'un sort : lu sur sa fiche (puissance, effets déclarés, forme, cible). Les sorts dont le comportement est
+  // porté par l'identifiant dans castSpell n'ont ni puissance ni effet déclaré : leur rôle est alors celui que
+  // revendique leur fiche d'origine (`need` de la pointe, puis de la voie, puis colonne dominante de la classe).
+  function spellRoles(env, s) {
+    if (!s) return [];
+    if (!env.__roles) env.__roles = {};
+    if (env.__roles[s.id]) return env.__roles[s.id];
+    const R = {};
+    if ((s.power || 0) > 0 || (s.back_power || 0) > 0) R.degats = 1;
+    for (const e of (s.effects || [])) {
+      switch (e.kind) {
+        case 'heal': case 'purify': R.soigner = 1; break;
+        case 'shield': R.tenir = 1; break;
+        case 'zone': case 'wall': case 'freeze': R.zones = 1; break;
+        case 'summon': case 'vital_link': R.corps = 1; break;
+        case 'push': case 'teleport': R.mobilite = 1; break;
+        case 'sacrifice': R.soigner = 1; break;
+        case 'state': if (e.control || LOADOUT_HOSTILE.indexOf(e.id) >= 0) R.controler = 1; else R.tenir = 1; break;
+      }
+    }
+    if (s.shape && s.shape !== 'single') R.zones = 1;
+    if (s.target === 'cell') R.zones = 1;
+    if (s.target === 'summon') R.corps = 1;
+    if (!Object.keys(R).length) {
+      const S = s.spec_id ? specOf(env, s.spec_id) : null;
+      const H = s.hybrid_id ? hybOf(env, s.hybrid_id) : null;
+      R[(S && S.need) || (H && H.need) || classNeed(env, s.class_id)] = 1;
+    }
+    env.__roles[s.id] = sortedKeys(R);
+    return env.__roles[s.id];
+  }
+  function isDamageSpell(env, s) { return spellRoles(env, s).indexOf('degats') >= 0; }
+  // Ce que la situation de boss du JOUR réclame : la colonne de besoin pondérée écrite sur la fiche du raid
+  // (data.raids.<id>.demand). Hors raid, la demande neutre de data.lineage.loadout_demand_default.
+  function loadoutDemand(env, raidId) {
+    const L = env.data.lineage || {};
+    const f = raidId && env.data.raids ? env.data.raids[raidId] : null;
+    return (f && f.demand) || L.loadout_demand_default || {};
+  }
+  // Deux façons de « répondre au dragon du jour » : la BRANCHE le revendique (`answers` de la voie ou de la pointe),
+  // et le SORT porte un état que la fiche du raid rend décisif (`demand_states` : la braise qui cautérise les souches
+  // du Sylvain et de l'Hydre, la marque qui ouvre les écailles du Drake, le contrôle qui tient le clerc rival au gué).
+  // Sans ce second canal, la règle ne voyait pas les besoins MÉCANIQUES d'un raid : mesuré, le besoin de brûleur
+  // s'était inversé (sans brûleur 12/20 contre 10/20 avec) et les écailles du Drake n'étaient plus jamais fissurées.
+  function loadoutAnswers(env, s, raidId) {
+    if (!raidId) return 0;
+    let n = 0;
+    const f = env.data.raids ? env.data.raids[raidId] : null;
+    const st = (f && f.demand_states) || null;
+    if (st && (s.effects || []).some(e => e.kind === 'state' && st.indexOf(e.id) >= 0)) n += 1;
+    const S = s.spec_id ? specOf(env, s.spec_id) : null;
+    const H = s.hybrid_id ? hybOf(env, s.hybrid_id) : null;
+    if (S) { if ((S.answers || []).indexOf(raidId) >= 0) n += 1; }
+    else if (H) { if ((H.answers || []).indexOf(raidId) >= 0) n += 1; }
+    return n;
+  }
+  // Départage stable et NON alphabétique, exactement comme le choix de voie en T5 : un nombre déterministe tiré de
+  // (graine, héros, sort). Rejouable au bit près, stable pour un même héros, sans biais ASCII.
+  function loadoutTie(env, u, id) { return fnvStr(env.seed + '|' + (u.id || '') + '|' + id) % 997; }
+  function loadoutBand(env) { return ((env.data.lineage || {}).loadout_band) || 3; }
+  function rankSpells(env, u, raidId) {
+    const dem = loadoutDemand(env, raidId), band = Math.max(1, loadoutBand(env));
+    const L = env.data.lineage || {};
+    const bonus = L.loadout_answer_bonus || 0, sigS = L.loadout_spec_bonus || 0, sigH = L.loadout_hybrid_bonus || 0, cap = L.loadout_role_cap || 7;
+    const idx = spellsIndex(env), out = [];
+    for (const id of spellPool(env, u)) {
+      const s = idx[id];
+      if (!s) continue;
+      // Un sort ne compte que ses `loadout_role_cap` besoins les MIEUX servis : sans ce plafond, un sort qui coche
+      // quatre colonnes à la fois (le Sacrifice de l'Invocateur) écrase tout le vivier et devient obligatoire.
+      const vals = spellRoles(env, s).map(r => (dem[r] || 0)).sort((x, y) => y - x).slice(0, cap);
+      let sc = 0;
+      for (const v of vals) sc += v;
+      sc += bonus * loadoutAnswers(env, s, raidId);
+      sc += s.spec_id ? sigS : s.hybrid_id ? sigH : 0;                        // le verbe de sa pointe et de sa voie pèse : c'est ce pour quoi il l'a choisie
+      out.push({ id: id, score: sc, tier: div(sc, band), tie: loadoutTie(env, u, id), degats: isDamageSpell(env, s) });
+    }
+    return out.sort((a, b) => b.tier - a.tier || a.tie - b.tie || (a.id < b.id ? -1 : 1));
+  }
+  // Chargement par défaut : la règle de sélection des amis simulés. Besoin du jour d'abord (par TRANCHE, pour que
+  // deux sorts également utiles restent réellement disputés), départage déterministe ensuite, identifiant en dernier
+  // recours ; et une garantie dure — au moins un moyen d'infliger des dégâts.
+  function defaultLoadout(env, u, raidId) {
+    const n = Math.min(spellSlots(env), spellPool(env, u).length);
+    const ranked = rankSpells(env, u, raidId || null);
+    const take = ranked.slice(0, n);
+    if (n > 0 && !take.some(x => x.degats)) {
+      const dmg = ranked.filter(x => x.degats)[0];
+      if (dmg) take[n - 1] = dmg;
+    }
+    return take.map(x => x.id);
+  }
+  // Refus en français d'un chargement proposé. Jamais une liste vide, jamais un sort hors vivier, jamais deux fois
+  // le même, jamais sans un moyen de faire des dégâts.
+  function loadoutWhy(env, u, list) {
+    const pool = spellPool(env, u), n = Math.min(spellSlots(env), pool.length), idx = spellsIndex(env);
+    if (!Array.isArray(list)) return 'chargement absent';
+    if (list.length !== n) return 'il faut exactement ' + n + ' sort' + (n > 1 ? 's' : '') + ' emporté' + (n > 1 ? 's' : '') + ' (' + list.length + ' reçu' + (list.length > 1 ? 's' : '') + ')';
+    const seen = {};
+    for (const id of list) {
+      if (typeof id !== 'string' || !id) return 'identifiant de sort invalide';
+      if (seen[id]) return 'le même sort ne peut pas occuper deux emplacements (« ' + ((idx[id] || {}).name || id) + ' »)';
+      seen[id] = 1;
+      if (pool.indexOf(id) < 0) return idx[id] ? '« ' + idx[id].name + ' » n\'est pas dans son vivier' : 'sort inconnu (' + id + ')';
+    }
+    if (!list.some(id => isDamageSpell(env, idx[id]))) return 'il faut au moins un sort qui inflige des dégâts parmi les ' + n + ' emportés';
+    return null;
+  }
+  // Les sorts RÉELLEMENT jouables : les cinq emplacements emportés, dans l'ordre du vivier (donc groupés par origine).
+  // Un héros sans choix explicite emporte le chargement par défaut calculé par la même règle — jamais rien.
+  function unitSpells(env, u) {
+    const pool = spellPool(env, u), need = Math.min(spellSlots(env), pool.length);
+    const L = u.loadout;
+    if (Array.isArray(L) && L.length) {
+      const keep = pool.filter(id => L.indexOf(id) >= 0);
+      if (keep.length >= need) return keep;
+      // Le vivier a rétréci sous le chargement (reconversion, héros ramené à sa classe nue) : les emplacements
+      // restants se remplissent par la règle par défaut. Cinq emplacements TOUJOURS, jamais une barre trouée.
+      if (keep.length) {
+        const fill = defaultLoadout(env, u, u.loadout_for || null);
+        const set = {};
+        for (const id of keep) set[id] = 1;
+        for (const id of fill) { if (keep.length >= need) break; if (!set[id]) { set[id] = 1; keep.push(id); } }
+        return pool.filter(id => set[id]);
+      }
+    }
+    if (!env.__def) env.__def = {};
+    const key = (u.id || '') + '|' + u.class_id + '|' + (u.hybrid_id || '') + '|' + (u.spec_id || '') + '|' + (u.loadout_for || '');
+    if (!env.__def[key]) { const d = defaultLoadout(env, u, u.loadout_for || null); env.__def[key] = pool.filter(id => d.indexOf(id) >= 0); }
+    return env.__def[key];
+  }
+  // Fiche d'un sort pour l'écran « Mon héros » : coût, portée, forme, verbe, origine. Aucune règle calculée dans la page.
+  function loadoutCard(env, u, id, carried) {
+    const s = spellFor(env, u, id) || spellsIndex(env)[id];
+    const raw = spellsIndex(env)[id] || s;
+    const shape = s.shape && s.shape !== 'single' ? ({ circle: 'cercle ', cross: 'croix ', line: 'ligne ', cone: 'cône ', cone_at: 'cône ', wall3: 'mur de ' }[s.shape] || s.shape) + (s.r || 3) : 'cible';
+    return { id: id, name: s.name, verb: s.verb || '', cost_pa: specCostPa(env, u, s),
+      range_label: s.range_min === s.range_max ? String(s.range_min) : s.range_min + '-' + s.range_max,
+      shape_label: shape, power: powerOf(s, u), description: s.description || '', roles: spellRoles(env, raw).slice(),
+      carried: !!carried, daily: !!s.daily };
+  }
+  // Vue complète des cinq emplacements et du vivier, groupée par origine : première classe, deuxième classe, voie, pointe.
+  function loadoutView(env, prof) {
+    // La fiche vient de sim.js : un héros, pas une unité de grille. On la complète pour que `spellFor`, `powerOf`
+    // et `specCostPa` lisent les mêmes champs que sur la grille (états vides, aucune relance, niveau connu).
+    const u = Object.assign({ states: [], cooldowns: {}, level: prof.level || 1, passive: null, x: 0, y: 0 }, prof);
+    const pool = spellPool(env, u), carried = unitSpells(env, u), idx = spellsIndex(env);
+    const clsName = id => { for (const c of (env.data.classes || [])) if (c.id === id) return c.name; return id; };
+    const second = u.hybrid_id ? hybridSecondBase(env, u) : null;
+    const H = u.hybrid_id ? hybOf(env, u.hybrid_id) : null, S = u.spec_id ? specOf(env, u.spec_id) : null;
+    const groups = [
+      { origin: 'base', key: u.class_id, label: 'Première classe · ' + clsName(u.class_id), spells: [] },
+      { origin: 'second', key: second || '', label: second ? 'Deuxième classe · ' + clsName(second) : '', spells: [] },
+      { origin: 'hybrid', key: u.hybrid_id || '', label: H ? 'Voie · ' + H.name : '', spells: [] },
+      { origin: 'spec', key: u.spec_id || '', label: S ? 'Pointe · ' + S.name : '', spells: [] }
+    ];
+    for (const id of pool) {
+      const s = idx[id];
+      const g = s && s.spec_id ? groups[3] : s && s.hybrid_id ? groups[2] : s && s.class_id && s.class_id === second ? groups[1] : groups[0];
+      g.spells.push(loadoutCard(env, u, id, carried.indexOf(id) >= 0));
+    }
+    return { slots: Math.min(spellSlots(env), pool.length), pool_size: pool.length,
+      carried: carried.map(id => loadoutCard(env, u, id, true)),
+      groups: groups.filter(g => g.spells.length) };
   }
   function spellFor(env, u, id) {
     const s = spellsIndex(env)[id];
@@ -2578,7 +2767,8 @@
       dodge: Math.min(C.dodge_max_permille || 350, h.dodge || 0), hit_bonus: h.hit_bonus || 0, fire: h.fire ? 1 : 0, fire_used: 0,
       support: h.support || 0, magic_power: h.magic_power || 0, dexterity: h.dexterity || 0,        // V5 T6 (D7/D9)
       mass: 0, pa_max: C.pa_per_turn, pm_max: pm, range_min: 1, range_max: 1, los: true, states: [], cooldowns: {}, born_pass: R.pass_count, passive: pass[h.class_id] || null, crit_immune: false, vigor: h.vigor || 0,
-      hybrid_id: h.hybrid || null, spec_id: h.spec || null, resource: null, res: 0, res_max: 0, fissures: 0, ripostes_turn: 0, hit_this_turn: 0 };
+      hybrid_id: h.hybrid || null, spec_id: h.spec || null, resource: null, res: 0, res_max: 0, fissures: 0, ripostes_turn: 0, hit_this_turn: 0,
+      loadout: Array.isArray(h.loadout) && h.loadout.length ? h.loadout.slice() : null, loadout_for: h.loadout_for || null };   // V5 T8 : les cinq emplacements emportés
     if (u.hybrid_id) {
       const H = hybOf(env, u.hybrid_id);
       if (H) { u.resource = H.resource; u.res_max = H.resource_max; u.res = h.hybrid_bonus ? Math.min(H.resource_max, d.lineage ? d.lineage.affinity_resource_bonus : 1) : 0; }
@@ -3269,6 +3459,11 @@
         if ((mine.length || guildUnits(R).some(v => v.kind === 'summon')) && !hasState(B, 'provoque') && (a = cast('taunt', bc.x, bc.y))) return a;
         if (adjAdd && (a = cast('slash', adjAdd.x, adjAdd.y))) return a;
         if ((a = cast('slash', bc.x, bc.y))) return a;
+        // V5 T8 : la provocation n'était ouverte QU'avec un corps invoqué sur la grille — or depuis R-B les corps ne
+        // survivent plus au passage de leur maître, et le Guerrier arrivait sur une grille vide. Mesuré : 1 seule
+        // provocation en 30 raids avant T8, 0 après. Elle s'ouvre donc aussi au DERNIER tour, quand la taillade est en
+        // relance : le Guerrier laisse la haine du boss derrière lui, au lieu d'un coup d'arme de plus.
+        if (P.turn >= P.turn_max && !hasState(B, 'provoque') && (a = cast('taunt', bc.x, bc.y))) return a;
         if ((a = cast('arme', bc.x, bc.y))) return a;
         break;
       }
@@ -3336,7 +3531,15 @@
         }
         if ((!burn || burn.turns <= 1) && (a = cast('fire_bolt', bc.x, bc.y))) return a;
         // Tour 3 sans rejeton : un mur de glace deux cases sous le tronc, laissé au suivant (coupe la ligne du fouet vers le sud).
-        if (P.turn === 3 && P.pa >= 3 && !adds.length && (u.cooldowns.fire_bolt || 0) > 0) { const wc = { x: bc.x, y: Math.min(G.h - 1, B.y + B.h + 1) }; if (freeCell(R, wc.x, wc.y) && !zoneAt(R, wc.x, wc.y) && (a = cast('ice_wall', wc.x, wc.y))) return a; }
+        // V5 T8 : la fenêtre du mur de glace était une lame de rasoir — tour 3 EXACTEMENT et AUCUN rejeton sur toute la
+        // grille : 1 seule pose mesurée en 30 raids avant T8, 0 après que le calibrage a raccourci les raids. Elle devient
+        // « au dernier tour, s'il reste des PA et que le trait de feu est en relance » : les PA de fin de tour partent en
+        // mur laissé au suivant au lieu d'être perdus. Même verbe, mais il arrive enfin à se dire.
+        if (P.turn >= 3 && P.pa >= 3 && (u.cooldowns.fire_bolt || 0) > 0) {
+          const y1 = Math.min(G.h - 1, B.y + B.h + 1), y2 = Math.min(G.h - 1, B.y + B.h + 2);
+          for (const wc of cellsSorted(G, [{ x: bc.x, y: y1 }, { x: bc.x - 1, y: y1 }, { x: bc.x + 1, y: y1 }, { x: bc.x, y: y2 }]))
+            if (freeCell(R, wc.x, wc.y) && !zoneAt(R, wc.x, wc.y) && (a = cast('ice_wall', wc.x, wc.y))) return a;
+        }
         if ((a = cast('fire_bolt', bc.x, bc.y))) return a;
         if ((a = cast('arme', bc.x, bc.y))) return a;
         break;
@@ -3379,6 +3582,14 @@
       }
     }
     }
+    // V5 T8 : avec cinq emplacements, la routine de classe peut ne trouver AUCUN de ses sorts dans le chargement
+    // emporté. Dernier recours déterministe : frapper avec ce qu'on porte vraiment, se rapprocher, puis jouer
+    // n'importe quel sort emporté sur une case sensée. Sans ce filet, un héros chargé d'installations ne faisait rien.
+    // V5 T8 : pas de filet de repli ici. Il a été écrit, mesuré et RETIRÉ : faire frapper d'office un héros dont la
+    // routine n'a plus rien à dire lui rapportait +4 dégâts par passage et 3 points de passages non muets, mais lui
+    // coûtait 2,2 points de MORTS sur la saison (9,1 % → 11,3 % des héros) — un coup de plus, c'est une riposte de
+    // plus. La règle des cinq emplacements garantit déjà un moyen d'infliger des dégâts, et chaque routine de classe
+    // finit par l'arme. Un héros qui n'a plus rien à faire termine son tour, comme avant T8.
     return null;
   }
   function planPass(R, env, heroId) {
@@ -3689,5 +3900,6 @@
 
   return { startRaid: startRaid, raidView: raidView, raidAction: raidAction, raidEndPass: raidEndPass, raidNight: raidNight, raidDefaults: raidDefaults, raidDefaultsFor: raidDefaultsFor,
     validateRaidPass: validateRaidPass, raidPass: raidPass, previewCast: previewCast, checkEffects: checkEffects,
-    _internal: { newRaid: newRaid, beginPass: beginPass, applyPassAction: applyPassAction, planPass: planPass, heroUnitOf: heroUnitOf, policyAction: policyAction, specPolicy: specPolicy, riposte: riposte, unitSpells: unitSpells, castWhy: castWhy, heroUnit: heroUnit, finishPass: finishPass, shapeCells: shapeCells, hasLos: hasLos, bresClear: bresClear, dirOf: dirOf, manhattan: manhattan, dijkstra: dijkstra, pathTo: pathTo, makeRng: makeRng, fnvStr: fnvStr, fnvU32: fnvU32, rawOf: rawOf, dmgOf: dmgOf, controlPermille: controlPermille, ripostePlan: ripostePlan, classSpells: classSpells, spellFor: spellFor, powerOf: powerOf, bossNearestCell: bossNearestCell, effectKinds: { unit: EFFECT_KINDS_UNIT, cell: EFFECT_KINDS_CELL, by_spell: EFFECT_KINDS_BY_SPELL } } };
+    spellPool: function (env, u) { return spellPool(env, u).slice(); }, spellSlots: spellSlots, defaultLoadout: defaultLoadout, loadoutWhy: loadoutWhy, loadoutView: loadoutView, unitLoadout: function (env, u) { return unitSpells(env, u).slice(); },   // V5 T8
+    _internal: { newRaid: newRaid, beginPass: beginPass, applyPassAction: applyPassAction, planPass: planPass, heroUnitOf: heroUnitOf, policyAction: policyAction, specPolicy: specPolicy, riposte: riposte, unitSpells: unitSpells, castWhy: castWhy, heroUnit: heroUnit, finishPass: finishPass, shapeCells: shapeCells, hasLos: hasLos, bresClear: bresClear, dirOf: dirOf, manhattan: manhattan, dijkstra: dijkstra, pathTo: pathTo, makeRng: makeRng, fnvStr: fnvStr, fnvU32: fnvU32, rawOf: rawOf, dmgOf: dmgOf, controlPermille: controlPermille, ripostePlan: ripostePlan, classSpells: classSpells, spellFor: spellFor, spellRoles: spellRoles, rankSpells: rankSpells, isDamageSpell: isDamageSpell, spellPool: spellPool, powerOf: powerOf, bossNearestCell: bossNearestCell, effectKinds: { unit: EFFECT_KINDS_UNIT, cell: EFFECT_KINDS_CELL, by_spell: EFFECT_KINDS_BY_SPELL } } };
 }));

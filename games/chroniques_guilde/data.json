@@ -4,7 +4,7 @@
   "version": 5,
   "date": "2026-09-19",
   "source": "design_aventuriers.md, design_quetes_donjons.md, design_objets_economie.md (§0-2) ; village, journée, objets, recettes, bâtiments et décorations conçus par le moteur ; V3 (2026-09-18) : âges du village et menace du dragon ; V4 (2026-09-18) : dragons de biome (maîtrise), points d'action et journées composées, savoir-faire, missions solo, mort et héritier, défaite — conçus par le moteur. ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T1 (2026-09-18) : grille tactique 9×11, six classes de base (Invocateur nouveau), raid persistant du Sylvain corrompu — conçus par le moteur d'après V5_SPEC.md (chiffres à calibrer). ; V5 T6 (2026-09-19) : couche statistiques — entraînement ×10, usure du soir du moral, sept statistiques mortes tranchées, 26 passifs de spécialisation, septième attribut (charisme), septième base (Barde), corps invoqués hérités du maître, règles R-A/R-B/R-C.",
-  "tranche": "V5 T2 — hybrides, Drake des monts, Hydre des marais"
+  "tranche": "V5 T8 — cinq emplacements de sorts"
  },
  "constants": {
   "season_length": 30,
@@ -307,7 +307,8 @@
   "morale_wear_div": 6,
   "decoration_morale_cap": 4,
   "crit_max_permille": 400,
-  "dodge_max_permille": 350
+  "dodge_max_permille": 350,
+  "spell_slots": 5
  },
  "attributes": [
   {
@@ -6145,7 +6146,7 @@
   "raid_forest": {
    "id": "raid_forest",
    "dragon_id": "dragon_forest",
-   "hp_base": 380,
+   "hp_base": 280,
    "hp_per_day": 14,
    "pm": 0,
    "pa": 6,
@@ -6185,7 +6186,19 @@
    ],
    "kind": "sylvain",
    "def_per_day": 0,
-   "atk_per_day": 2
+   "atk_per_day": 2,
+   "demand": {
+    "tenir": 1,
+    "soigner": 1,
+    "controler": 3,
+    "degats": 3,
+    "zones": 4,
+    "corps": 2,
+    "mobilite": 3
+   },
+   "demand_states": [
+    "brule"
+   ]
   },
   "raid_mountain": {
    "id": "raid_mountain",
@@ -6246,7 +6259,19 @@
     "burst à l'atterrissage (Traqueur, Duelliste)"
    ],
    "def_per_day": 0,
-   "atk_per_day": 2
+   "atk_per_day": 2,
+   "demand": {
+    "tenir": 3,
+    "soigner": 1,
+    "controler": 3,
+    "degats": 3,
+    "zones": 3,
+    "corps": 1,
+    "mobilite": 2
+   },
+   "demand_states": [
+    "marque"
+   ]
   },
   "raid_marsh": {
    "id": "raid_marsh",
@@ -6302,14 +6327,26 @@
     "un pousseur pour les pieux (Tisse-vent)"
    ],
    "def_per_day": 0,
-   "atk_per_day": 2
+   "atk_per_day": 2,
+   "demand": {
+    "tenir": 2,
+    "soigner": 3,
+    "controler": 1,
+    "degats": 3,
+    "zones": 2,
+    "corps": 3,
+    "mobilite": 2
+   },
+   "demand_states": [
+    "brule"
+   ]
   },
   "raid_derby": {
    "id": "raid_derby",
    "dragon_id": null,
    "kind": "derby",
    "name": "Le Derby des Lames",
-   "hp_base": 260,
+   "hp_base": 200,
    "hp_per_day": 10,
    "pm": 2,
    "pa": 6,
@@ -6332,16 +6369,16 @@
     "cost": 3
    },
    "max_nights": 3,
-   "steal_pa": 2,
+   "steal_pa": 1,
    "banner_hp": 200,
-   "banner_hold_win": 3,
-   "banner_lost_max": 3,
+   "banner_hold_win": 4,
+   "banner_lost_max": 2,
    "rivals": [
     {
      "role": "warrior",
      "name": "Rustre",
      "hp": 100,
-     "atk": 22,
+     "atk": 26,
      "def": 12,
      "spd": 7,
      "pm": 3,
@@ -6351,7 +6388,7 @@
      "role": "cleric",
      "name": "Clerc",
      "hp": 90,
-     "atk": 14,
+     "atk": 18,
      "def": 8,
      "spd": 6,
      "pm": 2,
@@ -6362,7 +6399,7 @@
      "role": "ranger",
      "name": "Rôdeur",
      "hp": 95,
-     "atk": 20,
+     "atk": 24,
      "def": 8,
      "spd": 8,
      "pm": 3,
@@ -6382,6 +6419,20 @@
     "un contrôleur du clerc rival (charme, piège, silence)",
     "un tueur de rôdeur (Assassin, Bourrasque)",
     "un anti-vol de tour (Censeur, Chronomancien)"
+   ],
+   "demand": {
+    "tenir": 3,
+    "soigner": 2,
+    "controler": 3,
+    "degats": 3,
+    "zones": 1,
+    "corps": 2,
+    "mobilite": 1
+   },
+   "demand_states": [
+    "aveugle",
+    "etourdi",
+    "immobilise"
    ]
   }
  },
@@ -9544,7 +9595,21 @@
    ]
   },
   "hybrid_need_band": 200,
-  "spec_need_band": 200
+  "spec_need_band": 200,
+  "loadout_band": 6,
+  "loadout_answer_bonus": 4,
+  "loadout_demand_default": {
+   "tenir": 2,
+   "soigner": 2,
+   "controler": 2,
+   "degats": 3,
+   "zones": 2,
+   "corps": 2,
+   "mobilite": 2
+  },
+  "loadout_spec_bonus": 1,
+  "loadout_hybrid_bonus": 1,
+  "loadout_role_cap": 2
  },
  "hybrids": [
   {

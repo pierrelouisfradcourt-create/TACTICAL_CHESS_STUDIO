@@ -423,6 +423,82 @@ const browser = await pw.chromium.launch();
   }
 }
 
+/* ---- F. V5 T8 : les cinq emplacements de sorts sur l'écran « Mon héros » ----
+   L'écran doit montrer les CINQ emplacements et le VIVIER, groupés par origine, avec pour chaque sort son coût en
+   points d'action, sa portée, sa forme et son verbe ; un tap remplit ou vide un emplacement ; le refus passe par la
+   validation du moteur avec sa raison en français ; et l'écran Raid n'affiche plus que les cinq sorts emportés. */
+{
+  // graine où le héros de p1 a un VIVIER plus large que ses cinq emplacements (sinon il n'y a rien à choisir)
+  let found = null;
+  for (let seed = 1; seed <= 40 && !found; seed++) {
+    let st = sim.newGame(seed, data, { managers: MANAGERS });
+    for (let d = 0; d < 20 && !found; d++) {
+      st = sim.resolveDay(st, allDefaults(st)).state;
+      const vm = sim.viewModel(st, 'p1'), me = vm.roster.filter(h => h.is_mine)[0];
+      if (me && me.loadout && me.loadout.pool_size > me.loadout.slots) found = { seed: seed, day: vm.day, vm: me.loadout };
+    }
+  }
+  if (!found) check('(T8) une graine donne à p1 un vivier plus large que ses cinq emplacements', false, 'aucune graine 1..40');
+  else {
+    const { ctx, page, errors } = await newPage(browser, 420);
+    await newGameSeed(page, found.seed);
+    await playToMorning(page, found.day);
+    await page.click('[data-testid="tab-heros"]');
+    await page.click('[data-testid="fold-loadout"] summary');
+    await page.clock.runFor(300);
+    const L = found.vm;
+    const slots = await count(page, '[data-testid="loadout-slots"] .ld-slot');
+    const filled = await count(page, '[data-testid="loadout-slots"] .ld-slot.is-full');
+    const pool = await count(page, '#loadout .ld-btn');
+    const groups = await count(page, '#loadout .ld-group');
+    check('(T8) écran Mon héros : cinq emplacements affichés, tous remplis, et le vivier entier au-dessous',
+      slots === L.slots && slots === 5 && filled === L.slots && pool === L.pool_size && pool > L.slots,
+      slots + ' emplacements (' + filled + ' remplis) · vivier ' + pool + ' sorts · ' + groups + ' groupes d\'origine');
+    check('(T8) le vivier est groupé par origine : première classe, deuxième classe, voie, pointe',
+      groups === L.groups.length && groups >= 2 &&
+      (await text(page, '#loadout')).indexOf('Première classe') >= 0 && (await text(page, '#loadout')).indexOf('Deuxième classe') >= 0,
+      L.groups.map(g => g.label).join(' | '));
+    const one = L.groups[0].spells[0];
+    const card = await text(page, '[data-testid="pool-' + one.id + '"]');
+    check('(T8) chaque sort du vivier porte son coût en PA, sa portée, sa forme et son verbe (tout vient du moteur)',
+      card.indexOf(one.name) >= 0 && card.indexOf(one.cost_pa + ' PA') >= 0 && card.indexOf('portée ' + one.range_label) >= 0 && card.indexOf(one.verb) >= 0,
+      card.slice(0, 120));
+    // un tap vide un emplacement : le moteur refuse un chargement à quatre, sa raison s'affiche
+    const carried0 = L.carried.map(x => x.id);
+    await page.click('[data-testid="pool-' + carried0[0] + '"]');
+    await page.clock.runFor(300);
+    const why = await text(page, '[data-testid="loadout-why"]');
+    const toast1 = (await toasts(page)).slice(-1)[0] || '';
+    check('(T8) un tap vide un emplacement : le moteur refuse les quatre sorts restants et sa raison est affichée en français',
+      /il faut exactement 5 sorts emport/.test(why) && /il faut exactement 5 sorts emport/.test(toast1) &&
+      (await count(page, '[data-testid="loadout-slots"] .ld-slot.is-full')) === 4,
+      why + ' · toast « ' + toast1 + ' »');
+    // un tap remplit l'emplacement vide avec un sort du vivier non emporté : le moteur accepte
+    const spare = L.groups.reduce((a, g) => a.concat(g.spells), []).filter(sp => carried0.indexOf(sp.id) < 0)[0];
+    await page.click('[data-testid="pool-' + spare.id + '"]');
+    await page.clock.runFor(300);
+    const cnt = await text(page, '[data-testid="loadout-count"]');
+    const pressed = await page.getAttribute('[data-testid="pool-' + spare.id + '"]', 'aria-pressed');
+    check('(T8) un tap remplit l\'emplacement vide : cinq sorts de nouveau, chargement accepté par le moteur',
+      cnt === '5/5' && pressed === 'true' && (await count(page, '[data-testid="loadout-slots"] .ld-slot.is-full')) === 5,
+      cnt + ' · ' + spare.name + ' pressé=' + pressed);
+    // le choix part avec les ordres du jour et se garde le lendemain
+    await page.click('[data-testid="tab-tableau"]');
+    await playToMorning(page, found.day + 1);
+    await page.click('[data-testid="tab-heros"]');
+    await page.click('[data-testid="fold-loadout"] summary');
+    await page.clock.runFor(300);
+    const after = await page.evaluate(() => window.__loadout());
+    const want = carried0.slice(1).concat([spare.id]).sort().join(',');
+    check('(T8) le choix se garde : le lendemain le héros emporte encore les cinq sorts choisis, marqués comme un choix',
+      !!after && after.kind === 'choice' && after.ids.slice().sort().join(',') === want,
+      after ? after.kind + ' · ' + after.ids.join(' ') : 'aucun chargement');
+    check('(T8) 400 px : aucun défilement horizontal, aucune erreur de page', (await noHScroll(page)) && errors.length === 0, errors.slice(0, 2).join(' | '));
+    await shot(page, 't8_cinq_sorts');
+    await ctx.close();
+  }
+}
+
 await browser.close();
 const bad = results.filter(r => !r.ok);
 console.log(`\n${results.length - bad.length}/${results.length} contrôles passés`);

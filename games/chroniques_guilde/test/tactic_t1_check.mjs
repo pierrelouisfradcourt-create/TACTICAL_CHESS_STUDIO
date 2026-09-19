@@ -481,7 +481,13 @@ const shieldOf = (u, v) => Math.trunc(v * (100 + supPct(u)) / 100);
     }
     if (passes.length < 2) continue;
     tried++;
-    const seqOf = st => (st.raid ? st.raid.passes_done : []).filter(p => p.day === s0.day).map(p => p.hero_id);
+    // ÉCART V5 T8 : le Sylvain recalibré peut tomber DANS LA JOURNÉE ; le raid est alors archivé et `state.raid`
+    // vaut null. L'ordre des passages se lit donc aussi dans `raid_history[].passes_done` (conservé depuis T8).
+    const seqOf = st => {
+      let pd = st.raid ? st.raid.passes_done : null;
+      if (!pd) for (const h of (st.raid_history || [])) if (h.passes_done && h.passes_done.some(p => p.day === s0.day)) pd = h.passes_done;
+      return (pd || []).filter(p => p.day === s0.day).map(p => p.hero_id);
+    };
     const r1 = seqOf(sim.resolveDay(s0, base.concat([passes[0], passes[1]])).state);
     const r2 = seqOf(sim.resolveDay(s0, base.concat([passes[1], passes[0]])).state);
     const first1 = r1.indexOf(passes[0].payload.adventurer_id), firstB1 = r1.indexOf(passes[1].payload.adventurer_id);
