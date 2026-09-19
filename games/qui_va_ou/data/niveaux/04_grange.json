@@ -1,0 +1,62 @@
+{
+  "id": "04_grange",
+  "titre": "La grange",
+  "decor": "grange",
+  "statut": "BROUILLON — données jouables, décor à dessiner",
+  "mission": "Un chaton est pris dans un filet suspendu à la poutre. Il faut le décrocher sans qu'il se fasse mal.",
+  "enseigne": ["relier", "griffer"],
+  "prisonnier": { "robe": "blanc", "coince": [1080, 380], "libere": [640, 660] },
+  "equipe": ["costaud", "filou"],
+  "zones": [
+    {
+      "id": "treuil",
+      "nom": "le treuil",
+      "verbe": "pousser",
+      "rect": [180, 520, 240, 200],
+      "requiert": [],
+      "pose": "treuil_libre",
+      "geste": "Il pèse de tout son poids sur la manivelle rouillée.",
+      "effet": "La manivelle cède d'un cran. La corde du treuil se déroule jusqu'à la poulie.",
+      "appelle": { "chat": "queue", "si": ["treuil_libre"] }
+    },
+    {
+      "id": "foin",
+      "nom": "le tas de foin",
+      "verbe": "faufiler",
+      "rect": [520, 640, 320, 180],
+      "requiert": [],
+      "pose": "foin_tasse",
+      "geste": "Il se glisse sous le tas et le tasse par en dessous, brassée après brassée.",
+      "effet": "Le foin s'étale en matelas juste sous le filet. De quoi amortir une chute.",
+      "appelle": { "chat": "griffu", "si": ["filet_tenu", "foin_tasse"] }
+    },
+    {
+      "id": "poulie",
+      "nom": "la poulie",
+      "verbe": "relier",
+      "rect": [700, 120, 240, 180],
+      "requiert": ["treuil_libre"],
+      "pose": "filet_tenu",
+      "geste": "Il passe sa longue queue dans la gorge de la poulie et s'arc-boute.",
+      "effet": "Le filet ne pend plus dans le vide : il est tenu. On peut l'ouvrir sans qu'il tombe d'un coup.",
+      "bloque": [
+        { "sans": "treuil_libre", "texte": "La corde est encore bloquée dans le treuil. Rien à passer dans la poulie." }
+      ],
+      "appelle": { "chat": "griffu", "si": ["filet_tenu", "foin_tasse"] }
+    },
+    {
+      "id": "filet",
+      "nom": "le filet",
+      "verbe": "griffer",
+      "rect": [980, 330, 300, 240],
+      "requiert": ["filet_tenu", "foin_tasse"],
+      "libere": true,
+      "geste": "Il plante ses grandes griffes dans les mailles et tire d'un coup sec.",
+      "effet": "Le filet s'ouvre en deux. Le prisonnier tombe dans le foin, sur le dos, indemne — il est libre !",
+      "bloque": [
+        { "sans": "filet_tenu", "texte": "Si on déchire maintenant, le filet tombe d'un bloc avec lui dedans." },
+        { "sans": "foin_tasse", "texte": "Il tomberait sur le sol dur de la grange. Il faut d'abord quelque chose en dessous." }
+      ]
+    }
+  ]
+}

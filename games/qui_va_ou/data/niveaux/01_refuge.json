@@ -1,0 +1,47 @@
+{
+  "id": "01_refuge",
+  "titre": "Le refuge",
+  "decor": "refuge",
+  "mission": "Un chaton est coincé tout en haut de l'étagère. Il faut le faire descendre.",
+  "enseigne": ["pousser", "faufiler", "grimper"],
+  "prisonnier": { "robe": "blanc", "coince": [1412, 206], "libere": [930, 612] },
+  "equipe": ["costaud", "filou"],
+  "zones": [
+    {
+      "id": "table",
+      "nom": "la table",
+      "verbe": "pousser",
+      "rect": [990, 470, 460, 330],
+      "requiert": [],
+      "pose": "table_poussee",
+      "geste": "Il cale ses pattes contre la table et pousse.",
+      "effet": "La table glisse jusque sous l'étagère. On peut monter, maintenant.",
+      "appelle": { "chat": "grimpeur", "si": ["table_poussee", "couverture"] }
+    },
+    {
+      "id": "interstice",
+      "nom": "sous l'escalier",
+      "verbe": "faufiler",
+      "rect": [130, 440, 280, 120],
+      "requiert": [],
+      "pose": "couverture",
+      "geste": "Il se glisse dans la fente sous les marches, là où personne d'autre ne passe.",
+      "effet": "Il ressort en tirant la vieille couverture. On l'étale en bas : plus de sol dur.",
+      "appelle": { "chat": "grimpeur", "si": ["table_poussee", "couverture"] }
+    },
+    {
+      "id": "etagere",
+      "nom": "l'étagère",
+      "verbe": "grimper",
+      "rect": [1250, 170, 280, 170],
+      "requiert": ["table_poussee", "couverture"],
+      "libere": true,
+      "geste": "Il grimpe sur la table, puis sur l'étagère, et rejoint le prisonnier.",
+      "effet": "Il le rassure et passe devant. Ils sautent tous les deux sur la couverture — il est libre !",
+      "bloque": [
+        { "sans": "table_poussee", "texte": "C'est bien trop haut. Il faudrait d'abord quelque chose pour monter." },
+        { "sans": "couverture", "texte": "Même en montant, il n'osera pas sauter : le sol est trop dur." }
+      ]
+    }
+  ]
+}

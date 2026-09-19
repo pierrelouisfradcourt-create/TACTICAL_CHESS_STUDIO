@@ -1,0 +1,48 @@
+{
+  "id": "05_cave",
+  "titre": "La cave",
+  "decor": "cave",
+  "statut": "BROUILLON — données jouables, décor à dessiner",
+  "mission": "Un chaton est bloqué derrière la porte du fond, et des braises rougeoient devant. Il faut aller le chercher.",
+  "enseigne": ["arroser", "eclairer"],
+  "prisonnier": { "robe": "tigre", "coince": [1240, 470], "libere": [900, 640] },
+  "equipe": ["pompier", "lanterne"],
+  "zones": [
+    {
+      "id": "braises",
+      "nom": "les braises",
+      "verbe": "arroser",
+      "rect": [560, 620, 260, 170],
+      "requiert": [],
+      "pose": "feu_eteint",
+      "geste": "Il vise les braises et lâche tout ce que contient sa lance.",
+      "effet": "Un nuage de vapeur, puis plus rien qu'un tas noir et tiède. On peut passer.",
+      "appelle": { "chat": "costaud", "si": ["feu_eteint", "lumiere"] }
+    },
+    {
+      "id": "recoin",
+      "nom": "le fond de la cave",
+      "verbe": "eclairer",
+      "rect": [180, 380, 260, 220],
+      "requiert": [],
+      "pose": "lumiere",
+      "geste": "Elle avance jusqu'au fond, sa lanterne se balançant à son collier.",
+      "effet": "Le fond sort du noir : la porte est coincée par une poutre tombée en travers.",
+      "appelle": { "chat": "costaud", "si": ["feu_eteint", "lumiere"] }
+    },
+    {
+      "id": "porte",
+      "nom": "la porte du fond",
+      "verbe": "pousser",
+      "rect": [1080, 360, 280, 380],
+      "requiert": ["feu_eteint", "lumiere"],
+      "libere": true,
+      "geste": "Il épaule la poutre tombée en travers et pousse en soufflant.",
+      "effet": "La poutre roule, la porte s'ouvre en grand. Le prisonnier sort en trombe — il est libre !",
+      "bloque": [
+        { "sans": "feu_eteint", "texte": "Les braises barrent le chemin. Personne ne passe tant que ça rougeoie." },
+        { "sans": "lumiere", "texte": "On n'y voit rien au fond. Impossible de savoir ce qui bloque la porte." }
+      ]
+    }
+  ]
+}

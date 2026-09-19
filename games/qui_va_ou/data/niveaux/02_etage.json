@@ -1,0 +1,48 @@
+{
+  "id": "02_etage",
+  "titre": "L'étage",
+  "decor": "etage",
+  "mission": "Un chaton est enfermé dans la malle. Il faut ouvrir le couvercle.",
+  "enseigne": [],
+  "prisonnier": { "robe": "tigre", "coince": [660, 496], "libere": [380, 636] },
+  "equipe": ["costaud", "grimpeur"],
+  "zones": [
+    {
+      "id": "caisse",
+      "nom": "la caisse",
+      "verbe": "pousser",
+      "rect": [890, 360, 220, 160],
+      "requiert": [],
+      "pose": "caisse_poussee",
+      "geste": "Il arc-boute ses pattes contre la caisse et pousse.",
+      "effet": "La caisse bascule au sol. Le couvercle n'est plus écrasé.",
+      "pose_chat": [1120, 602],
+      "appelle": { "chat": "filou", "si": ["caisse_poussee", "sangle_defaite"] }
+    },
+    {
+      "id": "sangle",
+      "nom": "la sangle",
+      "verbe": "grimper",
+      "rect": [1160, 90, 250, 210],
+      "requiert": [],
+      "pose": "sangle_defaite",
+      "geste": "Il grimpe le long de la poutre jusqu'au clou où la sangle est tendue.",
+      "effet": "Il décroche la boucle, la sangle retombe. La malle n'est plus ceinturée.",
+      "appelle": { "chat": "filou", "si": ["caisse_poussee", "sangle_defaite"] }
+    },
+    {
+      "id": "fente",
+      "nom": "la fente",
+      "verbe": "faufiler",
+      "rect": [620, 450, 200, 150],
+      "requiert": ["caisse_poussee", "sangle_defaite"],
+      "libere": true,
+      "geste": "Il se glisse dans l'entrebâillement, tout mince, et disparaît dans la malle.",
+      "effet": "De l'intérieur, il pousse le couvercle qui bascule. Ils sortent à deux — il est libre !",
+      "bloque": [
+        { "sans": "caisse_poussee", "texte": "La caisse pèse de tout son poids sur le couvercle. Rien ne bouge." },
+        { "sans": "sangle_defaite", "texte": "La sangle ceinture encore la malle. Le couvercle ne s'ouvre pas plus." }
+      ]
+    }
+  ]
+}

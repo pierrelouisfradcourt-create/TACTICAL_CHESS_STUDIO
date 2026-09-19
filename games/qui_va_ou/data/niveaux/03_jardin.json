@@ -1,0 +1,47 @@
+{
+  "id": "03_jardin",
+  "titre": "Le jardin",
+  "decor": "jardin",
+  "mission": "Une branche est tombée sur un chaton, il ne peut plus bouger. Il faut la soulever.",
+  "enseigne": [],
+  "prisonnier": { "robe": "bleu", "coince": [850, 670], "libere": [660, 626] },
+  "equipe": ["grimpeur", "filou"],
+  "zones": [
+    {
+      "id": "fourche",
+      "nom": "la fourche",
+      "verbe": "grimper",
+      "rect": [320, 290, 250, 190],
+      "requiert": [],
+      "pose": "decrochee",
+      "geste": "Il grimpe au tronc jusqu'à la fourche où la branche est restée accrochée.",
+      "effet": "Il la fait basculer, elle retombe à plat. Elle ne tient plus à l'arbre.",
+      "appelle": { "chat": "costaud", "si": ["decrochee", "pierre"] }
+    },
+    {
+      "id": "dessous",
+      "nom": "sous la branche",
+      "verbe": "faufiler",
+      "rect": [980, 640, 220, 150],
+      "requiert": [],
+      "pose": "pierre",
+      "geste": "Il se faufile dans le mince espace sous la branche, tout contre le prisonnier.",
+      "effet": "Il y cale une pierre bien calée sous le bois. Voilà un point d'appui.",
+      "appelle": { "chat": "costaud", "si": ["decrochee", "pierre"] }
+    },
+    {
+      "id": "bout",
+      "nom": "le bout de la branche",
+      "verbe": "pousser",
+      "rect": [1240, 630, 250, 170],
+      "requiert": ["decrochee", "pierre"],
+      "libere": true,
+      "geste": "Il se jette de tout son poids sur le bout libre de la branche.",
+      "effet": "La branche bascule sur la pierre et se soulève. Le prisonnier se dégage — il est libre !",
+      "bloque": [
+        { "sans": "decrochee", "texte": "La branche est encore accrochée à l'arbre. Elle ne bougera pas d'un poil." },
+        { "sans": "pierre", "texte": "Trop lourde à soulever comme ça. Il lui faudrait un point d'appui." }
+      ]
+    }
+  ]
+}
