@@ -1,25 +1,32 @@
 # Contexte courant TCS
-*(Handoff. Dernière session : 2026-09-17/18 — **Chroniques de Guilde** (idéation jeux App Store →
-prototype). Sessions précédentes : 2026-09-03 refresh CLAUDE.md · 2026-09-01 Shadow Audit V1→V6 CLOS ·
-2026-09-01 requalification PAIRE 2. Détail archivé : `journal/context-archive-2026-09-03-avant-refresh-claudemd.md`.)*
+*(Handoff. Dernière session : 2026-09-17 → 09-23 — **Chroniques de Guilde**, session cloud pilotée depuis le
+téléphone, close le 09-23 pour reprendre EN LOCAL sur le PC de Pierre (Godot 4.6, Blender, Affinity, MCP, GPU).
+Précédentes : 2026-09-03 refresh CLAUDE.md · 2026-09-01 Shadow Audit V1→V6 CLOS.)*
 
-## Session 2026-09-17/18 — Chroniques de Guilde (branche claude/game-ideas-app-store-9dvk6p)
-- Idéation Pierre : jeu mobile **Android** de manager de guilde au jour le jour (façon Football Manager),
-  entre amis, **un héros par ami**, résolution déterministe à heure fixe, chronique du soir, **tableau vivant**
-  (widget / fond d'écran animé) qui montre qui a joué. Architecture sans code serveur : état à écrivain
-  unique, actions vérifiées et rejouées, expédition = graine + journal = preuve rejouable.
-- **Prototype V2 livré** : artefact https://claude.ai/artifact/KC9qsgEm2aj6hPxeXq2FJM · copie dans le dépôt
-  `games/chroniques_guilde/` (GO Pierre 2026-09-18) : moteur `sim.js` (entiers, mulberry32), `data.json`,
-  page, CONTRACT.md, design/, bancs `test/` (19/19 · 13/13 · 52/52). Aucun playtest humain.
-- Retours Pierre intégrés : V1 « trop compliquée » → V2 trois écrans + tiroir. **V3** : âges du village
-  (campement → château), dragon calendaire. **V4 (GO)** : dragons de fin de biome + légendaires + recettes dragon,
-  points d'action / journées composées, savoir-faire par l'usage, missions solo, mort + héritier, défaite.
-  Bancs 19/19 · 13/13 · 24/24 · 55/55. **V5 (GO, à construire)** : raid tactique sur grille + lignée de classes
-  base → hybride → 2 spés ; spec `games/chroniques_guilde/design/V5_SPEC.md` (26 spés retenues, 4 fusions
-  proposées, reco : 2e choix libre + affinité, une reconversion par saison) — recommandations NON ratifiées.
-  Non codé : fond d'écran animé Android, morts-vivants, portail.
-- Non fait : revues croisées de la V1 coupées par la limite de session ; conception village/journée jamais
-  écrite (moteur l'a conçue seul). Hors Forge : aucun contrat scripts/forge, aucun IMP.
+## Chroniques de Guilde — `games/chroniques_guilde/` · branche `claude/game-ideas-app-store-9dvk6p` · HEAD `72c54dd`
+- Jeu Android de manager de guilde au jour le jour entre amis (un héros par ami, sans serveur, état à écrivain
+  unique + journal rejouable). Moteur `sim.js` + `tactic.js` (entiers seuls, mulberry32), `data.json`, page
+  `index.html`, artefact https://claude.ai/artifact/KC9qsgEm2aj6hPxeXq2FJM (v11). Tout est dans README.md et
+  CONTRACT.md (une section par tranche). **Aucun playtest humain à ce jour.**
+- **Fait (09-19)** : T9 — six emplacements (cape, anneau), planificateur d'équipement qui CHOISIT (avant :
+  46 % de commun porté, 1 % de légendaire, 220 objets dormants), réserve du dragon indexée sur l'avancement
+  (nb de héros spécialisés — l'indexation sur la puissance a été essayée puis RETIRÉE : caoutchouc),
+  `spec_day_min` 20→17, 3 bugs. **14 bancs verts** (`for b in test/*.mjs; do node $b; done`, UI ≈ 30 min).
+- **Portage Godot** : `port/godot/` exécuté sur Godot 4.6.stable → **65/65**. Piège 11 CONFIRMÉ
+  (`JSON.parse_string` rend des flottants) → toute lecture passe par `det_json.gd`. `--import` obligatoire
+  une fois (sinon `class_name` non enregistrés). Mode d'emploi : `port/godot/README.md`.
+- **Vecteurs `golden/` PÉRIMÉS depuis T9** — à régénérer UNE SEULE FOIS après les tranches restantes.
+- Specs écrites, non implémentées : `design/ARMURE_ET_PREREQUIS_SPEC.md` (la voie tissu n'existe pas
+  mécaniquement), `design/CRAFT_BIOME_SPEC.md` (craft mort : 0,4 % des créneaux, 7 recettes sur 23
+  inatteignables), `design/QUETE_DE_CLASSE_SPEC.md` (26 pièces uniques, fenêtre de 9 → 12 jours).
+- Variance mesurée (ADR-002) : taux de victoire d'un dragon ±19 à 42 pts selon le jeu de graines ; l'écart
+  « avec / sans brûleur » vaut 8 pts, IC95 [−9, +26] → la valeur de la composition n'est PAS établie.
+- **Gates Pierre en attente** : G1 ratifier les 5 retouches de décors de bancs (`games/*/test/` n'est pas
+  couvert par le hook, détail CONTRACT.md T9 §8) · G2 ordre armure → craft → quête → vecteurs · G4 combat
+  Dofus-like ou TFT-like · G5 un playtest humain. (G3 Godot : levée, 65/65.)
+- Art : piste retenue par Pierre = ComfyUI + SDXL/Flux en local, rendus canvas du tableau (ancres CAM /
+  BSLOT / BCOURT) comme entrées ControlNet pour garder 60 tableaux cohérents. TTS (Piper/XTTS) : plus tard,
+  une fois les textes gelés.
 
 ## Session 2026-09-03 — refresh CLAUDE.md (GO Pierre « change », commit + push GO)
 - Analyse confrontée au dépôt : 2 doublons contradictoires dans le routage, chiffres faux (studioV2
@@ -76,15 +83,9 @@ prototype). Sessions précédentes : 2026-09-03 refresh CLAUDE.md · 2026-09-01 
 - Kitten Clicker : référence produit = sonde V5 « 3 tableaux » ; C.6 V1.1 PROPOSED, 5 décisions
   HumanGate en attente. Séance de ratification PRÊTE : `lab/reports/ratification_session_20260828.md`.
 
-## Revue hebdomadaire de mémoire — 2026-09-06 (tâche planifiée, lecture seule du dépôt)
-- Vault réaligné : `000_HOME.md` (projets + dashboard), `gamedesign/lessons.md` (aucune promotion :
-  0 playtest sur la période), `projects/snake-survivor-genesis.md` (contrôle de péremption, 42 j).
-- **Constat neuf : `games/kitten_clicker/` est absent du dépôt** — ni sur disque, ni suivi, ni ignoré.
-  Preuves conservées dans `lab/forge_runs/kitten_clicker/`. Suppression volontaire ou perte : à trancher.
-- 5 gestes des 09-01→09-03 n'ont pas d'entrée au decision-log (qui s'arrête au 09-01). Candidats
-  rédigés **en propose-only** : `decisions/PROPOSED_2026-09-06_ratifications.md`. **Rien logué.**
-
 ## Prochaine étape
+0. **Chroniques** : session LOCALE sur le PC de Pierre (branche ci-dessus, `git pull`) → gates G1/G2/G4,
+   puis tranche armure. Art via l'atelier / ComfyUI une fois le style fixé.
 1. GO gestes 2 et 3 du refresh (archivage référents/sentinelle, skills legacy, hook ELO).
 2. Décisions C.6 (5) + niveau CONTENT REQUIREMENTS — inchangé.
 3. Sélection pre-mortem par étape (meilleur levier mesuré) sur signal Pierre.
